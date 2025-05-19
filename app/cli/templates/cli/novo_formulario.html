@@ -1,0 +1,29 @@
+{% extends 'base_cliq.html' %}
+
+{% block title %}Novo Formulário{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h2 class="mb-4">Criar Novo Formulário</h2>
+    <form method="POST">
+        {{ form.csrf_token }}
+
+        <div class="mb-3">
+            {{ form.nome.label(class="form-label") }}
+            {{ form.nome(class="form-control") }}
+        </div>
+
+        <div class="mb-3">
+            {{ form.cliente.label(class="form-label") }}
+            {{ form.cliente(class="form-select") }}
+        </div>
+
+        <div class="mb-3">
+            {{ form.loja.label(class="form-label") }}
+            {{ form.loja(class="form-select") }}
+        </div>
+
+        <button type="submit" class="btn btn-primary">{{ form.submit.label.text }}</button>
+    </form>
+</div>
+{% endblock %}

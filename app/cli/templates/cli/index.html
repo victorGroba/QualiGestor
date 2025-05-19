@@ -1,0 +1,28 @@
+{% extends 'base_cliq.html' %}
+
+{% block title %}Formulários{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h2 class="mb-4">Formulários Disponíveis</h2>
+    <a href="{{ url_for('cli.criar_formulario') }}" class="btn btn-primary mb-3">Novo Formulário</a>
+
+
+    <div class="list-group">
+        {% for form in formularios %}
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>{{ form.nome }}</strong><br>
+                    <small>Cliente: {{ form.cliente.nome if form.cliente }} | Loja: {{ form.loja.nome if form.loja }}</small>
+                </div>
+                <div>
+                    <a href="{{ url_for('cli.adicionar_perguntas', formulario_id=form.id) }}" class="btn btn-outline-secondary btn-sm">Perguntas</a>
+                    <a href="{{ url_for('cli_bp.aplicar_auditoria', formulario_id=form.id) }}" class="btn btn-success btn-sm">Nova Auditoria</a>
+                </div>
+            </div>
+        {% else %}
+            <p class="text-muted">Nenhum formulário encontrado.</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

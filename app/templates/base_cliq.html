@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block title %}Checklist Dinâmico - QualiGestor{% endblock %}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      margin: 0;
+      background-color: #f5f8fa;
+    }
+
+    .header-topbar {
+      height: 64px;
+      background-color: #ffffff;
+      border-bottom: 1px solid #e3e3e3;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 1030;
+    }
+
+    .header-topbar .titulo {
+      font-weight: 500;
+      color: #2e5e8d;
+      font-size: 18px;
+    }
+
+    .header-topbar .logo-header {
+      font-weight: bold;
+      font-size: 20px;
+      color: #2e5e8d;
+    }
+
+    .sidebar {
+      position: fixed;
+      top: 64px;
+      bottom: 0;
+      left: 0;
+      width: 80px;
+      background-color: #2e5e8d;
+      transition: width 0.3s ease, transform 0.3s ease;
+      overflow-x: hidden;
+      z-index: 1040;
+    }
+
+    .sidebar.expanded {
+      width: 240px;
+    }
+
+    .sidebar.show-mobile {
+      transform: translateX(0);
+    }
+
+    @media (max-width: 768px) {
+      .sidebar {
+        transform: translateX(-100%);
+        width: 240px;
+      }
+    }
+
+    .sidebar .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 20px;
+      color: white;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .sidebar .nav-link:hover,
+    .sidebar .nav-link.active {
+      background-color: #1e3f5d;
+    }
+
+    .sidebar .label {
+      display: none;
+    }
+
+    .sidebar.expanded .label,
+    .sidebar.show-mobile .label {
+      display: inline;
+    }
+
+    .toggle-btn {
+      width: 100%;
+      text-align: center;
+      padding: 10px;
+      cursor: pointer;
+      color: white;
+      background-color: #22496d;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .main-content {
+      margin-left: 80px;
+      padding-top: 64px;
+      transition: margin-left 0.3s ease;
+      min-height: 100vh;
+    }
+
+    .main-content.shifted {
+      margin-left: 240px;
+    }
+
+    @media (max-width: 768px) {
+      .main-content {
+        margin-left: 0 !important;
+      }
+    }
+
+    #hamburgerBtn {
+      position: fixed;
+      top: 15px;
+      right: 15px;
+      z-index: 1060;
+      background: #2e5e8d;
+      color: white;
+      border: none;
+      padding: 10px 12px;
+      border-radius: 5px;
+      display: none;
+    }
+
+    @media (max-width: 768px) {
+      #hamburgerBtn {
+        display: block;
+      }
+    }
+
+    .home-slide-background {
+      position: relative;
+      width: 100%;
+      height: calc(100vh - 64px);
+      overflow: hidden;
+    }
+
+    .home-slide-background .slide {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-position: center;
+      background-size: cover;
+      opacity: 0;
+      transition: opacity 1s ease-in-out;
+      z-index: 1;
+    }
+
+    .home-slide-background .slide.active {
+      opacity: 1;
+      z-index: 2;
+    }
+
+    .slider-dots {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+      z-index: 10;
+    }
+
+    .slider-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background-color: rgba(255, 255, 255, 0.6);
+      cursor: pointer;
+    }
+
+    .slider-dot.active {
+      background-color: white;
+    }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+
+<body>
+
+<button id="hamburgerBtn" onclick="openMobileSidebar()">
+  <i class="fas fa-bars"></i>
+</button>
+
+<!-- Header fixo superior -->
+<header class="header-topbar">
+  <div class="d-flex align-items-center gap-3">
+    <div class="logo-header">CLIQ</div>
+    
+  </div>
+</header>
+
+<!-- Sidebar -->
+<div class="sidebar" id="sidebar">
+  <a class="nav-link {% if request.endpoint == 'cli.index' %}active{% endif %}" href="{{ url_for('cli.index') }}">
+    <i class="fas fa-home"></i> <span class="label">Início</span>
+  </a>
+  <a class="nav-link {% if request.endpoint == 'cli.criar_formulario' %}active{% endif %}" href="{{ url_for('cli.criar_formulario') }}">
+    <i class="fas fa-plus-circle"></i> <span class="label">Novo Formulário</span>
+  </a>
+  <a class="nav-link {% if request.endpoint == 'cli.listar_checklists' %}active{% endif %}" href="{{ url_for('cli.listar_checklists') }}">
+    <i class="fas fa-list"></i> <span class="label">Checklists</span>
+  </a>
+  <a class="nav-link" href="{{ url_for('main.painel') }}">
+    <i class="fas fa-arrow-left"></i> <span class="label">Voltar</span>
+  </a>
+  <a class="nav-link text-danger" href="{{ url_for('auth.logout') }}">
+    <i class="fas fa-sign-out-alt"></i> <span class="label">Sair</span>
+  </a>
+  <div class="toggle-btn d-none d-md-block" onclick="toggleSidebar()">
+    <i class="fas fa-angle-double-right" id="toggleIcon"></i>
+  </div>
+</div>
+
+<!-- Conteúdo -->
+<main class="main-content" id="mainContent">
+  {% if request.endpoint == 'cli.index' %}
+    <div class="home-slide-background">
+      <div class="slide active" style="background-image: url('{{ url_for('static', filename='img/cliq1.jpg') }}');"></div>
+      <div class="slide" style="background-image: url('{{ url_for('static', filename='img/cliq2.jpg') }}');"></div>
+      <div class="slide" style="background-image: url('{{ url_for('static', filename='img/cliq3.jpg') }}');"></div>
+      <div class="slider-dots">
+        <div class="slider-dot active" onclick="goToSlide(0)"></div>
+        <div class="slider-dot" onclick="goToSlide(1)"></div>
+        <div class="slider-dot" onclick="goToSlide(2)"></div>
+      </div>
+    </div>
+  {% else %}
+    {% block content %}{% endblock %}
+  {% endif %}
+</main>
+<footer>
+    <p class="text-muted text-center">Versão {{ versao }}</p>
+
+</footer>
+
+<script>
+  const sidebar = document.getElementById('sidebar');
+  const content = document.getElementById('mainContent');
+  const icon = document.getElementById('toggleIcon');
+
+  function toggleSidebar() {
+    if (window.innerWidth > 768) {
+      sidebar.classList.toggle('expanded');
+      content.classList.toggle('shifted');
+      icon.classList.toggle('fa-angle-double-left');
+      icon.classList.toggle('fa-angle-double-right');
+    }
+  }
+
+  function openMobileSidebar() {
+    sidebar.classList.add('show-mobile');
+    sidebar.classList.add('expanded');
+  }
+
+  document.addEventListener('click', function (e) {
+    if (window.innerWidth <= 768 &&
+        !sidebar.contains(e.target) &&
+        !e.target.closest('#hamburgerBtn')) {
+      sidebar.classList.remove('show-mobile');
+    }
+  });
+
+  const slides = document.querySelectorAll('.home-slide-background .slide');
+  const dots = document.querySelectorAll('.slider-dot');
+  let currentSlide = 0;
+
+  function showSlide(index) {
+    slides.forEach((s, i) => {
+      s.classList.toggle('active', i === index);
+      dots[i].classList.toggle('active', i === index);
+    });
+    currentSlide = index;
+  }
+
+  function showNextSlide() {
+    const next = (currentSlide + 1) % slides.length;
+    showSlide(next);
+  }
+
+  function goToSlide(index) {
+    showSlide(index);
+  }
+</script>
+
+</body>
+</html>

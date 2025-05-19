@@ -1,0 +1,45 @@
+{% extends 'base_login.html' %}
+{% block title %}Login - LabSys{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
+{% endblock %}
+
+{% block body %}
+<div class="login-container">
+  <!-- Lado esquerdo -->
+  <div class="login-left">
+    <div class="login-box">
+      <img src="{{ url_for('static', filename='img/logo.jpg') }}" alt="Logo" class="login-logo">
+      <div class="form-title">Acesso ao Sistema</div>
+
+      <!-- FORMULÁRIO DE LOGIN -->
+      <form method="POST" action="{{ url_for('auth.login') }}">
+
+        <div class="mb-3">
+          <label for="email" class="form-label">Usuário</label>
+          <input type="email" class="form-control" id="email" name="email" required>
+        </div>
+        <div class="mb-3">
+          <label for="senha" class="form-label">Senha</label>
+          <input type="password" class="form-control" id="senha" name="senha" required>
+        </div>
+        <div class="mb-3 form-check">
+          <input type="checkbox" class="form-check-input" id="manter" name="manter">
+          <label class="form-check-label" for="manter">Manter-me conectado</label>
+        </div>
+        <div class="d-grid">
+          <button type="submit" class="btn btn-login btn-lg">ENTRAR</button>
+        </div>
+        <a href="#" class="forgot-password text-primary text-decoration-none">Esqueci minha senha</a>
+      </form>
+
+    </div>
+  </div>
+
+  <!-- Lado direito -->
+  <div class="login-right">
+    <img src="{{ url_for('static', filename='img/lado-direito.png') }}" alt="Imagem institucional">
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% block title %}Adicionar Perguntas{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h2 class="mb-3">Perguntas para: {{ formulario.nome }}</h2>
+
+    <form method="POST" class="mb-4">
+        {{ form.csrf_token }}
+
+        <div class="mb-3">
+            {{ form.texto.label(class="form-label") }}
+            {{ form.texto(class="form-control") }}
+        </div>
+
+        <div class="mb-3">
+            {{ form.tipo_resposta.label(class="form-label") }}
+            {{ form.tipo_resposta(class="form-select") }}
+        </div>
+
+        <div class="form-check mb-3">
+            {{ form.obrigatoria(class="form-check-input") }}
+            {{ form.obrigatoria.label(class="form-check-label") }}
+        </div>
+
+        <button type="submit" class="btn btn-success">{{ form.submit.label.text }}</button>
+    </form>
+
+    <hr>
+
+    <h5>Perguntas adicionadas:</h5>
+    <ul class="list-group">
+        {% for pergunta in perguntas %}
+            <li class="list-group-item">
+                {{ loop.index }}. {{ pergunta.texto }} 
+                <small class="text-muted">[{{ pergunta.tipo_resposta.value }}{% if pergunta.obrigatoria %}, obrigatória{% endif %}]</small>
+            </li>
+        {% else %}
+            <p class="text-muted">Nenhuma pergunta adicionada ainda.</p>
+        {% endfor %}
+    </ul>
+</div>
+{% endblock %}

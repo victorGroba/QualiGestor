@@ -1,0 +1,35 @@
+{% extends 'base_cliq.html' %}
+
+{% block title %}Checklist Aplicado{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <h2 class="mb-4">Checklist Aplicado</h2>
+
+  <div class="mb-4">
+    <p><strong>Formulário:</strong> {{ checklist.formulario.nome }}</p>
+    <p><strong>Loja:</strong> {{ checklist.loja.nome }}</p>
+    <p><strong>Aplicado por:</strong> {{ checklist.usuario.nome }}</p>
+    <p><strong>Data:</strong> {{ checklist.data.strftime('%d/%m/%Y %H:%M') }}</p>
+  </div>
+
+  {% for bloco in checklist.formulario.blocos|sort(attribute='ordem') %}
+    <div class="mb-4 p-3 bg-light border rounded">
+      <h5>{{ bloco.ordem }}. {{ bloco.nome }}</h5>
+
+      <ul class="list-group list-group-flush">
+        {% for pergunta in bloco.perguntas %}
+          {% set resposta = checklist.respostas | selectattr('pergunta_id', 'equalto', pergunta.id) | list | first %}
+          <li class="list-group-item">
+            <strong>{{ pergunta.texto }}</strong><br>
+            <span class="text-muted">Resposta:</span>
+            <span>{{ resposta.valor if resposta else 'Sem resposta' }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endfor %}
+
+  <a href="{{ url_for('cli.listar_checklists') }}" class="btn btn-secondary mt-3">Voltar para listagem</a>
+</div>
+{% endblock %}

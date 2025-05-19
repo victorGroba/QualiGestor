@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Plano Interativo - Sistema QualiGestor</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            margin: 40px;
+            background-color: #f4f6f8;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        .section {
+            background: #fff;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        .status {
+            padding: 4px 10px;
+            border-radius: 5px;
+            font-size: 0.9em;
+            margin-left: 10px;
+        }
+        .feito {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .falta {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        details summary {
+            cursor: pointer;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        ul {
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>📋 Plano Interativo do Sistema - QualiGestor (Estilo PariPassu)</h1>
+
+    <div class="section">
+        <h2>✅ Objetivo</h2>
+        <p>Reproduzir os módulos CLIQ e Panorama do PariPassu com um sistema robusto, auditável e responsivo.</p>
+    </div>
+
+    <div class="section">
+        <h2>📂 Estrutura Geral</h2>
+        <details open>
+            <summary>Modelagem de Dados</summary>
+            <ul>
+                <li>Usuário <span class="feito status">Pronto</span></li>
+                <li>Cliente <span class="falta status">Falta</span></li>
+                <li>Loja <span class="falta status">Falta</span></li>
+                <li>Formulário <span class="falta status">Falta</span></li>
+                <li>Pergunta <span class="falta status">Falta</span></li>
+                <li>Resposta <span class="falta status">Falta</span></li>
+                <li>Auditoria <span class="falta status">Falta</span></li>
+                <li>Opções de Pergunta <span class="falta status">Falta</span></li>
+            </ul>
+        </details>
+
+        <details>
+            <summary>Funcionalidades do CLIQ</summary>
+            <ul>
+                <li>Login e controle de sessão <span class="feito status">Pronto</span></li>
+                <li>Seleção Cliente > Loja > Formulário <span class="falta status">Falta</span></li>
+                <li>Renderização dinâmica de perguntas <span class="falta status">Falta</span></li>
+                <li>Envio de respostas e salvamento no banco <span class="falta status">Falta</span></li>
+                <li>Histórico de auditorias <span class="falta status">Falta</span></li>
+            </ul>
+        </details>
+
+        <details>
+            <summary>Funcionalidades do Panorama</summary>
+            <ul>
+                <li>Dashboard com dados fictícios <span class="feito status">Pronto</span></li>
+                <li>Dashboard com dados reais <span class="falta status">Falta</span></li>
+                <li>Filtros (cliente, loja, data) <span class="falta status">Falta</span></li>
+                <li>Exportação de dados <span class="falta status">Falta</span></li>
+            </ul>
+        </details>
+
+        <details>
+            <summary>Administração</summary>
+            <ul>
+                <li>CRUD de Usuários <span class="falta status">Falta</span></li>
+                <li>CRUD de Clientes e Lojas <span class="falta status">Falta</span></li>
+                <li>CRUD de Formulários e Perguntas <span class="falta status">Falta</span></li>
+                <li>Controle de permissões por tipo <span class="falta status">Falta</span></li>
+            </ul>
+        </details>
+
+        <details>
+            <summary>Front-end e UI</summary>
+            <ul>
+                <li>Template com sidebar <span class="feito status">Pronto</span></li>
+                <li>Responsividade com Bootstrap <span class="feito status">Pronto</span></li>
+                <li>Estilo moderno com ícones <span class="feito status">Pronto</span></li>
+                <li>Formulários com JS dinâmico <span class="falta status">Falta</span></li>
+            </ul>
+        </details>
+
+        <details>
+            <summary>Extras e Futuro</summary>
+            <ul>
+                <li>PDF das auditorias <span class="falta status">Falta</span></li>
+                <li>Envio por e-mail <span class="falta status">Falta</span></li>
+                <li>Plano de ação (NCs) <span class="falta status">Falta</span></li>
+                <li>QR Code para acesso rápido <span class="falta status">Falta</span></li>
+            </ul>
+        </details>
+    </div>
+
+</body>
+</html>

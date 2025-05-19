@@ -1,0 +1,77 @@
+{% extends 'base_cliq.html' %}
+
+{% block title %}Checklists Aplicados{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <h2 class="mb-4">Checklists Aplicados</h2>
+
+  <!-- Filtros -->
+  <form method="GET" class="row g-3 mb-4">
+    <div class="col-md-3">
+      <label class="form-label">Formulário</label>
+      <select class="form-select" name="formulario_id">
+        <option value="">Todos</option>
+        {% for form in formularios %}
+          <option value="{{ form.id }}" {% if request.args.get('formulario_id') == form.id|string %}selected{% endif %}>
+            {{ form.nome }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Loja</label>
+      <select class="form-select" name="loja_id">
+        <option value="">Todas</option>
+        {% for loja in lojas %}
+          <option value="{{ loja.id }}" {% if request.args.get('loja_id') == loja.id|string %}selected{% endif %}>
+            {{ loja.nome }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Data (mín.)</label>
+      <input type="date" class="form-control" name="data_min" value="{{ request.args.get('data_min') }}">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Data (máx.)</label>
+      <input type="date" class="form-control" name="data_max" value="{{ request.args.get('data_max') }}">
+    </div>
+
+    <div class="col-md-12 text-end">
+      <button type="submit" class="btn btn-primary">Filtrar</button>
+    </div>
+  </form>
+
+  <!-- Tabela de Checklists -->
+  <div class="table-responsive">
+    <table class="table table-striped align-middle">
+      <thead>
+        <tr>
+          <th>Data</th>
+          <th>Formulário</th>
+          <th>Loja</th>
+          <th>Auditor</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for checklist in checklists %}
+        <tr>
+          <td>{{ checklist.data.strftime('%d/%m/%Y %H:%M') }}</td>
+          <td>{{ checklist.formulario.nome }}</td>
+          <td>{{ checklist.loja.nome }}</td>
+          <td>{{ checklist.usuario.nome }}</td>
+          <td>
+            <a href="{{ url_for('cli.ver_checklist', checklist_id=checklist.id) }}" class="btn btn-sm btn-outline-primary">Ver</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="text-center">Nenhum checklist encontrado.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

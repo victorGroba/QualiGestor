@@ -1,0 +1,48 @@
+{% extends 'base_cliq.html' %}
+
+{% block title %}Revisar Formulário{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <h2 class="mb-3">Revisar Formulário</h2>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <h5 class="card-title">{{ formulario.nome }}</h5>
+      <p class="card-text">
+        <strong>Cliente:</strong> {{ formulario.cliente.nome if formulario.cliente else 'N/A' }}<br>
+        <strong>Loja:</strong> {{ formulario.loja.nome if formulario.loja else 'N/A' }}<br>
+        <strong>Criado em:</strong> {{ formulario.criado_em.strftime('%d/%m/%Y %H:%M') }}
+      </p>
+    </div>
+  </div>
+
+  {% for bloco in formulario.blocos %}
+    <div class="card mb-3">
+      <div class="card-header bg-primary text-white">
+        {{ loop.index }}. {{ bloco.nome }}
+      </div>
+      <ul class="list-group list-group-flush">
+        {% for pergunta in bloco.perguntas %}
+          <li class="list-group-item">
+            <strong>{{ loop.index }}. {{ pergunta.texto }}</strong><br>
+            <span class="text-muted">Tipo: {{ pergunta.tipo_resposta.value if pergunta.tipo_resposta else pergunta.tipo_resposta }}</span>
+            {% if pergunta.obrigatoria %}
+              <span class="badge bg-success ms-2">Obrigatória</span>
+            {% endif %}
+          </li>
+        {% else %}
+          <li class="list-group-item text-muted">Nenhuma pergunta adicionada.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% else %}
+    <p class="text-muted">Nenhum bloco adicionado.</p>
+  {% endfor %}
+
+  <div class="mt-4 text-end">
+    <a href="{{ url_for('cli.index') }}" class="btn btn-outline-secondary">Voltar para lista</a>
+    <a href="{{ url_for('cli.aplicar_auditoria', formulario_id=formulario.id) }}" class="btn btn-primary">Aplicar Auditoria</a>
+  </div>
+</div>
+{% endblock %}

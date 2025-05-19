@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% block title %}Laudos Microbiológicos{% endblock %}
+{% block content %}
+<div class="container mt-5">
+  <h2 class="mb-4">Laudos Microbiológicos</h2>
+
+  <form method="POST" enctype="multipart/form-data" class="mb-5">
+    <div class="row g-3">
+      <div class="col-md-4">
+        <label class="form-label">Data da Coleta</label>
+        <input type="date" name="data_coleta" class="form-control" required>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Tipo da Amostra</label>
+        <input type="text" name="tipo_amostra" class="form-control" required>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Local</label>
+        <input type="text" name="local" class="form-control" required>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Resultado</label>
+        <select name="resultado" class="form-select" required>
+          <option value="Satisfatório">Satisfatório</option>
+          <option value="Insatisfatório">Insatisfatório</option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Responsável</label>
+        <input type="text" name="responsavel" class="form-control" required>
+      </div>
+      <div class="col-md-8">
+        <label class="form-label">Observações</label>
+        <textarea name="observacoes" class="form-control"></textarea>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Anexar arquivo (PDF/IMG)</label>
+        <input type="file" name="arquivo" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary mt-4">Registrar Laudo</button>
+  </form>
+
+  <hr>
+
+  <h4>Laudos Registrados</h4>
+  <table class="table table-bordered">
+    <thead>
+      <tr>
+        <th>Data</th>
+        <th>Amostra</th>
+        <th>Local</th>
+        <th>Resultado</th>
+        <th>Responsável</th>
+        <th>Arquivo</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for laudo in laudos %}
+      <tr>
+        <td>{{ laudo.data_coleta.strftime('%d/%m/%Y') }}</td>
+        <td>{{ laudo.tipo_amostra }}</td>
+        <td>{{ laudo.local }}</td>
+        <td>{{ laudo.resultado }}</td>
+        <td>{{ laudo.responsavel }}</td>
+        <td>
+          {% if laudo.arquivo %}
+            <a href="{{ url_for('static', filename='uploads/laudos/' ~ laudo.arquivo) }}" target="_blank">Ver</a>
+          {% else %}
+            -
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

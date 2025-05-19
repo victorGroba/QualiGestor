@@ -1,0 +1,153 @@
+{% extends 'base_cliq.html' %}
+
+{% block title %}Criar Novo Formulário{% endblock %}
+
+{% block head %}
+<style>
+  .bloco-card {
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    padding: 1rem;
+    background-color: #f9f9f9;
+    margin-bottom: 1.5rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <h2 class="mb-4">Novo Formulário</h2>
+
+  <form method="POST" action="{{ url_for('cli.salvar_formulario') }}">
+    <div class="row">
+      <!-- Coluna da esquerda -->
+      <div class="col-md-6">
+        <div class="card mb-3">
+          <div class="card-body">
+            <h5 class="card-title">Configurações do formulário</h5>
+
+            <div class="mb-3">
+              <label class="form-label">Nome do formulário *</label>
+              <input type="text" name="nome_formulario" class="form-control" required>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Cliente *</label>
+              <select name="cliente_id" class="form-select" required>
+                {% for cliente in clientes %}
+                  <option value="{{ cliente.id }}">{{ cliente.nome }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Loja *</label>
+              <select name="loja_id" class="form-select" required>
+                {% for loja in lojas %}
+                  <option value="{{ loja.id }}">{{ loja.nome }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Coluna da direita -->
+      <div class="col-md-6">
+        <div class="card mb-3">
+          <div class="card-body">
+            <h5 class="card-title">Configurações do relatório</h5>
+
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="exibir_tabela" id="exibir_tabela">
+              <label class="form-check-label" for="exibir_tabela">
+                Exibir tabela de resumo no relatório PDF
+              </label>
+            </div>
+
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="exibir_limites" id="exibir_limites">
+              <label class="form-check-label" for="exibir_limites">
+                Exibir aviso de limites aceitáveis
+              </label>
+            </div>
+
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="gerar_relatorio_nc" id="gerar_relatorio_nc">
+              <label class="form-check-label" for="gerar_relatorio_nc">
+                Gerar relatório de não conformidade
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <hr>
+
+    <!-- Blocos e Perguntas -->
+    <div id="blocos-container"></div>
+
+    <div class="text-end mb-4">
+      <button type="button" class="btn btn-outline-primary" onclick="adicionarBloco()">+ Adicionar Bloco</button>
+    </div>
+
+    <div class="d-flex justify-content-between">
+      <a href="{{ url_for('cli.index') }}" class="btn btn-outline-secondary">Cancelar</a>
+      <button type="submit" class="btn btn-primary">Salvar Formulário</button>
+    </div>
+  </form>
+</div>
+
+<!-- Scripts para adicionar blocos e perguntas dinamicamente -->
+<script>
+let blocoIndex = 0;
+
+function adicionarBloco() {
+  const container = document.getElementById('blocos-container');
+  const blocoHTML = `
+    <div class="bloco-card" data-bloco-index="${blocoIndex}">
+      <h5>Bloco #${blocoIndex + 1}</h5>
+      <div class="mb-3">
+        <label>Nome do bloco:</label>
+        <input type="text" name="blocos[${blocoIndex}][nome]" class="form-control" required>
+      </div>
+      <div class="perguntas-container"></div>
+      <button type="button" class="btn btn-sm btn-outline-secondary mt-2" onclick="adicionarPergunta(this)">+ Pergunta</button>
+    </div>
+  `;
+  container.insertAdjacentHTML('beforeend', blocoHTML);
+  blocoIndex++;
+}
+
+function adicionarPergunta(botao) {
+  const bloco = botao.closest('.bloco-card');
+  const blocoIdx = bloco.dataset.blocoIndex;
+  const perguntasContainer = bloco.querySelector('.perguntas-container');
+  const perguntaIndex = perguntasContainer.children.length;
+
+  const perguntaHTML = `
+    <div class="mb-3 border p-3 rounded bg-white">
+      <label>Pergunta:</label>
+      <input type="text" name="blocos[${blocoIdx}][perguntas][${perguntaIndex}][texto]" class="form-control mb-2" required>
+
+      <label>Tipo de Resposta:</label>
+      <select name="blocos[${blocoIdx}][perguntas][${perguntaIndex}][tipo]" class="form-select mb-2">
+        <option value="TEXTO">Texto</option>
+        <option value="SIM_NAO">Sim / Não / N.A</option>
+        <option value="NOTA">Nota</option>
+      </select>
+
+      <div class="form-check mb-2">
+        <input type="checkbox" name="blocos[${blocoIdx}][perguntas][${perguntaIndex}][obrigatoria]" class="form-check-input" checked>
+        <label class="form-check-label">Obrigatória</label>
+      </div>
+
+      <label>Observação (opcional):</label>
+      <input type="text" name="blocos[${blocoIdx}][perguntas][${perguntaIndex}][obs]" class="form-control">
+    </div>
+  `;
+  perguntasContainer.insertAdjacentHTML('beforeend', perguntaHTML);
+}
+</script>
+{% endblock %}

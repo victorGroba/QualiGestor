@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block title %}QualiGestor - Módulos{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <h2 class="fw-bold mb-2">Bem-vindo, {{ session.get('nome', 'Usuário') }}</h2>
+  <p class="text-muted mb-4">Selecione o módulo que deseja acessar:</p>
+
+  <!-- GRID RESPONSIVO -->
+  <div class="row row-cols-2 row-cols-md-3 g-4 justify-content-start">
+    
+    <!-- CLIQ -->
+    <div class="col">
+      <div class="card text-center border-0 shadow-sm h-100">
+        <div class="card-body d-flex flex-column justify-content-center align-items-center">
+          <i class="fas fa-clipboard-check fa-2x text-primary mb-2"></i>
+          <h6 class="mb-2">CLIQ</h6>
+          <a href="{{ url_for('cli.index') }}" class="btn btn-sm btn-primary">Acessar</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANORAMA -->
+    <div class="col">
+      <div class="card text-center border-0 shadow-sm h-100">
+        <div class="card-body d-flex flex-column justify-content-center align-items-center">
+          <i class="fas fa-chart-line fa-2x text-success mb-2"></i>
+          <h6 class="mb-2">Panorama</h6>
+          <a href="{{ url_for('panorama.dashboard') }}" class="btn btn-sm btn-success">Acessar</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- NOVOS MÓDULOS (opcional) -->
+    <!-- <div class="col">
+      <div class="card text-center border-0 shadow-sm h-100">
+        <div class="card-body">
+          <i class="fas fa-file-alt fa-2x text-info mb-2"></i>
+          <h6>Laudos</h6>
+          <a href="#" class="btn btn-sm btn-info">Acessar</a>
+        </div>
+      </div>
+    </div> -->
+
+  </div>
+</div>
+{% endblock %}
