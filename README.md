@@ -11,9 +11,17 @@ Esta versão marca um grande avanço visual e estrutural do sistema QualiGestor,
 ---
 
 ## 🔧 Alterações Estruturais
+- Adicionado suporte ao **Flask-Migrate** para controle de versionamento do banco de dados.
+  - Agora é possível gerar e aplicar migrations com os comandos:
+    ```bash
+    flask db init      # Executar uma única vez
+    flask db migrate   # Criar uma nova migration
+    flask db upgrade   # Aplicar alterações ao banco
+    ```
 - Reorganização da estrutura de pastas do projeto.
 - Realocação do `config.py` para fora da antiga pasta principal.
 - Início do controle de versão com Git local (estrutura `.git/`).
+- Adicionado suporte ao **Flask-Migrate** para controle de versionamento do banco de dados.
 
 ---
 
@@ -72,25 +80,25 @@ Status: Em desenvolvimento
 
 ## 🖼 Capturas de Tela
 ### Tela de Login (Desktop)
-![Login Desktop](static/img/screenshots/login-desktop.png)
+<img src="static/img/screenshots/login-desktop.png" alt="Login Desktop" width="800"/>
 
 ### Tela de Painel (Desktop)
-![Painel Desktop](static/img/screenshots/painel-desktop.png)
+<img src="static/img/screenshots/painel-desktop.png" alt="Painel Desktop" width="800"/>
 
 ### Home do Módulo CLIQ (Desktop)
-![CLIQ Desktop](static/img/screenshots/cliq-desktop.png)
+<img src="static/img/screenshots/cliq-desktop.png" alt="CLIQ Desktop" width="800"/>
 
 ### Painel (Mobile)
-![Painel Mobile](static/img/screenshots/painel-mobile.png)
+<img src="static/img/screenshots/painel-mobile.png" alt="Painel Mobile" width="400"/>
 
 ### Login (Mobile)
-![Login Mobile](static/img/screenshots/login-mobile.png)
+<img src="static/img/screenshots/login-mobile.png" alt="Login Mobile" width="400"/>
 
 ### Home CLIQ (Mobile)
-![CLIQ Mobile](static/img/screenshots/cliq-mobile.png)
+<img src="static/img/screenshots/cliq-mobile.png" alt="CLIQ Mobile" width="400"/>
 
 ### Menu CLIQ (Mobile)
-![Sidebar CLIQ Mobile](static/img/screenshots/cliq-sidebar-mobile.png)
+<img src="static/img/screenshots/cliq-sidebar-mobile.png" alt="Sidebar CLIQ Mobile" width="400"/>
 
 ### Menu Expandido CLIQ (Mobile)
-![Sidebar Expandido](static/img/screenshots/cliq-sidebar-expandido-mobile.png)
+<img src="static/img/screenshots/cliq-sidebar-expandido-mobile.png" alt="Sidebar Expandido" width="400"/>
