@@ -67,3 +67,30 @@ Status: Em desenvolvimento
 - Integração de formulários dinâmicos e checklist por bloco.
 - Sistema de aplicação de checklist com salvamento de resposta.
 - Dashboard para auditorias e relatórios visuais.
+
+---
+
+## 🖼 Capturas de Tela
+### Tela de Login (Desktop)
+![Login Desktop](static/img/screenshots/login-desktop.png)
+
+### Tela de Painel (Desktop)
+![Painel Desktop](static/img/screenshots/painel-desktop.png)
+
+### Home do Módulo CLIQ (Desktop)
+![CLIQ Desktop](static/img/screenshots/cliq-desktop.png)
+
+### Painel (Mobile)
+![Painel Mobile](static/img/screenshots/painel-mobile.png)
+
+### Login (Mobile)
+![Login Mobile](static/img/screenshots/login-mobile.png)
+
+### Home CLIQ (Mobile)
+![CLIQ Mobile](static/img/screenshots/cliq-mobile.png)
+
+### Menu CLIQ (Mobile)
+![Sidebar CLIQ Mobile](static/img/screenshots/cliq-sidebar-mobile.png)
+
+### Menu Expandido CLIQ (Mobile)
+![Sidebar Expandido](static/img/screenshots/cliq-sidebar-expandido-mobile.png)
