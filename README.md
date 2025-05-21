@@ -1,7 +1,13 @@
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/victorGroba/QualiGestor-assets/main/logo.png" alt="QualiGestor Logo" width="250"/>
+</p>
+
 # QualiGestor - Versão 1.4.0-beta
 
 Data de lançamento: 20/05/2025  
 Status: **Em desenvolvimento**
+
 
 ---
 
