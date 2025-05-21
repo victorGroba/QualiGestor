@@ -1,1 +1,1 @@
-from app.main.routes import main_bp
+from .routes import main_bp

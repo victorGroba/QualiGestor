@@ -1,0 +1,106 @@
+{% extends 'base_cliq.html' %}
+
+{% block title %}Listar Avaliados{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <h4 class="mb-4">Avaliado</h4>
+
+  <!-- Filtro -->
+  <div class="card mb-4 shadow-sm">
+    <div class="card-body">
+      <form method="GET" class="row g-3 align-items-end">
+        <div class="col-md-5">
+          <label class="form-label">Nome</label>
+          <input type="text" class="form-control" name="nome" placeholder="Nome do avaliado" value="{{ request.args.get('nome', '') }}">
+        </div>
+        <div class="col-md-5">
+          <label class="form-label">Campos do avaliado</label>
+          <select class="form-select" name="campo_id">
+            <option value="">Selecione um campo do avaliado</option>
+            {% for campo in campos_personalizados %}
+              <option value="{{ campo.id }}" {% if request.args.get('campo_id') == campo.id|string %}selected{% endif %}>{{ campo.nome }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2 d-grid">
+          <button type="submit" class="btn btn-primary">Filtrar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Listagem -->
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0">Listagem</h5>
+        <a href="{{ url_for('cli.cadastrar_avaliado') }}" class="btn btn-primary">
+          <i class="fas fa-plus me-1"></i> Novo avaliado
+        </a>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Filtro rápido</label>
+        <input type="text" class="form-control" placeholder="Digite para filtrar" id="filtroRapido">
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-hover align-middle" id="tabelaAvaliados">
+          <thead class="table-light">
+            <tr>
+              <th>Nome do avaliado</th>
+              <th>Grupos</th>
+              <th>Endereço</th>
+              <th>E-mail</th>
+              <th class="text-center">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in avaliados %}
+            <tr>
+              <td>{{ a.nome }}</td>
+              <td>{{ a.grupo.nome if a.grupo else '-' }}</td>
+              <td>{{ a.endereco or '-' }}</td>
+              <td>{{ a.email or '-' }}</td>
+              <td class="text-center">
+                <a href="{{ url_for('cli.editar_avaliado', avaliado_id=a.id) }}" class="text-primary me-2" title="Editar">
+                  <i class="fas fa-pen-to-square"></i>
+                </a>
+                <form method="POST" action="{{ url_for('cli.excluir_avaliado', avaliado_id=a.id) }}" style="display:inline;" onsubmit="return confirm('Deseja realmente excluir este avaliado?');">
+                  <button type="submit" class="btn btn-link p-0 text-danger" title="Excluir">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </form>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="5" class="text-center text-muted">Nenhum avaliado encontrado.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const filtro = document.getElementById("filtroRapido");
+    const tabela = document.getElementById("tabelaAvaliados").getElementsByTagName("tbody")[0];
+
+    filtro.addEventListener("keyup", function () {
+      const texto = this.value.toLowerCase();
+      const linhas = tabela.getElementsByTagName("tr");
+
+      for (let i = 0; i < linhas.length; i++) {
+        const linha = linhas[i];
+        const textoLinha = linha.textContent.toLowerCase();
+        linha.style.display = textoLinha.includes(texto) ? "" : "none";
+      }
+    });
+  });
+</script>
+{% endblock %}

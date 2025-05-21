@@ -1,0 +1,17 @@
+{% extends 'base_cliq.html' %}
+
+{% block title %}Cadastrar Cliente{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2 class="mb-4">Novo Cliente</h2>
+  <form method="POST">
+    <div class="mb-3">
+      <label for="nome" class="form-label">Nome do Cliente</label>
+      <input type="text" class="form-control" id="nome" name="nome" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Cadastrar</button>
+    <a href="{{ url_for('cli.index') }}" class="btn btn-secondary">Cancelar</a>
+  </form>
+</div>
+{% endblock %}

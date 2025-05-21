@@ -3,8 +3,7 @@ from wtforms import StringField, SelectField, BooleanField, SubmitField, TextAre
 from wtforms.validators import DataRequired
 from wtforms_sqlalchemy.fields import QuerySelectField
 
-from app.models import Cliente, Loja, Formulario
-
+from ..models import Cliente, Loja, Formulario
 # Cadastro de novo formulário
 class FormularioForm(FlaskForm):
     nome = StringField('Nome do Formulário', validators=[DataRequired()])
