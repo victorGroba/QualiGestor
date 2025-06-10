@@ -1,0 +1,17 @@
+{% extends 'base_cliq.html' %}
+{% block title %}Novo Grupo{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <h4 class="mb-4">Cadastrar Novo Grupo</h4>
+
+  <form method="POST">
+    <div class="mb-3">
+      <label for="nome" class="form-label">Nome do Grupo *</label>
+      <input type="text" name="nome" id="nome" class="form-control" required>
+    </div>
+    <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Salvar</button>
+    <a href="{{ url_for('cli.listar_grupos') }}" class="btn btn-secondary">Cancelar</a>
+  </form>
+</div>
+{% endblock %}

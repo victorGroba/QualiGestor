@@ -1,0 +1,42 @@
+{% extends 'base_cliq.html' %}
+{% block title %}Nova Aplicação de Checklist{% endblock %}
+
+{% block content %}
+<div class="container py-4 fade-in">
+  <div class="card shadow-sm border-0">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0">Escolha um questionário</h4>
+        <a href="{{ url_for('cli.index') }}" class="btn btn-outline-danger">Cancelar</a>
+      </div>
+
+      <div class="mb-3">
+        <label for="filtro" class="form-label">Digite para filtrar</label>
+        <input type="text" class="form-control" id="filtro" placeholder="Nome do questionário..." onkeyup="filtrarQuestionarios()">
+      </div>
+
+      <ul class="list-group" id="lista-questionarios">
+        {% for q in questionarios %}
+        <a href="{{ url_for('cli.aplicar_checklist', questionario_id=q.id) }}"
+           class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+          <span><strong>{{ q.nome }}</strong> - Versão {{ q.versao }}</span>
+          <small class="text-muted">{{ q.data_criacao.strftime('%d/%m/%Y') if q.data_criacao else '' }}</small>
+        </a>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+function filtrarQuestionarios() {
+  const filtro = document.getElementById("filtro").value.toLowerCase();
+  const itens = document.querySelectorAll("#lista-questionarios a");
+
+  itens.forEach(item => {
+    const texto = item.textContent.toLowerCase();
+    item.style.display = texto.includes(filtro) ? "" : "none";
+  });
+}
+</script>
+{% endblock %}

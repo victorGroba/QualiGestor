@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block title %}Cadastrar Usuário{% endblock %}
+{% block content %}
+<div class="container mt-4">
+  <h2 class="mb-3">Cadastro de Usuário</h2>
+  <form method="POST">
+    <div class="mb-3">
+      <label>Nome</label>
+      <input type="text" name="nome" class="form-control" required>
+    </div>
+    <div class="mb-3">
+      <label>Email</label>
+      <input type="email" name="email" class="form-control" required>
+    </div>
+    <div class="mb-3">
+      <label>Senha</label>
+      <input type="password" name="senha" class="form-control" required>
+    </div>
+    <div class="mb-3">
+      <label>Perfil</label>
+      <select name="perfil" class="form-control">
+        <option value="usuario">Usuário</option>
+        <option value="admin">Administrador</option>
+      </select>
+    </div>
+    <div class="mb-3">
+      <label>Cliente</label>
+      <select name="cliente_id" class="form-control">
+        {% for cliente in clientes %}
+          <option value="{{ cliente.id }}">{{ cliente.nome }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Cadastrar</button>
+  </form>
+</div>
+{% endblock %}

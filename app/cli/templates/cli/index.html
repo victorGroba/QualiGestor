@@ -1,28 +1,48 @@
 {% extends 'base_cliq.html' %}
 
-{% block title %}Formulários{% endblock %}
+{% block title %}Início - QualiGestor CLIQ{% endblock %}
 
 {% block content %}
-<div class="container py-4">
-    <h2 class="mb-4">Formulários Disponíveis</h2>
-    <a href="{{ url_for('cli.criar_formulario') }}" class="btn btn-primary mb-3">Novo Formulário</a>
+<div class="container fade-in">
+  <div class="row align-items-center justify-content-between welcome-card my-5 shadow-sm">
+    <div class="col-lg-6">
+      <h1 class="mb-3 fw-bold text-primary">👋 Bem-vindo ao</h1>
+      <h2 class="mb-4 fw-bold text-dark">QualiGestor CLIQ</h2>
+      <p class="text-muted mb-4 fs-5">Gerencie seus checklists de forma automatizada, eficiente e organizada.</p>
 
-
-    <div class="list-group">
-        {% for form in formularios %}
-            <div class="list-group-item d-flex justify-content-between align-items-center">
-                <div>
-                    <strong>{{ form.nome }}</strong><br>
-                    <small>Cliente: {{ form.cliente.nome if form.cliente }} | Loja: {{ form.loja.nome if form.loja }}</small>
-                </div>
-                <div>
-                    <a href="{{ url_for('cli.adicionar_perguntas', formulario_id=form.id) }}" class="btn btn-outline-secondary btn-sm">Perguntas</a>
-                    <a href="{{ url_for('cli_bp.aplicar_auditoria', formulario_id=form.id) }}" class="btn btn-success btn-sm">Nova Auditoria</a>
-                </div>
-            </div>
-        {% else %}
-            <p class="text-muted">Nenhum formulário encontrado.</p>
-        {% endfor %}
+      <ul class="list-unstyled fs-6">
+        <li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i>Escolha um questionário</li>
+        <li class="mb-2"><i class="fas fa-play-circle text-primary me-2"></i>Inicie uma nova aplicação</li>
+        <li class="mb-2"><i class="fas fa-chart-bar text-info me-2"></i>Visualize e exporte resultados</li>
+      </ul>
     </div>
+
+    <div class="col-lg-5 text-center">
+      <img src="{{ url_for('static', filename='img/cliq1.jpg') }}"
+           alt="Banner de Laboratório"
+           class="img-fluid rounded-4 shadow"
+           style="max-height: 300px; object-fit: cover;">
+    </div>
+  </div>
 </div>
+<style>
+  .fade-in {
+    animation: fadeIn 1.2s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .animated-image {
+    max-width: 100%;
+    transition: transform 0.4s ease;
+    border-radius: 16px;
+  }
+
+  .animated-image:hover {
+    transform: scale(1.03);
+  }
+</style>
 {% endblock %}

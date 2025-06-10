@@ -1,0 +1,347 @@
+{% extends 'base_cliq.html' %}
+{% block title %}Novo Questionário{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  <form method="POST" enctype="multipart/form-data">
+    <div class="row">
+      <!-- Coluna Esquerda -->
+      <div class="col-lg-6">
+
+        <!-- Configurações do questionário -->
+        <div class="card mb-4 shadow-sm">
+          <div class="card-body">
+            <h5 class="mb-4">Configurações do questionário</h5>
+            <div class="mb-3">
+              <label class="form-label">Nome *</label>
+              <input type="text" class="form-control" name="nome" required>
+            </div>
+            <div class="row">
+              <div class="col">
+                <label class="form-label">Versão *</label>
+                <input type="text" class="form-control" name="versao" required>
+              </div>
+              <div class="col">
+                <label class="form-label">Modo do questionário *</label>
+                <select class="form-select" name="modo" required>
+                  <option value="" disabled selected>Selecione</option>
+                  <option value="avaliado">Avaliado</option>
+                  <option value="autoavaliacao">Autoavaliação</option>
+                </select>
+              </div>
+            </div>
+            <div class="mt-3">
+              <label class="form-label">Documento de referência</label>
+              <input type="file" class="form-control" name="documento_referencia">
+            </div>
+            <div class="mt-2">
+              <button class="btn btn-outline-primary btn-sm" type="button">Adicionar documento</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Configurações das notas -->
+        <div class="card mb-4 shadow-sm">
+          <div class="card-body">
+            <h5 class="mb-3">Configurações das notas</h5>
+
+            <div class="form-check form-switch mb-2">
+              <input class="form-check-input" type="checkbox" id="calculaNota" name="calcular_nota"
+                onchange="document.getElementById('notaExtra').style.display = this.checked ? 'block' : 'none'">
+              <label class="form-check-label" for="calculaNota">Deseja calcular a nota?</label>
+            </div>
+
+            <div class="form-check form-switch mb-3">
+              <input class="form-check-input" type="checkbox" id="ocultarNota" name="ocultar_nota">
+              <label class="form-check-label" for="ocultarNota">Ocultar nota durante a aplicação</label>
+            </div>
+
+            <div id="notaExtra" style="display: none;">
+              <div class="row mb-3">
+                <div class="col">
+                  <label class="form-label">Base de cálculo *</label>
+                  <input type="number" class="form-control" name="base_calculo" value="100">
+                </div>
+                <div class="col">
+                  <label class="form-label">Casas decimais *</label>
+                  <select class="form-select" name="casas_decimais">
+                    <option value="1">Uma casa decimal (0.0)</option>
+                    <option value="2" selected>Duas casas decimais (0.00)</option>
+                  </select>
+                </div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Modo de configuração *</label>
+                <select class="form-select" name="modo_configuracao">
+                  <option value="percentual">Percentual</option>
+                  <option value="pontos">Pontos</option>
+                </select>
+              </div>
+              <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline-primary btn-sm">Configurar classificações</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm">Mais configurações de nota</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Configurações de aplicação -->
+        <div class="card mb-4 shadow-sm">
+          <div class="card-body">
+            <h5 class="mb-3">Configurações de aplicação</h5>
+
+            {% for id, name, desc in [
+            ("anexar_documentos", "Permitir anexar documentos", "Permite ao avaliador anexar documentos durante a
+            aplicação do questionário."),
+            ("geolocalizacao", "Capturar geolocalização", "Ativa a coleta da posição geográfica de onde o questionário
+            está sendo aplicado."),
+            ("restricao_avaliados", "Restringir Avaliados", "Esta opção permite limitar os avaliados disponíveis para a
+            aplicação deste questionário."),
+            ("reincidencia", "Habilitar Reincidência", "Permite reincidência de respostas de questões anteriores neste
+            questionário.")
+            ] %}
+            <div class="form-check form-switch mb-3">
+              <input class="form-check-input" type="checkbox" id="{{ id }}" name="{{ id }}">
+              <label class="form-check-label" for="{{ id }}">
+                {{ name }}
+                <span class="text-muted d-block" style="font-size: 0.9rem;">{{ desc }}</span>
+              </label>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Opções de preenchimento -->
+        <div class="card mb-4 shadow-sm">
+          <div class="card-body">
+            <h5 class="mb-3">Opções de preenchimento</h5>
+
+            {% for id, label in [
+            ("preenchimento_rapido", "Preenchimento rápido"),
+            ("preenchimento_sequencial", "Preenchimento sequencial"),
+            ("pontuacao_ativa", "Pontuação ativa")
+            ] %}
+            <div class="form-check form-switch mb-3">
+              <input class="form-check-input" type="checkbox" id="{{ id }}" name="{{ id }}">
+              <label class="form-check-label" for="{{ id }}">{{ label }}</label>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Usuários autorizados -->
+        <div class="card mb-4 shadow-sm">
+          <div class="card-body">
+            <h5 class="mb-3">Usuários autorizados</h5>
+            <div class="input-group mb-2">
+              <select class="form-select" id="usuario_autorizado_select">
+                <option selected disabled>Selecione o usuário</option>
+                {% for usuario in usuarios %}
+                <option value="{{ usuario.nome }}|{{ usuario.email }}">{{ usuario.nome }} ({{ usuario.email }})</option>
+                {% endfor %}
+              </select>
+              <button type="button" class="btn btn-outline-secondary" onclick="adicionarUsuarioAutorizado()">+</button>
+            </div>
+
+            <!-- Campos ocultos para envio -->
+            <input type="hidden" name="usuarios_nomes[]" id="usuarios_nomes_hidden">
+            <input type="hidden" name="usuarios_emails[]" id="usuarios_emails_hidden">
+
+            <table class="table table-sm" id="tabelaUsuariosAutorizados">
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>E-mail</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+
+        <!-- Coluna Direita -->
+        <div class="col-lg-6">
+
+          <!-- Configurações do relatório -->
+          <div class="card mb-4 shadow-sm">
+            <div class="card-body">
+              <h5 class="mb-3">Configurações do relatório</h5>
+
+              {% for item in [
+              "nota anterior", "tabela de resumo", "limites aceitáveis",
+              "data/hora início e fim", "questões omitidas", "relatório não conformidade"
+              ] %}
+              <div class="form-check form-switch mb-2">
+                <input class="form-check-input" type="checkbox" name="exibir_{{ item|replace(' ', '_')|lower }}">
+                <label class="form-check-label">Exibir {{ item }}</label>
+              </div>
+              {% endfor %}
+
+              <div class="mt-3">
+                <label class="form-label">Modo de exibição de nota no PDF *</label>
+                <select class="form-select" name="modo_nota_pdf">
+                  <option value="percentual" selected>Percentual</option>
+                  <option value="pontos">Pontos</option>
+                </select>
+              </div>
+
+              <div class="mt-2">
+                <label class="form-label">Nota das questões no PDF *</label>
+                <select class="form-select" name="nota_questao_pdf">
+                  <option value="exibir" selected>Exibir nota e percentual</option>
+                  <option value="ocultar">Ocultar</option>
+                </select>
+              </div>
+
+              <div class="mt-2">
+                <label class="form-label">Tipo de agrupamento das fotos no relatório PDF *</label>
+                <select class="form-select" name="agrupamento_fotos">
+                  <option value="topico" selected>Tópico</option>
+                  <option value="secao">Seção</option>
+                  <option value="pergunta">Pergunta</option>
+                </select>
+              </div>
+
+              <div class="mt-2">
+                <label class="form-label">Alterar cor das observações no relatório PDF *</label>
+                <select class="form-select" name="cor_observacoes">
+                  <option value="cinza" selected>Cinza</option>
+                  <option value="vermelho">Vermelho</option>
+                </select>
+              </div>
+
+              <div class="mt-2">
+                <label class="form-label">Cor do relatório PDF (Rodapé, Cabeçalho, etc) *</label>
+                <select class="form-select" name="cor_pdf">
+                  <option value="azul" selected>Azul CLIQ (Padrão)</option>
+                  <option value="personalizada">Cor personalizada</option>
+                </select>
+              </div>
+
+              <div class="mt-2">
+                <label class="form-label">Logotipo do Cabeçalho</label>
+                <input type="file" class="form-control" name="logotipo_cabecalho">
+              </div>
+
+              <div class="mt-2">
+                <label class="form-label">Logotipo do Rodapé</label>
+                <input type="file" class="form-control" name="logotipo_rodape">
+              </div>
+            </div>
+          </div>
+
+          <!-- Configurações de e-mail -->
+          <div class="card mb-4 shadow-sm">
+            <div class="card-body">
+              <h5 class="mb-3">Configurações de e-mail</h5>
+
+              {% for id, label in [
+              ("enviar_email", "Enviar e-mail"),
+              ("configurar_emails_final", "Configurar e-mails no final da aplicação"),
+              ("exibir_emails_aplicacao", "Exibir todos os e-mails vinculados à aplicação")
+              ] %}
+              <div class="form-check form-switch mb-2">
+                <input class="form-check-input" type="checkbox" id="{{ id }}" name="{{ id }}">
+                <label class="form-check-label" for="{{ id }}">{{ label }}</label>
+              </div>
+              {% endfor %}
+
+              <div class="mt-2">
+                <label class="form-label">E-mails para envio</label>
+                <input type="text" class="form-control">
+              </div>
+
+              <div class="mt-2">
+                <label class="form-label">Idioma</label>
+                <select class="form-select">
+                  <option selected>Português</option>
+                  <option>Inglês</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Grupos e Integrações -->
+          <div class="card mb-4 shadow-sm">
+            <div class="card-body">
+              <h5 class="mb-3">Grupos</h5>
+              <div class="input-group mb-2">
+                <select class="form-select">
+                  <option>Selecione o grupo</option>
+                </select>
+                <button class="btn btn-outline-secondary" type="button">+</button>
+              </div>
+              <table class="table table-sm">
+                <thead>
+                  <tr>
+                    <th>Nome</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card mb-4 shadow-sm">
+            <div class="card-body">
+              <h5 class="mb-3">Integrações</h5>
+              <select class="form-select">
+                <option>Selecione uma integração</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex justify-content-end mt-3">
+        <a href="{{ url_for('cli.index') }}" class="btn btn-outline-danger me-2">Cancelar</a>
+        <button type="submit" class="btn btn-primary">Próximo</button>
+      </div>
+  </form>
+</div>
+<script>
+  const usuariosSelecionados = [];
+  function adicionarUsuarioAutorizado() {
+    const select = document.getElementById('usuario_autorizado_select');
+    const tabela = document.getElementById('tabelaUsuariosAutorizados').querySelector('tbody');
+    const nomesHidden = document.getElementById('usuarios_nomes_hidden');
+    const emailsHidden = document.getElementById('usuarios_emails_hidden');
+
+    const valorSelecionado = select.value;
+    if (!valorSelecionado) return;
+
+    const [nome, email] = valorSelecionado.split('|');
+    if (usuariosSelecionados.some(u => u.email === email)) return;
+
+    usuariosSelecionados.push({ nome, email });
+
+    const linha = document.createElement('tr');
+    linha.innerHTML = `
+      <td>${nome}</td>
+      <td>${email}</td>
+      <td><button type="button" class="btn btn-sm btn-danger" onclick="removerUsuarioAutorizado('${email}', this)">Remover</button></td>
+    `;
+    tabela.appendChild(linha);
+
+    atualizarInputsOcultos(nomesHidden, emailsHidden);
+  }
+
+  function removerUsuarioAutorizado(email, botao) {
+    const index = usuariosSelecionados.findIndex(u => u.email === email);
+    if (index > -1) usuariosSelecionados.splice(index, 1);
+    botao.closest('tr').remove();
+    atualizarInputsOcultos(
+      document.getElementById('usuarios_nomes_hidden'),
+      document.getElementById('usuarios_emails_hidden')
+    );
+  }
+
+  function atualizarInputsOcultos(nomesHidden, emailsHidden) {
+    nomesHidden.value = usuariosSelecionados.map(u => u.nome).join(',');
+    emailsHidden.value = usuariosSelecionados.map(u => u.email).join(',');
+  }
+</script>
+{% endblock %}

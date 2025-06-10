@@ -1,0 +1,14 @@
+{% extends 'base_cliq.html' %}
+{% block title %}Escolher Avaliado{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <h3>Escolha um avaliado para aplicar o checklist: <strong>{{ formulario.nome }}</strong></h3>
+  <ul class="list-group">
+    {% for av in avaliados %}
+      <a href="{{ url_for('cli.aplicar_checklist_fluxo', formulario_id=formulario.id, avaliador_id=av.id) }}" class="list-group-item list-group-item-action">
+        {{ av.nome }}
+      </a>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}

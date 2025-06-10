@@ -2,13 +2,14 @@ import os
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
-from flask_migrate import Migrate  # ✅ NOVO
+from flask_migrate import Migrate
 from dotenv import load_dotenv
+from datetime import datetime
 
 load_dotenv()
 
 db = SQLAlchemy()
-migrate = Migrate()  # ✅ NOVO
+migrate = Migrate()
 login_manager = LoginManager()
 login_manager.login_view = 'auth.login'
 
@@ -34,8 +35,15 @@ def create_app():
     def inject_version():
         return dict(versao=app.config['VERSAO'])
 
+    # ✅ Importa a função auxiliar para uso em templates (PDF)
+    from app.utils.helpers import opcao_pergunta_por_id
+
+    @app.context_processor
+    def inject_custom_functions():
+        return dict(opcao_pergunta_por_id=opcao_pergunta_por_id)
+
     db.init_app(app)
-    migrate.init_app(app, db)  # ✅ NOVO
+    migrate.init_app(app, db)
     login_manager.init_app(app)
 
     from .models import Usuario
@@ -48,11 +56,15 @@ def create_app():
     from .main.routes import main_bp
     from .cli.routes import cli_bp
     from .panorama.routes import panorama_bp
-
+    from .admin.routes import admin_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(cli_bp, url_prefix='/cli')
     app.register_blueprint(panorama_bp, url_prefix='/panorama')
+    app.register_blueprint(admin_bp, url_prefix='/admin')
 
     return app
+
+# Expõe db para importação relativa em outros módulos (como auth.routes)
+__all__ = ['db']

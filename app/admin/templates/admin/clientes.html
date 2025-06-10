@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Clientes</h2>
+    <a href="{{ url_for('admin.novo_cliente') }}" class="btn btn-primary mb-3">Novo Cliente</a>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nome</th>
+                <th>Email</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cliente in clientes %}
+            <tr>
+                <td>{{ cliente.id }}</td>
+                <td>{{ cliente.nome }}</td>
+                <td>{{ cliente.email_contato }}</td>
+                <td>
+                    <a href="{{ url_for('admin.editar_cliente', id=cliente.id) }}" class="btn btn-sm btn-warning">Editar</a>
+                    <a href="{{ url_for('admin.excluir_cliente', id=cliente.id) }}" class="btn btn-sm btn-danger">Excluir</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

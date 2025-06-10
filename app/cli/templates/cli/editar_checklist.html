@@ -1,0 +1,80 @@
+{% extends 'base_cliq.html' %}
+
+{% block title %}Editar Checklist - {{ formulario.nome }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <h2 class="mb-4">Editar Checklist - {{ formulario.nome }}</h2>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  {% for category, message in messages %}
+  <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+    {{ message }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+  </div>
+  {% endfor %}
+  {% endif %}
+  {% endwith %}
+
+  {% set respostas_dict = {} %}
+  {% for r in checklist.respostas %}
+    {% set respostas_dict = respostas_dict.update({r.pergunta_id: r}) or respostas_dict %}
+  {% endfor %}
+
+  <form method="POST" action="{{ url_for('cli.editar_checklist', checklist_id=checklist.id) }}">
+    {{ csrf_token() if csrf_token }}
+
+    <!-- Seleção da Loja -->
+    <div class="mb-4">
+      <label class="form-label">Loja Avaliada *</label>
+      <select class="form-select" name="loja_id" required>
+        <option value="">Selecione</option>
+        {% for loja in lojas %}
+        <option value="{{ loja.id }}" {% if loja.id == checklist.loja_id %}selected{% endif %}>{{ loja.nome }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Blocos e Perguntas -->
+    {% for bloco in formulario.blocos %}
+    <div class="mb-4 p-3 border rounded bg-light">
+      <h5 class="mb-3">{{ bloco.ordem }}. {{ bloco.nome }}</h5>
+
+      {% for pergunta in bloco.perguntas %}
+      <div class="mb-3">
+        <label class="form-label">
+          {{ pergunta.texto }}
+          {% if pergunta.obrigatoria %}<span class="text-danger">*</span>{% endif %}
+        </label>
+
+        {% if pergunta.tipo_resposta.name == 'SIM_NAO' %}
+        <div>
+          {% for opcao in pergunta.opcoes %}
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="pergunta_{{ pergunta.id }}" value="{{ opcao.id }}"
+              {% if respostas_dict[pergunta.id].valor_opcoes_selecionadas and opcao.id|string in respostas_dict[pergunta.id].valor_opcoes_selecionadas %}checked{% endif %}
+              required>
+            <label class="form-check-label">{{ opcao.texto }}</label>
+          </div>
+          {% endfor %}
+        </div>
+
+        {% elif pergunta.tipo_resposta.name == 'TEXTO' %}
+        <textarea class="form-control" name="pergunta_{{ pergunta.id }}" rows="2" {% if pergunta.obrigatoria %}required{% endif %}>{{ respostas_dict[pergunta.id].valor_texto or '' }}</textarea>
+
+        {% elif pergunta.tipo_resposta.name == 'NOTA' %}
+        <input type="number" name="pergunta_{{ pergunta.id }}" class="form-control"
+               min="0" max="10" step="0.5"
+               value="{{ respostas_dict[pergunta.id].valor_numero or '' }}"
+               {% if pergunta.obrigatoria %}required{% endif %}>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endfor %}
+
+    <button type="submit" class="btn btn-warning">Atualizar Checklist</button>
+  </form>
+</div>
+{% endblock %}

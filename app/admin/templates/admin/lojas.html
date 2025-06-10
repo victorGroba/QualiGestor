@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Lojas</h2>
+    <a href="{{ url_for('admin.nova_loja') }}" class="btn btn-primary mb-3">Nova Loja</a>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nome</th>
+                <th>Cliente</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for loja in lojas %}
+            <tr>
+                <td>{{ loja.id }}</td>
+                <td>{{ loja.nome }}</td>
+                <td>{{ loja.cliente.nome }}</td>
+                <td>
+                    <a href="{{ url_for('admin.editar_loja', id=loja.id) }}" class="btn btn-sm btn-warning">Ed

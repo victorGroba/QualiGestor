@@ -1,0 +1,39 @@
+{% extends 'base_painel.html' %}
+{% block title %}Usuários{% endblock %}
+
+{% block content %}
+<div class="container">
+  <h2 class="mb-4">Usuários Cadastrados</h2>
+  <table class="table table-bordered table-hover">
+    <thead class="table-light">
+      <tr>
+        <th>Nome</th>
+        <th>Email</th>
+        <th>Perfil</th>
+        <th>Cliente</th>
+        <th>Ações</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in usuarios %}
+      <tr>
+        <td>{{ u.nome }}</td>
+        <td>{{ u.email }}</td>
+        <td>{{ u.perfil }}</td>
+        <td>{{ u.cliente.nome }}</td>
+        <<td>
+          <a href="{{ url_for('auth.editar_usuario', usuario_id=u.id) }}" class="btn btn-sm btn-warning">
+            <i class="fas fa-edit"></i>
+          </a>
+          <a href="{{ url_for('auth.excluir_usuario', usuario_id=u.id) }}" class="btn btn-sm btn-danger"
+            onclick="return confirm('Tem certeza que deseja excluir este usuário?')">
+            <i class="fas fa-trash-alt"></i>
+          </a>
+          </td>
+
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

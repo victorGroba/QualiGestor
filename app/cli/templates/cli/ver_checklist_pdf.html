@@ -1,0 +1,76 @@
+{% extends 'base_cliq.html' %}
+
+{% block title %}Checklist PDF{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <h2 class="mb-4 text-center">BASE MC</h2>
+
+  <p><strong>DATA:</strong> {{ checklist.data.strftime('%d/%m/%y %H:%M:%S') }}</p>
+  <p><strong>INÍCIO:</strong> {{ checklist.data.strftime('%d/%m/%y %H:%M:%S') }}</p>
+  <p><strong>FIM:</strong> {{ data_hoje }}</p>
+  <p><strong>AVALIADOR:</strong> {{ checklist.usuario.nome }}</p>
+  <p><strong>AVALIADO:</strong> {{ checklist.loja.nome }}</p>
+
+  {% if checklist.formulario.pontuacao_ativa %}
+    <h5 class="mt-4">CRITÉRIOS</h5>
+    <table class="table table-bordered">
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Nota por questão</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for bloco in checklist.formulario.blocos %}
+        <tr>
+          <td>{{ bloco.nome }}</td>
+          <td>{{ checklist.percentual or 'N/A' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+
+  {% for bloco in checklist.formulario.blocos %}
+    <div class="my-4">
+      <h5>{{ loop.index }} ♦ {{ bloco.nome }}</h5>
+
+      {% set pergunta_count = 1 %}
+      {% for pergunta in bloco.perguntas %}
+        {% set resposta = None %}
+        {% for r in checklist.respostas %}
+          {% if r.pergunta_id == pergunta.id %}
+            {% set resposta = r %}
+          {% endif %}
+        {% endfor %}
+
+        <p><strong>{{ loop.index }}.{{ pergunta_count }} - {{ pergunta.texto }}</strong><br>
+        {% if resposta %}
+          {% if resposta.valor_opcoes_selecionadas %}
+            {% set opcoes = resposta.valor_opcoes_selecionadas | from_json %}
+            {{ opcoes | join(', ') }}
+          {% elif resposta.valor_texto %}
+            {{ resposta.valor_texto }}
+          {% elif resposta.valor_numero is not none %}
+            {{ resposta.valor_numero }}
+          {% elif resposta.valor_boolean is not none %}
+            {{ 'Sim' if resposta.valor_boolean else 'Não' }}
+          {% else %}
+            <em>Sem resposta</em>
+          {% endif %}
+        {% else %}
+          <em>Sem resposta</em>
+        {% endif %}</p>
+        {% set pergunta_count = pergunta_count + 1 %}
+      {% endfor %}
+
+      <p><strong>Conclusão da Amostra</strong><br>N/A</p>
+    </div>
+  {% endfor %}
+
+  <div class="text-center mt-5">
+    <img src="data:image/png;base64,{{ qr_base64 }}" alt="QR Code">
+  </div>
+</div>
+{% endblock %}

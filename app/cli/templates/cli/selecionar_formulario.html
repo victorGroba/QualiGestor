@@ -1,0 +1,14 @@
+{% extends 'base_cliq.html' %}
+{% block title %}Escolher Formulário{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <h3>Escolha um questionário</h3>
+  <ul class="list-group">
+    {% for form in formularios %}
+      <a href="{{ url_for('cli.selecionar_avaliado', formulario_id=form.id) }}" class="list-group-item list-group-item-action">
+        {{ form.nome }}
+      </a>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}

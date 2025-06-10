@@ -26,7 +26,7 @@
         </button>
       </div>
 
-      <ul class="nav flex-column px-3 pt-3">
+      <<ul class="nav flex-column px-3 pt-3">
         <!-- CLIQ -->
         <li class="nav-item">
           <a class="nav-link {% if request.endpoint == 'cli.index' %}active{% endif %}"
@@ -43,13 +43,31 @@
           </a>
         </li>
 
+        {% if current_user.perfil == 'admin' %}
+        <!-- Cadastro de Usuários (somente admin) -->
+        <li class="nav-item">
+          <a class="nav-link {% if request.endpoint == 'auth.cadastrar_usuario' %}active{% endif %}"
+            href="{{ url_for('auth.cadastrar_usuario') }}">
+            <i class="fas fa-user-plus me-2"></i> Cadastrar Usuário
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link {% if request.endpoint == 'auth.listar_usuarios' %}active{% endif %}"
+            href="{{ url_for('auth.listar_usuarios') }}">
+            <i class="fas fa-users me-2"></i> Usuários
+          </a>
+        </li>
+        {% endif %}
+
         <!-- Sair -->
         <li class="nav-item mt-auto">
           <a class="nav-link text-danger" href="{{ url_for('auth.logout') }}">
             <i class="fas fa-sign-out-alt me-2"></i> Sair
           </a>
         </li>
-      </ul>
+        </ul>
+
     </div>
 
     <!-- Conteúdo -->
@@ -64,6 +82,19 @@
       </nav>
 
       <main class="container-fluid mt-4">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="container mt-3">
+          {% for category, message in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
         {% block content %}{% endblock %}
       </main>
     </div>

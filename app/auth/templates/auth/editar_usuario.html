@@ -1,0 +1,34 @@
+{% extends 'base_painel.html' %}
+{% block title %}Editar Usuário{% endblock %}
+{% block content %}
+<div class="container">
+  <h2 class="mb-4">Editar Usuário</h2>
+  <form method="POST">
+    <div class="mb-3">
+      <label>Nome</label>
+      <input type="text" name="nome" class="form-control" value="{{ usuario.nome }}" required>
+    </div>
+    <div class="mb-3">
+      <label>Email</label>
+      <input type="email" name="email" class="form-control" value="{{ usuario.email }}" required>
+    </div>
+    <div class="mb-3">
+      <label>Perfil</label>
+      <select name="perfil" class="form-control">
+        <option value="usuario" {% if usuario.perfil == 'usuario' %}selected{% endif %}>Usuário</option>
+        <option value="admin" {% if usuario.perfil == 'admin' %}selected{% endif %}>Administrador</option>
+      </select>
+    </div>
+    <div class="mb-3">
+      <label>Cliente</label>
+      <select name="cliente_id" class="form-control">
+        {% for c in clientes %}
+        <option value="{{ c.id }}" {% if usuario.cliente_id == c.id %}selected{% endif %}>{{ c.nome }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-success">Salvar Alterações</button>
+    <a href="{{ url_for('auth.listar_usuarios') }}" class="btn btn-secondary">Cancelar</a>
+  </form>
+</div>
+{% endblock %}

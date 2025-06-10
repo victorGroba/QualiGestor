@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Checklist - {{ resposta.formulario.nome }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; font-size: 12px; padding: 20px; }
+        h1, h2 { text-align: center; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ccc; padding: 6px; text-align: left; }
+        th { background-color: #f0f0f0; }
+        .info { margin-top: 10px; }
+        .footer { margin-top: 30px; text-align: center; font-size: 10px; }
+        .qr-code { margin-top: 20px; text-align: center; }
+    </style>
+</head>
+<body>
+    <h1>Checklist Dinâmico</h1>
+    <h2>{{ resposta.formulario.nome }}</h2>
+
+    <div class="info">
+        <p><strong>Cliente:</strong> {{ resposta.cliente.nome }}</p>
+        <p><strong>Avaliado:</strong> {{ resposta.avaliado.nome }}</p>
+        <p><strong>Data da aplicação:</strong> {{ resposta.data.strftime('%d/%m/%Y') }}</p>
+        <p><strong>Nota obtida:</strong> {{ resposta.nota_obtida }}%</p>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Pergunta</th>
+                <th>Resposta</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in resposta.respostas %}
+            <tr>
+                <td>{{ r.pergunta.texto }}</td>
+                <td>{{ r.valor }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% if resposta.observacoes %}
+    <div class="info">
+        <h3>Observações</h3>
+        <p>{{ resposta.observacoes }}</p>
+    </div>
+    {% endif %}
+
+    <div class="qr-code">
+        <img src="data:image/png;base64,{{ qr_base64 }}" width="100">
+        <p>Código de verificação</p>
+    </div>
+
+    <div class="footer">
+        Documento gerado em {{ data_hoje }}.
+    </div>
+</body>
+</html>

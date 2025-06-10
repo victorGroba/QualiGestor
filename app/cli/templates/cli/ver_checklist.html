@@ -1,35 +1,54 @@
 {% extends 'base_cliq.html' %}
 
-{% block title %}Checklist Aplicado{% endblock %}
+{% block title %}Visualizar Checklist{% endblock %}
 
 {% block content %}
 <div class="container py-4">
-  <h2 class="mb-4">Checklist Aplicado</h2>
+  <h2 class="mb-4">Visualizar Checklist - {{ checklist.formulario.nome }}</h2>
 
-  <div class="mb-4">
-    <p><strong>Formulário:</strong> {{ checklist.formulario.nome }}</p>
-    <p><strong>Loja:</strong> {{ checklist.loja.nome }}</p>
-    <p><strong>Aplicado por:</strong> {{ checklist.usuario.nome }}</p>
-    <p><strong>Data:</strong> {{ checklist.data.strftime('%d/%m/%Y %H:%M') }}</p>
-  </div>
+  <p><strong>Data:</strong> {{ checklist.data.strftime('%d/%m/%Y %H:%M') }}</p>
+  <p><strong>Loja:</strong> {{ checklist.loja.nome }}</p>
+  <p><strong>Usuário:</strong> {{ checklist.usuario.nome }}</p>
+  {% if checklist.percentual is defined %}
+    <p><strong>Pontuação:</strong> {{ checklist.percentual }}%</p>
+  {% endif %}
 
-  {% for bloco in checklist.formulario.blocos|sort(attribute='ordem') %}
-    <div class="mb-4 p-3 bg-light border rounded">
-      <h5>{{ bloco.ordem }}. {{ bloco.nome }}</h5>
+  {% for bloco in checklist.formulario.blocos %}
+    <div class="mb-4 p-3 border rounded bg-light">
+      <h5 class="mb-3">{{ bloco.ordem }}. {{ bloco.nome }}</h5>
 
-      <ul class="list-group list-group-flush">
-        {% for pergunta in bloco.perguntas %}
-          {% set resposta = checklist.respostas | selectattr('pergunta_id', 'equalto', pergunta.id) | list | first %}
-          <li class="list-group-item">
-            <strong>{{ pergunta.texto }}</strong><br>
-            <span class="text-muted">Resposta:</span>
-            <span>{{ resposta.valor if resposta else 'Sem resposta' }}</span>
-          </li>
+      {% for pergunta in bloco.perguntas %}
+        {% set resposta = None %}
+        {% for r in checklist.respostas %}
+          {% if r.pergunta_id == pergunta.id %}
+            {% set resposta = r %}
+          {% endif %}
         {% endfor %}
-      </ul>
+        <div class="mb-3">
+          <label class="form-label">{{ pergunta.texto }}</label>
+          {% if resposta %}
+            {% if resposta.valor_opcoes_selecionadas %}
+              {% set opcoes = resposta.valor_opcoes_selecionadas | from_json %}
+              <ul>
+                {% for op in opcoes %}
+                  <li>{{ op }}</li>
+                {% endfor %}
+              </ul>
+            {% elif resposta.valor_texto %}
+              <p>{{ resposta.valor_texto }}</p>
+            {% elif resposta.valor_numero is not none %}
+              <p>{{ resposta.valor_numero }}</p>
+            {% elif resposta.valor_boolean is not none %}
+              <p>{{ 'Sim' if resposta.valor_boolean else 'Não' }}</p>
+            {% else %}
+              <p><em>Sem resposta</em></p>
+            {% endif %}
+          {% else %}
+            <p><em>Sem resposta</em></p>
+          {% endif %}
+        </div>
+      {% endfor %}
     </div>
   {% endfor %}
-
-  <a href="{{ url_for('cli.listar_checklists') }}" class="btn btn-secondary mt-3">Voltar para listagem</a>
 </div>
 {% endblock %}

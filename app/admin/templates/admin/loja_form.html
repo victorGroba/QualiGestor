@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <h2>{{ 'Editar' if loja else 'Nova' }} Loja</h2>
+    <form method="POST">
+        <div class="mb-3">
+            <label class="form-label">Nome da Loja</label>
+            <input type="text" name="nome" class="form-control" value="{{ loja.nome if loja else '' }}" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Endereço</label>
+            <input type="text" name="endereco" class="form-control" value="{{ loja.endereco if loja else '' }}">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Telefone</label>
+            <input type="text" name="telefone" class="form-control" value="{{ loja.telefone if loja else '' }}">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Cliente</label>
+            <select name="cliente_id" class="form-select" required>
+                {% for cliente in clientes %}
+                <option value="{{ cliente.id }}" {% if loja and loja.cliente_id == cliente.id %}selected{% endif %}>
+                    {{ cliente.nome }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Salvar</button>
+    </form>
+</div>
+{% endblock %}

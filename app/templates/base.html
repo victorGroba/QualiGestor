@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8">
-  <title>{% block title %}QualiGestor{% endblock %}</title>
+  <title>{% block title %}Painel - QualiGestor{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <!-- Bootstrap e FontAwesome -->
@@ -26,20 +26,12 @@
         </button>
       </div>
 
-      <ul class="nav flex-column px-3 pt-3">
+      <<ul class="nav flex-column px-3 pt-3">
         <!-- CLIQ -->
         <li class="nav-item">
           <a class="nav-link {% if request.endpoint == 'cli.index' %}active{% endif %}"
             href="{{ url_for('cli.index') }}">
             <i class="fas fa-clipboard-check me-2"></i> CLIQ
-          </a>
-        </li>
-
-        <!-- Formulários (também aponta para cli.index ou futura rota) -->
-        <li class="nav-item">
-          <a class="nav-link {% if request.endpoint == 'cli.index' %}active{% endif %}"
-            href="{{ url_for('cli.index') }}">
-            <i class="fas fa-clipboard-list me-2"></i> Formulários
           </a>
         </li>
 
@@ -51,13 +43,24 @@
           </a>
         </li>
 
+        {% if current_user.perfil == 'admin' %}
+        <!-- Cadastro de Usuários (somente admin) -->
+        <li class="nav-item">
+          <a class="nav-link {% if request.endpoint == 'auth.cadastrar_usuario' %}active{% endif %}"
+            href="{{ url_for('auth.cadastrar_usuario') }}">
+            <i class="fas fa-user-plus me-2"></i> Cadastrar Usuário
+          </a>
+        </li>
+        {% endif %}
+
         <!-- Sair -->
         <li class="nav-item mt-auto">
           <a class="nav-link text-danger" href="{{ url_for('auth.logout') }}">
             <i class="fas fa-sign-out-alt me-2"></i> Sair
           </a>
         </li>
-      </ul>
+        </ul>
+
     </div>
 
     <!-- Conteúdo -->
@@ -74,7 +77,6 @@
       <main class="container-fluid mt-4">
         {% block content %}{% endblock %}
       </main>
-
     </div>
   </div>
 
@@ -94,7 +96,9 @@
   </script>
   {% block scripts %}{% endblock %}
 </body>
-<footer><p class="text-muted text-center">Versão {{ versao }}</p>
+
+<footer>
+  <p class="text-muted text-center">Versão {{ versao }}</p>
 </footer>
 
 </html>
