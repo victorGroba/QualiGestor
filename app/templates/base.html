@@ -37,8 +37,8 @@
 
         <!-- Panorama -->
         <li class="nav-item">
-          <a class="nav-link {% if request.endpoint == 'panorama.dashboard' or request.endpoint == 'panorama.listar_auditorias' %}active{% endif %}"
-            href="{{ url_for('panorama.dashboard') }}">
+          <a class="nav-link {% if request.endpoint == 'panorama.index' or request.endpoint == 'panorama.listar_auditorias' %}active{% endif %}"
+            href="{{ url_for('panorama.index') }}">
             <i class="fas fa-chart-bar me-2"></i> Panorama
           </a>
         </li>

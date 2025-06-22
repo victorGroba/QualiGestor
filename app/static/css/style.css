@@ -1,0 +1,158 @@
+body {
+  background-color: #f8fafc;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+/* Accordion */
+.accordion-button {
+  background-color: #e9edf3;
+  font-weight: 500;
+}
+
+.accordion-button i {
+  margin-right: 0.5rem;
+}
+
+.accordion-button:focus {
+  box-shadow: none;
+}
+
+.accordion-item {
+  border: none;
+  margin-bottom: 8px;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.accordion-body ul {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+.accordion-body ul li {
+  margin-bottom: 8px;
+}
+
+.accordion-body ul li a {
+  text-decoration: none;
+  color: #333;
+  padding: 4px 8px;
+  display: inline-block;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.accordion-body ul li a:hover {
+  background-color: #e2e8f0;
+  color: #0d6efd;
+}
+
+/* Botão adicionar */
+button.btn.btn-primary {
+  background-color: #0d6efd;
+  border: none;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+}
+
+button.btn.btn-primary i {
+  margin-right: 4px;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.3);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 1050;
+}
+
+.modal {
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 24px;
+  width: 100%;
+  max-width: 500px;
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #dee2e6;
+  margin-bottom: 1rem;
+}
+
+.modal-header h5 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.modal-header .btn-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.modal-tabs {
+  gap: 10px;
+}
+
+.modal-tabs .tab {
+  background-color: #f1f5f9;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.modal-tabs .tab.active {
+  background-color: #0d6efd;
+  color: white;
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+.modal-content label {
+  font-weight: 500;
+}
+
+.modal-footer .btn {
+  min-width: 100px;
+}
+
+.modal-footer .btn-success {
+  background-color: #198754;
+  border: none;
+}
+
+.modal-footer .btn-secondary {
+  background-color: #6c757d;
+  border: none;
+}
+
+/* Estilo para espaçamento e responsividade consistente */
+.card {
+  border-radius: 8px;
+}
+
+.btn i {
+  margin-right: 6px;
+}
