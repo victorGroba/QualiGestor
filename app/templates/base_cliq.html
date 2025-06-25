@@ -3,35 +3,42 @@
 
 <head>
   <meta charset="UTF-8">
-  <title>{% block title %}Checklist Dinâmico - QualiGestor{% endblock %}</title>
+  <title>{% block title %}CLIQ - Sistema de Questionários{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Bootstrap e FontAwesome -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
-      font-family: 'Poppins', sans-serif;
+      font-family: 'Segoe UI', sans-serif;
       margin: 0;
-      background: linear-gradient(to right, #eef2f7, #f9fcff);
+      background: #f4f6f9;
+      color: #333;
     }
 
     .header-topbar {
-      height: 64px;
+      height: 60px;
       background-color: #ffffff;
-      border-bottom: 1px solid #e3e3e3;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 20px;
-      padding-left: 56px;
+      padding: 0 24px;
       position: fixed;
       top: 0;
       left: 0;
       right: 0;
-      z-index: 1020;
+      z-index: 1050;
     }
 
     .logo-header {
-      font-weight: bold;
+      font-weight: 700;
       font-size: 20px;
       color: #2e5e8d;
       text-decoration: none;
@@ -39,82 +46,78 @@
 
     .sidebar {
       position: fixed;
-      top: 64px;
-      bottom: 0;
+      top: 60px;
       left: 0;
-      width: 240px;
+      bottom: 0;
+      width: 70px;
       background-color: #2e5e8d;
-      overflow-x: hidden;
-      z-index: 1040;
-      transition: transform 0.3s ease;
+      overflow: hidden;
+      transition: width 0.4s ease;
+      z-index: 1100;
+      padding-top: 12px;
     }
 
-    .sidebar .nav-link {
+    .sidebar:hover {
+      width: 240px;
+    }
+
+    .sidebar .nav-link,
+    .sidebar .accordion-button {
+      padding: 12px 16px;
+      color: #ffffff;
       display: flex;
       align-items: center;
       gap: 12px;
-      padding: 12px 20px;
-      color: white;
+      font-weight: 500;
+      transition: background 0.2s;
+      border-radius: 6px;
+      margin: 4px 8px;
       text-decoration: none;
+      font-size: 15px;
+      background-color: transparent;
     }
 
-    .sidebar .accordion-button.nav-link.active,
-    .sidebar .nav-link.active,
+    .sidebar .nav-link:hover,
+    .sidebar .accordion-button:hover {
+      background-color: rgba(255, 255, 255, 0.15);
+    }
+
     .sidebar .accordion-button:not(.collapsed) {
-      background-color: #ffffff;
-      color: #2e5e8d;
-      font-weight: 600;
-      border-left: 4px solid #2e5e8d;
+      background-color: rgba(255, 255, 255, 0.15);
     }
 
-    .accordion-button::after {
+    .sidebar .accordion-body {
+      padding-left: 32px;
+    }
+
+    .sidebar .nav-link span,
+    .sidebar .accordion-button span,
+    .sidebar .accordion-button::after {
       display: none;
+      transition: opacity 0.3s;
     }
 
-    .accordion-button.collapsed .fa-chevron-down {
-      transform: rotate(0deg);
-    }
-
-    .accordion-button:not(.collapsed) .fa-chevron-down {
-      transform: rotate(180deg);
-    }
-
-    .accordion-button {
-      background: none;
-      border: none;
-      padding: 0;
-      color: white;
+    .sidebar:hover .nav-link span,
+    .sidebar:hover .accordion-button span,
+    .sidebar:hover .accordion-button::after {
+      display: inline;
     }
 
     .main-content {
-      margin-left: 240px;
-      padding-top: 80px;
-      transition: margin-left 0.3s ease;
-    }
-
-    #hamburgerBtn {
-      position: fixed;
-      left: 10px;
-      top: 12px;
-      z-index: 1100;
-      background: none;
-      border: none;
-      font-size: 24px;
-      color: #2e5e8d;
-      display: none;
+      margin-left: 0;
+      padding: 80px 32px 32px 32px;
+      min-height: 100vh;
+      transition: margin-left 0.4s ease;
     }
 
     @media (max-width: 768px) {
-      #hamburgerBtn {
-        display: block;
-      }
-
       .sidebar {
+        width: 240px;
         transform: translateX(-100%);
       }
 
-      .sidebar.show {
-        transform: translateX(0);
+      .sidebar:hover {
+        width: 240px;
       }
 
       .main-content {
@@ -122,144 +125,102 @@
       }
     }
   </style>
+
   {% block head %}{% endblock %}
 </head>
 
 <body>
-  <!-- Botão hambúrguer -->
-  <button id="hamburgerBtn">
-    <i class="fas fa-bars"></i>
-  </button>
 
-  <!-- Topbar -->
   <header class="header-topbar">
     <div class="d-flex align-items-center gap-3">
       <a href="{{ url_for('cli.index') }}" class="logo-header">CLIQ</a>
-      <p class="text-end text-muted small mb-0">Tipo de usuário: {{ session.get('tipo') }}</p>
+      <p class="text-muted small mb-0">Tipo de usuário: {{ session.get('tipo') or 'N/A' }}</p>
     </div>
-    <div class="text-end text-muted small">Versão {{ versao }}</div>
+    <div class="text-muted small">Versão {{ versao }}</div>
   </header>
 
-  <!-- Sidebar -->
-  <div class="sidebar" id="sidebar">
-    <div class="nav-link fw-bold">Módulo Geral</div>
+  <nav class="sidebar" id="sidebar">
     <div class="accordion" id="accordionSidebar">
-      <!-- Aplicação de Questionário -->
-      <div class="accordion-item bg-transparent border-0">
+
+      <div class="accordion-item border-0 bg-transparent">
         <h2 class="accordion-header">
-          <button class="accordion-button nav-link collapsed" type="button" data-bs-toggle="collapse"
-            data-bs-target="#collapseAplicacoes">
-            <span><i class="fas fa-clipboard-check me-2"></i> Aplicação de questionário</span>
-            <i class="fas fa-chevron-down"></i>
+          <button class="accordion-button collapsed" data-bs-toggle="collapse" data-bs-target="#collapseAplicacao">
+            <i class="fas fa-clipboard-check"></i> <span>Aplicação de questionário</span>
           </button>
         </h2>
-        <div id="collapseAplicacoes" class="accordion-collapse collapse">
-          <div class="accordion-body py-0 px-4">
-            <a class="nav-link" href="{{ url_for('cli.listar_checklists') }}">Listar aplicações</a>
-            <a class="nav-link" href="{{ url_for('cli.iniciar_aplicacao') }}">Nova aplicação</a>
-
-            <a class="nav-link" href="#">Configurações de listagem</a>
-            <a class="nav-link" href="#">Exportar aplicações</a>
+        <div id="collapseAplicacao" class="accordion-collapse collapse">
+          <div class="accordion-body">
+            <a class="nav-link" href="{{ url_for('cli.listar_checklists') }}"><i class="fas fa-list"></i> <span>Listar aplicações</span></a>
+            <a class="nav-link" href="{{ url_for('cli.iniciar_aplicacao') }}"><i class="fas fa-plus-circle"></i> <span>Nova aplicação</span></a>
           </div>
         </div>
       </div>
 
-      <!-- Questionários -->
-      <div class="accordion-item bg-transparent border-0">
+      <div class="accordion-item border-0 bg-transparent">
         <h2 class="accordion-header">
-          <button class="accordion-button nav-link collapsed" type="button" data-bs-toggle="collapse"
-            data-bs-target="#collapseQuestionarios">
-            <span><i class="fas fa-list-alt me-2"></i> Questionários</span>
-            <i class="fas fa-chevron-down"></i>
+          <button class="accordion-button collapsed" data-bs-toggle="collapse" data-bs-target="#collapseQuestionarios">
+            <i class="fas fa-list-alt"></i> <span>Questionários</span>
           </button>
         </h2>
         <div id="collapseQuestionarios" class="accordion-collapse collapse">
-          <div class="accordion-body py-0 px-4">
-            <a class="nav-link" href="{{ url_for('cli.listar_questionarios') }}">Listar questionários</a>
-            <a class="nav-link" href="{{ url_for('cli.novo_questionario') }}">Novo questionário</a>
+          <div class="accordion-body">
+            <a class="nav-link" href="{{ url_for('cli.listar_questionarios') }}"><i class="fas fa-list"></i> <span>Listar questionários</span></a>
+            <a class="nav-link" href="{{ url_for('cli.novo_questionario') }}"><i class="fas fa-plus-circle"></i> <span>Novo questionário</span></a>
           </div>
         </div>
       </div>
 
-      <!-- Grupos -->
-      <div class="accordion-item bg-transparent border-0">
+      <div class="accordion-item border-0 bg-transparent">
         <h2 class="accordion-header">
-          <button class="accordion-button nav-link collapsed" type="button" data-bs-toggle="collapse"
-            data-bs-target="#collapseGrupos">
-            <span><i class="fas fa-layer-group me-2"></i> Grupos</span>
-            <i class="fas fa-chevron-down"></i>
+          <button class="accordion-button collapsed" data-bs-toggle="collapse" data-bs-target="#collapseGrupos">
+            <i class="fas fa-layer-group"></i> <span>Grupos</span>
           </button>
         </h2>
         <div id="collapseGrupos" class="accordion-collapse collapse">
-          <div class="accordion-body py-0 px-4">
-            <a class="nav-link" href="{{ url_for('cli.listar_grupos') }}">Listar grupos</a>
-            <a class="nav-link" href="{{ url_for('cli.novo_grupo') }}">Novo grupo</a>
+          <div class="accordion-body">
+            <a class="nav-link" href="{{ url_for('cli.listar_grupos') }}"><i class="fas fa-list"></i> <span>Listar grupos</span></a>
+            <a class="nav-link" href="{{ url_for('cli.novo_grupo') }}"><i class="fas fa-plus-circle"></i> <span>Novo grupo</span></a>
           </div>
         </div>
       </div>
 
-      <!-- Avaliados -->
-      <div class="accordion-item bg-transparent border-0">
+      <div class="accordion-item border-0 bg-transparent">
         <h2 class="accordion-header">
-          <button class="accordion-button nav-link collapsed" type="button" data-bs-toggle="collapse"
-            data-bs-target="#collapseAvaliados">
-            <span><i class="fas fa-users me-2"></i> Avaliados</span>
-            <i class="fas fa-chevron-down"></i>
+          <button class="accordion-button collapsed" data-bs-toggle="collapse" data-bs-target="#collapseAvaliados">
+            <i class="fas fa-users"></i> <span>Avaliados</span>
           </button>
         </h2>
         <div id="collapseAvaliados" class="accordion-collapse collapse">
-          <div class="accordion-body py-0 px-4">
-            <a class="nav-link" href="{{ url_for('cli.listar_avaliados') }}">Listar avaliados</a>
-            <a class="nav-link" href="{{ url_for('cli.cadastrar_avaliado') }}">Novo avaliado</a>
+          <div class="accordion-body">
+            <a class="nav-link" href="{{ url_for('cli.listar_avaliados') }}"><i class="fas fa-list"></i> <span>Listar avaliados</span></a>
+            <a class="nav-link" href="{{ url_for('cli.cadastrar_avaliado') }}"><i class="fas fa-plus-circle"></i> <span>Novo avaliado</span></a>
           </div>
         </div>
       </div>
 
-      <!-- Usuários -->
-      <div class="accordion-item bg-transparent border-0">
+      <div class="accordion-item border-0 bg-transparent">
         <h2 class="accordion-header">
-          <button class="accordion-button nav-link collapsed" type="button" data-bs-toggle="collapse"
-            data-bs-target="#collapseUsuarios">
-            <span><i class="fas fa-user me-2"></i> Usuários</span>
-            <i class="fas fa-chevron-down"></i>
+          <button class="accordion-button collapsed" data-bs-toggle="collapse" data-bs-target="#collapseUsuarios">
+            <i class="fas fa-user"></i> <span>Usuários</span>
           </button>
         </h2>
         <div id="collapseUsuarios" class="accordion-collapse collapse">
-          <div class="accordion-body py-0 px-4">
-            <a class="nav-link" href="{{ url_for('auth.listar_usuarios') }}">Listar usuários</a>
+          <div class="accordion-body">
+            <a class="nav-link" href="{{ url_for('auth.listar_usuarios') }}"><i class="fas fa-list"></i> <span>Listar usuários</span></a>
           </div>
         </div>
       </div>
 
+      <a class="nav-link mt-3" href="{{ url_for('main.painel') }}"><i class="fas fa-arrow-left"></i> <span>Voltar</span></a>
+      <a class="nav-link text-danger" href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt"></i> <span>Sair</span></a>
     </div>
-    <a class="nav-link text-white mt-3" href="{{ url_for('main.painel') }}">
-      <i class="fas fa-arrow-left"></i> Voltar
-    </a>
-    <a class="nav-link text-danger" href="{{ url_for('auth.logout') }}">
-      <i class="fas fa-sign-out-alt"></i> Sair
-    </a>
-  </div>
+  </nav>
 
   <main class="main-content">
     {% block content %}{% endblock %}
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <script>
-    const btn = document.getElementById('hamburgerBtn');
-    const sidebar = document.getElementById('sidebar');
-
-    btn.addEventListener('click', () => {
-      sidebar.classList.toggle('show');
-    });
-
-    document.addEventListener('click', function (e) {
-      if (window.innerWidth < 768 && !sidebar.contains(e.target) && !btn.contains(e.target)) {
-        sidebar.classList.remove('show');
-      }
-    });
-  </script>
-
 </body>
 
 </html>
