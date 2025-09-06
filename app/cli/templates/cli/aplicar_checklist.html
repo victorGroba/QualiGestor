@@ -1,74 +1,609 @@
-{% extends 'base_cliq.html' %}
+<!-- templates/cli/aplicar_checklist.html -->
+{% extends "base_cliq.html" %}
 
 {% block title %}Aplicar Checklist - {{ formulario.nome }}{% endblock %}
 
 {% block content %}
-<div class="container py-4">
-  <h2 class="mb-4">Aplicar Checklist - {{ formulario.nome }}</h2>
-
-  {% with messages = get_flashed_messages(with_categories=true) %}
-  {% if messages %}
-  {% for category, message in messages %}
-  <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-    {{ message }}
-    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
-  </div>
-  {% endfor %}
-  {% endif %}
-  {% endwith %}
-
-  <form method="POST">
-    {{ csrf_token() if csrf_token }}
-
-    <!-- Seleção da Loja -->
-    <div class="mb-4">
-      <label class="form-label">Loja Avaliada *</label>
-      <select class="form-select" name="loja_id" required>
-        <option value="">Selecione</option>
-        {% for loja in lojas %}
-        <option value="{{ loja.id }}">{{ loja.nome }}</option>
-        {% endfor %}
-      </select>
-    </div>
-
-    <!-- Blocos e Perguntas -->
-    {% for bloco in formulario.blocos %}
-    <div class="mb-4 p-3 border rounded bg-light">
-      <h5 class="mb-3">{{ bloco.ordem }}. {{ bloco.nome }}</h5>
-
-      {% for pergunta in bloco.perguntas %}
-      <div class="mb-3">
-        <label class="form-label">
-          {{ pergunta.texto }}
-          {% if pergunta.obrigatoria %}<span class="text-danger">*</span>{% endif %}
-        </label>
-
-        {% if pergunta.tipo_resposta.name == 'SIM_NAO' %}
-        <div>
-          {% for opcao in pergunta.opcoes %}
-          <div class="form-check form-check-inline">
-            <input class="form-check-input" type="radio" name="pergunta_{{ pergunta.id }}" value="{{ opcao.id }}"
-              required>
-            <label class="form-check-label">{{ opcao.texto }}</label>
-          </div>
-          {% endfor %}
+<div class="container-fluid py-4">
+    <!-- Header com informações -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h4 class="mb-2">
+                                <i class="fas fa-clipboard-check text-primary me-2"></i>
+                                {{ formulario.nome }}
+                            </h4>
+                            <div class="d-flex flex-wrap gap-3">
+                                <span class="badge bg-info">
+                                    <i class="fas fa-store me-1"></i>
+                                    {{ avaliado.nome }}
+                                </span>
+                                <span class="badge bg-secondary">
+                                    <i class="fas fa-calendar me-1"></i>
+                                    {{ moment().format('DD/MM/YYYY HH:mm') }}
+                                </span>
+                                <span class="badge bg-success">
+                                    <i class="fas fa-user me-1"></i>
+                                    {{ current_user.nome }}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="progress-info mb-2">
+                                <span class="text-muted">Progresso</span>
+                                <span class="fw-bold ms-2" id="progress-text">0%</span>
+                            </div>
+                            <div class="progress" style="height: 25px;">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                     id="progress-bar" 
+                                     role="progressbar" 
+                                     style="width: 0%">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-
-
-        {% elif pergunta.tipo_resposta.name == 'TEXTO' %}
-        <textarea class="form-control" name="pergunta_{{ pergunta.id }}" rows="2" {% if pergunta.obrigatoria
-          %}required{% endif %}></textarea>
-
-        {% elif pergunta.tipo_resposta.name == 'NOTA' %}
-        <input type="number" name="pergunta_{{ pergunta.id }}" class="form-control" min="0" max="10" step="0.5" {% if
-          pergunta.obrigatoria %}required{% endif %}>
-        {% endif %}
-      </div>
-      {% endfor %}
     </div>
-    {% endfor %}
 
-    <button type="submit" class="btn btn-success">Enviar Respostas</button>
-  </form>
+    <!-- Formulário Principal -->
+    <form id="form-checklist" method="POST" enctype="multipart/form-data">
+        {{ csrf_token() if csrf_token }}
+        
+        <div class="row">
+            <div class="col-lg-9">
+                <!-- Perguntas agrupadas por bloco -->
+                {% set current_block = None %}
+                {% set question_counter = 0 %}
+                
+                {% for pergunta in formulario.perguntas %}
+                    {% set question_counter = question_counter + 1 %}
+                    
+                    <!-- Detectar mudança de bloco (perguntas tipo TITULO) -->
+                    {% if pergunta.tipo_resposta == "TITULO" %}
+                        {% if current_block %}
+                            </div></div></div>  <!-- Fecha bloco anterior -->
+                        {% endif %}
+                        {% set current_block = pergunta.texto %}
+                        
+                        <div class="card shadow-sm mb-3">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-list me-2"></i>
+                                    {{ pergunta.texto }}
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="questions-container">
+                    {% else %}
+                        <!-- Pergunta normal -->
+                        <div class="question-item mb-4 p-3 border rounded" 
+                             data-question-id="{{ pergunta.id }}"
+                             data-required="{{ pergunta.obrigatoria }}">
+                            
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <label class="form-label fw-bold">
+                                        <span class="question-number badge bg-secondary me-2">
+                                            {{ question_counter }}
+                                        </span>
+                                        {{ pergunta.texto }}
+                                        {% if pergunta.obrigatoria %}
+                                            <span class="text-danger">*</span>
+                                        {% endif %}
+                                        {% if pergunta.peso > 0 %}
+                                            <span class="badge bg-info ms-2">
+                                                {{ pergunta.peso }} pts
+                                            </span>
+                                        {% endif %}
+                                    </label>
+                                    
+                                    <!-- Campo de resposta baseado no tipo -->
+                                    {% if pergunta.tipo_resposta in ["Sim/Não", "SIM_NAO"] %}
+                                        <div class="btn-group w-100" role="group">
+                                            <input type="radio" 
+                                                   class="btn-check resposta-input" 
+                                                   name="pergunta_{{ pergunta.id }}" 
+                                                   id="sim_{{ pergunta.id }}"
+                                                   value="Sim"
+                                                   data-peso="{{ pergunta.peso }}">
+                                            <label class="btn btn-outline-success" for="sim_{{ pergunta.id }}">
+                                                <i class="fas fa-check me-1"></i> Sim
+                                            </label>
+                                            
+                                            <input type="radio" 
+                                                   class="btn-check resposta-input" 
+                                                   name="pergunta_{{ pergunta.id }}" 
+                                                   id="nao_{{ pergunta.id }}"
+                                                   value="Não"
+                                                   data-peso="0">
+                                            <label class="btn btn-outline-danger" for="nao_{{ pergunta.id }}">
+                                                <i class="fas fa-times me-1"></i> Não
+                                            </label>
+                                            
+                                            <input type="radio" 
+                                                   class="btn-check resposta-input" 
+                                                   name="pergunta_{{ pergunta.id }}" 
+                                                   id="na_{{ pergunta.id }}"
+                                                   value="N/A"
+                                                   data-peso="0">
+                                            <label class="btn btn-outline-secondary" for="na_{{ pergunta.id }}">
+                                                N/A
+                                            </label>
+                                        </div>
+                                        
+                                    {% elif pergunta.tipo_resposta in ["Nota", "NOTA"] %}
+                                        <div class="row align-items-center">
+                                            <div class="col-8">
+                                                <input type="range" 
+                                                       class="form-range resposta-input" 
+                                                       name="pergunta_{{ pergunta.id }}"
+                                                       min="{{ pergunta.limite_min or 0 }}" 
+                                                       max="{{ pergunta.limite_max or 10 }}"
+                                                       value="5"
+                                                       oninput="document.getElementById('nota_value_{{ pergunta.id }}').textContent = this.value">
+                                            </div>
+                                            <div class="col-4">
+                                                <span class="badge bg-primary fs-5" id="nota_value_{{ pergunta.id }}">5</span>
+                                            </div>
+                                        </div>
+                                        
+                                    {% elif pergunta.tipo_resposta in ["Texto", "TEXTO"] %}
+                                        <textarea class="form-control resposta-input" 
+                                                  name="pergunta_{{ pergunta.id }}"
+                                                  rows="2"
+                                                  placeholder="Digite sua resposta..."></textarea>
+                                                  
+                                    {% elif pergunta.tipo_resposta in ["Numero", "NUMERO"] %}
+                                        <input type="number" 
+                                               class="form-control resposta-input" 
+                                               name="pergunta_{{ pergunta.id }}"
+                                               placeholder="Digite o número...">
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="col-md-4">
+                                    <!-- Observações (se habilitado) -->
+                                    {% if pergunta.observacao_campo %}
+                                        <label class="form-label text-muted">
+                                            <i class="fas fa-comment me-1"></i> Observações
+                                        </label>
+                                        <textarea class="form-control form-control-sm" 
+                                                  name="obs_{{ pergunta.id }}"
+                                                  rows="2"
+                                                  placeholder="Opcional..."></textarea>
+                                    {% endif %}
+                                    
+                                    <!-- Upload de foto -->
+                                    {% if pergunta.permite_foto or pergunta.tipo_resposta in ["IMAGEM", "Imagem"] %}
+                                        <label class="form-label text-muted mt-2">
+                                            <i class="fas fa-camera me-1"></i> Evidência
+                                        </label>
+                                        <input type="file" 
+                                               class="form-control form-control-sm" 
+                                               name="foto_{{ pergunta.id }}"
+                                               accept="image/*">
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <!-- Alerta de não conformidade (aparece quando resposta é negativa) -->
+                            <div class="alert alert-warning mt-2 d-none" id="nc_alert_{{ pergunta.id }}">
+                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                <strong>Atenção:</strong> Esta resposta gerará uma não conformidade.
+                            </div>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+                
+                <!-- Fecha último bloco se existir -->
+                {% if current_block %}
+                    </div></div></div>
+                {% endif %}
+                
+                <!-- Observações Gerais -->
+                <div class="card shadow-sm mb-3">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-comment-alt me-2"></i>
+                            Observações Gerais
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <textarea class="form-control" 
+                                  name="observacoes_gerais" 
+                                  rows="4"
+                                  placeholder="Adicione observações gerais sobre esta auditoria..."></textarea>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Sidebar com resumo -->
+            <div class="col-lg-3">
+                <!-- Card de Pontuação -->
+                <div class="card shadow-sm mb-3 position-sticky" style="top: 20px;">
+                    <div class="card-header bg-info text-white">
+                        <h6 class="mb-0">
+                            <i class="fas fa-chart-line me-1"></i>
+                            Pontuação
+                        </h6>
+                    </div>
+                    <div class="card-body text-center">
+                        <div class="display-4 fw-bold text-primary" id="score-display">0</div>
+                        <div class="text-muted">de <span id="max-score">100</span> pontos</div>
+                        <div class="mt-3">
+                            <div class="progress" style="height: 10px;">
+                                <div class="progress-bar bg-success" 
+                                     id="score-bar" 
+                                     style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <span class="badge bg-success fs-5" id="percent-display">0%</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Status de Salvamento -->
+                <div class="card shadow-sm mb-3">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span class="text-muted">Auto-save</span>
+                            <div id="save-status">
+                                <span class="badge bg-secondary">
+                                    <i class="fas fa-save me-1"></i>
+                                    Não salvo
+                                </span>
+                            </div>
+                        </div>
+                        <small class="text-muted d-block mt-2">
+                            Última atualização: <span id="last-save">-</span>
+                        </small>
+                    </div>
+                </div>
+                
+                <!-- Botões de Ação -->
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-success btn-lg">
+                        <i class="fas fa-check-circle me-2"></i>
+                        Concluir Checklist
+                    </button>
+                    <button type="button" class="btn btn-warning" onclick="salvarRascunho()">
+                        <i class="fas fa-save me-2"></i>
+                        Salvar Rascunho
+                    </button>
+                    <a href="{{ url_for('cli.iniciar_aplicacao') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        Voltar
+                    </a>
+                </div>
+            </div>
+        </div>
+    </form>
 </div>
+
+<style>
+    .question-item {
+        transition: all 0.3s ease;
+        background: white;
+    }
+    
+    .question-item:hover {
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
+    .question-item.answered {
+        background: #f0f8ff;
+        border-color: #28a745 !important;
+    }
+    
+    .question-number {
+        min-width: 30px;
+    }
+    
+    .btn-group label {
+        flex: 1;
+    }
+    
+    .progress-bar {
+        transition: width 0.5s ease;
+    }
+    
+    @media (max-width: 768px) {
+        .position-sticky {
+            position: relative !important;
+        }
+    }
+</style>
+
+<script>
+// Variáveis globais
+let totalScore = 0;
+let maxScore = 0;
+let answeredQuestions = new Set();
+let autoSaveTimer;
+
+// Inicializar ao carregar a página
+document.addEventListener('DOMContentLoaded', function() {
+    calculateMaxScore();
+    attachEventListeners();
+    startAutoSave();
+});
+
+// Calcular pontuação máxima
+function calculateMaxScore() {
+    const questions = document.querySelectorAll('.question-item');
+    questions.forEach(q => {
+        const input = q.querySelector('.resposta-input');
+        if (input && input.dataset.peso) {
+            maxScore += parseFloat(input.dataset.peso);
+        } else if (input && input.name.startsWith('pergunta_')) {
+            // Para perguntas sem peso definido, assumir peso padrão
+            const pesoElement = q.querySelector('.badge.bg-info');
+            if (pesoElement) {
+                const peso = parseFloat(pesoElement.textContent);
+                if (!isNaN(peso)) maxScore += peso;
+            }
+        }
+    });
+    document.getElementById('max-score').textContent = maxScore;
+}
+
+// Adicionar event listeners
+function attachEventListeners() {
+    // Para todas as respostas
+    document.querySelectorAll('.resposta-input').forEach(input => {
+        input.addEventListener('change', function() {
+            onAnswerChange(this);
+        });
+        
+        // Para textarea e inputs de texto
+        if (input.tagName === 'TEXTAREA' || input.type === 'text' || input.type === 'number') {
+            input.addEventListener('input', debounce(function() {
+                onAnswerChange(this);
+            }, 500));
+        }
+    });
+    
+    // Prevenir envio acidental do formulário
+    document.getElementById('form-checklist').addEventListener('submit', function(e) {
+        e.preventDefault();
+        submitChecklist();
+    });
+}
+
+// Quando uma resposta muda
+function onAnswerChange(input) {
+    const questionItem = input.closest('.question-item');
+    const questionId = questionItem.dataset.questionId;
+    
+    // Marcar como respondida
+    if (input.value && input.value.trim() !== '') {
+        questionItem.classList.add('answered');
+        answeredQuestions.add(questionId);
+    } else {
+        questionItem.classList.remove('answered');
+        answeredQuestions.delete(questionId);
+    }
+    
+    // Verificar não conformidade
+    checkNonConformity(input, questionItem);
+    
+    // Atualizar progresso
+    updateProgress();
+    
+    // Atualizar pontuação
+    updateScore();
+    
+    // Marcar como não salvo
+    setUnsaved();
+}
+
+// Verificar não conformidades
+function checkNonConformity(input, questionItem) {
+    const ncAlert = questionItem.querySelector('[id^="nc_alert_"]');
+    if (!ncAlert) return;
+    
+    if (input.type === 'radio' && input.value === 'Não') {
+        ncAlert.classList.remove('d-none');
+    } else if (input.type === 'range' && parseFloat(input.value) < 5) {
+        ncAlert.classList.remove('d-none');
+    } else {
+        ncAlert.classList.add('d-none');
+    }
+}
+
+// Atualizar progresso
+function updateProgress() {
+    const totalQuestions = document.querySelectorAll('.question-item[data-required="True"]').length;
+    const answeredRequired = document.querySelectorAll('.question-item[data-required="True"].answered').length;
+    
+    const progress = totalQuestions > 0 ? (answeredRequired / totalQuestions * 100) : 0;
+    
+    document.getElementById('progress-bar').style.width = progress + '%';
+    document.getElementById('progress-text').textContent = Math.round(progress) + '%';
+}
+
+// Atualizar pontuação
+function updateScore() {
+    totalScore = 0;
+    
+    document.querySelectorAll('.question-item.answered').forEach(item => {
+        const input = item.querySelector('.resposta-input:checked') || 
+                     item.querySelector('.resposta-input[type="range"]') ||
+                     item.querySelector('.resposta-input[type="text"]') ||
+                     item.querySelector('.resposta-input[type="number"]');
+        
+        if (!input) return;
+        
+        // Calcular pontos baseado no tipo
+        if (input.type === 'radio') {
+            if (input.value === 'Sim') {
+                const peso = parseFloat(input.dataset.peso || getQuestionWeight(item));
+                totalScore += peso;
+            }
+        } else if (input.type === 'range') {
+            const peso = getQuestionWeight(item);
+            const nota = parseFloat(input.value);
+            const notaMax = parseFloat(input.max);
+            totalScore += (nota / notaMax) * peso;
+        } else if (input.value && input.value.trim() !== '') {
+            // Para texto e número, dar pontuação total se preenchido
+            const peso = getQuestionWeight(item);
+            totalScore += peso;
+        }
+    });
+    
+    // Atualizar display
+    document.getElementById('score-display').textContent = Math.round(totalScore);
+    const percent = maxScore > 0 ? (totalScore / maxScore * 100) : 0;
+    document.getElementById('score-bar').style.width = percent + '%';
+    document.getElementById('percent-display').textContent = Math.round(percent) + '%';
+    
+    // Mudar cor baseado na porcentagem
+    const scoreBar = document.getElementById('score-bar');
+    if (percent >= 80) {
+        scoreBar.className = 'progress-bar bg-success';
+    } else if (percent >= 60) {
+        scoreBar.className = 'progress-bar bg-warning';
+    } else {
+        scoreBar.className = 'progress-bar bg-danger';
+    }
+}
+
+// Obter peso da pergunta
+function getQuestionWeight(questionItem) {
+    const badge = questionItem.querySelector('.badge.bg-info');
+    if (badge) {
+        const match = badge.textContent.match(/(\d+)/);
+        if (match) return parseFloat(match[1]);
+    }
+    return 10; // Peso padrão
+}
+
+// Auto-save
+function startAutoSave() {
+    // Auto-save a cada 30 segundos
+    setInterval(function() {
+        if (document.querySelector('#save-status .badge').textContent.includes('Não salvo')) {
+            salvarRascunho(true);
+        }
+    }, 30000);
+}
+
+// Salvar rascunho
+function salvarRascunho(isAuto = false) {
+    const formData = new FormData(document.getElementById('form-checklist'));
+    formData.append('rascunho', 'true');
+    formData.append('auto_save', isAuto ? 'true' : 'false');
+    
+    // Mostrar status de salvando
+    const statusBadge = document.querySelector('#save-status .badge');
+    statusBadge.className = 'badge bg-warning';
+    statusBadge.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Salvando...';
+    
+    // Simular salvamento (substituir por AJAX real)
+    setTimeout(() => {
+        statusBadge.className = 'badge bg-success';
+        statusBadge.innerHTML = '<i class="fas fa-check me-1"></i> Salvo';
+        document.getElementById('last-save').textContent = new Date().toLocaleTimeString('pt-BR');
+        
+        if (!isAuto) {
+            // Mostrar notificação se salvamento manual
+            showNotification('Rascunho salvo com sucesso!', 'success');
+        }
+    }, 1000);
+}
+
+// Marcar como não salvo
+function setUnsaved() {
+    const statusBadge = document.querySelector('#save-status .badge');
+    statusBadge.className = 'badge bg-warning';
+    statusBadge.innerHTML = '<i class="fas fa-exclamation me-1"></i> Não salvo';
+}
+
+// Submeter checklist
+function submitChecklist() {
+    // Verificar perguntas obrigatórias
+    const requiredQuestions = document.querySelectorAll('.question-item[data-required="True"]');
+    const unanswered = [];
+    
+    requiredQuestions.forEach(q => {
+        if (!q.classList.contains('answered')) {
+            const label = q.querySelector('.form-label').textContent.trim();
+            unanswered.push(label);
+        }
+    });
+    
+    if (unanswered.length > 0) {
+        showNotification('Por favor, responda todas as perguntas obrigatórias!', 'danger');
+        // Scroll para primeira pergunta não respondida
+        requiredQuestions.forEach(q => {
+            if (!q.classList.contains('answered')) {
+                q.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                q.style.border = '2px solid red';
+                setTimeout(() => q.style.border = '', 3000);
+                return false;
+            }
+        });
+        return false;
+    }
+    
+    // Confirmar envio
+    if (confirm('Deseja realmente concluir este checklist? Após concluído, não será possível editar.')) {
+        document.getElementById('form-checklist').submit();
+    }
+}
+
+// Mostrar notificação
+function showNotification(message, type = 'info') {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alertDiv);
+    
+    setTimeout(() => alertDiv.remove(), 5000);
+}
+
+// Debounce para evitar muitas chamadas
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// Função para capturar foto (mobile)
+function capturePhoto(inputId) {
+    const input = document.querySelector(`input[name="${inputId}"]`);
+    if (input) input.click();
+}
+
+// Preview de imagem
+document.querySelectorAll('input[type="file"]').forEach(input => {
+    input.addEventListener('change', function(e) {
+        if (e.target.files && e.target.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                // Criar preview (implementar conforme necessário)
+                console.log('Imagem carregada:', e.target.result.substring(0, 50) + '...');
+            };
+            reader.readAsDataURL(e.target.files[0]);
+        }
+    });
+});
+</script>
 {% endblock %}
