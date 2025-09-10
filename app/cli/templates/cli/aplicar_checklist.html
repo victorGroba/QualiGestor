@@ -1,4 +1,4 @@
-<!-- templates/cli/aplicar_checklist.html -->
+<!-- app/cli/templates/cli/aplicar_checklist.html -->
 {% extends "base_cliq.html" %}
 
 {% block title %}Aplicar Checklist - {{ formulario.nome }}{% endblock %}
@@ -19,11 +19,11 @@
                             <div class="d-flex flex-wrap gap-3">
                                 <span class="badge bg-info">
                                     <i class="fas fa-store me-1"></i>
-                                    {{ avaliado.nome }}
+                                    {{ loja.nome }}
                                 </span>
                                 <span class="badge bg-secondary">
                                     <i class="fas fa-calendar me-1"></i>
-                                    {{ moment().format('DD/MM/YYYY HH:mm') }}
+                                    {{ moment().format('DD/MM/YYYY HH:mm') if moment else datetime.now().strftime('%d/%m/%Y %H:%M') }}
                                 </span>
                                 <span class="badge bg-success">
                                     <i class="fas fa-user me-1"></i>
@@ -52,158 +52,223 @@
 
     <!-- Formulário Principal -->
     <form id="form-checklist" method="POST" enctype="multipart/form-data">
-        {{ csrf_token() if csrf_token }}
         
         <div class="row">
             <div class="col-lg-9">
                 <!-- Perguntas agrupadas por bloco -->
-                {% set current_block = None %}
-                {% set question_counter = 0 %}
-                
-                {% for pergunta in formulario.perguntas %}
-                    {% set question_counter = question_counter + 1 %}
-                    
-                    <!-- Detectar mudança de bloco (perguntas tipo TITULO) -->
-                    {% if pergunta.tipo_resposta == "TITULO" %}
-                        {% if current_block %}
-                            </div></div></div>  <!-- Fecha bloco anterior -->
-                        {% endif %}
-                        {% set current_block = pergunta.texto %}
-                        
-                        <div class="card shadow-sm mb-3">
-                            <div class="card-header bg-primary text-white">
-                                <h5 class="mb-0">
-                                    <i class="fas fa-list me-2"></i>
-                                    {{ pergunta.texto }}
-                                </h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="questions-container">
-                    {% else %}
-                        <!-- Pergunta normal -->
-                        <div class="question-item mb-4 p-3 border rounded" 
-                             data-question-id="{{ pergunta.id }}"
-                             data-required="{{ pergunta.obrigatoria }}">
-                            
-                            <div class="row">
-                                <div class="col-md-8">
-                                    <label class="form-label fw-bold">
-                                        <span class="question-number badge bg-secondary me-2">
-                                            {{ question_counter }}
-                                        </span>
-                                        {{ pergunta.texto }}
-                                        {% if pergunta.obrigatoria %}
-                                            <span class="text-danger">*</span>
-                                        {% endif %}
-                                        {% if pergunta.peso > 0 %}
-                                            <span class="badge bg-info ms-2">
-                                                {{ pergunta.peso }} pts
-                                            </span>
-                                        {% endif %}
-                                    </label>
-                                    
-                                    <!-- Campo de resposta baseado no tipo -->
-                                    {% if pergunta.tipo_resposta in ["Sim/Não", "SIM_NAO"] %}
-                                        <div class="btn-group w-100" role="group">
-                                            <input type="radio" 
-                                                   class="btn-check resposta-input" 
-                                                   name="pergunta_{{ pergunta.id }}" 
-                                                   id="sim_{{ pergunta.id }}"
-                                                   value="Sim"
-                                                   data-peso="{{ pergunta.peso }}">
-                                            <label class="btn btn-outline-success" for="sim_{{ pergunta.id }}">
-                                                <i class="fas fa-check me-1"></i> Sim
-                                            </label>
+                {% for bloco in formulario.blocos.order_by(bloco.ordem) %}
+                    <div class="card shadow-sm mb-3">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-list me-2"></i>
+                                {{ bloco.nome }}
+                            </h5>
+                            {% if bloco.descricao %}
+                            <small class="text-white-50">{{ bloco.descricao }}</small>
+                            {% endif %}
+                        </div>
+                        <div class="card-body">
+                            <div class="questions-container">
+                                {% for pergunta in bloco.perguntas.order_by(pergunta.ordem) %}
+                                    <div class="question-item mb-4 p-3 border rounded" 
+                                         data-question-id="{{ pergunta.id }}"
+                                         data-required="{{ pergunta.obrigatoria }}"
+                                         data-weight="{{ pergunta.peso }}">
+                                        
+                                        <div class="row">
+                                            <div class="col-md-8">
+                                                <label class="form-label fw-bold">
+                                                    <span class="question-number badge bg-secondary me-2">
+                                                        {{ loop.index }}
+                                                    </span>
+                                                    {{ pergunta.texto }}
+                                                    {% if pergunta.obrigatoria %}
+                                                        <span class="text-danger">*</span>
+                                                    {% endif %}
+                                                    {% if pergunta.peso > 0 %}
+                                                        <span class="badge bg-info ms-2">
+                                                            {{ pergunta.peso }} pts
+                                                        </span>
+                                                    {% endif %}
+                                                    {% if pergunta.critica %}
+                                                        <span class="badge bg-warning ms-1">Crítica</span>
+                                                    {% endif %}
+                                                </label>
+                                                
+                                                {% if pergunta.descricao %}
+                                                    <small class="text-muted d-block mb-2">{{ pergunta.descricao }}</small>
+                                                {% endif %}
+                                                
+                                                <!-- Campo de resposta baseado no tipo -->
+                                                {% if pergunta.tipo_resposta.name in ["SIM_NAO", "SIM_NAO_NA"] %}
+                                                    <div class="btn-group w-100" role="group">
+                                                        <input type="radio" 
+                                                               class="btn-check resposta-input" 
+                                                               name="pergunta_{{ pergunta.id }}" 
+                                                               id="sim_{{ pergunta.id }}"
+                                                               value="Sim"
+                                                               data-peso="{{ pergunta.peso }}"
+                                                               {% if pergunta.obrigatoria %}required{% endif %}>
+                                                        <label class="btn btn-outline-success" for="sim_{{ pergunta.id }}">
+                                                            <i class="fas fa-check me-1"></i> Sim
+                                                        </label>
+                                                        
+                                                        <input type="radio" 
+                                                               class="btn-check resposta-input" 
+                                                               name="pergunta_{{ pergunta.id }}" 
+                                                               id="nao_{{ pergunta.id }}"
+                                                               value="Não"
+                                                               data-peso="0"
+                                                               {% if pergunta.obrigatoria %}required{% endif %}>
+                                                        <label class="btn btn-outline-danger" for="nao_{{ pergunta.id }}">
+                                                            <i class="fas fa-times me-1"></i> Não
+                                                        </label>
+                                                        
+                                                        {% if pergunta.tipo_resposta.name == "SIM_NAO_NA" %}
+                                                        <input type="radio" 
+                                                               class="btn-check resposta-input" 
+                                                               name="pergunta_{{ pergunta.id }}" 
+                                                               id="na_{{ pergunta.id }}"
+                                                               value="N/A"
+                                                               data-peso="{{ pergunta.peso }}">
+                                                        <label class="btn btn-outline-secondary" for="na_{{ pergunta.id }}">
+                                                            N/A
+                                                        </label>
+                                                        {% endif %}
+                                                    </div>
+                                                    
+                                                {% elif pergunta.tipo_resposta.name == "NOTA" %}
+                                                    <div class="row align-items-center">
+                                                        <div class="col-8">
+                                                            <input type="range" 
+                                                                   class="form-range resposta-input" 
+                                                                   name="pergunta_{{ pergunta.id }}"
+                                                                   min="{{ pergunta.limite_minimo or 0 }}" 
+                                                                   max="{{ pergunta.limite_maximo or 10 }}"
+                                                                   value="{{ (pergunta.limite_maximo or 10) // 2 }}"
+                                                                   step="0.5"
+                                                                   {% if pergunta.obrigatoria %}required{% endif %}
+                                                                   oninput="document.getElementById('nota_value_{{ pergunta.id }}').textContent = this.value">
+                                                        </div>
+                                                        <div class="col-4">
+                                                            <span class="badge bg-primary fs-5" id="nota_value_{{ pergunta.id }}">
+                                                                {{ (pergunta.limite_maximo or 10) // 2 }}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                {% elif pergunta.tipo_resposta.name in ["TEXTO", "TEXTO_LONGO"] %}
+                                                    <textarea class="form-control resposta-input" 
+                                                              name="pergunta_{{ pergunta.id }}"
+                                                              rows="{{ 4 if pergunta.tipo_resposta.name == 'TEXTO_LONGO' else 2 }}"
+                                                              placeholder="Digite sua resposta..."
+                                                              {% if pergunta.obrigatoria %}required{% endif %}></textarea>
+                                                              
+                                                {% elif pergunta.tipo_resposta.name == "NUMERO" %}
+                                                    <input type="number" 
+                                                           class="form-control resposta-input" 
+                                                           name="pergunta_{{ pergunta.id }}"
+                                                           min="{{ pergunta.limite_minimo or '' }}"
+                                                           max="{{ pergunta.limite_maximo or '' }}"
+                                                           step="0.01"
+                                                           placeholder="Digite o número..."
+                                                           {% if pergunta.obrigatoria %}required{% endif %}>
+                                                           
+                                                {% elif pergunta.tipo_resposta.name == "PERCENTUAL" %}
+                                                    <div class="input-group">
+                                                        <input type="number" 
+                                                               class="form-control resposta-input" 
+                                                               name="pergunta_{{ pergunta.id }}"
+                                                               min="0" max="100" step="0.1"
+                                                               placeholder="0"
+                                                               {% if pergunta.obrigatoria %}required{% endif %}>
+                                                        <span class="input-group-text">%</span>
+                                                    </div>
+                                                    
+                                                {% elif pergunta.tipo_resposta.name == "DATA" %}
+                                                    <input type="date" 
+                                                           class="form-control resposta-input" 
+                                                           name="pergunta_{{ pergunta.id }}"
+                                                           {% if pergunta.obrigatoria %}required{% endif %}>
+                                                           
+                                                {% elif pergunta.tipo_resposta.name == "HORA" %}
+                                                    <input type="time" 
+                                                           class="form-control resposta-input" 
+                                                           name="pergunta_{{ pergunta.id }}"
+                                                           {% if pergunta.obrigatoria %}required{% endif %}>
+                                                           
+                                                {% elif pergunta.tipo_resposta.name == "DATA_HORA" %}
+                                                    <input type="datetime-local" 
+                                                           class="form-control resposta-input" 
+                                                           name="pergunta_{{ pergunta.id }}"
+                                                           {% if pergunta.obrigatoria %}required{% endif %}>
+                                                           
+                                                {% elif pergunta.tipo_resposta.name in ["MULTIPLA_ESCOLHA", "UNICA_ESCOLHA"] %}
+                                                    {% for opcao in pergunta.opcoes.order_by(opcao.ordem) %}
+                                                        <div class="form-check{% if pergunta.tipo_resposta.name == 'MULTIPLA_ESCOLHA' %} form-check-inline{% endif %}">
+                                                            <input class="form-check-input resposta-input" 
+                                                                   type="{{ 'checkbox' if pergunta.tipo_resposta.name == 'MULTIPLA_ESCOLHA' else 'radio' }}" 
+                                                                   name="pergunta_{{ pergunta.id }}{% if pergunta.tipo_resposta.name == 'MULTIPLA_ESCOLHA' %}_{{ opcao.id }}{% endif %}" 
+                                                                   id="opcao_{{ opcao.id }}"
+                                                                   value="{{ opcao.valor }}"
+                                                                   data-pontuacao="{{ opcao.pontuacao }}"
+                                                                   {% if pergunta.obrigatoria and pergunta.tipo_resposta.name == 'UNICA_ESCOLHA' %}required{% endif %}>
+                                                            <label class="form-check-label" for="opcao_{{ opcao.id }}">
+                                                                {{ opcao.texto }}
+                                                            </label>
+                                                        </div>
+                                                    {% endfor %}
+                                                    
+                                                {% else %}
+                                                    <!-- Tipo não reconhecido, usar texto padrão -->
+                                                    <input type="text" 
+                                                           class="form-control resposta-input" 
+                                                           name="pergunta_{{ pergunta.id }}"
+                                                           placeholder="Digite sua resposta..."
+                                                           {% if pergunta.obrigatoria %}required{% endif %}>
+                                                {% endif %}
+                                            </div>
                                             
-                                            <input type="radio" 
-                                                   class="btn-check resposta-input" 
-                                                   name="pergunta_{{ pergunta.id }}" 
-                                                   id="nao_{{ pergunta.id }}"
-                                                   value="Não"
-                                                   data-peso="0">
-                                            <label class="btn btn-outline-danger" for="nao_{{ pergunta.id }}">
-                                                <i class="fas fa-times me-1"></i> Não
-                                            </label>
-                                            
-                                            <input type="radio" 
-                                                   class="btn-check resposta-input" 
-                                                   name="pergunta_{{ pergunta.id }}" 
-                                                   id="na_{{ pergunta.id }}"
-                                                   value="N/A"
-                                                   data-peso="0">
-                                            <label class="btn btn-outline-secondary" for="na_{{ pergunta.id }}">
-                                                N/A
-                                            </label>
+                                            <div class="col-md-4">
+                                                <!-- Observações -->
+                                                {% if pergunta.permite_observacao %}
+                                                    <label class="form-label text-muted">
+                                                        <i class="fas fa-comment me-1"></i> Observações
+                                                    </label>
+                                                    <textarea class="form-control form-control-sm" 
+                                                              name="obs_{{ pergunta.id }}"
+                                                              rows="2"
+                                                              placeholder="Observações opcionais..."></textarea>
+                                                {% endif %}
+                                                
+                                                <!-- Upload de foto -->
+                                                {% if pergunta.permite_foto %}
+                                                    <label class="form-label text-muted mt-2">
+                                                        <i class="fas fa-camera me-1"></i> Evidência
+                                                    </label>
+                                                    <input type="file" 
+                                                           class="form-control form-control-sm" 
+                                                           name="foto_{{ pergunta.id }}"
+                                                           accept="image/*,application/pdf"
+                                                           onchange="previewFile(this, {{ pergunta.id }})">
+                                                    <div id="preview_{{ pergunta.id }}" class="mt-2"></div>
+                                                {% endif %}
+                                            </div>
                                         </div>
                                         
-                                    {% elif pergunta.tipo_resposta in ["Nota", "NOTA"] %}
-                                        <div class="row align-items-center">
-                                            <div class="col-8">
-                                                <input type="range" 
-                                                       class="form-range resposta-input" 
-                                                       name="pergunta_{{ pergunta.id }}"
-                                                       min="{{ pergunta.limite_min or 0 }}" 
-                                                       max="{{ pergunta.limite_max or 10 }}"
-                                                       value="5"
-                                                       oninput="document.getElementById('nota_value_{{ pergunta.id }}').textContent = this.value">
-                                            </div>
-                                            <div class="col-4">
-                                                <span class="badge bg-primary fs-5" id="nota_value_{{ pergunta.id }}">5</span>
-                                            </div>
+                                        <!-- Alerta de não conformidade -->
+                                        {% if pergunta.gera_nc_automatica %}
+                                        <div class="alert alert-warning mt-2 d-none" id="nc_alert_{{ pergunta.id }}">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>
+                                            <strong>Atenção:</strong> Esta resposta pode gerar uma não conformidade.
                                         </div>
-                                        
-                                    {% elif pergunta.tipo_resposta in ["Texto", "TEXTO"] %}
-                                        <textarea class="form-control resposta-input" 
-                                                  name="pergunta_{{ pergunta.id }}"
-                                                  rows="2"
-                                                  placeholder="Digite sua resposta..."></textarea>
-                                                  
-                                    {% elif pergunta.tipo_resposta in ["Numero", "NUMERO"] %}
-                                        <input type="number" 
-                                               class="form-control resposta-input" 
-                                               name="pergunta_{{ pergunta.id }}"
-                                               placeholder="Digite o número...">
-                                    {% endif %}
-                                </div>
-                                
-                                <div class="col-md-4">
-                                    <!-- Observações (se habilitado) -->
-                                    {% if pergunta.observacao_campo %}
-                                        <label class="form-label text-muted">
-                                            <i class="fas fa-comment me-1"></i> Observações
-                                        </label>
-                                        <textarea class="form-control form-control-sm" 
-                                                  name="obs_{{ pergunta.id }}"
-                                                  rows="2"
-                                                  placeholder="Opcional..."></textarea>
-                                    {% endif %}
-                                    
-                                    <!-- Upload de foto -->
-                                    {% if pergunta.permite_foto or pergunta.tipo_resposta in ["IMAGEM", "Imagem"] %}
-                                        <label class="form-label text-muted mt-2">
-                                            <i class="fas fa-camera me-1"></i> Evidência
-                                        </label>
-                                        <input type="file" 
-                                               class="form-control form-control-sm" 
-                                               name="foto_{{ pergunta.id }}"
-                                               accept="image/*">
-                                    {% endif %}
-                                </div>
-                            </div>
-                            
-                            <!-- Alerta de não conformidade (aparece quando resposta é negativa) -->
-                            <div class="alert alert-warning mt-2 d-none" id="nc_alert_{{ pergunta.id }}">
-                                <i class="fas fa-exclamation-triangle me-1"></i>
-                                <strong>Atenção:</strong> Esta resposta gerará uma não conformidade.
+                                        {% endif %}
+                                    </div>
+                                {% endfor %}
                             </div>
                         </div>
-                    {% endif %}
+                    </div>
                 {% endfor %}
-                
-                <!-- Fecha último bloco se existir -->
-                {% if current_block %}
-                    </div></div></div>
-                {% endif %}
                 
                 <!-- Observações Gerais -->
                 <div class="card shadow-sm mb-3">
@@ -229,12 +294,12 @@
                     <div class="card-header bg-info text-white">
                         <h6 class="mb-0">
                             <i class="fas fa-chart-line me-1"></i>
-                            Pontuação
+                            Pontuação Estimada
                         </h6>
                     </div>
                     <div class="card-body text-center">
                         <div class="display-4 fw-bold text-primary" id="score-display">0</div>
-                        <div class="text-muted">de <span id="max-score">100</span> pontos</div>
+                        <div class="text-muted">de <span id="max-score">{{ formulario.pontuacao_maxima or 100 }}</span> pontos</div>
                         <div class="mt-3">
                             <div class="progress" style="height: 10px;">
                                 <div class="progress-bar bg-success" 
@@ -245,30 +310,40 @@
                         <div class="mt-3">
                             <span class="badge bg-success fs-5" id="percent-display">0%</span>
                         </div>
+                        <small class="text-muted d-block mt-2">
+                            *Cálculo aproximado baseado nas respostas
+                        </small>
                     </div>
                 </div>
                 
-                <!-- Status de Salvamento -->
+                <!-- Resumo de Progresso -->
                 <div class="card shadow-sm mb-3">
                     <div class="card-body">
-                        <div class="d-flex align-items-center justify-content-between">
-                            <span class="text-muted">Auto-save</span>
-                            <div id="save-status">
-                                <span class="badge bg-secondary">
-                                    <i class="fas fa-save me-1"></i>
-                                    Não salvo
-                                </span>
-                            </div>
+                        <h6 class="card-title">
+                            <i class="fas fa-tasks me-1"></i>
+                            Progresso
+                        </h6>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Respondidas:</span>
+                            <span class="fw-bold">
+                                <span id="answered-count">0</span>/<span id="total-count">{{ formulario.perguntas|length }}</span>
+                            </span>
                         </div>
-                        <small class="text-muted d-block mt-2">
-                            Última atualização: <span id="last-save">-</span>
-                        </small>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Obrigatórias:</span>
+                            <span class="fw-bold">
+                                <span id="required-answered">0</span>/<span id="required-total">
+                                    {% set required_count = formulario.perguntas|selectattr("obrigatoria")|list|length %}
+                                    {{ required_count }}
+                                </span>
+                            </span>
+                        </div>
                     </div>
                 </div>
                 
                 <!-- Botões de Ação -->
                 <div class="d-grid gap-2">
-                    <button type="submit" class="btn btn-success btn-lg">
+                    <button type="submit" class="btn btn-success btn-lg" id="submit-btn">
                         <i class="fas fa-check-circle me-2"></i>
                         Concluir Checklist
                     </button>
@@ -276,10 +351,18 @@
                         <i class="fas fa-save me-2"></i>
                         Salvar Rascunho
                     </button>
-                    <a href="{{ url_for('cli.iniciar_aplicacao') }}" class="btn btn-outline-secondary">
+                    <a href="{{ url_for('cli.selecionar_loja', formulario_id=formulario.id) }}" class="btn btn-outline-secondary">
                         <i class="fas fa-arrow-left me-2"></i>
                         Voltar
                     </a>
+                </div>
+                
+                <!-- Status de Validação -->
+                <div class="alert alert-warning mt-3 d-none" id="validation-alert">
+                    <small>
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        <span id="validation-message">Preencha todas as perguntas obrigatórias</span>
+                    </small>
                 </div>
             </div>
         </div>
@@ -290,15 +373,22 @@
     .question-item {
         transition: all 0.3s ease;
         background: white;
+        border: 2px solid #e9ecef !important;
     }
     
     .question-item:hover {
         box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        border-color: #007bff !important;
     }
     
     .question-item.answered {
-        background: #f0f8ff;
+        background: #f8f9fa;
         border-color: #28a745 !important;
+    }
+    
+    .question-item.has-error {
+        border-color: #dc3545 !important;
+        background: #fff5f5;
     }
     
     .question-number {
@@ -313,9 +403,29 @@
         transition: width 0.5s ease;
     }
     
+    .resposta-input:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+    }
+    
+    .preview-image {
+        max-width: 100px;
+        max-height: 100px;
+        border-radius: 4px;
+        border: 1px solid #ddd;
+    }
+    
     @media (max-width: 768px) {
         .position-sticky {
             position: relative !important;
+        }
+        
+        .btn-group {
+            flex-direction: column;
+        }
+        
+        .btn-group label {
+            margin-bottom: 5px;
         }
     }
 </style>
@@ -323,34 +433,42 @@
 <script>
 // Variáveis globais
 let totalScore = 0;
-let maxScore = 0;
+let maxScore = {{ formulario.pontuacao_maxima or 100 }};
 let answeredQuestions = new Set();
-let autoSaveTimer;
+let requiredQuestions = new Set();
+let totalQuestions = 0;
 
 // Inicializar ao carregar a página
 document.addEventListener('DOMContentLoaded', function() {
-    calculateMaxScore();
+    initializeForm();
     attachEventListeners();
-    startAutoSave();
+    updateProgress();
 });
 
-// Calcular pontuação máxima
-function calculateMaxScore() {
-    const questions = document.querySelectorAll('.question-item');
-    questions.forEach(q => {
-        const input = q.querySelector('.resposta-input');
-        if (input && input.dataset.peso) {
-            maxScore += parseFloat(input.dataset.peso);
-        } else if (input && input.name.startsWith('pergunta_')) {
-            // Para perguntas sem peso definido, assumir peso padrão
-            const pesoElement = q.querySelector('.badge.bg-info');
-            if (pesoElement) {
-                const peso = parseFloat(pesoElement.textContent);
-                if (!isNaN(peso)) maxScore += peso;
-            }
+// Inicializar formulário
+function initializeForm() {
+    // Contar perguntas
+    document.querySelectorAll('.question-item').forEach(item => {
+        totalQuestions++;
+        if (item.dataset.required === 'True') {
+            requiredQuestions.add(item.dataset.questionId);
         }
     });
-    document.getElementById('max-score').textContent = maxScore;
+    
+    document.getElementById('total-count').textContent = totalQuestions;
+    document.getElementById('required-total').textContent = requiredQuestions.size;
+    
+    // Calcular pontuação máxima real
+    let realMaxScore = 0;
+    document.querySelectorAll('.question-item').forEach(item => {
+        const weight = parseFloat(item.dataset.weight) || 10;
+        realMaxScore += weight;
+    });
+    
+    if (realMaxScore > 0) {
+        maxScore = realMaxScore;
+        document.getElementById('max-score').textContent = maxScore;
+    }
 }
 
 // Adicionar event listeners
@@ -361,18 +479,25 @@ function attachEventListeners() {
             onAnswerChange(this);
         });
         
-        // Para textarea e inputs de texto
-        if (input.tagName === 'TEXTAREA' || input.type === 'text' || input.type === 'number') {
+        // Para textarea e inputs de texto/número
+        if (input.tagName === 'TEXTAREA' || 
+            input.type === 'text' || 
+            input.type === 'number' || 
+            input.type === 'date' || 
+            input.type === 'time' || 
+            input.type === 'datetime-local') {
             input.addEventListener('input', debounce(function() {
                 onAnswerChange(this);
-            }, 500));
+            }, 300));
         }
     });
     
-    // Prevenir envio acidental do formulário
+    // Validação antes do envio
     document.getElementById('form-checklist').addEventListener('submit', function(e) {
-        e.preventDefault();
-        submitChecklist();
+        if (!validateForm()) {
+            e.preventDefault();
+            showValidationErrors();
+        }
     });
 }
 
@@ -381,9 +506,12 @@ function onAnswerChange(input) {
     const questionItem = input.closest('.question-item');
     const questionId = questionItem.dataset.questionId;
     
-    // Marcar como respondida
-    if (input.value && input.value.trim() !== '') {
+    // Verificar se foi respondida
+    const hasValue = checkIfAnswered(input, questionItem);
+    
+    if (hasValue) {
         questionItem.classList.add('answered');
+        questionItem.classList.remove('has-error');
         answeredQuestions.add(questionId);
     } else {
         questionItem.classList.remove('answered');
@@ -393,14 +521,22 @@ function onAnswerChange(input) {
     // Verificar não conformidade
     checkNonConformity(input, questionItem);
     
-    // Atualizar progresso
+    // Atualizar progresso e pontuação
     updateProgress();
-    
-    // Atualizar pontuação
     updateScore();
-    
-    // Marcar como não salvo
-    setUnsaved();
+}
+
+// Verificar se pergunta foi respondida
+function checkIfAnswered(input, questionItem) {
+    if (input.type === 'radio') {
+        return questionItem.querySelector('input[type="radio"]:checked') !== null;
+    } else if (input.type === 'checkbox') {
+        return questionItem.querySelector('input[type="checkbox"]:checked') !== null;
+    } else if (input.type === 'range') {
+        return true; // Range sempre tem valor
+    } else {
+        return input.value && input.value.trim() !== '';
+    }
 }
 
 // Verificar não conformidades
@@ -408,9 +544,19 @@ function checkNonConformity(input, questionItem) {
     const ncAlert = questionItem.querySelector('[id^="nc_alert_"]');
     if (!ncAlert) return;
     
-    if (input.type === 'radio' && input.value === 'Não') {
-        ncAlert.classList.remove('d-none');
-    } else if (input.type === 'range' && parseFloat(input.value) < 5) {
+    let showAlert = false;
+    
+    if (input.type === 'radio' && input.checked) {
+        showAlert = (input.value === 'Não');
+    } else if (input.type === 'range') {
+        const value = parseFloat(input.value);
+        const min = parseFloat(input.min) || 0;
+        const max = parseFloat(input.max) || 10;
+        const threshold = min + (max - min) * 0.6; // 60% do valor máximo
+        showAlert = (value < threshold);
+    }
+    
+    if (showAlert) {
         ncAlert.classList.remove('d-none');
     } else {
         ncAlert.classList.add('d-none');
@@ -419,43 +565,37 @@ function checkNonConformity(input, questionItem) {
 
 // Atualizar progresso
 function updateProgress() {
-    const totalQuestions = document.querySelectorAll('.question-item[data-required="True"]').length;
-    const answeredRequired = document.querySelectorAll('.question-item[data-required="True"].answered').length;
+    const answeredCount = answeredQuestions.size;
+    const requiredAnswered = Array.from(answeredQuestions).filter(id => 
+        requiredQuestions.has(id)
+    ).length;
     
-    const progress = totalQuestions > 0 ? (answeredRequired / totalQuestions * 100) : 0;
+    // Atualizar contadores
+    document.getElementById('answered-count').textContent = answeredCount;
+    document.getElementById('required-answered').textContent = requiredAnswered;
     
+    // Atualizar barra de progresso
+    const progress = totalQuestions > 0 ? (answeredCount / totalQuestions * 100) : 0;
     document.getElementById('progress-bar').style.width = progress + '%';
     document.getElementById('progress-text').textContent = Math.round(progress) + '%';
+    
+    // Atualizar cor da barra baseado nas obrigatórias
+    const progressBar = document.getElementById('progress-bar');
+    if (requiredAnswered === requiredQuestions.size) {
+        progressBar.className = 'progress-bar progress-bar-striped bg-success';
+    } else {
+        progressBar.className = 'progress-bar progress-bar-striped progress-bar-animated bg-primary';
+    }
 }
 
-// Atualizar pontuação
+// Atualizar pontuação estimada
 function updateScore() {
     totalScore = 0;
     
     document.querySelectorAll('.question-item.answered').forEach(item => {
-        const input = item.querySelector('.resposta-input:checked') || 
-                     item.querySelector('.resposta-input[type="range"]') ||
-                     item.querySelector('.resposta-input[type="text"]') ||
-                     item.querySelector('.resposta-input[type="number"]');
-        
-        if (!input) return;
-        
-        // Calcular pontos baseado no tipo
-        if (input.type === 'radio') {
-            if (input.value === 'Sim') {
-                const peso = parseFloat(input.dataset.peso || getQuestionWeight(item));
-                totalScore += peso;
-            }
-        } else if (input.type === 'range') {
-            const peso = getQuestionWeight(item);
-            const nota = parseFloat(input.value);
-            const notaMax = parseFloat(input.max);
-            totalScore += (nota / notaMax) * peso;
-        } else if (input.value && input.value.trim() !== '') {
-            // Para texto e número, dar pontuação total se preenchido
-            const peso = getQuestionWeight(item);
-            totalScore += peso;
-        }
+        const weight = parseFloat(item.dataset.weight) || 10;
+        const scoreForQuestion = calculateQuestionScore(item, weight);
+        totalScore += scoreForQuestion;
     });
     
     // Atualizar display
@@ -475,88 +615,105 @@ function updateScore() {
     }
 }
 
-// Obter peso da pergunta
-function getQuestionWeight(questionItem) {
-    const badge = questionItem.querySelector('.badge.bg-info');
-    if (badge) {
-        const match = badge.textContent.match(/(\d+)/);
-        if (match) return parseFloat(match[1]);
+// Calcular pontuação de uma pergunta
+function calculateQuestionScore(questionItem, weight) {
+    const radioChecked = questionItem.querySelector('input[type="radio"]:checked');
+    const checkboxes = questionItem.querySelectorAll('input[type="checkbox"]:checked');
+    const rangeInput = questionItem.querySelector('input[type="range"]');
+    const textInputs = questionItem.querySelectorAll('input[type="text"], input[type="number"], textarea');
+    
+    if (radioChecked) {
+        if (radioChecked.value === 'Sim' || radioChecked.value === 'N/A') {
+            return weight;
+        }
+        return 0;
+    } else if (checkboxes.length > 0) {
+        return weight; // Se selecionou algo, ganha pontos
+    } else if (rangeInput) {
+        const value = parseFloat(rangeInput.value);
+        const min = parseFloat(rangeInput.min) || 0;
+        const max = parseFloat(rangeInput.max) || 10;
+        return weight * ((value - min) / (max - min));
+    } else {
+        // Verificar se algum campo de texto foi preenchido
+        for (let input of textInputs) {
+            if (input.value && input.value.trim() !== '') {
+                return weight;
+            }
+        }
+        return 0;
     }
-    return 10; // Peso padrão
 }
 
-// Auto-save
-function startAutoSave() {
-    // Auto-save a cada 30 segundos
-    setInterval(function() {
-        if (document.querySelector('#save-status .badge').textContent.includes('Não salvo')) {
-            salvarRascunho(true);
-        }
-    }, 30000);
-}
-
-// Salvar rascunho
-function salvarRascunho(isAuto = false) {
-    const formData = new FormData(document.getElementById('form-checklist'));
-    formData.append('rascunho', 'true');
-    formData.append('auto_save', isAuto ? 'true' : 'false');
+// Validar formulário
+function validateForm() {
+    let isValid = true;
+    const errors = [];
     
-    // Mostrar status de salvando
-    const statusBadge = document.querySelector('#save-status .badge');
-    statusBadge.className = 'badge bg-warning';
-    statusBadge.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Salvando...';
-    
-    // Simular salvamento (substituir por AJAX real)
-    setTimeout(() => {
-        statusBadge.className = 'badge bg-success';
-        statusBadge.innerHTML = '<i class="fas fa-check me-1"></i> Salvo';
-        document.getElementById('last-save').textContent = new Date().toLocaleTimeString('pt-BR');
-        
-        if (!isAuto) {
-            // Mostrar notificação se salvamento manual
-            showNotification('Rascunho salvo com sucesso!', 'success');
-        }
-    }, 1000);
-}
-
-// Marcar como não salvo
-function setUnsaved() {
-    const statusBadge = document.querySelector('#save-status .badge');
-    statusBadge.className = 'badge bg-warning';
-    statusBadge.innerHTML = '<i class="fas fa-exclamation me-1"></i> Não salvo';
-}
-
-// Submeter checklist
-function submitChecklist() {
     // Verificar perguntas obrigatórias
-    const requiredQuestions = document.querySelectorAll('.question-item[data-required="True"]');
-    const unanswered = [];
-    
-    requiredQuestions.forEach(q => {
-        if (!q.classList.contains('answered')) {
-            const label = q.querySelector('.form-label').textContent.trim();
-            unanswered.push(label);
+    requiredQuestions.forEach(questionId => {
+        if (!answeredQuestions.has(questionId)) {
+            isValid = false;
+            const questionItem = document.querySelector(`[data-question-id="${questionId}"]`);
+            questionItem.classList.add('has-error');
+            const questionText = questionItem.querySelector('.form-label').textContent.trim();
+            errors.push(questionText);
         }
     });
     
-    if (unanswered.length > 0) {
-        showNotification('Por favor, responda todas as perguntas obrigatórias!', 'danger');
-        // Scroll para primeira pergunta não respondida
-        requiredQuestions.forEach(q => {
-            if (!q.classList.contains('answered')) {
-                q.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                q.style.border = '2px solid red';
-                setTimeout(() => q.style.border = '', 3000);
-                return false;
-            }
-        });
-        return false;
+    if (!isValid) {
+        document.getElementById('validation-message').textContent = 
+            `Perguntas obrigatórias não respondidas: ${errors.length}`;
+        document.getElementById('validation-alert').classList.remove('d-none');
+        
+        // Scroll para primeira pergunta com erro
+        const firstError = document.querySelector('.question-item.has-error');
+        if (firstError) {
+            firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    } else {
+        document.getElementById('validation-alert').classList.add('d-none');
     }
     
-    // Confirmar envio
-    if (confirm('Deseja realmente concluir este checklist? Após concluído, não será possível editar.')) {
-        document.getElementById('form-checklist').submit();
+    return isValid;
+}
+
+// Mostrar erros de validação
+function showValidationErrors() {
+    showNotification('Por favor, responda todas as perguntas obrigatórias!', 'danger');
+}
+
+// Preview de arquivo
+function previewFile(input, perguntaId) {
+    const file = input.files[0];
+    const previewDiv = document.getElementById(`preview_${perguntaId}`);
+    
+    if (file) {
+        if (file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                previewDiv.innerHTML = `
+                    <img src="${e.target.result}" class="preview-image" alt="Preview">
+                    <small class="d-block text-muted">${file.name}</small>
+                `;
+            };
+            reader.readAsDataURL(file);
+        } else {
+            previewDiv.innerHTML = `
+                <div class="text-muted">
+                    <i class="fas fa-file me-1"></i>
+                    ${file.name}
+                </div>
+            `;
+        }
+    } else {
+        previewDiv.innerHTML = '';
     }
+}
+
+// Salvar rascunho (placeholder)
+function salvarRascunho() {
+    showNotification('Funcionalidade de rascunho será implementada em breve!', 'info');
 }
 
 // Mostrar notificação
@@ -585,25 +742,5 @@ function debounce(func, wait) {
         timeout = setTimeout(later, wait);
     };
 }
-
-// Função para capturar foto (mobile)
-function capturePhoto(inputId) {
-    const input = document.querySelector(`input[name="${inputId}"]`);
-    if (input) input.click();
-}
-
-// Preview de imagem
-document.querySelectorAll('input[type="file"]').forEach(input => {
-    input.addEventListener('change', function(e) {
-        if (e.target.files && e.target.files[0]) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                // Criar preview (implementar conforme necessário)
-                console.log('Imagem carregada:', e.target.result.substring(0, 50) + '...');
-            };
-            reader.readAsDataURL(e.target.files[0]);
-        }
-    });
-});
 </script>
 {% endblock %}

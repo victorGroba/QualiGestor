@@ -1,6 +1,578 @@
-    {% extends 'base.html' %}
-{% block title %}Panorama{% endblock %}
+<!-- app/panorama/templates/panorama/dashboard.html -->
+{% extends "base_painel.html" %}
+
+{% block title %}Dashboard - Panorama{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    .metric-card {
+        transition: transform 0.2s ease-in-out;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 400px;
+        margin-bottom: 20px;
+    }
+    
+    .loading-spinner {
+        display: none;
+        text-align: center;
+        padding: 40px;
+    }
+    
+    .trend-positive {
+        color: #28a745;
+    }
+    
+    .trend-negative {
+        color: #dc3545;
+    }
+    
+    .trend-neutral {
+        color: #6c757d;
+    }
+    
+    .filter-card {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .ranking-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .ranking-item:last-child {
+        border-bottom: none;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<h1>Painel do Panorama</h1>
-<p>Em breve, seus gráficos estarão aqui.</p>
+<div class="container-fluid">
+    <!-- Header com Filtros -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="filter-card">
+                <h4 class="mb-3">
+                    <i class="fas fa-chart-line me-2"></i>
+                    Dashboard de Qualidade
+                </h4>
+                
+                <form id="filtroForm" class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Período</label>
+                        <select class="form-select" name="periodo" id="periodo">
+                            <option value="7" {% if filtros_aplicados.periodo == '7' %}selected{% endif %}>Últimos 7 dias</option>
+                            <option value="30" {% if filtros_aplicados.periodo == '30' %}selected{% endif %}>Últimos 30 dias</option>
+                            <option value="90" {% if filtros_aplicados.periodo == '90' %}selected{% endif %}>Últimos 90 dias</option>
+                            <option value="365" {% if filtros_aplicados.periodo == '365' %}selected{% endif %}>Último ano</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <label class="form-label">Loja</label>
+                        <select class="form-select" name="loja_id" id="loja_id">
+                            <option value="">Todas as lojas</option>
+                            {% for loja in filtros.lojas %}
+                            <option value="{{ loja.id }}" {% if filtros_aplicados.loja_id == loja.id %}selected{% endif %}>
+                                {{ loja.nome }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <label class="form-label">Formulário</label>
+                        <select class="form-select" name="formulario_id" id="formulario_id">
+                            <option value="">Todos os formulários</option>
+                            {% for formulario in filtros.formularios %}
+                            <option value="{{ formulario.id }}" {% if filtros_aplicados.formulario_id == formulario.id %}selected{% endif %}>
+                                {{ formulario.nome }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary me-2">
+                            <i class="fas fa-filter me-1"></i>
+                            Filtrar
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="exportarDados()">
+                            <i class="fas fa-download me-1"></i>
+                            Exportar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cards de Métricas Principais -->
+    <div class="row mb-4">
+        <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+            <div class="card metric-card h-100 border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="text-primary mb-2">
+                        <i class="fas fa-clipboard-list fa-2x"></i>
+                    </div>
+                    <h4 class="fw-bold">{{ metricas.total_auditorias }}</h4>
+                    <p class="text-muted mb-0">Total de Auditorias</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+            <div class="card metric-card h-100 border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="text-success mb-2">
+                        <i class="fas fa-percentage fa-2x"></i>
+                    </div>
+                    <h4 class="fw-bold">{{ metricas.pontuacao_media }}%</h4>
+                    <p class="text-muted mb-0">Pontuação Média</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+            <div class="card metric-card h-100 border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="text-info mb-2">
+                        <i class="fas fa-store fa-2x"></i>
+                    </div>
+                    <h4 class="fw-bold">{{ metricas.lojas_auditadas }}</h4>
+                    <p class="text-muted mb-0">Lojas Auditadas</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+            <div class="card metric-card h-100 border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="{% if metricas.tendencia_pontuacao > 0 %}text-success{% elif metricas.tendencia_pontuacao < 0 %}text-danger{% else %}text-secondary{% endif %} mb-2">
+                        <i class="fas fa-trending-{% if metricas.tendencia_pontuacao > 0 %}up{% elif metricas.tendencia_pontuacao < 0 %}down{% else %}flat{% endif %} fa-2x"></i>
+                    </div>
+                    <h4 class="fw-bold {% if metricas.tendencia_pontuacao > 0 %}text-success{% elif metricas.tendencia_pontuacao < 0 %}text-danger{% else %}text-secondary{% endif %}">
+                        {% if metricas.tendencia_pontuacao > 0 %}+{% endif %}{{ metricas.tendencia_pontuacao }}%
+                    </h4>
+                    <p class="text-muted mb-0">Tendência</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+            <div class="card metric-card h-100 border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="text-warning mb-2">
+                        <i class="fas fa-exclamation-triangle fa-2x"></i>
+                    </div>
+                    <h4 class="fw-bold">{{ metricas.auditorias_criticas }}</h4>
+                    <p class="text-muted mb-0">Auditorias Críticas</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+            <div class="card metric-card h-100 border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="text-success mb-2">
+                        <i class="fas fa-check-circle fa-2x"></i>
+                    </div>
+                    <h4 class="fw-bold">{{ metricas.conformidade_geral }}%</h4>
+                    <p class="text-muted mb-0">Conformidade</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficos Principais -->
+    <div class="row mb-4">
+        <!-- Evolução da Pontuação -->
+        <div class="col-lg-8 mb-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="chartEvolucao"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Distribuição de Notas -->
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="mb-0">
+                        <i class="fas fa-pie-chart me-2"></i>
+                        Distribuição de Notas
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="height: 300px;">
+                        <canvas id="chartDistribuicao"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <!-- Performance por Loja -->
+        <div class="col-lg-8 mb-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="mb-0">
+                        <i class="fas fa-store me-2"></i>
+                        Performance por Loja
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="chartLojas"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Ranking de Lojas -->
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="mb-0">
+                        <i class="fas fa-trophy me-2"></i>
+                        Ranking de Lojas
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="rankingLojas">
+                        {% for item in graficos.ranking_lojas %}
+                        <div class="ranking-item">
+                            <div>
+                                <span class="badge bg-secondary me-2">{{ loop.index }}º</span>
+                                <strong>{{ item.loja }}</strong>
+                                <br>
+                                <small class="text-muted">{{ item.total_auditorias }} auditoria{{ 's' if item.total_auditorias != 1 else '' }}</small>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge bg-{{ item.status }} fs-6">{{ item.media }}%</span>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-info-circle fa-2x mb-2"></i>
+                            <p>Nenhum dado disponível</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Performance por Formulário e Top NCs -->
+    <div class="row mb-4">
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="mb-0">
+                        <i class="fas fa-clipboard-check me-2"></i>
+                        Performance por Formulário
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="height: 300px;">
+                        <canvas id="chartFormularios"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Top Não Conformidades
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div style="max-height: 300px; overflow-y: auto;">
+                        {% for nc in graficos.top_nao_conformidades %}
+                        <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded">
+                            <div class="flex-grow-1">
+                                <small class="fw-bold">{{ nc.pergunta[:50] }}{% if nc.pergunta|length > 50 %}...{% endif %}</small>
+                            </div>
+                            <span class="badge bg-danger">{{ nc.frequencia }}</span>
+                        </div>
+                        {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-check-circle fa-2x mb-2"></i>
+                            <p>Nenhuma não conformidade encontrada</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div class="loading-spinner" id="loadingSpinner">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Carregando...</span>
+        </div>
+        <p class="mt-2">Atualizando dados...</p>
+    </div>
+</div>
+
+<script>
+// Variáveis globais para os gráficos
+let chartEvolucao, chartDistribuicao, chartLojas, chartFormularios;
+
+// Dados dos gráficos vindos do backend
+const dadosGraficos = {
+    evolucao: {{ graficos.evolucao_pontuacao | tojson }},
+    distribuicao: {{ graficos.distribuicao_notas | tojson }},
+    lojas: {{ graficos.pontuacao_por_loja | tojson }},
+    formularios: {{ graficos.pontuacao_por_formulario | tojson }}
+};
+
+// Configurações padrão dos gráficos
+const defaultOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+        legend: {
+            position: 'top',
+        },
+        tooltip: {
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            titleColor: 'white',
+            bodyColor: 'white',
+            borderColor: '#007bff',
+            borderWidth: 1
+        }
+    }
+};
+
+// Inicializar quando a página carregar
+document.addEventListener('DOMContentLoaded', function() {
+    initializeCharts();
+    setupEventListeners();
+});
+
+// Inicializar todos os gráficos
+function initializeCharts() {
+    // Gráfico de Evolução (Linha)
+    const ctxEvolucao = document.getElementById('chartEvolucao').getContext('2d');
+    chartEvolucao = new Chart(ctxEvolucao, {
+        type: 'line',
+        data: dadosGraficos.evolucao,
+        options: {
+            ...defaultOptions,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                }
+            },
+            plugins: {
+                ...defaultOptions.plugins,
+                title: {
+                    display: false
+                }
+            }
+        }
+    });
+
+    // Gráfico de Distribuição (Pizza)
+    const ctxDistribuicao = document.getElementById('chartDistribuicao').getContext('2d');
+    chartDistribuicao = new Chart(ctxDistribuicao, {
+        type: 'doughnut',
+        data: dadosGraficos.distribuicao,
+        options: {
+            ...defaultOptions,
+            plugins: {
+                ...defaultOptions.plugins,
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    // Gráfico de Lojas (Barras)
+    const ctxLojas = document.getElementById('chartLojas').getContext('2d');
+    chartLojas = new Chart(ctxLojas, {
+        type: 'bar',
+        data: dadosGraficos.lojas,
+        options: {
+            ...defaultOptions,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                }
+            },
+            plugins: {
+                ...defaultOptions.plugins,
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+
+    // Gráfico de Formulários (Pizza)
+    const ctxFormularios = document.getElementById('chartFormularios').getContext('2d');
+    chartFormularios = new Chart(ctxFormularios, {
+        type: 'pie',
+        data: dadosGraficos.formularios,
+        options: {
+            ...defaultOptions,
+            plugins: {
+                ...defaultOptions.plugins,
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+// Configurar event listeners
+function setupEventListeners() {
+    // Formulário de filtros
+    document.getElementById('filtroForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        aplicarFiltros();
+    });
+
+    // Auto-refresh a cada 5 minutos
+    setInterval(function() {
+        atualizarDados();
+    }, 300000); // 5 minutos
+}
+
+// Aplicar filtros
+function aplicarFiltros() {
+    const formData = new FormData(document.getElementById('filtroForm'));
+    const params = new URLSearchParams(formData);
+    
+    // Redirecionar com os novos parâmetros
+    window.location.href = `${window.location.pathname}?${params.toString()}`;
+}
+
+// Atualizar dados via AJAX
+function atualizarDados() {
+    const formData = new FormData(document.getElementById('filtroForm'));
+    const params = new URLSearchParams(formData);
+    
+    document.getElementById('loadingSpinner').style.display = 'block';
+    
+    fetch(`/panorama/api/dashboard-data?${params.toString()}`)
+        .then(response => response.json())
+        .then(data => {
+            atualizarGraficos(data);
+            atualizarMetricas(data.metricas);
+        })
+        .catch(error => {
+            console.error('Erro ao atualizar dados:', error);
+            showNotification('Erro ao atualizar dados', 'error');
+        })
+        .finally(() => {
+            document.getElementById('loadingSpinner').style.display = 'none';
+        });
+}
+
+// Atualizar gráficos com novos dados
+function atualizarGraficos(data) {
+    // Evolução
+    chartEvolucao.data = data.evolucao;
+    chartEvolucao.update();
+
+    // Distribuição
+    chartDistribuicao.data = data.distribuicao;
+    chartDistribuicao.update();
+
+    // Lojas
+    chartLojas.data = data.por_loja;
+    chartLojas.update();
+}
+
+// Atualizar métricas
+function atualizarMetricas(metricas) {
+    // Implementar atualização das métricas nos cards
+    // (opcional - pode simplesmente recarregar a página)
+}
+
+// Exportar dados
+function exportarDados() {
+    const formato = prompt('Escolha o formato de exportação:', 'csv');
+    if (formato) {
+        const formData = new FormData(document.getElementById('filtroForm'));
+        const params = new URLSearchParams(formData);
+        params.append('formato', formato);
+        
+        window.open(`/panorama/api/export-data?${params.toString()}`, '_blank');
+    }
+}
+
+// Mostrar notificação
+function showNotification(message, type = 'info') {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alertDiv);
+    
+    setTimeout(() => alertDiv.remove(), 5000);
+}
+
+// Funções para responsividade
+function handleResize() {
+    if (chartEvolucao) chartEvolucao.resize();
+    if (chartDistribuicao) chartDistribuicao.resize();
+    if (chartLojas) chartLojas.resize();
+    if (chartFormularios) chartFormularios.resize();
+}
+
+window.addEventListener('resize', handleResize);
+
+// Tooltip personalizado para ranking
+document.querySelectorAll('.ranking-item').forEach(item => {
+    item.addEventListener('mouseenter', function() {
+        this.style.backgroundColor = '#f8f9fa';
+    });
+    
+    item.addEventListener('mouseleave', function() {
+        this.style.backgroundColor = 'transparent';
+    });
+});
+</script>
 {% endblock %}
