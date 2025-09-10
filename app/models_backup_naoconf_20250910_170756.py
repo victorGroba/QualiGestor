@@ -367,40 +367,6 @@ class Resposta(db.Model):
     auditoria_id = db.Column(db.Integer, db.ForeignKey('auditoria.id'), nullable=False)
     pergunta_id = db.Column(db.Integer, db.ForeignKey('pergunta.id'), nullable=False)
 
-
-# ==================== NÃO CONFORMIDADES ====================
-
-class NaoConformidade(db.Model):
-    """Registro de não conformidades identificadas"""
-    __tablename__ = "nao_conformidade"
-    
-    id = db.Column(db.Integer, primary_key=True)
-    codigo = db.Column(db.String(30), unique=True)
-    
-    # Classificação
-    tipo = db.Column(SqlEnum(TipoNaoConformidade), nullable=False)
-    titulo = db.Column(db.String(200), nullable=False)
-    descricao = db.Column(db.Text, nullable=False)
-    
-    # Status
-    status = db.Column(db.String(50), default='Aberta')
-    prioridade = db.Column(db.String(20), default='Media')
-    
-    # Datas
-    data_identificacao = db.Column(db.DateTime, default=datetime.utcnow)
-    prazo_resolucao = db.Column(db.DateTime)
-    data_resolucao = db.Column(db.DateTime)
-    
-    # Chaves estrangeiras
-    auditoria_id = db.Column(db.Integer, db.ForeignKey('auditoria.id'), nullable=False)
-    resposta_id = db.Column(db.Integer, db.ForeignKey('resposta.id'))
-    identificado_por_id = db.Column(db.Integer, db.ForeignKey('usuario.id'))
-    
-    # Relacionamentos
-    resposta = db.relationship('Resposta', backref='nao_conformidades')
-    identificado_por = db.relationship('Usuario', backref='ncs_identificadas')
-    auditoria = db.relationship('Auditoria', backref='nao_conformidades')
-
 # ==================== COMPATIBILIDADE ====================
 
 # Alias para compatibilidade com código antigo

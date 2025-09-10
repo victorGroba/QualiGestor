@@ -1,4 +1,4 @@
-# app/cli/routes.py - IMPLEMENTAÇÃO COMPLETA
+# app/cli/routes.py - IMPLEMENTAÇÃO COMPLETA (corrigida)
 import json
 import os
 import base64
@@ -34,39 +34,38 @@ def index():
         'formularios_ativos': 0,
         'lojas_ativas': 0
     }
-    
     ultimas_auditorias = []
-    
+
     if hasattr(current_user, 'cliente_id') and current_user.cliente_id:
         # Auditorias do cliente
         stats['total_auditorias'] = Auditoria.query.join(Loja).filter(
             Loja.cliente_id == current_user.cliente_id
         ).count()
-        
+
         # Auditorias deste mês
         stats['auditorias_mes'] = Auditoria.query.join(Loja).filter(
             Loja.cliente_id == current_user.cliente_id,
             db.extract('month', Auditoria.data_inicio) == datetime.now().month,
             db.extract('year', Auditoria.data_inicio) == datetime.now().year
         ).count()
-        
+
         # Formulários ativos
         stats['formularios_ativos'] = Formulario.query.filter_by(
             cliente_id=current_user.cliente_id,
             ativo=True
         ).count()
-        
+
         # Lojas ativas
         stats['lojas_ativas'] = Loja.query.filter_by(
             cliente_id=current_user.cliente_id,
             ativa=True
         ).count()
-        
+
         # Últimas auditorias
         ultimas_auditorias = Auditoria.query.join(Loja).filter(
             Loja.cliente_id == current_user.cliente_id
         ).order_by(Auditoria.data_inicio.desc()).limit(5).all()
-    
+
     return render_template('cli/index.html', stats=stats, ultimas_auditorias=ultimas_auditorias)
 
 # ===================== FORMULÁRIOS =====================
@@ -79,7 +78,7 @@ def listar_formularios():
         cliente_id=current_user.cliente_id,
         ativo=True
     ).order_by(Formulario.nome).all()
-    
+
     return render_template('cli/listar_formularios.html', formularios=formularios)
 
 @cli_bp.route('/formulario/novo', methods=['GET', 'POST'])
@@ -88,23 +87,23 @@ def criar_formulario():
     """Cria um novo formulário"""
     if request.method == 'POST':
         return processar_novo_formulario()
-    
+
     # GET - Mostrar formulário
     clientes = Cliente.query.all()
     lojas = Loja.query.filter_by(cliente_id=current_user.cliente_id, ativa=True).all()
     categorias = CategoriaFormulario.query.filter_by(ativa=True).all()
-    
-    return render_template('cli/criar_formulario.html', 
-                         clientes=clientes, 
-                         lojas=lojas,
-                         categorias=categorias)
+
+    return render_template('cli/criar_formulario.html',
+                           clientes=clientes,
+                           lojas=lojas,
+                           categorias=categorias)
 
 def processar_novo_formulario():
     """Processa a criação de novo formulário"""
     nome = request.form.get('nome_formulario')
     descricao = request.form.get('descricao', '')
     categoria_id = request.form.get('categoria_id')
-    
+
     if not nome:
         flash("Nome do formulário é obrigatório.", "danger")
         return redirect(url_for('cli.criar_formulario'))
@@ -123,7 +122,7 @@ def processar_novo_formulario():
     )
     db.session.add(novo_formulario)
     db.session.flush()
-    
+
     # Criar bloco padrão
     bloco = BlocoFormulario(
         nome="Bloco Principal",
@@ -132,28 +131,28 @@ def processar_novo_formulario():
     )
     db.session.add(bloco)
     db.session.flush()
-    
+
     # Processar perguntas do formulário
     perguntas_keys = [k for k in request.form if k.startswith('perguntas[') and k.endswith('][texto]')]
     perguntas_processadas = set()
-    
+
     for idx, key in enumerate(perguntas_keys):
         pergunta_idx = key.split('[')[1].split(']')[0]
         if pergunta_idx in perguntas_processadas:
             continue
         perguntas_processadas.add(pergunta_idx)
-        
+
         texto = request.form.get(f'perguntas[{pergunta_idx}][texto]')
         tipo = request.form.get(f'perguntas[{pergunta_idx}][tipo]')
         obrigatoria = request.form.get(f'perguntas[{pergunta_idx}][obrigatoria]') == 'on'
         peso = float(request.form.get(f'perguntas[{pergunta_idx}][peso]', 10))
-        
+
         if not texto or not tipo:
             continue
-            
+
         # Mapear tipo string para enum
         tipo_enum = mapear_tipo_resposta(tipo)
-        
+
         nova_pergunta = Pergunta(
             texto=texto,
             tipo_resposta=tipo_enum,
@@ -164,7 +163,7 @@ def processar_novo_formulario():
             pontuacao_maxima=peso
         )
         db.session.add(nova_pergunta)
-        
+
         # Criar opções para perguntas de múltipla escolha
         if tipo in ['SIM_NAO', 'SIM_NAO_NA']:
             opcoes = [
@@ -173,7 +172,7 @@ def processar_novo_formulario():
             ]
             if tipo == 'SIM_NAO_NA':
                 opcoes.append(('N/A', 'N/A', 0))
-                
+
             for ordem, (texto_opcao, valor_opcao, pontuacao) in enumerate(opcoes):
                 opcao = OpcaoPergunta(
                     texto=texto_opcao,
@@ -183,7 +182,7 @@ def processar_novo_formulario():
                     pergunta_id=nova_pergunta.id
                 )
                 db.session.add(opcao)
-    
+
     db.session.commit()
     flash("Formulário criado com sucesso!", "success")
     return redirect(url_for('cli.visualizar_formulario', formulario_id=novo_formulario.id))
@@ -193,12 +192,12 @@ def processar_novo_formulario():
 def visualizar_formulario(formulario_id):
     """Visualiza um formulário específico"""
     formulario = Formulario.query.get_or_404(formulario_id)
-    
+
     # Verificar permissão
     if formulario.cliente_id != current_user.cliente_id:
         flash("Acesso negado.", "danger")
         return redirect(url_for('cli.listar_formularios'))
-    
+
     return render_template('cli/formulario_visualizacao.html', formulario=formulario)
 
 @cli_bp.route('/formulario/<int:formulario_id>/publicar', methods=['POST'])
@@ -206,15 +205,15 @@ def visualizar_formulario(formulario_id):
 def publicar_formulario(formulario_id):
     """Publica um formulário para uso"""
     formulario = Formulario.query.get_or_404(formulario_id)
-    
+
     if formulario.cliente_id != current_user.cliente_id:
         flash("Acesso negado.", "danger")
         return redirect(url_for('cli.listar_formularios'))
-    
+
     formulario.publicado = True
     formulario.publicado_em = datetime.utcnow()
     db.session.commit()
-    
+
     flash("Formulário publicado com sucesso!", "success")
     return redirect(url_for('cli.visualizar_formulario', formulario_id=formulario_id))
 
@@ -230,7 +229,7 @@ def iniciar_aplicacao():
         ativo=True,
         publicado=True
     ).order_by(Formulario.nome).all()
-    
+
     return render_template('cli/iniciar_aplicacao.html', formularios=formularios)
 
 @cli_bp.route('/aplicar/<int:formulario_id>')
@@ -238,19 +237,19 @@ def iniciar_aplicacao():
 def selecionar_loja(formulario_id):
     """Seleciona a loja para aplicar o checklist"""
     formulario = Formulario.query.get_or_404(formulario_id)
-    
+
     if formulario.cliente_id != current_user.cliente_id:
         flash("Acesso negado.", "danger")
         return redirect(url_for('cli.iniciar_aplicacao'))
-    
+
     lojas = Loja.query.filter_by(
         cliente_id=current_user.cliente_id,
         ativa=True
     ).order_by(Loja.nome).all()
-    
-    return render_template('cli/selecionar_loja.html', 
-                         formulario=formulario, 
-                         lojas=lojas)
+
+    return render_template('cli/selecionar_loja.html',
+                           formulario=formulario,
+                           lojas=lojas)
 
 @cli_bp.route('/aplicar/<int:formulario_id>/<int:loja_id>', methods=['GET', 'POST'])
 @login_required
@@ -258,19 +257,19 @@ def aplicar_checklist(formulario_id, loja_id):
     """Aplica o checklist em uma loja específica"""
     formulario = Formulario.query.get_or_404(formulario_id)
     loja = Loja.query.get_or_404(loja_id)
-    
+
     # Verificar permissões
     if formulario.cliente_id != current_user.cliente_id or loja.cliente_id != current_user.cliente_id:
         flash("Acesso negado.", "danger")
         return redirect(url_for('cli.iniciar_aplicacao'))
-    
+
     if request.method == 'POST':
         return processar_checklist(formulario, loja)
-    
+
     # GET - Mostrar formulário para preenchimento
-    return render_template('cli/aplicar_checklist.html', 
-                         formulario=formulario, 
-                         loja=loja)
+    return render_template('cli/aplicar_checklist.html',
+                           formulario=formulario,
+                           loja=loja)
 
 def processar_checklist(formulario, loja):
     """Processa o envio do checklist preenchido"""
@@ -282,62 +281,62 @@ def processar_checklist(formulario, loja):
         status=StatusAuditoria.EM_ANDAMENTO,
         data_inicio=datetime.utcnow()
     )
-    
+
     # Gerar código único
     ano = datetime.now().year
     contador = Auditoria.query.filter(
         db.extract('year', Auditoria.data_inicio) == ano
     ).count() + 1
     nova_auditoria.codigo = f"AUD-{ano}-{contador:05d}"
-    
+
     db.session.add(nova_auditoria)
     db.session.flush()
-    
+
     # Processar respostas
     pontuacao_total = 0
     pontuacao_maxima = 0
-    
+
     for bloco in formulario.blocos.order_by(BlocoFormulario.ordem):
         for pergunta in bloco.perguntas.order_by(Pergunta.ordem):
             valor = request.form.get(f'pergunta_{pergunta.id}', '').strip()
             observacao = request.form.get(f'obs_{pergunta.id}', '').strip()
-            
+
             # Verificar se pergunta obrigatória foi respondida
             if pergunta.obrigatoria and not valor:
                 flash(f'A pergunta "{pergunta.texto}" é obrigatória.', 'warning')
                 db.session.rollback()
-                return render_template('cli/aplicar_checklist.html', 
-                                     formulario=formulario, 
-                                     loja=loja)
-            
+                return render_template('cli/aplicar_checklist.html',
+                                       formulario=formulario,
+                                       loja=loja)
+
             # Criar resposta
             resposta = Resposta(
                 pergunta_id=pergunta.id,
                 auditoria_id=nova_auditoria.id,
                 observacao=observacao
             )
-            
+
             # Processar valor baseado no tipo
             pontos_obtidos = processar_resposta_pergunta(resposta, pergunta, valor)
             pontuacao_total += pontos_obtidos
             pontuacao_maxima += pergunta.pontuacao_maxima or pergunta.peso
-            
+
             db.session.add(resposta)
-    
+
     # Observações gerais
     nova_auditoria.observacoes_gerais = request.form.get('observacoes_gerais', '')
-    
+
     # Calcular pontuação final
     nova_auditoria.pontuacao_obtida = pontuacao_total
     nova_auditoria.pontuacao_maxima = pontuacao_maxima
     nova_auditoria.percentual = (pontuacao_total / pontuacao_maxima * 100) if pontuacao_maxima > 0 else 0
-    
+
     # Finalizar auditoria
     nova_auditoria.status = StatusAuditoria.CONCLUIDA
     nova_auditoria.data_conclusao = datetime.utcnow()
-    
+
     db.session.commit()
-    
+
     flash(f"Checklist aplicado com sucesso! Pontuação: {nova_auditoria.percentual:.1f}%", "success")
     return redirect(url_for('cli.ver_checklist', checklist_id=nova_auditoria.id))
 
@@ -345,9 +344,9 @@ def processar_resposta_pergunta(resposta, pergunta, valor):
     """Processa uma resposta específica e calcula pontuação"""
     if not valor:
         return 0
-    
+
     peso = pergunta.pontuacao_maxima or pergunta.peso or 10
-    
+
     # Sim/Não
     if pergunta.tipo_resposta in [TipoResposta.SIM_NAO, TipoResposta.SIM_NAO_NA]:
         resposta.valor_opcoes_selecionadas = json.dumps([valor])
@@ -360,7 +359,7 @@ def processar_resposta_pergunta(resposta, pergunta, valor):
         else:
             resposta.pontuacao_obtida = 0
             return 0
-    
+
     # Texto
     elif pergunta.tipo_resposta in [TipoResposta.TEXTO, TipoResposta.TEXTO_LONGO]:
         resposta.valor_texto = valor
@@ -368,13 +367,13 @@ def processar_resposta_pergunta(resposta, pergunta, valor):
             resposta.pontuacao_obtida = peso
             return peso
         return 0
-    
+
     # Número/Nota
     elif pergunta.tipo_resposta in [TipoResposta.NUMERO, TipoResposta.NOTA]:
         try:
             numero = float(valor)
             resposta.valor_numero = numero
-            
+
             if pergunta.tipo_resposta == TipoResposta.NOTA:
                 # Nota de 0-10, calcular proporcionalmente
                 nota_max = pergunta.limite_maximo or 10
@@ -390,7 +389,7 @@ def processar_resposta_pergunta(resposta, pergunta, valor):
         except ValueError:
             resposta.valor_texto = valor
             return 0
-    
+
     # Outros tipos
     else:
         resposta.valor_texto = valor
@@ -406,16 +405,16 @@ def processar_resposta_pergunta(resposta, pergunta, valor):
 def listar_checklists():
     """Lista todos os checklists aplicados"""
     page = request.args.get('page', 1, type=int)
-    
+
     query = Auditoria.query.join(Loja).filter(
         Loja.cliente_id == current_user.cliente_id
     ).order_by(Auditoria.data_inicio.desc())
-    
+
     # Filtros
     formulario_id = request.args.get('formulario_id', type=int)
     loja_id = request.args.get('loja_id', type=int)
     status = request.args.get('status')
-    
+
     if formulario_id:
         query = query.filter(Auditoria.formulario_id == formulario_id)
     if loja_id:
@@ -426,11 +425,11 @@ def listar_checklists():
             query = query.filter(Auditoria.status == status_enum)
         except KeyError:
             pass
-    
+
     auditorias = query.paginate(
         page=page, per_page=20, error_out=False
     )
-    
+
     # Para os filtros
     formularios = Formulario.query.filter_by(
         cliente_id=current_user.cliente_id, ativo=True
@@ -438,23 +437,23 @@ def listar_checklists():
     lojas = Loja.query.filter_by(
         cliente_id=current_user.cliente_id, ativa=True
     ).all()
-    
-    return render_template('cli/listar_checklists.html', 
-                         auditorias=auditorias,
-                         formularios=formularios,
-                         lojas=lojas)
+
+    return render_template('cli/listar_checklists.html',
+                           auditorias=auditorias,
+                           formularios=formularios,
+                           lojas=lojas)
 
 @cli_bp.route('/checklist/<int:checklist_id>')
 @login_required
 def ver_checklist(checklist_id):
     """Visualiza um checklist específico"""
     auditoria = Auditoria.query.get_or_404(checklist_id)
-    
+
     # Verificar permissão
     if auditoria.loja.cliente_id != current_user.cliente_id:
         flash("Acesso negado.", "danger")
         return redirect(url_for('cli.listar_checklists'))
-    
+
     return render_template('cli/ver_checklist.html', checklist=auditoria)
 
 @cli_bp.route('/checklist/<int:checklist_id>/pdf')
@@ -462,39 +461,39 @@ def ver_checklist(checklist_id):
 def gerar_pdf_checklist(checklist_id):
     """Gera PDF do checklist"""
     auditoria = Auditoria.query.get_or_404(checklist_id)
-    
+
     # Verificar permissão
     if auditoria.loja.cliente_id != current_user.cliente_id:
         flash("Acesso negado.", "danger")
         return redirect(url_for('cli.listar_checklists'))
-    
+
     # Gerar QR Code
     qr_texto = f"Checklist ID: {auditoria.id} - {auditoria.codigo}"
     qr = qrcode.make(qr_texto)
     buffer = BytesIO()
     qr.save(buffer, format="PNG")
     qr_base64 = base64.b64encode(buffer.getvalue()).decode()
-    
+
     data_hoje = datetime.now().strftime('%d/%m/%Y %H:%M')
-    
+
     # Renderizar HTML
-    html = render_template("cli/checklist_pdf.html", 
-                          checklist=auditoria, 
-                          qr_base64=qr_base64, 
-                          data_hoje=data_hoje)
-    
+    html = render_template("cli/checklist_pdf.html",
+                           checklist=auditoria,
+                           qr_base64=qr_base64,
+                           data_hoje=data_hoje)
+
     # Gerar PDF
     pdf = HTML(string=html).write_pdf()
-    
+
     # Salvar arquivo
     pdf_dir = os.path.join(os.getcwd(), 'instance', 'pdfs')
     os.makedirs(pdf_dir, exist_ok=True)
     pdf_path = os.path.join(pdf_dir, f'checklist_{auditoria.id}.pdf')
-    
+
     with open(pdf_path, 'wb') as f:
         f.write(pdf)
-    
-    return send_file(pdf_path, 
+
+    return send_file(pdf_path,
                      mimetype='application/pdf',
                      as_attachment=True,
                      download_name=f'Checklist_{auditoria.codigo}.pdf')
@@ -504,24 +503,24 @@ def gerar_pdf_checklist(checklist_id):
 def editar_checklist(checklist_id):
     """Edita um checklist existente"""
     auditoria = Auditoria.query.get_or_404(checklist_id)
-    
+
     # Verificar permissão
     if auditoria.loja.cliente_id != current_user.cliente_id:
         flash("Acesso negado.", "danger")
         return redirect(url_for('cli.listar_checklists'))
-    
+
     if request.method == 'POST':
         return atualizar_checklist(auditoria)
-    
+
     # GET - Mostrar formulário de edição
     lojas = Loja.query.filter_by(
         cliente_id=current_user.cliente_id, ativa=True
     ).all()
-    
-    return render_template('cli/editar_checklist.html', 
-                         checklist=auditoria,
-                         formulario=auditoria.formulario,
-                         lojas=lojas)
+
+    return render_template('cli/editar_checklist.html',
+                           checklist=auditoria,
+                           formulario=auditoria.formulario,
+                           lojas=lojas)
 
 def atualizar_checklist(auditoria):
     """Atualiza os dados de um checklist"""
@@ -529,44 +528,44 @@ def atualizar_checklist(auditoria):
     nova_loja_id = request.form.get('loja_id', type=int)
     if nova_loja_id and nova_loja_id != auditoria.loja_id:
         auditoria.loja_id = nova_loja_id
-    
+
     # Atualizar observações gerais
     auditoria.observacoes_gerais = request.form.get('observacoes_gerais', '')
-    
+
     # Remover respostas antigas
     for resposta in auditoria.respostas:
         db.session.delete(resposta)
     db.session.flush()
-    
+
     # Processar novas respostas (reutilizar lógica)
     pontuacao_total = 0
     pontuacao_maxima = 0
-    
+
     for bloco in auditoria.formulario.blocos.order_by(BlocoFormulario.ordem):
         for pergunta in bloco.perguntas.order_by(Pergunta.ordem):
             valor = request.form.get(f'pergunta_{pergunta.id}', '').strip()
             observacao = request.form.get(f'obs_{pergunta.id}', '').strip()
-            
+
             resposta = Resposta(
                 pergunta_id=pergunta.id,
                 auditoria_id=auditoria.id,
                 observacao=observacao
             )
-            
+
             pontos_obtidos = processar_resposta_pergunta(resposta, pergunta, valor)
             pontuacao_total += pontos_obtidos
             pontuacao_maxima += pergunta.pontuacao_maxima or pergunta.peso
-            
+
             db.session.add(resposta)
-    
+
     # Atualizar pontuação
     auditoria.pontuacao_obtida = pontuacao_total
     auditoria.pontuacao_maxima = pontuacao_maxima
     auditoria.percentual = (pontuacao_total / pontuacao_maxima * 100) if pontuacao_maxima > 0 else 0
     auditoria.atualizado_em = datetime.utcnow()
-    
+
     db.session.commit()
-    
+
     flash("Checklist atualizado com sucesso!", "success")
     return redirect(url_for('cli.ver_checklist', checklist_id=auditoria.id))
 
@@ -575,20 +574,20 @@ def atualizar_checklist(auditoria):
 def excluir_checklist(checklist_id):
     """Exclui um checklist"""
     auditoria = Auditoria.query.get_or_404(checklist_id)
-    
+
     # Verificar permissão
     if auditoria.loja.cliente_id != current_user.cliente_id:
         flash("Acesso negado.", "danger")
         return redirect(url_for('cli.listar_checklists'))
-    
+
     # Verificar se pode excluir (apenas rascunhos ou em andamento)
     if auditoria.status in [StatusAuditoria.CONCLUIDA, StatusAuditoria.APROVADA]:
         flash("Não é possível excluir checklists concluídos ou aprovados.", "warning")
         return redirect(url_for('cli.ver_checklist', checklist_id=checklist_id))
-    
+
     db.session.delete(auditoria)
     db.session.commit()
-    
+
     flash("Checklist excluído com sucesso!", "success")
     return redirect(url_for('cli.listar_checklists'))
 
@@ -601,7 +600,7 @@ def listar_lojas():
     lojas = Loja.query.filter_by(
         cliente_id=current_user.cliente_id
     ).order_by(Loja.nome).all()
-    
+
     return render_template('cli/listar_lojas.html', lojas=lojas)
 
 @cli_bp.route('/loja/nova', methods=['GET', 'POST'])
@@ -619,11 +618,11 @@ def nova_loja():
         email = request.form.get('email')
         gerente_nome = request.form.get('gerente_nome')
         grupo_id = request.form.get('grupo_id')
-        
+
         if not nome:
             flash("Nome da loja é obrigatório", "danger")
             return redirect(url_for('cli.nova_loja'))
-        
+
         loja = Loja(
             nome=nome,
             codigo=codigo,
@@ -638,18 +637,18 @@ def nova_loja():
             grupo_id=grupo_id if grupo_id else None,
             ativa=True
         )
-        
+
         db.session.add(loja)
         db.session.commit()
-        
+
         flash("Loja criada com sucesso!", "success")
         return redirect(url_for('cli.listar_lojas'))
-    
+
     # GET
     grupos = Grupo.query.filter_by(
         cliente_id=current_user.cliente_id, ativo=True
     ).all()
-    
+
     return render_template('cli/nova_loja.html', grupos=grupos)
 
 # ===================== GESTÃO DE GRUPOS =====================
@@ -661,7 +660,7 @@ def listar_grupos():
     grupos = Grupo.query.filter_by(
         cliente_id=current_user.cliente_id, ativo=True
     ).all()
-    
+
     return render_template('cli/listar_grupos.html', grupos=grupos)
 
 @cli_bp.route('/grupo/novo', methods=['GET', 'POST'])
@@ -671,24 +670,24 @@ def novo_grupo():
     if request.method == 'POST':
         nome = request.form.get('nome')
         descricao = request.form.get('descricao', '')
-        
+
         if not nome:
             flash("Nome do grupo é obrigatório", "danger")
             return redirect(url_for('cli.novo_grupo'))
-        
+
         grupo = Grupo(
             nome=nome,
             descricao=descricao,
             cliente_id=current_user.cliente_id,
             ativo=True
         )
-        
+
         db.session.add(grupo)
         db.session.commit()
-        
+
         flash("Grupo criado com sucesso!", "success")
         return redirect(url_for('cli.listar_grupos'))
-    
+
     return render_template('cli/novo_grupo.html')
 
 # ===================== FUNÇÕES AUXILIARES =====================
@@ -710,7 +709,6 @@ def mapear_tipo_resposta(tipo_str):
         'HORA': TipoResposta.HORA,
         'DATA_HORA': TipoResposta.DATA_HORA
     }
-    
     return mapeamento.get(tipo_str, TipoResposta.TEXTO)
 
 # ===================== API ROUTES (AJAX) =====================
@@ -720,16 +718,16 @@ def mapear_tipo_resposta(tipo_str):
 def api_formularios_loja(loja_id):
     """API para buscar formulários disponíveis para uma loja"""
     loja = Loja.query.get_or_404(loja_id)
-    
+
     if loja.cliente_id != current_user.cliente_id:
         return jsonify({'error': 'Acesso negado'}), 403
-    
+
     formularios = Formulario.query.filter_by(
         cliente_id=current_user.cliente_id,
         ativo=True,
         publicado=True
     ).all()
-    
+
     formularios_data = [{
         'id': f.id,
         'nome': f.nome,
@@ -737,7 +735,7 @@ def api_formularios_loja(loja_id):
         'versao': f.versao,
         'categoria': f.categoria.nome if f.categoria else 'Sem categoria'
     } for f in formularios]
-    
+
     return jsonify(formularios_data)
 
 @cli_bp.route('/api/resposta/salvar', methods=['POST'])
@@ -745,38 +743,38 @@ def api_formularios_loja(loja_id):
 def api_salvar_resposta():
     """API para salvar resposta via AJAX"""
     data = request.get_json()
-    
+
     auditoria_id = data.get('auditoria_id')
     pergunta_id = data.get('pergunta_id')
     valor = data.get('valor')
     observacao = data.get('observacao', '')
-    
+
     auditoria = Auditoria.query.get_or_404(auditoria_id)
     pergunta = Pergunta.query.get_or_404(pergunta_id)
-    
+
     # Verificar permissão
     if auditoria.loja.cliente_id != current_user.cliente_id:
         return jsonify({'error': 'Acesso negado'}), 403
-    
+
     # Buscar ou criar resposta
     resposta = Resposta.query.filter_by(
         auditoria_id=auditoria_id,
         pergunta_id=pergunta_id
     ).first()
-    
+
     if not resposta:
         resposta = Resposta(
             auditoria_id=auditoria_id,
             pergunta_id=pergunta_id
         )
         db.session.add(resposta)
-    
+
     # Atualizar resposta
     resposta.observacao = observacao
     pontos_obtidos = processar_resposta_pergunta(resposta, pergunta, valor)
-    
+
     db.session.commit()
-    
+
     return jsonify({
         'success': True,
         'message': 'Resposta salva com sucesso',
@@ -785,7 +783,6 @@ def api_salvar_resposta():
 
 # ===================== COMPATIBILIDADE =====================
 
-# Rotas para compatibilidade com templates antigos
 @cli_bp.route('/avaliados')
 @login_required
 def listar_avaliados():
@@ -797,3 +794,112 @@ def listar_avaliados():
 def listar_questionarios():
     """Redireciona para listagem de formulários (compatibilidade)"""
     return redirect(url_for('cli.listar_formularios'))
+
+# ===================== ROTAS ADICIONAIS DE COMPATIBILIDADE (endpoints únicos) =====================
+
+@cli_bp.route('/novo-questionario', methods=['GET', 'POST'])
+@login_required
+def novo_questionario():
+    """Cria novo questionário (compatibilidade)"""
+    return redirect(url_for('cli.criar_formulario'))
+
+@cli_bp.route('/listar-formularios')
+@login_required
+def listar_formularios_compat():
+    """Lista formulários do cliente (compatibilidade)"""
+    if not hasattr(current_user, 'cliente_id') or not current_user.cliente_id:
+        flash("Erro: usuário sem cliente associado", "danger")
+        return redirect(url_for('main.painel'))
+
+    formularios = Formulario.query.filter_by(
+        cliente_id=current_user.cliente_id,
+        ativo=True
+    ).order_by(Formulario.nome).all()
+
+    # Mantive o template antigo dessa compatibilidade
+    return render_template('cli/listar_questionarios.html', formularios=formularios)
+
+@cli_bp.route('/listar-lojas')
+@login_required
+def listar_lojas_compat():
+    """Lista lojas do cliente (compatibilidade)"""
+    if not hasattr(current_user, 'cliente_id') or not current_user.cliente_id:
+        lojas = []
+    else:
+        lojas = Loja.query.filter_by(
+            cliente_id=current_user.cliente_id
+        ).order_by(Loja.nome).all()
+
+    return render_template('cli/listar_lojas.html', lojas=lojas)
+
+@cli_bp.route('/nova-loja', methods=['GET', 'POST'])
+@login_required
+def nova_loja_compat():
+    """Cria nova loja (compatibilidade)"""
+    if request.method == 'POST':
+        nome = request.form.get('nome')
+        codigo = request.form.get('codigo')
+        endereco = request.form.get('endereco')
+        cidade = request.form.get('cidade')
+        estado = request.form.get('estado')
+        cep = request.form.get('cep')
+        telefone = request.form.get('telefone')
+        email = request.form.get('email')
+        gerente_nome = request.form.get('gerente_nome')
+        grupo_id = request.form.get('grupo_id')
+
+        if not nome:
+            flash("Nome da loja é obrigatório", "danger")
+            return redirect(url_for('cli.nova_loja_compat'))
+
+        loja = Loja(
+            nome=nome,
+            codigo=codigo,
+            endereco=endereco,
+            cidade=cidade,
+            estado=estado,
+            cep=cep,
+            telefone=telefone,
+            email=email,
+            gerente_nome=gerente_nome,
+            cliente_id=current_user.cliente_id,
+            grupo_id=grupo_id if grupo_id else None,
+            ativa=True
+        )
+        db.session.add(loja)
+        db.session.commit()
+
+        flash("Loja criada com sucesso!", "success")
+        return redirect(url_for('cli.listar_lojas'))
+
+    grupos = Grupo.query.filter_by(
+        cliente_id=current_user.cliente_id, ativo=True
+    ).all() if hasattr(current_user, 'cliente_id') else []
+
+    return render_template('cli/nova_loja.html', grupos=grupos)
+
+@cli_bp.route('/novo-grupo', methods=['GET', 'POST'])
+@login_required
+def novo_grupo_compat():
+    """Cria novo grupo (compatibilidade)"""
+    if request.method == 'POST':
+        nome = request.form.get('nome')
+        descricao = request.form.get('descricao', '')
+
+        if not nome:
+            flash("Nome do grupo é obrigatório", "danger")
+            return redirect(url_for('cli.novo_grupo_compat'))
+
+        grupo = Grupo(
+            nome=nome,
+            descricao=descricao,
+            cliente_id=current_user.cliente_id,
+            ativo=True
+        )
+        db.session.add(grupo)
+        db.session.commit()
+
+        flash("Grupo criado com sucesso!", "success")
+        return redirect(url_for('cli.listar_grupos'))
+
+    return render_template('cli/novo_grupo.html')

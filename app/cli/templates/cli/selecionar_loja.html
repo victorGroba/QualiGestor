@@ -1,0 +1,43 @@
+{% extends 'base_cliq.html' %}
+{% block title %}Selecionar Loja{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h3 class="mb-4">Selecione uma loja para aplicar: <strong>{{ formulario.nome }}</strong></h3>
+    
+    <div class="row">
+        {% for loja in lojas %}
+        <div class="col-md-6 col-lg-4 mb-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">{{ loja.nome }}</h5>
+                    <p class="card-text">
+                        <small class="text-muted">{{ loja.codigo or 'Sem código' }}</small><br>
+                        {{ loja.cidade or 'N/A' }}, {{ loja.estado or 'N/A' }}
+                    </p>
+                    <a href="{{ url_for('cli.aplicar_checklist', formulario_id=formulario.id, loja_id=loja.id) }}" 
+                       class="btn btn-primary">
+                        <i class="fas fa-clipboard-check me-1"></i>
+                        Aplicar Checklist
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-12">
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Nenhuma loja cadastrada. <a href="{{ url_for('cli.nova_loja') }}">Cadastre uma loja</a> primeiro.
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <div class="mt-4">
+        <a href="{{ url_for('cli.iniciar_aplicacao') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>
+            Voltar
+        </a>
+    </div>
+</div>
+{% endblock %}

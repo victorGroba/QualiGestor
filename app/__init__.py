@@ -1,70 +1,129 @@
+# app/__init__.py
 import os
+from pathlib import Path
+from typing import Optional
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_migrate import Migrate
 from dotenv import load_dotenv
-from datetime import datetime
 
-load_dotenv()
-
+# ----------------------------
+# Extensões globais
+# ----------------------------
 db = SQLAlchemy()
 migrate = Migrate()
 login_manager = LoginManager()
-login_manager.login_view = 'auth.login'
 
-def create_app():
-    app = Flask(__name__)
-    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'segredo')
-    
-    basedir = os.path.abspath(os.path.dirname(__file__))
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, '..', 'instance', 'banco.db')
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-    app.config['SESSION_COOKIE_SECURE'] = False
+# Carrega variáveis do .env (se existir)
+load_dotenv()
 
-    # ✅ Versão do sistema
-    versao_path = os.path.join(os.getcwd(), 'version.txt')
+
+def _sqlite_uri(db_path: Path) -> str:
+    """
+    Monta uma URI SQLite compatível com Windows/macOS/Linux,
+    evitando problemas com barras invertidas e espaços.
+    """
+    # SQLAlchemy aceita caminhos POSIX. Ex.: sqlite:///C:/meu caminho/banco.db
+    return f"sqlite:///{db_path.as_posix()}"
+
+
+def create_app() -> Flask:
+    # Define pastas padrão (dentro de app/)
+    app = Flask(__name__, template_folder="templates", static_folder="static")
+
+    # -------------------------------------------------------------------------
+    # Configurações básicas
+    # -------------------------------------------------------------------------
+    app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "chave-secreta-desenvolvimento")
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+    app.config["SESSION_COOKIE_SECURE"] = False  # em produção com HTTPS -> True
+
+    # Evita 404 por barra final ("/rota" vs "/rota/")
+    # (não resolve endpoints duplicados, apenas normaliza trailing slash)
+    app.url_map.strict_slashes = False
+
+    # -------------------------------------------------------------------------
+    # Caminhos do projeto
+    # -------------------------------------------------------------------------
+    base_dir = Path(__file__).resolve().parent            # .../QualiGestor/app
+    root_dir = base_dir.parent                            # .../QualiGestor
+    instance_dir = root_dir / "instance"
+    instance_dir.mkdir(parents=True, exist_ok=True)
+
+    # Banco em instance/banco.db
+    db_path = instance_dir / "banco.db"
+    app.config["SQLALCHEMY_DATABASE_URI"] = _sqlite_uri(db_path)
+
+    # -------------------------------------------------------------------------
+    # Versão do sistema (lida a partir de version.txt na raiz)
+    # -------------------------------------------------------------------------
+    versao_path = root_dir / "version.txt"
     try:
-        with open(versao_path, 'r') as f:
-            app.config['VERSAO'] = f.read().strip()
+        app.config["VERSAO"] = versao_path.read_text(encoding="utf-8").strip()
     except FileNotFoundError:
-        app.config['VERSAO'] = '0.0.0.0'
+        app.config["VERSAO"] = "1.4.0-beta"
 
     @app.context_processor
     def inject_version():
-        return dict(versao=app.config['VERSAO'])
+        return dict(versao=app.config.get("VERSAO", "dev"))
 
-    # ✅ Importa a função auxiliar para uso em templates (PDF)
-    from app.utils.helpers import opcao_pergunta_por_id
+    # -------------------------------------------------------------------------
+    # Helpers para templates (import RELATIVO e protegido)
+    # -------------------------------------------------------------------------
+    try:
+        from .utils.helpers import opcao_pergunta_por_id  # type: ignore
 
-    @app.context_processor
-    def inject_custom_functions():
-        return dict(opcao_pergunta_por_id=opcao_pergunta_por_id)
+        @app.context_processor
+        def inject_custom_functions():
+            return dict(opcao_pergunta_por_id=opcao_pergunta_por_id)
+    except Exception:
+        @app.context_processor
+        def inject_custom_functions():
+            return dict()
 
+    # -------------------------------------------------------------------------
+    # Extensões
+    # -------------------------------------------------------------------------
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)
+    login_manager.login_view = "auth.login"
 
-    from .models import Usuario
+    # -------------------------------------------------------------------------
+    # Models e user loader
+    # -------------------------------------------------------------------------
+    from .models import Usuario  # import local para evitar ciclos
 
     @login_manager.user_loader
-    def load_user(user_id):
-        return Usuario.query.get(int(user_id))
+    def load_user(user_id: str) -> Optional["Usuario"]:
+        try:
+            return Usuario.query.get(int(user_id))
+        except Exception:
+            return None
 
+    # -------------------------------------------------------------------------
+    # Blueprints (atenção: não registre o mesmo blueprint em outro lugar)
+    # -------------------------------------------------------------------------
     from .auth.routes import auth_bp
     from .main.routes import main_bp
     from .cli.routes import cli_bp
     from .panorama.routes import panorama_bp
-    from .admin.routes import admin_bp
 
     app.register_blueprint(auth_bp)
-    app.register_blueprint(main_bp)
-    app.register_blueprint(cli_bp, url_prefix='/cli')
-    app.register_blueprint(panorama_bp, url_prefix='/panorama')
-    app.register_blueprint(admin_bp, url_prefix='/admin')
+    app.register_blueprint(main_bp)                 # '/' e '/painel'
+    app.register_blueprint(cli_bp, url_prefix="/cli")
+    app.register_blueprint(panorama_bp, url_prefix="/panorama")
+
+    # Admin opcional
+    try:
+        from .admin.routes import admin_bp
+        app.register_blueprint(admin_bp, url_prefix="/admin")
+    except Exception:
+        pass
 
     return app
 
-# Expõe db para importação relativa em outros módulos (como auth.routes)
-__all__ = ['db']
+
+__all__ = ["db", "create_app"]

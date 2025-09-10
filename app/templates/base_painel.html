@@ -43,7 +43,7 @@
           </a>
         </li>
 
-        {% if current_user.perfil == 'admin' %}
+        {% if current_user.tipo.name in ['SUPER_ADMIN', 'ADMIN'] %}
         <!-- Cadastro de Usuários (somente admin) -->
         <li class="nav-item">
           <a class="nav-link {% if request.endpoint == 'auth.cadastrar_usuario' %}active{% endif %}"

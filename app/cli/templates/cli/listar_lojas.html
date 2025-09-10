@@ -1,0 +1,60 @@
+{% extends 'base_cliq.html' %}
+{% block title %}Lojas{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4>Lojas Cadastradas</h4>
+        <a href="{{ url_for('cli.nova_loja') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Nova Loja
+        </a>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            {% if lojas %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Nome</th>
+                            <th>Cidade</th>
+                            <th>Estado</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for loja in lojas %}
+                        <tr>
+                            <td>{{ loja.codigo or '-' }}</td>
+                            <td>{{ loja.nome }}</td>
+                            <td>{{ loja.cidade or '-' }}</td>
+                            <td>{{ loja.estado or '-' }}</td>
+                            <td>
+                                <span class="badge bg-{{ 'success' if loja.ativa else 'secondary' }}">
+                                    {{ 'Ativa' if loja.ativa else 'Inativa' }}
+                                </span>
+                            </td>
+                            <td>
+                                <a href="#" class="btn btn-sm btn-outline-primary" title="Editar">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+                <i class="fas fa-store fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">Nenhuma loja cadastrada</h5>
+                <p class="text-muted">Clique no botão "Nova Loja" para começar</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

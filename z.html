@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Checklist de Conformidade — QualiGestor (SISUB)</title>
+<style>
+  :root{
+    --ok:#1f9d55; --warn:#e0a800; --bad:#dc3545; --muted:#6c757d; --ink:#222;
+    --bg:#f7f7fb; --card:#fff; --line:#e8e8ee; --blue:#0d6efd;
+  }
+  html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu;}
+  header{position:sticky;top:0;background:linear-gradient(#fff, #fafafa);border-bottom:1px solid var(--line);z-index:50}
+  .wrap{max-width:1200px;margin:0 auto;padding:18px 20px}
+  h1{margin:0 0 8px;font-size:22px}
+  .meta{display:flex;gap:10px;flex-wrap:wrap;color:var(--muted);font-size:12px}
+  .summary{display:flex;align-items:center;gap:18px;margin:14px 0 4px}
+  .pill{padding:6px 10px;border-radius:999px;background:#eef3ff;border:1px solid #dfe8ff;color:#2446a8;font-weight:600}
+  .progress{height:10px;background:#eceff7;border-radius:999px;overflow:hidden;flex:1}
+  .bar{height:100%;background:var(--blue);width:0%}
+  nav{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px;margin:10px 0}
+  nav a{display:inline-block;margin:6px 10px 6px 0;color:var(--blue);text-decoration:none}
+  section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin:14px 0}
+  section h2{margin:0 0 8px;font-size:18px}
+  .sec-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .sec-progress{height:8px;background:#eef1f6;border-radius:999px;overflow:hidden;flex:1;min-width:180px}
+  .sec-bar{height:100%;background:var(--blue);width:0%}
+  details{border:1px dashed #d8dbe6;border-radius:10px;padding:8px 10px;margin:10px 0;background:#fbfcff}
+  summary{cursor:pointer;font-weight:600}
+  table{width:100%;border-collapse:collapse;margin:10px 0}
+  th,td{border:1px solid var(--line);padding:8px;vertical-align:top}
+  th{background:#f6f7fb;text-align:left}
+  tbody tr:nth-child(even){background:#fcfcff}
+  .tiny{font-size:12px;color:var(--muted)}
+  .cut{display:inline-block;padding:2px 6px;border-radius:6px;background:#f1fff3;border:1px solid #d6f5db;color:#157347;font-weight:600}
+  .actions{display:flex;gap:8px;flex-wrap:wrap}
+  .btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 10px;cursor:pointer}
+  .kpi{display:inline-block;padding:2px 8px;border-radius:6px;border:1px solid var(--line);background:#fff;margin:2px 0}
+  .note{background:#fff7e6;border:1px solid #ffe3b3;border-radius:10px;padding:10px}
+  @media print{
+    header,nav,.actions{display:none !important}
+    body{background:#fff}
+    section{break-inside:avoid}
+    a{color:#000;text-decoration:none}
+    th,td{border:1px solid #888 !important}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>Checklist de Conformidade — QualiGestor (SISUB)</h1>
+    <div class="meta">
+      <span>Sistema: <strong>QualiGestor</strong> • Módulos: <code>/cli</code>, <code>/panorama</code>, APIs</span>
+      <span>Objetivo: cultura de dados, rastreabilidade, gestão e respostas rápidas às NC</span>
+    </div>
+    <div class="summary">
+      <span class="pill">Progresso Geral</span>
+      <div class="progress"><div id="progressGlobal" class="bar"></div></div>
+      <span id="pctGlobal" class="pill">0%</span>
+      <div class="actions">
+        <button class="btn" onclick="expandAll(true)">Expandir tudo</button>
+        <button class="btn" onclick="expandAll(false)">Recolher tudo</button>
+        <button class="btn" onclick="window.print()">Imprimir / PDF</button>
+      </div>
+    </div>
+    <nav>
+      <a href="#s1">1. Dashboards & Relatórios</a>
+      <a href="#s2">2. Gestão & Alertas</a>
+      <a href="#s3">3. Acessos & Permissões</a>
+      <a href="#s4">4. Desenvolvimento & Suporte</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- 1. VISUALIZAÇÃO -->
+  <section id="s1">
+    <div class="sec-head">
+      <h2>1. Visualização e Relatórios (Dashboards)</h2>
+      <div class="sec-progress"><div class="sec-bar" data-sec="1"></div></div>
+      <span class="tiny">Corte <span class="cut">7,0</span> e Pareto aplicados onde couber</span>
+    </div>
+
+    <details open>
+      <summary>1.1 Auditoria & Qualidade (Baseado no Check-list — Anexo III)</summary>
+      <table data-sec="1">
+        <thead>
+          <tr>
+            <th>Requisito</th>
+            <th>OK</th>
+            <th>Rota/Tela</th>
+            <th>ID de Tela</th>
+            <th>Query/SQL (nome)</th>
+            <th>Capturas obrigatórias</th>
+            <th>Notas/Responsável</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Tabela de notas relativas da visita mensal por Rancho (ordem crescente)</td>
+            <td><input type="checkbox"></td>
+            <td><a href="/panorama/dashboard" target="_blank">/panorama/dashboard</a> → bloco “Notas por Rancho (mês)”</td>
+            <td>PAN-DASH-001</td>
+            <td>Q_AUDITORIAS_MES_RANCHO</td>
+            <td>Lista completa + ordenação ASC + filtro mês</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>Barra: % de Ranchos com nota ≥ 7 por categoria do check-list</td>
+            <td><input type="checkbox"></td>
+            <td><a href="/panorama/dashboard" target="_blank">/panorama/dashboard</a> → “Adequação por Categoria”</td>
+            <td>PAN-DASH-002</td>
+            <td>Q_CAT_ADEQUACAO_GERAL</td>
+            <td>Linha de corte 7,0 visível</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>Classificação por Rancho (% adequação × inadequação) por variável (Infra, Hig. Pessoal, Hig. Alimentos, Estoque Seco/Frio, Utensílios, Refeição transportada, Lixo, Pragas, Registros, Análise Microbiológica)</td>
+            <td><input type="checkbox"></td>
+            <td><a href="/panorama/dashboard" target="_blank">/panorama/dashboard</a> → “Classificação por Variável”</td>
+            <td>PAN-DASH-003</td>
+            <td>Q_VAR_ADEQ_INADEQ</td>
+            <td>Pareto aplicado na barra cumulativa</td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    </details>
+
+    <details>
+      <summary>1.2 Análises Microbiológicas</summary>
+      <table data-sec="1">
+        <thead>
+          <tr>
+            <th>Requisito</th><th>OK</th><th>Rota/Tela</th><th>ID de Tela</th><th>Query/SQL</th><th>Capturas obrigatórias</th><th>Notas/Responsável</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Pizza: % adequação × inadequação — swab (manipuladores, eqp., utensílios, superfícies) e água</td>
+            <td><input type="checkbox"></td>
+            <td><a href="/panorama/dashboard" target="_blank">/panorama/dashboard</a> → “Conformidade Microbiológica (Geral)”</td>
+            <td>PAN-DASH-010</td>
+            <td>Q_MB_SWAB_AGUA_ADEQ</td>
+            <td>Legenda por tipo de amostra</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>Pizza: % adequação × inadequação — matéria-prima (fornecedor) + destaque para Ranchos com contaminadas</td>
+            <td><input type="checkbox"></td>
+            <td><a href="/panorama/dashboard" target="_blank">/panorama/dashboard</a> → “Matéria-prima: Conformidade”</td>
+            <td>PAN-DASH-011</td>
+            <td>Q_MB_MPRIMA_FORN_ADEQ</td>
+            <td>Lista de Ranchos com NC</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>Pizza: perfis de microrganismos (alimentos, água, swab)</td>
+            <td><input type="checkbox"></td>
+            <td><a href="/panorama/dashboard" target="_blank">/panorama/dashboard</a> → “Perfil de Microrganismos”</td>
+            <td>PAN-DASH-012</td>
+            <td>Q_MB_PERFIL_MICRO</td>
+            <td>Top 5 + Pareto</td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    </details>
+
+    <details>
+      <summary>1.3 Desperdício & Sobras</summary>
+      <table data-sec="1">
+        <thead>
+          <tr>
+            <th>Requisito</th><th>OK</th><th>Rota/Tela</th><th>ID de Tela</th><th>Query/SQL</th><th>Capturas obrigatórias</th><th>Notas/Responsável</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Tabela: indicador de desperdício, sobras e resto-ingesta</td>
+            <td><input type="checkbox"></td>
+            <td><a href="/panorama/dashboard" target="_blank">/panorama/dashboard</a> → “Desperdício e Sobras (Tabela)”</td>
+            <td>PAN-DASH-020</td>
+            <td>Q_DESP_SOBRAS_RESTO</td>
+            <td>Filtros por rancho e mês</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>Gráfico MxM: evolução do desperdício por Rancho</td>
+            <td><input type="checkbox"></td>
+            <td><a href="/panorama/dashboard" target="_blank">/panorama/dashboard</a> → “Evolução do Desperdício”</td>
+            <td>PAN-DASH-021</td>
+            <td>Q_DESP_MENSAL_RANCHO</td>
+            <td>Linha de tendência</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>Gráfico MxM: % desperdício nos Ranchos</td>
+            <td><input type="checkbox"></td>
+            <td><a href="/panorama/dashboard" target="_blank">/panorama/dashboard</a> → “% Desperdício (Mensal)”</td>
+            <td>PAN-DASH-022</td>
+            <td>Q_DESP_PCT_MENSAL</td>
+            <td>Ranking decrescente</td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    </details>
+
+    <details>
+      <summary>1.4 Obras & Reformas</summary>
+      <table data-sec="1">
+        <thead>
+          <tr>
+            <th>Requisito</th><th>OK</th><th>Rota/Tela</th><th>ID de Tela</th><th>Query/SQL</th><th>Capturas obrigatórias</th><th>Notas/Responsável</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Tabela: Ranchos em obra (início e previsão de término)</td>
+            <td><input type="checkbox"></td>
+            <td><a href="/panorama/relatorios" target="_blank">/panorama/relatorios</a> → “Obras em Andamento”</td>
+            <td>PAN-REL-030</td>
+            <td>Q_OBRAS_ATIVAS</td>
+            <td>Export CSV/XLSX</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>Tabela: Ranchos em obra por setor (histórico mensal)</td>
+            <td><input type="checkbox"></td>
+            <td><a href="/panorama/relatorios" target="_blank">/panorama/relatorios</a> → “Histórico de Obras por Setor”</td>
+            <td>PAN-REL-031</td>
+            <td>Q_OBRAS_SETOR_MENSAL</td>
+            <td>Filtro por período</td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    </details>
+
+    <details>
+      <summary>1.5 Capacitação</summary>
+      <table data-sec="1">
+        <thead>
+          <tr>
+            <th>Requisito</th><th>OK</th><th>Rota/Tela</th><th>ID de Tela</th><th>Query/SQL</th><th>Capturas obrigatórias</th><th>Notas/Responsável</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Tabela: temas ministrados (Plano Mensal) com fotos e modelo de avaliação</td>
+            <td><input type="checkbox"></td>
+            <td><a href="/panorama/relatorios" target="_blank">/panorama/relatorios</a> → “Capacitações do Mês”</td>
+            <td>PAN-REL-040</td>
+            <td>Q_CAPA_TEMAS_FOTOS</td>
+            <td>Miniaturas + link da mídia</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>Tabela: % participação do efetivo</td>
+            <td><input type="checkbox"></td>
+            <td><a href="/panorama/relatorios" target="_blank">/panorama/relatorios</a> → “Participação do Efetivo”</td>
+            <td>PAN-REL-041</td>
+            <td>Q_CAPA_PARTICIPACAO</td>
+            <td>Métricas por OM e por GAP</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>Barra: média das notas das provas por Rancho</td>
+            <td><input type="checkbox"></td>
+            <td><a href="/panorama/relatorios" target="_blank">/panorama/relatorios</a> → “Notas de Provas”</td>
+            <td>PAN-REL-042</td>
+            <td>Q_CAPA_MEDIAS_PROVAS</td>
+            <td>Linha de corte 7,0</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>Evolução por Rancho × Tema (impacto de comportamento)</td>
+            <td><input type="checkbox"></td>
+            <td><a href="/panorama/relatorios" target="_blank">/panorama/relatorios</a> → “Evolução por Tema”</td>
+            <td>PAN-REL-043</td>
+            <td>Q_CAPA_EVOLUCAO_TEMA</td>
+            <td>Curvas por tema</td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    </details>
+
+    <details>
+      <summary>1.6 Avaliação de Cardápios</summary>
+      <table data-sec="1">
+        <thead>
+          <tr>
+            <th>Requisito</th><th>OK</th><th>Rota/Tela</th><th>ID de Tela</th><th>Query/SQL</th><th>Capturas obrigatórias</th><th>Notas/Responsável</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Ranking (ordem decrescente) de avaliação qualitativa dos cardápios</td>
+            <td><input type="checkbox"></td>
+            <td><a href="/panorama/relatorios" target="_blank">/panorama/relatorios</a> → “Ranking de Cardápios”</td>
+            <td>PAN-REL-050</td>
+            <td>Q_CARDAPIO_RANK</td>
+            <td>Verde ≥7 / Vermelho &lt;7</td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    </details>
+
+    <details>
+      <summary>1.7 Usabilidade (interatividade, Pareto, corte 7,0, percentuais)</summary>
+      <div class="note tiny">
+        Relatórios interativos; rankings; histórico; Pareto; corte 7,0; dados em % (exceto tabelas de notas).
+      </div>
+      <table data-sec="1">
+        <thead>
+          <tr>
+            <th>Requisito</th><th>OK</th><th>Rota/Tela</th><th>ID de Tela</th><th>Como aplicado</th><th>Capturas obrigatórias</th><th>Notas</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Relatórios interativos / Rankings / Histórico</td>
+            <td><input type="checkbox"></td>
+            <td><a href="/panorama/dashboard" target="_blank">/panorama/dashboard</a>, <a href="/panorama/relatorios" target="_blank">/panorama/relatorios</a></td>
+            <td>PAN-UX-060</td>
+            <td>Filtros por período, loja, formulário, GAP</td>
+            <td>GIF do filtro em uso</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>Diagrama de Pareto em todos os gráficos</td>
+            <td><input type="checkbox"></td>
+            <td><a href="/panorama/dashboard" target="_blank">/panorama/dashboard</a></td>
+            <td>PAN-UX-061</td>
+            <td>Curva acumulada 80/20 sobre barras</td>
+            <td>Exemplo com não conformidades</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>Linha de corte 7,0 (barras)</td>
+            <td><input type="checkbox"></td>
+            <td>Todos os gráficos de nota</td>
+            <td>PAN-UX-062</td>
+            <td>Y=7,0, cores por faixa</td>
+            <td>Print com linha de corte</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>Dados em % (exceto tabelas de notas)</td>
+            <td><input type="checkbox"></td>
+            <td>Todos os gráficos percentuais</td>
+            <td>PAN-UX-063</td>
+            <td>Formatadores no eixo e tooltip</td>
+            <td>Print com tooltip (%)</td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    </details>
+  </section>
+
+  <!-- 2. GESTÃO & ALERTAS -->
+  <section id="s2">
+    <div class="sec-head">
+      <h2>2. Funcionalidades de Gestão e Alertas</h2>
+      <div class="sec-progress"><div class="sec-bar" data-sec="2"></div></div>
+    </div>
+
+    <details open>
+      <summary>2.1 Geração Automática de Alertas (30 dias sem ação)</summary>
+      <table data-sec="2">
+        <thead>
+          <tr>
+            <th>Requisito</th><th>OK</th><th>Serviço/Endpoint</th><th>Query/SQL</th><th>Capturas obrigatórias</th><th>Notas/Responsável</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Alertar SDAB quando OM não registrar ações ≥ 30 dias</td>
+            <td><input type="checkbox"></td>
+            <td><a href="/panorama/api/dashboard-data" target="_blank">/panorama/api/dashboard-data</a> (dados); <em>job</em> interno agendado</td>
+            <td>Q_ACOES_OM_SEM_ATUAL_30D</td>
+            <td>Print do log do job + print do card de alerta</td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    </details>
+
+    <details>
+      <summary>2.2 Lançamento de Ações Corretivas (acesso operacional)</summary>
+      <table data-sec="2">
+        <thead>
+          <tr>
+            <th>Requisito</th><th>OK</th><th>Rota/Tela</th><th>API de suporte</th><th>Capturas obrigatórias</th><th>Notas/Responsável</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>OM lança ações corretivas com login individual</td>
+            <td><input type="checkbox"></td>
+            <td><a href="/cli" target="_blank">/cli</a> • <a href="/cli/aplicar" target="_blank">/cli/aplicar</a> • <a href="/cli/checklists" target="_blank">/cli/checklists</a></td>
+            <td><a href="/cli/api/resposta/salvar" target="_blank">/cli/api/resposta/salvar</a></td>
+            <td>Fluxo de criação/edição + histórico</td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    </details>
+  </section>
+
+  <!-- 3. ACESSOS -->
+  <section id="s3">
+    <div class="sec-head">
+      <h2>3. Níveis de Acesso e Permissões</h2>
+      <div class="sec-progress"><div class="sec-bar" data-sec="3"></div></div>
+    </div>
+
+    <details open>
+      <summary>3.1 Acesso Operacional (OM)</summary>
+      <table data-sec="3">
+        <thead>
+          <tr>
+            <th>Requisito</th><th>OK</th><th>Rotas</th><th>Como garantir</th><th>Capturas obrigatórias</th><th>Notas</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Ver apenas dados do seu Rancho</td>
+            <td><input type="checkbox"></td>
+            <td><a href="/cli/formularios" target="_blank">/cli/formularios</a>, <a href="/panorama/dashboard" target="_blank">/panorama/dashboard</a></td>
+            <td>Filtro por <code>current_user.cliente_id</code> em todas as queries</td>
+            <td>Print do filtro aplicado (usuário OM)</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>Lançar ações corretivas (login individualizado)</td>
+            <td><input type="checkbox"></td>
+            <td><a href="/cli/novo-grupo" target="_blank">/cli/novo-grupo</a>, <a href="/cli/nova-loja" target="_blank">/cli/nova-loja</a></td>
+            <td>Papéis/roles + ownership checks</td>
+            <td>Print de tela de criação</td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    </details>
+
+    <details>
+      <summary>3.2 Acesso Intermediário (GAP)</summary>
+      <table data-sec="3">
+        <thead>
+          <tr>
+            <th>Requisito</th><th>OK</th><th>Rotas</th><th>Como garantir</th><th>Capturas obrigatórias</th><th>Notas</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Acesso centralizado aos Ranchos do GAP</td>
+            <td><input type="checkbox"></td>
+            <td><a href="/panorama/dashboard" target="_blank">/panorama/dashboard</a> (filtros por GAP)</td>
+            <td>Escopo por grupo / GAP em queries</td>
+            <td>Print com filtro GAP</td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    </details>
+
+    <details>
+      <summary>3.3 Acesso Gerencial (SDAB)</summary>
+      <table data-sec="3">
+        <thead>
+          <tr>
+            <th>Requisito</th><th>OK</th><th>Rotas</th><th>Como garantir</th><th>Capturas obrigatórias</th><th>Notas</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Ver todos os Ranchos + controle do contrato</td>
+            <td><input type="checkbox"></td>
+            <td><a href="/panorama/dashboard" target="_blank">/panorama/dashboard</a>, <a href="/panorama/relatorios" target="_blank">/panorama/relatorios</a></td>
+            <td>Role “GERENCIAL/SDAB” sem restrição</td>
+            <td>Print com visão global</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>Inserir comentários/cobranças/prazos para OM e GAP</td>
+            <td><input type="checkbox"></td>
+            <td><em>(seu módulo /admin)</em> • <a>/admin/cobrancas</a></td>
+            <td>Entidades Comentário/Cobrança com SLA</td>
+            <td>Fluxo completo (criar → notificar)</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>Exportação e relatórios personalizados</td>
+            <td><input type="checkbox"></td>
+            <td><a href="/panorama/api/export-data" target="_blank">/panorama/api/export-data</a></td>
+            <td>CSV/JSON/XLSX/PDF via WeasyPrint</td>
+            <td>Baixar CSV + PDF checklist</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>Gerir quantidade de acessos (ajustável)</td>
+            <td><input type="checkbox"></td>
+            <td><em>(seu módulo /admin/usuarios)</em></td>
+            <td>Controle de licenças/perfis</td>
+            <td>Print da tela de perfis</td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    </details>
+  </section>
+
+  <!-- 4. DESENVOLVIMENTO -->
+  <section id="s4">
+    <div class="sec-head">
+      <h2>4. Desenvolvimento & Suporte</h2>
+      <div class="sec-progress"><div class="sec-bar" data-sec="4"></div></div>
+    </div>
+
+    <details open>
+      <summary>4.1 Alinhamento & Entregas</summary>
+      <table data-sec="4">
+        <thead>
+          <tr>
+            <th>Requisito</th><th>OK</th><th>Plano</th><th>Evidências</th><th>Responsável</th><th>Prazo</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Reuniões com SDAB (pré-agendadas)</td>
+            <td><input type="checkbox"></td>
+            <td>Quinzenais • Ata e ações</td>
+            <td>Links das atas</td><td></td><td></td>
+          </tr>
+          <tr>
+            <td>Primeira entrega já no novo sistema</td>
+            <td><input type="checkbox"></td>
+            <td>Release 0.x com /panorama/dashboard</td>
+            <td>Changelog + prints</td><td></td><td></td>
+          </tr>
+          <tr>
+            <td>Versão final em até 90 dias</td>
+            <td><input type="checkbox"></td>
+            <td>Roadmap de sprints</td>
+            <td>Milestones</td><td></td><td></td>
+          </tr>
+          <tr>
+            <td>Ajustes sob demanda (SLA)</td>
+            <td><input type="checkbox"></td>
+            <td>Backlog priorizado</td>
+            <td>Tickets/Jira</td><td></td><td></td>
+          </tr>
+        </tbody>
+      </table>
+    </details>
+
+    <details>
+      <summary>4.2 Capacitação</summary>
+      <table data-sec="4">
+        <thead>
+          <tr>
+            <th>Requisito</th><th>OK</th><th>Plano</th><th>Material</th><th>Responsável</th><th>Prazo</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Treinamento de todos os Gestores</td>
+            <td><input type="checkbox"></td>
+            <td>Turmas síncronas + EAD</td>
+            <td>Manual, vídeos, FAQ</td><td></td><td></td>
+          </tr>
+        </tbody>
+      </table>
+    </details>
+  </section>
+
+  <!-- APÊNDICE: CRUD/FLUXOS /CLI -->
+  <section id="s5">
+    <div class="sec-head">
+      <h2>Apêndice — Rotas do Módulo Operacional (/cli)</h2>
+    </div>
+    <div class="note tiny">
+      Conferir as principais rotas que você implementou.
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Funcionalidade</th><th>Rota</th><th>ID de Tela</th><th>Observações</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Dashboard CLI</td><td><a href="/cli/home" target="_blank">/cli/home</a></td><td>CLI-000</td><td>Resumo do cliente</td></tr>
+        <tr><td>Formulários (listar)</td><td><a href="/cli/formularios" target="_blank">/cli/formularios</a></td><td>CLI-010</td><td>Somente do <code>current_user.cliente_id</code></td></tr>
+        <tr><td>Novo formulário</td><td><a href="/cli/formulario/novo" target="_blank">/cli/formulario/novo</a></td><td>CLI-011</td><td>Cria bloco + perguntas</td></tr>
+        <tr><td>Aplicar checklist (início)</td><td><a href="/cli/aplicar" target="_blank">/cli/aplicar</a></td><td>CLI-020</td><td>Escolher formulário</td></tr>
+        <tr><td>Checklists (listar)</td><td><a href="/cli/checklists" target="_blank">/cli/checklists</a></td><td>CLI-021</td><td>Paginação + filtros</td></tr>
+        <tr><td>Lojas (listar)</td><td><a href="/cli/lojas" target="_blank">/cli/lojas</a></td><td>CLI-030</td><td>Somente do cliente</td></tr>
+        <tr><td>Nova loja</td><td><a href="/cli/loja/nova" target="_blank">/cli/loja/nova</a></td><td>CLI-031</td><td>Associa a grupo opcional</td></tr>
+        <tr><td>Grupos (listar)</td><td><a href="/cli/grupos" target="_blank">/cli/grupos</a></td><td>CLI-040</td><td>Ativos do cliente</td></tr>
+        <tr><td>Novo grupo</td><td><a href="/cli/grupo/novo" target="_blank">/cli/grupo/novo</a></td><td>CLI-041</td><td>Cadastro simples</td></tr>
+        <tr><td>API: formularios por loja</td><td><a href="/cli/api/formularios/1" target="_blank">/cli/api/formularios/&lt;loja_id&gt;</a></td><td>CLI-API-100</td><td>JSON</td></tr>
+        <tr><td>API: salvar resposta</td><td><a href="/cli/api/resposta/salvar" target="_blank">/cli/api/resposta/salvar</a></td><td>CLI-API-101</td><td>POST JSON</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+</main>
+
+<script>
+  function expandAll(open=true){
+    document.querySelectorAll('details').forEach(d=>d.open=open);
+  }
+  function compute(){
+    const all=[...document.querySelectorAll('tbody input[type=checkbox]')];
+    const done=all.filter(c=>c.checked).length;
+    const pct=all.length? Math.round(100*done/all.length):0;
+    document.getElementById('progressGlobal').style.width=pct+'%';
+    document.getElementById('pctGlobal').textContent=pct+'%';
+    [1,2,3,4].forEach(sec=>{
+      const boxes=[...document.querySelectorAll(`table[data-sec="${sec}"] input[type=checkbox]`)];
+      const d=boxes.filter(c=>c.checked).length;
+      const p=boxes.length? Math.round(100*d/boxes.length):0;
+      const bar=document.querySelector(`.sec-bar[data-sec="${sec}"]`);
+      if(bar) bar.style.width=p+'%';
+    });
+  }
+  const KEY='qualigestor_checklist_state_v1';
+  function saveState(){
+    const state=[...document.querySelectorAll('tbody input[type=checkbox]')].map(c=>c.checked?1:0);
+    localStorage.setItem(KEY, JSON.stringify(state));
+  }
+  function loadState(){
+    const json=localStorage.getItem(KEY);
+    if(!json) return;
+    const state=JSON.parse(json);
+    document.querySelectorAll('tbody input[type=checkbox]').forEach((c,i)=>{ if(state[i]) c.checked=true; });
+  }
+  document.addEventListener('change', e=>{
+    if(e.target.matches('input[type=checkbox]')){ compute(); saveState(); }
+  });
+  window.addEventListener('load', ()=>{ loadState(); compute(); });
+</script>
+</body>
+</html>

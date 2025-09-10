@@ -1,4 +1,4 @@
-# app/models.py - VERSÃO CORRIGIDA FINAL
+# app/models.py - VERSÃO CORRIGIDA E UNIFICADA
 from datetime import datetime
 from sqlalchemy import Enum as SqlEnum
 import enum
@@ -32,7 +32,7 @@ class StatusAuditoria(enum.Enum):
     APROVADA = "Aprovada"
 
 class TipoUsuario(enum.Enum):
-    """Tipos de usuário do sistema - CORRIGIDO"""
+    """Tipos de usuário do sistema"""
     SUPER_ADMIN = "Super Admin"
     ADMIN = "Admin"
     AUDITOR = "Auditor"
@@ -147,7 +147,7 @@ class Usuario(db.Model, UserMixin):
     @property
     def perfil(self):
         """Propriedade para compatibilidade com código antigo"""
-        if self.tipo in [TipoUsuario.SUPER_ADMIN, TipoUsuario.ADMIN]:
+        if self.tipo == TipoUsuario.SUPER_ADMIN or self.tipo == TipoUsuario.ADMIN:
             return 'admin'
         return 'usuario'
     
@@ -336,6 +336,7 @@ class Auditoria(db.Model):
     
     # Relacionamentos
     respostas = db.relationship('Resposta', backref='auditoria', lazy='dynamic', cascade='all, delete-orphan')
+    nao_conformidades = db.relationship('NaoConformidade', backref='auditoria', lazy='dynamic')
 
 class Resposta(db.Model):
     """Respostas individuais de cada pergunta"""
@@ -366,7 +367,6 @@ class Resposta(db.Model):
     # Chaves estrangeiras
     auditoria_id = db.Column(db.Integer, db.ForeignKey('auditoria.id'), nullable=False)
     pergunta_id = db.Column(db.Integer, db.ForeignKey('pergunta.id'), nullable=False)
-
 
 # ==================== NÃO CONFORMIDADES ====================
 
@@ -399,31 +399,37 @@ class NaoConformidade(db.Model):
     # Relacionamentos
     resposta = db.relationship('Resposta', backref='nao_conformidades')
     identificado_por = db.relationship('Usuario', backref='ncs_identificadas')
-    auditoria = db.relationship('Auditoria', backref='nao_conformidades')
 
-# ==================== COMPATIBILIDADE ====================
+# ==================== AUDITORIA DO SISTEMA ====================
+
+class LogAuditoria(db.Model):
+    """Log de todas as ações do sistema para auditoria"""
+    __tablename__ = "log_auditoria"
+    
+    id = db.Column(db.Integer, primary_key=True)
+    tabela = db.Column(db.String(50), nullable=False)
+    registro_id = db.Column(db.Integer)
+    acao = db.Column(db.String(20), nullable=False)
+    dados_anteriores = db.Column(db.Text)  # JSON string
+    dados_novos = db.Column(db.Text)  # JSON string
+    ip_address = db.Column(db.String(45))
+    user_agent = db.Column(db.String(255))
+    
+    # Timestamps
+    data_hora = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    
+    # Chave estrangeira
+    usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'))
+    
+    # Relacionamentos
+    usuario = db.relationship('Usuario', backref='logs_auditoria')
+
+# ==================== MODELS PARA COMPATIBILIDADE ====================
 
 # Alias para compatibilidade com código antigo
 Avaliado = Loja
-Questionario = Formulario
-Topico = BlocoFormulario
 
-# Para compatibilidade com templates antigos
-class LaudoMicrobiologico(db.Model):
-    """Modelo para módulo de laudos (compatibilidade)"""
-    __tablename__ = "laudo_microbiologico"
-    
-    id = db.Column(db.Integer, primary_key=True)
-    data_coleta = db.Column(db.DateTime, nullable=False)
-    tipo_amostra = db.Column(db.String(100), nullable=False)
-    local = db.Column(db.String(100), nullable=False)
-    resultado = db.Column(db.String(50), nullable=False)
-    observacoes = db.Column(db.Text)
-    responsavel = db.Column(db.String(100), nullable=False)
-    arquivo = db.Column(db.String(255))
-    criado_em = db.Column(db.DateTime, default=datetime.utcnow)
-
-# ==================== FUNÇÃO USER LOADER ====================
+# ==================== FUNÇÕES AUXILIARES ====================
 
 from . import login_manager
 
