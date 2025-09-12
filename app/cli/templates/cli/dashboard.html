@@ -1,7 +1,939 @@
-{% extends 'base_cliq.html' %}
+<!-- app/templates/cli/dashboard.html -->
+{% extends "base_cliq.html" %}
 
-{% block title %}Dashboard - LabSys{% endblock %}
-{% block content %}
-<h1 class="mb-4">Dashboard</h1>
-<p>Bem-vindo ao painel do sistema de qualidade. Selecione uma opção no menu lateral.</p>
+{% block title %}Dashboard CLIQ{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    .metric-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 15px;
+        color: white;
+        transition: transform 0.3s ease;
+    }
+    .metric-card:hover {
+        transform: translateY(-5px);
+    }
+    .chart-container {
+        position: relative;
+        height: 400px;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .trend-up { color: #28a745; }
+    .trend-down { color: #dc3545; }
+</style>
 {% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">
+            <i class="fas fa-tachometer-alt text-primary me-2"></i>
+            Dashboard Executivo
+        </h1>
+        <div class="btn-group">
+            <button class="btn btn-outline-primary" onclick="atualizarDashboard()">
+                <i class="fas fa-sync-alt"></i> Atualizar
+            </button>
+            <button class="btn btn-primary" onclick="exportarDashboard()">
+                <i class="fas fa-download"></i> Exportar
+            </button>
+        </div>
+    </div>
+
+    <!-- Métricas Principais -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card metric-card h-100">
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="graficoEvolucao"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-pie-chart text-success me-2"></i>
+                        Conformidade por Categoria
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="height: 300px;">
+                        <canvas id="graficoConformidade"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ranking e Análises -->
+    <div class="row mb-4">
+        <div class="col-xl-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-trophy text-warning me-2"></i>
+                        Top 10 Lojas
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="rankingLojas" style="max-height: 400px; overflow-y: auto;">
+                        <!-- Preenchido via JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-exclamation-triangle text-danger me-2"></i>
+                        Principais Não-Conformidades
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="topNaoConformidades" style="max-height: 400px; overflow-y: auto;">
+                        <!-- Preenchido via JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Variáveis globais para os gráficos
+let graficoEvolucao, graficoConformidade;
+
+document.addEventListener('DOMContentLoaded', function() {
+    inicializarGraficos();
+    carregarDadosDashboard();
+});
+
+function inicializarGraficos() {
+    // Gráfico de evolução
+    const ctxEvolucao = document.getElementById('graficoEvolucao').getContext('2d');
+    graficoEvolucao = new Chart(ctxEvolucao, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: []
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Evolução das Notas Médias'
+                },
+                legend: {
+                    position: 'top'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Gráfico de conformidade
+    const ctxConformidade = document.getElementById('graficoConformidade').getContext('2d');
+    graficoConformidade = new Chart(ctxConformidade, {
+        type: 'doughnut',
+        data: {
+            labels: [],
+            datasets: [{
+                data: [],
+                backgroundColor: [
+                    '#28a745',
+                    '#dc3545',
+                    '#ffc107',
+                    '#17a2b8',
+                    '#6f42c1'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+function carregarDadosDashboard() {
+    // Carregar dados dos gráficos
+    Promise.all([
+        fetch('/cli/api/relatorio/dados?tipo=evolucao').then(r => r.json()),
+        fetch('/cli/api/relatorio/dados?tipo=categorias').then(r => r.json()),
+        fetch('/cli/api/relatorio/dados?tipo=ranking').then(r => r.json()),
+        fetch('/cli/api/relatorio/dados?tipo=conformidade').then(r => r.json())
+    ]).then(([evolucao, categorias, ranking, conformidade]) => {
+        atualizarGraficoEvolucao(evolucao);
+        atualizarGraficoConformidade(categorias);
+        atualizarRankingLojas(ranking);
+        atualizarNaoConformidades(conformidade);
+    }).catch(console.error);
+}
+
+function atualizarGraficoEvolucao(dados) {
+    const cores = ['#007bff', '#28a745', '#dc3545', '#ffc107', '#17a2b8'];
+    let datasets = [];
+    let todasDatas = new Set();
+
+    // Coletar todas as datas
+    Object.values(dados.dados).forEach(lojaDados => {
+        lojaDados.forEach(ponto => todasDatas.add(ponto.data));
+    });
+
+    const datasOrdenadas = Array.from(todasDatas).sort();
+
+    // Criar datasets para cada loja
+    Object.entries(dados.dados).forEach(([loja, pontos], index) => {
+        const dadosLoja = datasOrdenadas.map(data => {
+            const ponto = pontos.find(p => p.data === data);
+            return ponto ? ponto.nota : null;
+        });
+
+        datasets.push({
+            label: loja,
+            data: dadosLoja,
+            borderColor: cores[index % cores.length],
+            backgroundColor: cores[index % cores.length] + '20',
+            tension: 0.1,
+            fill: false
+        });
+    });
+
+    graficoEvolucao.data.labels = datasOrdenadas.map(data => {
+        return new Date(data).toLocaleDateString('pt-BR');
+    });
+    graficoEvolucao.data.datasets = datasets;
+    graficoEvolucao.update();
+}
+
+function atualizarGraficoConformidade(dados) {
+    const labels = dados.dados.map(item => item.categoria);
+    const percentuais = dados.dados.map(item => item.percentual_conformidade);
+
+    graficoConformidade.data.labels = labels;
+    graficoConformidade.data.datasets[0].data = percentuais;
+    graficoConformidade.update();
+}
+
+function atualizarRankingLojas(dados) {
+    const container = document.getElementById('rankingLojas');
+    let html = '';
+
+    dados.ranking.forEach((loja, index) => {
+        const medalha = index < 3 ? ['🥇', '🥈', '🥉'][index] : `${index + 1}º`;
+        const corBarra = loja.media >= 80 ? 'success' : loja.media >= 60 ? 'warning' : 'danger';
+
+        html += `
+            <div class="d-flex align-items-center mb-3">
+                <div class="me-3">
+                    <span class="h5 mb-0">${medalha}</span>
+                </div>
+                <div class="flex-grow-1">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <strong>${loja.loja}</strong>
+                        <span class="badge bg-${corBarra}">${loja.media}%</span>
+                    </div>
+                    <div class="progress mt-1" style="height: 6px;">
+                        <div class="progress-bar bg-${corBarra}" style="width: ${loja.media}%"></div>
+                    </div>
+                    <small class="text-muted">${loja.total_auditorias} auditorias</small>
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+
+function atualizarNaoConformidades(dados) {
+    const container = document.getElementById('topNaoConformidades');
+    let html = '';
+
+    // Agrupar não-conformidades por pergunta
+    const naoConformidadesPorPergunta = {};
+    
+    dados.detalhes.forEach(item => {
+        const key = item.pergunta;
+        if (!naoConformidadesPorPergunta[key]) {
+            naoConformidadesPorPergunta[key] = {
+                pergunta: item.pergunta,
+                categoria: item.categoria,
+                ocorrencias: 0,
+                lojas: new Set()
+            };
+        }
+        naoConformidadesPorPergunta[key].ocorrencias++;
+        naoConformidadesPorPergunta[key].lojas.add(item.loja);
+    });
+
+    // Ordenar por ocorrências
+    const topNaoConformidades = Object.values(naoConformidadesPorPergunta)
+        .sort((a, b) => b.ocorrencias - a.ocorrencias)
+        .slice(0, 10);
+
+    topNaoConformidades.forEach((item, index) => {
+        html += `
+            <div class="border-bottom pb-3 mb-3">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        <h6 class="mb-1">${item.pergunta}</h6>
+                        <div class="text-muted small">
+                            <span class="badge bg-secondary me-1">${item.categoria}</span>
+                            ${item.ocorrencias} ocorrências em ${item.lojas.size} lojas
+                        </div>
+                    </div>
+                    <span class="badge bg-danger">${index + 1}º</span>
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+
+function atualizarDashboard() {
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Atualizando...';
+    btn.disabled = true;
+
+    carregarDadosDashboard();
+
+    setTimeout(() => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }, 2000);
+}
+
+function alterarPeriodoGrafico(periodo) {
+    // Remover classe active de todos os botões
+    document.querySelectorAll('.btn-group button').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Adicionar classe active ao botão clicado
+    event.target.classList.add('active');
+    
+    // Recarregar dados com novo período
+    carregarDadosDashboard();
+}
+
+function exportarDashboard() {
+    window.open('/cli/relatorio/exportar/pdf?tipo=dashboard', '_blank');
+}
+</script>
+{% endblock %}
+
+<!-- app/templates/cli/relatorios.html -->
+{% extends "base_cliq.html" %}
+
+{% block title %}Relatórios e Análises{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    .filtros-card {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 15px;
+    }
+    .relatorio-card {
+        transition: transform 0.2s ease;
+        cursor: pointer;
+    }
+    .relatorio-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    .chart-container {
+        position: relative;
+        height: 400px;
+    }
+    .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255,255,255,0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">
+            <i class="fas fa-chart-bar text-primary me-2"></i>
+            Relatórios e Análises
+        </h1>
+        <div class="btn-group">
+            <button class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown">
+                <i class="fas fa-download"></i> Exportar
+            </button>
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="#" onclick="exportarRelatorio('excel')">
+                    <i class="fas fa-file-excel text-success me-2"></i>Excel
+                </a></li>
+                <li><a class="dropdown-item" href="#" onclick="exportarRelatorio('pdf')">
+                    <i class="fas fa-file-pdf text-danger me-2"></i>PDF
+                </a></li>
+                <li><a class="dropdown-item" href="#" onclick="exportarRelatorio('csv')">
+                    <i class="fas fa-file-csv text-info me-2"></i>CSV
+                </a></li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card filtros-card mb-4">
+        <div class="card-body">
+            <h5 class="card-title mb-3">
+                <i class="fas fa-filter text-primary me-2"></i>
+                Filtros de Análise
+            </h5>
+            
+            <form id="formFiltros" onsubmit="aplicarFiltros(event)">
+                <div class="row">
+                    <div class="col-md-3">
+                        <label class="form-label">Loja</label>
+                        <select class="form-select" name="loja_id" id="filtroLoja">
+                            <option value="">Todas as lojas</option>
+                            {% for loja in lojas %}
+                            <option value="{{ loja.id }}">{{ loja.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <label class="form-label">Formulário</label>
+                        <select class="form-select" name="formulario_id" id="filtroFormulario">
+                            <option value="">Todos os formulários</option>
+                            {% for form in formularios %}
+                            <option value="{{ form.id }}">{{ form.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-2">
+                        <label class="form-label">Data Início</label>
+                        <input type="date" class="form-control" name="data_inicio" 
+                               value="{{ data_inicio }}" id="filtroDataInicio">
+                    </div>
+                    
+                    <div class="col-md-2">
+                        <label class="form-label">Data Fim</label>
+                        <input type="date" class="form-control" name="data_fim" 
+                               value="{{ data_fim }}" id="filtroDataFim">
+                    </div>
+                    
+                    <div class="col-md-2">
+                        <label class="form-label">&nbsp;</label>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search"></i> Aplicar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tipos de Relatório -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card relatorio-card h-100" onclick="carregarRelatorio('evolucao')">
+                <div class="card-body text-center">
+                    <i class="fas fa-chart-line fa-3x text-primary mb-3"></i>
+                    <h5 class="card-title">Evolução de Notas</h5>
+                    <p class="card-text text-muted">Acompanhe a evolução das notas ao longo do tempo</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card relatorio-card h-100" onclick="carregarRelatorio('conformidade')">
+                <div class="card-body text-center">
+                    <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                    <h5 class="card-title">Conformidade</h5>
+                    <p class="card-text text-muted">Análise de conformidade e não-conformidades</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card relatorio-card h-100" onclick="carregarRelatorio('ranking')">
+                <div class="card-body text-center">
+                    <i class="fas fa-trophy fa-3x text-warning mb-3"></i>
+                    <h5 class="card-title">Ranking de Lojas</h5>
+                    <p class="card-text text-muted">Ranking das lojas por desempenho</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card relatorio-card h-100" onclick="carregarRelatorio('categorias')">
+                <div class="card-body text-center">
+                    <i class="fas fa-tags fa-3x text-info mb-3"></i>
+                    <h5 class="card-title">Por Categorias</h5>
+                    <p class="card-text text-muted">Desempenho por categoria de perguntas</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Área do Relatório -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0" id="tituloRelatorio">
+                <i class="fas fa-chart-bar text-primary me-2"></i>
+                Selecione um tipo de relatório
+            </h5>
+            <div id="acoes-relatorio" class="d-none">
+                <button class="btn btn-sm btn-outline-primary me-2" onclick="toggleTabelaDados()">
+                    <i class="fas fa-table"></i> Dados
+                </button>
+                <button class="btn btn-sm btn-outline-success" onclick="exportarRelatorioAtual()">
+                    <i class="fas fa-download"></i> Exportar
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            <div id="loading" class="loading-overlay d-none">
+                <div class="text-center">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <div class="mt-2">Carregando relatório...</div>
+                </div>
+            </div>
+            
+            <div id="conteudo-relatorio">
+                <div class="text-center text-muted py-5">
+                    <i class="fas fa-chart-bar fa-4x mb-3"></i>
+                    <h4>Selecione um tipo de relatório acima</h4>
+                    <p>Escolha o tipo de análise que deseja visualizar</p>
+                </div>
+            </div>
+            
+            <!-- Área do gráfico -->
+            <div id="area-grafico" class="d-none">
+                <div class="chart-container">
+                    <canvas id="graficoRelatorio"></canvas>
+                </div>
+            </div>
+            
+            <!-- Área da tabela de dados -->
+            <div id="area-tabela" class="d-none mt-4">
+                <h6>Dados Detalhados</h6>
+                <div class="table-responsive">
+                    <table class="table table-striped" id="tabelaDados">
+                        <thead id="cabecalhoTabela"></thead>
+                        <tbody id="corpoTabela"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let graficoAtual = null;
+let dadosAtuais = null;
+let tipoRelatorioAtual = null;
+
+function aplicarFiltros(event) {
+    event.preventDefault();
+    
+    if (tipoRelatorioAtual) {
+        carregarRelatorio(tipoRelatorioAtual);
+    }
+}
+
+function carregarRelatorio(tipo) {
+    tipoRelatorioAtual = tipo;
+    mostrarLoading(true);
+    
+    // Atualizar título
+    const titulos = {
+        'evolucao': 'Evolução de Notas',
+        'conformidade': 'Análise de Conformidade',
+        'ranking': 'Ranking de Lojas',
+        'categorias': 'Desempenho por Categorias'
+    };
+    
+    document.getElementById('tituloRelatorio').innerHTML = 
+        `<i class="fas fa-chart-bar text-primary me-2"></i>${titulos[tipo]}`;
+    
+    // Construir URL com filtros
+    const formData = new FormData(document.getElementById('formFiltros'));
+    const params = new URLSearchParams(formData);
+    params.append('tipo', tipo);
+    
+    fetch(`/cli/api/relatorio/dados?${params.toString()}`)
+        .then(response => response.json())
+        .then(dados => {
+            dadosAtuais = dados;
+            renderizarRelatorio(tipo, dados);
+            mostrarLoading(false);
+            document.getElementById('acoes-relatorio').classList.remove('d-none');
+        })
+        .catch(error => {
+            console.error('Erro ao carregar relatório:', error);
+            mostrarLoading(false);
+            mostrarErro('Erro ao carregar relatório');
+        });
+}
+
+function renderizarRelatorio(tipo, dados) {
+    document.getElementById('conteudo-relatorio').classList.add('d-none');
+    document.getElementById('area-grafico').classList.remove('d-none');
+    
+    if (graficoAtual) {
+        graficoAtual.destroy();
+    }
+    
+    const ctx = document.getElementById('graficoRelatorio').getContext('2d');
+    
+    switch (tipo) {
+        case 'evolucao':
+            renderizarGraficoEvolucao(ctx, dados);
+            break;
+        case 'conformidade':
+            renderizarGraficoConformidade(ctx, dados);
+            break;
+        case 'ranking':
+            renderizarGraficoRanking(ctx, dados);
+            break;
+        case 'categorias':
+            renderizarGraficoCategorias(ctx, dados);
+            break;
+    }
+    
+    atualizarTabelaDados(tipo, dados);
+}
+
+function renderizarGraficoEvolucao(ctx, dados) {
+    const cores = ['#007bff', '#28a745', '#dc3545', '#ffc107', '#17a2b8'];
+    let datasets = [];
+    
+    Object.entries(dados.dados).forEach(([loja, pontos], index) => {
+        datasets.push({
+            label: loja,
+            data: pontos.map(p => ({ x: p.data, y: p.nota })),
+            borderColor: cores[index % cores.length],
+            backgroundColor: cores[index % cores.length] + '20',
+            tension: 0.1
+        });
+    });
+    
+    graficoAtual = new Chart(ctx, {
+        type: 'line',
+        data: { datasets: datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    type: 'time',
+                    time: { unit: 'day' }
+                },
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        callback: value => value + '%'
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderizarGraficoConformidade(ctx, dados) {
+    graficoAtual = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Conformes', 'Não Conformes'],
+            datasets: [{
+                data: [dados.conformes, dados.nao_conformes],
+                backgroundColor: ['#28a745', '#dc3545']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                title: {
+                    display: true,
+                    text: `Taxa de Conformidade: ${dados.percentual}%`
+                }
+            }
+        }
+    });
+}
+
+function renderizarGraficoRanking(ctx, dados) {
+    const lojas = dados.ranking.slice(0, 10);
+    
+    graficoAtual = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: lojas.map(l => l.loja),
+            datasets: [{
+                label: 'Nota Média',
+                data: lojas.map(l => l.media),
+                backgroundColor: lojas.map(l => 
+                    l.media >= 80 ? '#28a745' : 
+                    l.media >= 60 ? '#ffc107' : '#dc3545'
+                )
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        callback: value => value + '%'
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderizarGraficoCategorias(ctx, dados) {
+    graficoAtual = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: dados.dados.map(d => d.categoria),
+            datasets: [{
+                label: 'Conformidade %',
+                data: dados.dados.map(d => d.percentual_conformidade),
+                backgroundColor: '#007bff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        callback: value => value + '%'
+                    }
+                }
+            }
+        }
+    });
+}
+
+function atualizarTabelaDados(tipo, dados) {
+    const cabecalho = document.getElementById('cabecalhoTabela');
+    const corpo = document.getElementById('corpoTabela');
+    
+    let htmlCabecalho = '';
+    let htmlCorpo = '';
+    
+    switch (tipo) {
+        case 'ranking':
+            htmlCabecalho = '<tr><th>Posição</th><th>Loja</th><th>Nota Média</th><th>Total Auditorias</th></tr>';
+            dados.ranking.forEach((item, index) => {
+                htmlCorpo += `
+                    <tr>
+                        <td>${index + 1}º</td>
+                        <td>${item.loja}</td>
+                        <td><span class="badge bg-${item.media >= 80 ? 'success' : item.media >= 60 ? 'warning' : 'danger'}">${item.media}%</span></td>
+                        <td>${item.total_auditorias}</td>
+                    </tr>
+                `;
+            });
+            break;
+            
+        case 'categorias':
+            htmlCabecalho = '<tr><th>Categoria</th><th>Total Perguntas</th><th>Conformes</th><th>Não Conformes</th><th>% Conformidade</th></tr>';
+            dados.dados.forEach(item => {
+                htmlCorpo += `
+                    <tr>
+                        <td>${item.categoria}</td>
+                        <td>${item.total_perguntas}</td>
+                        <td><span class="text-success">${item.conformes}</span></td>
+                        <td><span class="text-danger">${item.nao_conformes}</span></td>
+                        <td><span class="badge bg-${item.percentual_conformidade >= 80 ? 'success' : item.percentual_conformidade >= 60 ? 'warning' : 'danger'}">${item.percentual_conformidade}%</span></td>
+                    </tr>
+                `;
+            });
+            break;
+    }
+    
+    cabecalho.innerHTML = htmlCabecalho;
+    corpo.innerHTML = htmlCorpo;
+}
+
+function toggleTabelaDados() {
+    const area = document.getElementById('area-tabela');
+    area.classList.toggle('d-none');
+}
+
+function mostrarLoading(mostrar) {
+    document.getElementById('loading').classList.toggle('d-none', !mostrar);
+}
+
+function mostrarErro(mensagem) {
+    document.getElementById('conteudo-relatorio').innerHTML = `
+        <div class="text-center text-danger py-5">
+            <i class="fas fa-exclamation-triangle fa-4x mb-3"></i>
+            <h4>Erro</h4>
+            <p>${mensagem}</p>
+        </div>
+    `;
+    document.getElementById('conteudo-relatorio').classList.remove('d-none');
+    document.getElementById('area-grafico').classList.add('d-none');
+}
+
+function exportarRelatorio(formato) {
+    if (!tipoRelatorioAtual) {
+        alert('Selecione um relatório primeiro');
+        return;
+    }
+    
+    const formData = new FormData(document.getElementById('formFiltros'));
+    const params = new URLSearchParams(formData);
+    params.append('tipo', tipoRelatorioAtual);
+    
+    window.open(`/cli/relatorio/exportar/${formato}?${params.toString()}`, '_blank');
+}
+
+function exportarRelatorioAtual() {
+    exportarRelatorio('excel');
+}
+</script>
+{% endblock %>
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <div class="small text-white-50 text-uppercase">Total Auditorias</div>
+                            <div class="h2 mb-0 text-white">{{ metricas.total_auditorias }}</div>
+                            <div class="small">
+                                <span class="{% if metricas.variacao_auditorias > 0 %}trend-up{% else %}trend-down{% endif %}">
+                                    <i class="fas fa-arrow-{% if metricas.variacao_auditorias > 0 %}up{% else %}down{% endif %}"></i>
+                                    {{ metricas.variacao_auditorias }}%
+                                </span>
+                                <span class="text-white-50 ms-1">vs período anterior</span>
+                            </div>
+                        </div>
+                        <div class="text-white-50">
+                            <i class="fas fa-clipboard-list fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card metric-card h-100" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <div class="small text-white-50 text-uppercase">Nota Média</div>
+                            <div class="h2 mb-0 text-white">{{ metricas.nota_media }}</div>
+                            <div class="small">
+                                <span class="{% if metricas.variacao_nota > 0 %}trend-up{% else %}trend-down{% endif %}">
+                                    <i class="fas fa-arrow-{% if metricas.variacao_nota > 0 %}up{% else %}down{% endif %}"></i>
+                                    {{ metricas.variacao_nota }}%
+                                </span>
+                                <span class="text-white-50 ms-1">vs período anterior</span>
+                            </div>
+                        </div>
+                        <div class="text-white-50">
+                            <i class="fas fa-star fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card metric-card h-100" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <div class="small text-white-50 text-uppercase">Conformidade</div>
+                            <div class="h2 mb-0 text-white">{{ metricas.taxa_conformidade }}%</div>
+                            <div class="small text-white-50">Índice geral</div>
+                        </div>
+                        <div class="text-white-50">
+                            <i class="fas fa-check-circle fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card metric-card h-100" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <div class="small text-white-50 text-uppercase">Lojas Ativas</div>
+                            <div class="h2 mb-0 text-white">{{ metricas.lojas_ativas }}</div>
+                            <div class="small text-white-50">{{ metricas.formularios_publicados }} formulários</div>
+                        </div>
+                        <div class="text-white-50">
+                            <i class="fas fa-store fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficos -->
+    <div class="row mb-4">
+        <div class="col-xl-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-line text-primary me-2"></i>
+                        Evolução Mensal das Notas
+                    </h5>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-primary active" onclick="alterarPeriodoGrafico('3m')">3M</button>
+                        <button class="btn btn-outline-primary" onclick="alterarPeriodoGrafico('6m')">6M</button>
+                        <button class="btn btn-outline-primary" onclick="alterarPeriodoGrafico('1y')">1A</button>
+                    </div>
+                </div>
+                <div class="card-body">

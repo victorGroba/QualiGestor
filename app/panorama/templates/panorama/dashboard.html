@@ -1,4 +1,4 @@
-<!-- app/panorama/templates/panorama/dashboard.html -->
+<!-- app/panorama/templates/panorama/dashboard.html - CORRIGIDO -->
 {% extends "base_painel.html" %}
 
 {% block title %}Dashboard - Panorama{% endblock %}
@@ -82,24 +82,24 @@
                     </div>
                     
                     <div class="col-md-3">
-                        <label class="form-label">Loja</label>
-                        <select class="form-select" name="loja_id" id="loja_id">
-                            <option value="">Todas as lojas</option>
-                            {% for loja in filtros.lojas %}
-                            <option value="{{ loja.id }}" {% if filtros_aplicados.loja_id == loja.id %}selected{% endif %}>
-                                {{ loja.nome }}
+                        <label class="form-label">Avaliado</label>
+                        <select class="form-select" name="avaliado_id" id="avaliado_id">
+                            <option value="">Todos os avaliados</option>
+                            {% for avaliado in filtros.avaliados %}
+                            <option value="{{ avaliado.id }}" {% if filtros_aplicados.avaliado_id == avaliado.id %}selected{% endif %}>
+                                {{ avaliado.nome }}
                             </option>
                             {% endfor %}
                         </select>
                     </div>
                     
                     <div class="col-md-3">
-                        <label class="form-label">Formulário</label>
-                        <select class="form-select" name="formulario_id" id="formulario_id">
-                            <option value="">Todos os formulários</option>
-                            {% for formulario in filtros.formularios %}
-                            <option value="{{ formulario.id }}" {% if filtros_aplicados.formulario_id == formulario.id %}selected{% endif %}>
-                                {{ formulario.nome }}
+                        <label class="form-label">Questionário</label>
+                        <select class="form-select" name="questionario_id" id="questionario_id">
+                            <option value="">Todos os questionários</option>
+                            {% for questionario in filtros.questionarios %}
+                            <option value="{{ questionario.id }}" {% if filtros_aplicados.questionario_id == questionario.id %}selected{% endif %}>
+                                {{ questionario.nome }}
                             </option>
                             {% endfor %}
                         </select>
@@ -129,7 +129,7 @@
                         <i class="fas fa-clipboard-list fa-2x"></i>
                     </div>
                     <h4 class="fw-bold">{{ metricas.total_auditorias }}</h4>
-                    <p class="text-muted mb-0">Total de Auditorias</p>
+                    <p class="text-muted mb-0">Total de Aplicações</p>
                 </div>
             </div>
         </div>
@@ -153,7 +153,7 @@
                         <i class="fas fa-store fa-2x"></i>
                     </div>
                     <h4 class="fw-bold">{{ metricas.lojas_auditadas }}</h4>
-                    <p class="text-muted mb-0">Lojas Auditadas</p>
+                    <p class="text-muted mb-0">Avaliados</p>
                 </div>
             </div>
         </div>
@@ -179,7 +179,7 @@
                         <i class="fas fa-exclamation-triangle fa-2x"></i>
                     </div>
                     <h4 class="fw-bold">{{ metricas.auditorias_criticas }}</h4>
-                    <p class="text-muted mb-0">Auditorias Críticas</p>
+                    <p class="text-muted mb-0">Aplicações Críticas</p>
                 </div>
             </div>
         </div>
@@ -202,6 +202,12 @@
         <!-- Evolução da Pontuação -->
         <div class="col-lg-8 mb-4">
             <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="mb-0">
+                        <i class="fas fa-line-chart me-2"></i>
+                        Evolução da Pontuação
+                    </h5>
+                </div>
                 <div class="card-body">
                     <div class="chart-container">
                         <canvas id="chartEvolucao"></canvas>
@@ -229,41 +235,41 @@
     </div>
 
     <div class="row mb-4">
-        <!-- Performance por Loja -->
+        <!-- Performance por Avaliado -->
         <div class="col-lg-8 mb-4">
             <div class="card shadow-sm border-0">
                 <div class="card-header bg-white border-bottom">
                     <h5 class="mb-0">
                         <i class="fas fa-store me-2"></i>
-                        Performance por Loja
+                        Performance por Avaliado
                     </h5>
                 </div>
                 <div class="card-body">
                     <div class="chart-container">
-                        <canvas id="chartLojas"></canvas>
+                        <canvas id="chartAvaliados"></canvas>
                     </div>
                 </div>
             </div>
         </div>
         
-        <!-- Ranking de Lojas -->
+        <!-- Ranking de Avaliados -->
         <div class="col-lg-4 mb-4">
             <div class="card shadow-sm border-0">
                 <div class="card-header bg-white border-bottom">
                     <h5 class="mb-0">
                         <i class="fas fa-trophy me-2"></i>
-                        Ranking de Lojas
+                        Ranking de Avaliados
                     </h5>
                 </div>
                 <div class="card-body">
-                    <div id="rankingLojas">
-                        {% for item in graficos.ranking_lojas %}
+                    <div id="rankingAvaliados">
+                        {% for item in graficos.ranking_avaliados %}
                         <div class="ranking-item">
                             <div>
                                 <span class="badge bg-secondary me-2">{{ loop.index }}º</span>
                                 <strong>{{ item.loja }}</strong>
                                 <br>
-                                <small class="text-muted">{{ item.total_auditorias }} auditoria{{ 's' if item.total_auditorias != 1 else '' }}</small>
+                                <small class="text-muted">{{ item.total_auditorias }} aplicaç{{ 'ões' if item.total_auditorias != 1 else 'ão' }}</small>
                             </div>
                             <div class="text-end">
                                 <span class="badge bg-{{ item.status }} fs-6">{{ item.media }}%</span>
@@ -281,19 +287,19 @@
         </div>
     </div>
 
-    <!-- Performance por Formulário e Top NCs -->
+    <!-- Performance por Questionário e Top NCs -->
     <div class="row mb-4">
         <div class="col-lg-6 mb-4">
             <div class="card shadow-sm border-0">
                 <div class="card-header bg-white border-bottom">
                     <h5 class="mb-0">
                         <i class="fas fa-clipboard-check me-2"></i>
-                        Performance por Formulário
+                        Performance por Questionário
                     </h5>
                 </div>
                 <div class="card-body">
                     <div class="chart-container" style="height: 300px;">
-                        <canvas id="chartFormularios"></canvas>
+                        <canvas id="chartQuestionarios"></canvas>
                     </div>
                 </div>
             </div>
@@ -339,14 +345,14 @@
 
 <script>
 // Variáveis globais para os gráficos
-let chartEvolucao, chartDistribuicao, chartLojas, chartFormularios;
+let chartEvolucao, chartDistribuicao, chartAvaliados, chartQuestionarios;
 
 // Dados dos gráficos vindos do backend
 const dadosGraficos = {
     evolucao: {{ graficos.evolucao_pontuacao | tojson }},
     distribuicao: {{ graficos.distribuicao_notas | tojson }},
-    lojas: {{ graficos.pontuacao_por_loja | tojson }},
-    formularios: {{ graficos.pontuacao_por_formulario | tojson }}
+    avaliados: {{ graficos.pontuacao_por_avaliado | tojson }},
+    questionarios: {{ graficos.pontuacao_por_questionario | tojson }}
 };
 
 // Configurações padrão dos gráficos
@@ -418,11 +424,11 @@ function initializeCharts() {
         }
     });
 
-    // Gráfico de Lojas (Barras)
-    const ctxLojas = document.getElementById('chartLojas').getContext('2d');
-    chartLojas = new Chart(ctxLojas, {
+    // Gráfico de Avaliados (Barras)
+    const ctxAvaliados = document.getElementById('chartAvaliados').getContext('2d');
+    chartAvaliados = new Chart(ctxAvaliados, {
         type: 'bar',
-        data: dadosGraficos.lojas,
+        data: dadosGraficos.avaliados,
         options: {
             ...defaultOptions,
             scales: {
@@ -445,11 +451,11 @@ function initializeCharts() {
         }
     });
 
-    // Gráfico de Formulários (Pizza)
-    const ctxFormularios = document.getElementById('chartFormularios').getContext('2d');
-    chartFormularios = new Chart(ctxFormularios, {
+    // Gráfico de Questionários (Pizza)
+    const ctxQuestionarios = document.getElementById('chartQuestionarios').getContext('2d');
+    chartQuestionarios = new Chart(ctxQuestionarios, {
         type: 'pie',
-        data: dadosGraficos.formularios,
+        data: dadosGraficos.questionarios,
         options: {
             ...defaultOptions,
             plugins: {
@@ -517,9 +523,9 @@ function atualizarGraficos(data) {
     chartDistribuicao.data = data.distribuicao;
     chartDistribuicao.update();
 
-    // Lojas
-    chartLojas.data = data.por_loja;
-    chartLojas.update();
+    // Avaliados
+    chartAvaliados.data = data.por_avaliado;
+    chartAvaliados.update();
 }
 
 // Atualizar métricas
@@ -530,8 +536,8 @@ function atualizarMetricas(metricas) {
 
 // Exportar dados
 function exportarDados() {
-    const formato = prompt('Escolha o formato de exportação:', 'csv');
-    if (formato) {
+    const formato = prompt('Escolha o formato de exportação (csv ou json):', 'csv');
+    if (formato && ['csv', 'json'].includes(formato)) {
         const formData = new FormData(document.getElementById('filtroForm'));
         const params = new URLSearchParams(formData);
         params.append('formato', formato);
@@ -558,8 +564,8 @@ function showNotification(message, type = 'info') {
 function handleResize() {
     if (chartEvolucao) chartEvolucao.resize();
     if (chartDistribuicao) chartDistribuicao.resize();
-    if (chartLojas) chartLojas.resize();
-    if (chartFormularios) chartFormularios.resize();
+    if (chartAvaliados) chartAvaliados.resize();
+    if (chartQuestionarios) chartQuestionarios.resize();
 }
 
 window.addEventListener('resize', handleResize);

@@ -41,7 +41,7 @@ def login():
 
         usuario = Usuario.query.filter_by(email=email).first()
 
-        if usuario and check_password_hash(usuario.senha, senha):
+        if usuario and usuario.check_password(senha):
             login_user(usuario)
 
             # Sessão

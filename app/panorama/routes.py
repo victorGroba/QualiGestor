@@ -1,13 +1,14 @@
-# app/panorama/routes.py - DASHBOARD FUNCIONAL (corrigido)
+# app/panorama/routes.py - DASHBOARD FUNCIONAL (corrigido para usar modelos corretos)
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for
 from flask_login import login_required, current_user
 from sqlalchemy import func, extract, and_
 from datetime import datetime, timedelta
 import json
 
+# IMPORTAÇÕES CORRIGIDAS - usando os modelos corretos do models.py
 from ..models import (
-    db, Auditoria, Loja, Formulario, Resposta,
-    Pergunta, StatusAuditoria, TipoResposta, Cliente, Grupo  # <- adicionado Grupo
+    db, AplicacaoQuestionario, Avaliado, Questionario, RespostaPergunta,
+    Pergunta, StatusAplicacao, TipoResposta, Cliente, Grupo
 )
 
 panorama_bp = Blueprint('panorama', __name__, template_folder='templates')
@@ -27,8 +28,8 @@ def dashboard():
     data_inicio = data_fim - timedelta(days=30)
 
     # Aplicar filtros se fornecidos
-    loja_id = request.args.get('loja_id', type=int)
-    formulario_id = request.args.get('formulario_id', type=int)
+    avaliado_id = request.args.get('avaliado_id', type=int)  # Era loja_id
+    questionario_id = request.args.get('questionario_id', type=int)  # Era formulario_id
     grupo_id = request.args.get('grupo_id', type=int)
     periodo = request.args.get('periodo', '30')
 
@@ -40,42 +41,41 @@ def dashboard():
     elif periodo == '365':
         data_inicio = data_fim - timedelta(days=365)
 
-    # Query base para auditorias do cliente
-    query = Auditoria.query.join(Loja).filter(
-        Loja.cliente_id == current_user.cliente_id,
-        Auditoria.data_inicio >= data_inicio,
-        Auditoria.data_inicio <= data_fim,
-        Auditoria.status == StatusAuditoria.CONCLUIDA
+    # Query base para aplicações do cliente (era auditorias)
+    query = AplicacaoQuestionario.query.join(Avaliado).filter(
+        Avaliado.cliente_id == current_user.cliente_id,
+        AplicacaoQuestionario.data_inicio >= data_inicio,
+        AplicacaoQuestionario.data_inicio <= data_fim,
+        AplicacaoQuestionario.status == StatusAplicacao.FINALIZADA  # Era StatusAuditoria.CONCLUIDA
     )
 
     # Aplicar filtros
-    if loja_id:
-        query = query.filter(Auditoria.loja_id == loja_id)
-    if formulario_id:
-        query = query.filter(Auditoria.formulario_id == formulario_id)
+    if avaliado_id:
+        query = query.filter(AplicacaoQuestionario.avaliado_id == avaliado_id)
+    if questionario_id:
+        query = query.filter(AplicacaoQuestionario.questionario_id == questionario_id)
     if grupo_id:
-        query = query.filter(Loja.grupo_id == grupo_id)
+        query = query.filter(Avaliado.grupo_id == grupo_id)
 
-    auditorias = query.all()
+    aplicacoes = query.all()  # Era auditorias
 
     # Calcular métricas
-    metricas = calcular_metricas_dashboard(auditorias)
+    metricas = calcular_metricas_dashboard(aplicacoes)
 
     # Dados para gráficos
     graficos = {
-        'evolucao_pontuacao': gerar_grafico_evolucao(auditorias),
-        'pontuacao_por_loja': gerar_grafico_lojas(auditorias),
-        'pontuacao_por_formulario': gerar_grafico_formularios(auditorias),
-        'distribuicao_notas': gerar_grafico_distribuicao(auditorias),
-        'ranking_lojas': gerar_ranking_lojas(auditorias),
-        'top_nao_conformidades': gerar_top_nao_conformidades(auditorias)
+        'evolucao_pontuacao': gerar_grafico_evolucao(aplicacoes),
+        'pontuacao_por_avaliado': gerar_grafico_avaliados(aplicacoes),  # Era por_loja
+        'pontuacao_por_questionario': gerar_grafico_questionarios(aplicacoes),  # Era por_formulario
+        'distribuicao_notas': gerar_grafico_distribuicao(aplicacoes),
+        'ranking_avaliados': gerar_ranking_avaliados(aplicacoes),  # Era ranking_lojas
+        'top_nao_conformidades': gerar_top_nao_conformidades(aplicacoes)
     }
 
     # Opções para filtros
     filtros = {
-        'lojas': Loja.query.filter_by(cliente_id=current_user.cliente_id, ativa=True).all(),
-        'formularios': Formulario.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).all(),
-        # Corrigido: busque os grupos diretamente na tabela de grupos
+        'avaliados': Avaliado.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).all(),  # Era lojas
+        'questionarios': Questionario.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).all(),  # Era formularios
         'grupos': Grupo.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).all()
     }
 
@@ -85,8 +85,8 @@ def dashboard():
         graficos=graficos,
         filtros=filtros,
         filtros_aplicados={
-            'loja_id': loja_id,
-            'formulario_id': formulario_id,
+            'avaliado_id': avaliado_id,  # Era loja_id
+            'questionario_id': questionario_id,  # Era formulario_id
             'grupo_id': grupo_id,
             'periodo': periodo
         }
@@ -98,6 +98,12 @@ def relatorios():
     """Página de relatórios customizáveis"""
     return render_template('panorama/relatorios.html')
 
+@panorama_bp.route('/filtros')
+@login_required
+def filtros():
+    """Página de filtros - redireciona para dashboard"""
+    return redirect(url_for('panorama.dashboard'))
+
 @panorama_bp.route('/api/dashboard-data')
 @login_required
 def api_dashboard_data():
@@ -106,8 +112,8 @@ def api_dashboard_data():
         # Parâmetros da requisição
         data_inicio = request.args.get('data_inicio')
         data_fim = request.args.get('data_fim')
-        loja_id = request.args.get('loja_id', type=int)
-        formulario_id = request.args.get('formulario_id', type=int)
+        avaliado_id = request.args.get('avaliado_id', type=int)  # Era loja_id
+        questionario_id = request.args.get('questionario_id', type=int)  # Era formulario_id
 
         # Converter datas
         if data_inicio:
@@ -120,27 +126,27 @@ def api_dashboard_data():
         else:
             data_fim = datetime.now()
 
-        # Query de auditorias
-        query = Auditoria.query.join(Loja).filter(
-            Loja.cliente_id == current_user.cliente_id,
-            Auditoria.data_inicio >= data_inicio,
-            Auditoria.data_inicio <= data_fim,
-            Auditoria.status == StatusAuditoria.CONCLUIDA
+        # Query de aplicações (era auditorias)
+        query = AplicacaoQuestionario.query.join(Avaliado).filter(
+            Avaliado.cliente_id == current_user.cliente_id,
+            AplicacaoQuestionario.data_inicio >= data_inicio,
+            AplicacaoQuestionario.data_inicio <= data_fim,
+            AplicacaoQuestionario.status == StatusAplicacao.FINALIZADA
         )
 
-        if loja_id:
-            query = query.filter(Auditoria.loja_id == loja_id)
-        if formulario_id:
-            query = query.filter(Auditoria.formulario_id == formulario_id)
+        if avaliado_id:
+            query = query.filter(AplicacaoQuestionario.avaliado_id == avaliado_id)
+        if questionario_id:
+            query = query.filter(AplicacaoQuestionario.questionario_id == questionario_id)
 
-        auditorias = query.all()
+        aplicacoes = query.all()
 
         # Gerar dados
         data = {
-            'metricas': calcular_metricas_dashboard(auditorias),
-            'evolucao': gerar_grafico_evolucao(auditorias),
-            'por_loja': gerar_grafico_lojas(auditorias),
-            'distribuicao': gerar_grafico_distribuicao(auditorias)
+            'metricas': calcular_metricas_dashboard(aplicacoes),
+            'evolucao': gerar_grafico_evolucao(aplicacoes),
+            'por_avaliado': gerar_grafico_avaliados(aplicacoes),  # Era por_loja
+            'distribuicao': gerar_grafico_distribuicao(aplicacoes)
         }
 
         return jsonify(data)
@@ -154,24 +160,23 @@ def api_export_data():
     """API para exportar dados"""
     formato = request.args.get('formato', 'json')  # json, csv, excel
 
-    # Buscar auditorias
-    auditorias = Auditoria.query.join(Loja).filter(
-        Loja.cliente_id == current_user.cliente_id,
-        Auditoria.status == StatusAuditoria.CONCLUIDA
+    # Buscar aplicações (era auditorias)
+    aplicacoes = AplicacaoQuestionario.query.join(Avaliado).filter(
+        Avaliado.cliente_id == current_user.cliente_id,
+        AplicacaoQuestionario.status == StatusAplicacao.FINALIZADA
     ).all()
 
     if formato == 'json':
         data = []
-        for auditoria in auditorias:
+        for aplicacao in aplicacoes:
             data.append({
-                'id': auditoria.id,
-                'codigo': auditoria.codigo,
-                'data': auditoria.data_inicio.isoformat(),
-                'loja': auditoria.loja.nome,
-                'formulario': auditoria.formulario.nome,
-                'pontuacao': auditoria.percentual,
-                'usuario': auditoria.usuario.nome,
-                'observacoes': auditoria.observacoes_gerais
+                'id': aplicacao.id,
+                'data': aplicacao.data_inicio.isoformat(),
+                'avaliado': aplicacao.avaliado.nome,  # Era loja
+                'questionario': aplicacao.questionario.nome,  # Era formulario
+                'pontuacao': aplicacao.nota_final,  # Era percentual
+                'usuario': aplicacao.aplicador.nome,  # Era usuario
+                'observacoes': aplicacao.observacoes or ''  # Era observacoes_gerais
             })
         return jsonify(data)
 
@@ -184,35 +189,34 @@ def api_export_data():
 
         # Header
         writer.writerow([
-            'ID', 'Código', 'Data', 'Loja', 'Formulário',
+            'ID', 'Data', 'Avaliado', 'Questionário',
             'Pontuação (%)', 'Usuário', 'Observações'
         ])
 
         # Dados
-        for auditoria in auditorias:
+        for aplicacao in aplicacoes:
             writer.writerow([
-                auditoria.id,
-                auditoria.codigo,
-                auditoria.data_inicio.strftime('%d/%m/%Y'),
-                auditoria.loja.nome,
-                auditoria.formulario.nome,
-                f"{auditoria.percentual:.1f}%",
-                auditoria.usuario.nome,
-                auditoria.observacoes_gerais or ''
+                aplicacao.id,
+                aplicacao.data_inicio.strftime('%d/%m/%Y'),
+                aplicacao.avaliado.nome,
+                aplicacao.questionario.nome,
+                f"{aplicacao.nota_final:.1f}%" if aplicacao.nota_final else 'N/A',
+                aplicacao.aplicador.nome,
+                aplicacao.observacoes or ''
             ])
 
         return output.getvalue(), 200, {
             'Content-Type': 'text/csv',
-            'Content-Disposition': 'attachment; filename=auditorias.csv'
+            'Content-Disposition': 'attachment; filename=aplicacoes.csv'
         }
 
     return jsonify({'error': 'Formato não suportado'}), 400
 
 # ===================== FUNÇÕES DE CÁLCULO =====================
 
-def calcular_metricas_dashboard(auditorias):
+def calcular_metricas_dashboard(aplicacoes):
     """Calcula métricas principais do dashboard"""
-    if not auditorias:
+    if not aplicacoes:
         return {
             'total_auditorias': 0,
             'pontuacao_media': 0,
@@ -223,54 +227,54 @@ def calcular_metricas_dashboard(auditorias):
         }
 
     # Métricas básicas
-    total_auditorias = len(auditorias)
-    pontuacoes = [a.percentual for a in auditorias if a.percentual is not None]
+    total_aplicacoes = len(aplicacoes)
+    pontuacoes = [a.nota_final for a in aplicacoes if a.nota_final is not None]  # Era percentual
     pontuacao_media = sum(pontuacoes) / len(pontuacoes) if pontuacoes else 0
 
-    # Lojas únicas auditadas
-    lojas_auditadas = len(set(a.loja_id for a in auditorias))
+    # Avaliados únicos (era lojas)
+    avaliados_avaliados = len(set(a.avaliado_id for a in aplicacoes))
 
-    # Auditorias críticas (abaixo de 60%)
-    auditorias_criticas = len([a for a in auditorias if a.percentual and a.percentual < 60])
+    # Aplicações críticas (abaixo de 60%) - era auditorias_criticas
+    aplicacoes_criticas = len([a for a in aplicacoes if a.nota_final and a.nota_final < 60])
 
     # Conformidade geral (acima de 80%)
-    conformes = len([a for a in auditorias if a.percentual and a.percentual >= 80])
-    conformidade_geral = (conformes / total_auditorias * 100) if total_auditorias > 0 else 0
+    conformes = len([a for a in aplicacoes if a.nota_final and a.nota_final >= 80])
+    conformidade_geral = (conformes / total_aplicacoes * 100) if total_aplicacoes > 0 else 0
 
     # Tendência (comparar últimas 2 semanas com 2 semanas anteriores)
     agora = datetime.now()
     duas_semanas_atras = agora - timedelta(days=14)
     quatro_semanas_atras = agora - timedelta(days=28)
 
-    recentes = [a for a in auditorias if a.data_inicio >= duas_semanas_atras]
-    anteriores = [a for a in auditorias if quatro_semanas_atras <= a.data_inicio < duas_semanas_atras]
+    recentes = [a for a in aplicacoes if a.data_inicio >= duas_semanas_atras]
+    anteriores = [a for a in aplicacoes if quatro_semanas_atras <= a.data_inicio < duas_semanas_atras]
 
-    media_recente = sum(a.percentual for a in recentes if a.percentual) / len(recentes) if recentes else 0
-    media_anterior = sum(a.percentual for a in anteriores if a.percentual) / len(anteriores) if anteriores else 0
+    media_recente = sum(a.nota_final for a in recentes if a.nota_final) / len(recentes) if recentes else 0
+    media_anterior = sum(a.nota_final for a in anteriores if a.nota_final) / len(anteriores) if anteriores else 0
 
     tendencia_pontuacao = media_recente - media_anterior
 
     return {
-        'total_auditorias': total_auditorias,
+        'total_auditorias': total_aplicacoes,  # Manter nome para compatibilidade com template
         'pontuacao_media': round(pontuacao_media, 1),
-        'lojas_auditadas': lojas_auditadas,
+        'lojas_auditadas': avaliados_avaliados,  # Manter nome para compatibilidade
         'tendencia_pontuacao': round(tendencia_pontuacao, 1),
-        'auditorias_criticas': auditorias_criticas,
+        'auditorias_criticas': aplicacoes_criticas,  # Manter nome para compatibilidade
         'conformidade_geral': round(conformidade_geral, 1)
     }
 
-def gerar_grafico_evolucao(auditorias):
+def gerar_grafico_evolucao(aplicacoes):
     """Gera dados para gráfico de evolução temporal"""
-    if not auditorias:
+    if not aplicacoes:
         return {'labels': [], 'datasets': []}
 
     # Agrupar por dia
     dados_por_dia = {}
-    for auditoria in auditorias:
-        data_str = auditoria.data_inicio.strftime('%Y-%m-%d')
+    for aplicacao in aplicacoes:
+        data_str = aplicacao.data_inicio.strftime('%Y-%m-%d')
         if data_str not in dados_por_dia:
             dados_por_dia[data_str] = []
-        dados_por_dia[data_str].append(auditoria.percentual or 0)
+        dados_por_dia[data_str].append(aplicacao.nota_final or 0)  # Era percentual
 
     # Calcular média por dia
     labels = sorted(dados_por_dia.keys())
@@ -298,27 +302,27 @@ def gerar_grafico_evolucao(auditorias):
         }]
     }
 
-def gerar_grafico_lojas(auditorias):
-    """Gera dados para gráfico por loja"""
-    if not auditorias:
+def gerar_grafico_avaliados(aplicacoes):
+    """Gera dados para gráfico por avaliado (era por loja)"""
+    if not aplicacoes:
         return {'labels': [], 'datasets': []}
 
-    # Agrupar por loja
-    dados_por_loja = {}
-    for auditoria in auditorias:
-        loja_nome = auditoria.loja.nome
-        if loja_nome not in dados_por_loja:
-            dados_por_loja[loja_nome] = []
-        dados_por_loja[loja_nome].append(auditoria.percentual or 0)
+    # Agrupar por avaliado
+    dados_por_avaliado = {}
+    for aplicacao in aplicacoes:
+        avaliado_nome = aplicacao.avaliado.nome  # Era loja.nome
+        if avaliado_nome not in dados_por_avaliado:
+            dados_por_avaliado[avaliado_nome] = []
+        dados_por_avaliado[avaliado_nome].append(aplicacao.nota_final or 0)  # Era percentual
 
-    # Calcular média por loja
+    # Calcular média por avaliado
     labels = []
     valores = []
     cores = []
 
-    for loja, pontuacoes in dados_por_loja.items():
+    for avaliado, pontuacoes in dados_por_avaliado.items():
         media = sum(pontuacoes) / len(pontuacoes) if pontuacoes else 0
-        labels.append(loja)
+        labels.append(avaliado)
         valores.append(round(media, 1))
 
         # Cor baseada na performance
@@ -340,26 +344,26 @@ def gerar_grafico_lojas(auditorias):
         }]
     }
 
-def gerar_grafico_formularios(auditorias):
-    """Gera dados para gráfico por formulário"""
-    if not auditorias:
+def gerar_grafico_questionarios(aplicacoes):
+    """Gera dados para gráfico por questionário (era por formulário)"""
+    if not aplicacoes:
         return {'labels': [], 'datasets': []}
 
-    # Agrupar por formulário
-    dados_por_formulario = {}
-    for auditoria in auditorias:
-        form_nome = auditoria.formulario.nome
-        if form_nome not in dados_por_formulario:
-            dados_por_formulario[form_nome] = []
-        dados_por_formulario[form_nome].append(auditoria.percentual or 0)
+    # Agrupar por questionário
+    dados_por_questionario = {}
+    for aplicacao in aplicacoes:
+        quest_nome = aplicacao.questionario.nome  # Era formulario.nome
+        if quest_nome not in dados_por_questionario:
+            dados_por_questionario[quest_nome] = []
+        dados_por_questionario[quest_nome].append(aplicacao.nota_final or 0)  # Era percentual
 
-    # Calcular média por formulário
+    # Calcular média por questionário
     labels = []
     valores = []
 
-    for formulario, pontuacoes in dados_por_formulario.items():
+    for questionario, pontuacoes in dados_por_questionario.items():
         media = sum(pontuacoes) / len(pontuacoes) if pontuacoes else 0
-        labels.append(formulario)
+        labels.append(questionario)
         valores.append(round(media, 1))
 
     return {
@@ -374,9 +378,9 @@ def gerar_grafico_formularios(auditorias):
         }]
     }
 
-def gerar_grafico_distribuicao(auditorias):
+def gerar_grafico_distribuicao(aplicacoes):
     """Gera dados para gráfico de distribuição de notas"""
-    if not auditorias:
+    if not aplicacoes:
         return {'labels': [], 'datasets': []}
 
     # Faixas de pontuação
@@ -388,8 +392,8 @@ def gerar_grafico_distribuicao(auditorias):
         '81-100%': 0
     }
 
-    for auditoria in auditorias:
-        pontuacao = auditoria.percentual or 0
+    for aplicacao in aplicacoes:
+        pontuacao = aplicacao.nota_final or 0  # Era percentual
         if pontuacao <= 20:
             faixas['0-20%'] += 1
         elif pontuacao <= 40:
@@ -404,7 +408,7 @@ def gerar_grafico_distribuicao(auditorias):
     return {
         'labels': list(faixas.keys()),
         'datasets': [{
-            'label': 'Quantidade de Auditorias',
+            'label': 'Quantidade de Aplicações',  # Era Auditorias
             'data': list(faixas.values()),
             'backgroundColor': [
                 '#dc3545', '#fd7e14', '#ffc107', '#20c997', '#28a745'
@@ -412,35 +416,35 @@ def gerar_grafico_distribuicao(auditorias):
         }]
     }
 
-def gerar_ranking_lojas(auditorias):
-    """Gera ranking das lojas por performance"""
-    if not auditorias:
+def gerar_ranking_avaliados(aplicacoes):
+    """Gera ranking dos avaliados por performance (era lojas)"""
+    if not aplicacoes:
         return []
 
-    # Agrupar por loja
-    dados_por_loja = {}
-    for auditoria in auditorias:
-        loja_id = auditoria.loja_id
-        loja_nome = auditoria.loja.nome
+    # Agrupar por avaliado
+    dados_por_avaliado = {}
+    for aplicacao in aplicacoes:
+        avaliado_id = aplicacao.avaliado_id  # Era loja_id
+        avaliado_nome = aplicacao.avaliado.nome  # Era loja.nome
 
-        if loja_id not in dados_por_loja:
-            dados_por_loja[loja_id] = {
-                'nome': loja_nome,
+        if avaliado_id not in dados_por_avaliado:
+            dados_por_avaliado[avaliado_id] = {
+                'nome': avaliado_nome,
                 'pontuacoes': [],
-                'total_auditorias': 0
+                'total_aplicacoes': 0  # Era total_auditorias
             }
 
-        dados_por_loja[loja_id]['pontuacoes'].append(auditoria.percentual or 0)
-        dados_por_loja[loja_id]['total_auditorias'] += 1
+        dados_por_avaliado[avaliado_id]['pontuacoes'].append(aplicacao.nota_final or 0)  # Era percentual
+        dados_por_avaliado[avaliado_id]['total_aplicacoes'] += 1
 
     # Calcular ranking
     ranking = []
-    for loja_id, dados in dados_por_loja.items():
+    for avaliado_id, dados in dados_por_avaliado.items():
         media = sum(dados['pontuacoes']) / len(dados['pontuacoes']) if dados['pontuacoes'] else 0
         ranking.append({
-            'loja': dados['nome'],
+            'loja': dados['nome'],  # Manter nome para compatibilidade com template
             'media': round(media, 1),
-            'total_auditorias': dados['total_auditorias'],
+            'total_auditorias': dados['total_aplicacoes'],  # Manter nome para compatibilidade
             'status': 'success' if media >= 80 else 'warning' if media >= 60 else 'danger'
         })
 
@@ -449,34 +453,24 @@ def gerar_ranking_lojas(auditorias):
 
     return ranking[:10]  # Top 10
 
-def gerar_top_nao_conformidades(auditorias):
+def gerar_top_nao_conformidades(aplicacoes):
     """Gera top das não conformidades mais frequentes"""
-    if not auditorias:
+    if not aplicacoes:
         return []
 
     # Buscar respostas "Não" mais frequentes
     nao_conformidades = {}
 
-    for auditoria in auditorias:
-        for resposta in auditoria.respostas:
-            if resposta.valor_opcoes_selecionadas:
-                try:
-                    opcoes = json.loads(resposta.valor_opcoes_selecionadas)
-                    if 'Não' in opcoes:
-                        pergunta_texto = resposta.pergunta.texto
-                        if pergunta_texto not in nao_conformidades:
-                            nao_conformidades[pergunta_texto] = 0
-                        nao_conformidades[pergunta_texto] += 1
-                except Exception:
-                    pass
+    for aplicacao in aplicacoes:
+        for resposta in aplicacao.respostas:
+            # Ajustar para o novo modelo RespostaPergunta
+            if resposta.resposta and 'não' in resposta.resposta.lower():
+                pergunta_texto = resposta.pergunta.texto
+                if pergunta_texto not in nao_conformidades:
+                    nao_conformidades[pergunta_texto] = 0
+                nao_conformidades[pergunta_texto] += 1
 
     # Ordenar e retornar top 10
     top_ncs = sorted(nao_conformidades.items(), key=lambda x: x[1], reverse=True)[:10]
 
     return [{'pergunta': pergunta, 'frequencia': freq} for pergunta, freq in top_ncs]
-
-@panorama_bp.route('/filtros')
-@login_required
-def filtros():
-    """Página de filtros (compatibilidade)"""
-    return redirect(url_for('panorama.dashboard'))
