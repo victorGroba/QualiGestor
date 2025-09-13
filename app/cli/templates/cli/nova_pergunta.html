@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nova Pergunta - {{ topico.nome }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/cli/">
+                <i class="fas fa-clipboard-check"></i> QualiGestor CLIQ
+            </a>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Breadcrumb -->
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/cli/">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="/cli/questionarios">Questionários</a></li>
+                <li class="breadcrumb-item"><a href="/cli/questionario/{{ topico.questionario.id }}/topicos">Tópicos</a></li>
+                <li class="breadcrumb-item"><a href="/cli/topico/{{ topico.id }}/perguntas">{{ topico.nome }}</a></li>
+                <li class="breadcrumb-item active">Nova Pergunta</li>
+            </ol>
+        </nav>
+
+        <!-- Cabeçalho -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h2><i class="fas fa-plus-circle"></i> Nova Pergunta</h2>
+                <p class="text-muted">
+                    <strong>Questionário:</strong> {{ topico.questionario.nome }} | 
+                    <strong>Tópico:</strong> {{ topico.nome }}
+                </p>
+            </div>
+        </div>
+
+        <!-- Alertas -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else 'warning' if category == 'warning' else category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Formulário -->
+        <form method="POST" id="formPergunta">
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-edit"></i> Dados da Pergunta</h5>
+                        </div>
+                        <div class="card-body">
+                            <!-- Texto da Pergunta -->
+                            <div class="mb-3">
+                                <label for="texto" class="form-label">Texto da Pergunta <span class="text-danger">*</span></label>
+                                <textarea class="form-control" id="texto" name="texto" rows="3" required 
+                                          placeholder="Ex: Os extintores estão em bom estado de conservação?"></textarea>
+                            </div>
+
+                            <!-- Tipo e Configurações -->
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="tipo" class="form-label">Tipo de Resposta</label>
+                                        <select class="form-select" id="tipo" name="tipo" onchange="toggleTipoOpcoes()">
+                                            <option value="SIM_NAO_NA">Sim / Não / N.A.</option>
+                                            <option value="MULTIPLA_ESCOLHA">Múltipla Escolha</option>
+                                            <option value="NOTA">Nota (0-10)</option>
+                                            <option value="TEXTO_LIVRE">Texto Livre</option>
+                                            <option value="ESCALA_NUMERICA">Escala Numérica</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="peso" class="form-label">Peso da Pergunta</label>
+                                        <input type="number" class="form-control" id="peso" name="peso" 
+                                               value="1" min="1" max="10">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Opções -->
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" id="obrigatoria" name="obrigatoria">
+                                        <label class="form-check-label" for="obrigatoria">
+                                            Pergunta obrigatória
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" id="permite_observacao" 
+                                               name="permite_observacao" checked>
+                                        <label class="form-check-label" for="permite_observacao">
+                                            Permite observações
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Opções Múltipla Escolha/Escala -->
+                    <div class="card mt-3" id="card-opcoes" style="display: none;">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-list"></i> Opções de Resposta</h6>
+                        </div>
+                        <div class="card-body">
+                            <div id="opcoes-container">
+                                <div class="opcao-item mb-2">
+                                    <div class="row">
+                                        <div class="col-md-8">
+                                            <input type="text" class="form-control" name="opcao_texto[]" placeholder="Texto da opção">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <input type="number" class="form-control" name="opcao_valor[]" placeholder="Valor" step="0.1">
+                                        </div>
+                                        <div class="col-md-1">
+                                            <button type="button" class="btn btn-danger btn-sm" onclick="removerOpcao(this)">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-secondary btn-sm mt-2" onclick="adicionarOpcao()">
+                                <i class="fas fa-plus"></i> Adicionar Opção
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sidebar -->
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-info-circle"></i> Tipos de Pergunta</h6>
+                        </div>
+                        <div class="card-body">
+                            <small class="text-muted">
+                                <p><strong>Sim/Não/N.A.:</strong> Resposta simples com três opções</p>
+                                <p><strong>Múltipla Escolha:</strong> Lista de opções personalizadas</p>
+                                <p><strong>Nota (0-10):</strong> Avaliação numérica</p>
+                                <p><strong>Texto Livre:</strong> Campo de texto aberto</p>
+                                <p><strong>Escala Numérica:</strong> Escala com valores personalizados</p>
+                            </small>
+                        </div>
+                    </div>
+
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-lightbulb"></i> Dicas</h6>
+                        </div>
+                        <div class="card-body">
+                            <small class="text-muted">
+                                <ul class="ps-3">
+                                    <li>Use textos claros e objetivos</li>
+                                    <li>O peso influencia no cálculo da nota final</li>
+                                    <li>Marque como obrigatória se essencial</li>
+                                    <li>Observações permitem comentários adicionais</li>
+                                </ul>
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botões de Ação -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="d-flex justify-content-between">
+                        <a href="/cli/topico/{{ topico.id }}/perguntas" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Salvar Pergunta
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+    function toggleTipoOpcoes() {
+        const tipo = document.getElementById('tipo').value;
+        const cardOpcoes = document.getElementById('card-opcoes');
+        
+        if (tipo === 'MULTIPLA_ESCOLHA' || tipo === 'ESCALA_NUMERICA') {
+            cardOpcoes.style.display = 'block';
+            
+            // Adicionar opções padrão se necessário
+            if (tipo === 'ESCALA_NUMERICA') {
+                preencherEscalaPadrao();
+            }
+        } else {
+            cardOpcoes.style.display = 'none';
+        }
+    }
+
+    function adicionarOpcao() {
+        const container = document.getElementById('opcoes-container');
+        const novaOpcao = document.createElement('div');
+        novaOpcao.className = 'opcao-item mb-2';
+        novaOpcao.innerHTML = `
+            <div class="row">
+                <div class="col-md-8">
+                    <input type="text" class="form-control" name="opcao_texto[]" placeholder="Texto da opção">
+                </div>
+                <div class="col-md-3">
+                    <input type="number" class="form-control" name="opcao_valor[]" placeholder="Valor" step="0.1">
+                </div>
+                <div class="col-md-1">
+                    <button type="button" class="btn btn-danger btn-sm" onclick="removerOpcao(this)">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        container.appendChild(novaOpcao);
+    }
+
+    function removerOpcao(botao) {
+        botao.closest('.opcao-item').remove();
+    }
+
+    function preencherEscalaPadrao() {
+        // Limpar opções existentes
+        const container = document.getElementById('opcoes-container');
+        container.innerHTML = '';
+        
+        // Adicionar escala 1-5
+        const escalas = [
+            {texto: 'Muito Ruim', valor: 1},
+            {texto: 'Ruim', valor: 2}, 
+            {texto: 'Regular', valor: 3},
+            {texto: 'Bom', valor: 4},
+            {texto: 'Excelente', valor: 5}
+        ];
+        
+        escalas.forEach(escala => {
+            const opcao = document.createElement('div');
+            opcao.className = 'opcao-item mb-2';
+            opcao.innerHTML = `
+                <div class="row">
+                    <div class="col-md-8">
+                        <input type="text" class="form-control" name="opcao_texto[]" value="${escala.texto}">
+                    </div>
+                    <div class="col-md-3">
+                        <input type="number" class="form-control" name="opcao_valor[]" value="${escala.valor}" step="0.1">
+                    </div>
+                    <div class="col-md-1">
+                        <button type="button" class="btn btn-danger btn-sm" onclick="removerOpcao(this)">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+            container.appendChild(opcao);
+        });
+    }
+
+    // Debug do formulário
+    document.getElementById('formPergunta').addEventListener('submit', function(e) {
+        const texto = document.getElementById('texto').value.trim();
+        if (!texto) {
+            alert('Texto da pergunta é obrigatório!');
+            e.preventDefault();
+            return;
+        }
+        console.log('Formulário de pergunta sendo enviado...');
+    });
+    </script>
+</body>
+</html>

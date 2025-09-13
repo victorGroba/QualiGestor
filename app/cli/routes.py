@@ -200,9 +200,16 @@ def render_template_safe(template_name, **kwargs):
     try:
         return render_template(template_name, **kwargs)
     except Exception as e:
-        print(f"Erro no template {template_name}: {e}")
-        # Fallback para template básico
-        return render_template('cli/index.html', error=f"Template {template_name} não encontrado", **kwargs)
+        # ADICIONE ESTA LINHA PARA DEBUG
+        print(f"ERRO DETALHADO no template {template_name}: {e}")
+        print(f"Tipo do erro: {type(e)}")
+        
+        # Flash do erro para aparecer na tela
+        flash(f"Erro no template {template_name}: {str(e)}", "danger")
+        
+        return render_template('cli/index.html', 
+                             error=f"Template {template_name} não encontrado: {str(e)}", 
+                             **kwargs)
 
 # ===================== CORREÇÃO 7: WEASYPRINT OPCIONAL =====================
 
@@ -360,85 +367,118 @@ def listar_questionarios():
 @cli_bp.route('/novo-questionario', methods=['GET', 'POST'])
 @login_required
 def novo_questionario():
-    """
-    Tela de criação de questionário (CLIq) — versão corrigida.
-    - Lê 'nome' (não 'titulo')
-    - Mantém dados preenchidos se houver erro (sem redirecionar)
-    - Ao salvar, redireciona para a gestão de tópicos com id=<q.id>
-    """
+    """Tela de criação de questionário (CLIq) – versão corrigida com debug."""
+    
+    print(f"DEBUG: Método da requisição: {request.method}")
+    
     if request.method == 'POST':
-        # 1) Coleta os campos do formulário (alinha com o template)
+        print("DEBUG: Processando POST do questionário")
+        
+        # 1) Coleta os campos do formulário
         nome = (request.form.get('nome') or '').strip()
         descricao = (request.form.get('descricao') or '').strip()
-
-        # campos booleanos típicos (marcadores on/off do seu template)
+        
+        print(f"DEBUG: Nome recebido: '{nome}'")
+        print(f"DEBUG: Descrição recebida: '{descricao}'")
+        
+        # Campos booleanos
         calcular_nota = request.form.get('calcular_nota') == 'on'
         ocultar_nota = request.form.get('ocultar_nota') == 'on'
         incluir_assinatura = request.form.get('incluir_assinatura') == 'on'
         incluir_foto_capa = request.form.get('incluir_foto_capa') == 'on'
-
-        # numéricos/opcionais com defaults sensatos
+        
+        # Numéricos/opcionais
         versao = (request.form.get('versao') or '1.0').strip()
         modo = (request.form.get('modo') or 'Avaliado').strip()
         base_calculo = int(request.form.get('base_calculo') or 100)
         casas_decimais = int(request.form.get('casas_decimais') or 2)
         modo_configuracao = (request.form.get('modo_configuracao') or 'percentual').strip()
-
-        # 2) Validação mínima (SEM redirecionar em caso de erro)
+        
+        print(f"DEBUG: Dados coletados - versão: {versao}, modo: {modo}")
+        
+        # 2) Validação
         erros = []
         if not nome:
+            print("DEBUG: ERRO - Nome vazio")
             erros.append('Nome do questionário é obrigatório.')
-
-        # impede duplicidade para o mesmo cliente
-        existente = Questionario.query.filter_by(
-            nome=nome,
-            cliente_id=current_user.cliente_id,
-            ativo=True
-        ).first()
-        if existente:
-            erros.append(f"Já existe um questionário ativo com o nome '{nome}'.")
-
+        
+        # Verificar duplicidade
+        try:
+            existente = Questionario.query.filter_by(
+                nome=nome,
+                cliente_id=current_user.cliente_id,
+                ativo=True
+            ).first()
+            
+            if existente:
+                print(f"DEBUG: ERRO - Questionário '{nome}' já existe")
+                erros.append(f"Já existe um questionário ativo com o nome '{nome}'.")
+            else:
+                print("DEBUG: Nome do questionário é único, ok para continuar")
+                
+        except Exception as e:
+            print(f"DEBUG: ERRO na verificação de duplicidade: {e}")
+            erros.append(f"Erro ao verificar duplicidade: {str(e)}")
+        
         if erros:
-            for e in erros:
-                flash(e, 'warning')
-            # re-renderiza com os dados preenchidos
+            print(f"DEBUG: {len(erros)} erro(s) encontrado(s), re-renderizando formulário")
+            for erro in erros:
+                flash(erro, 'warning')
             return render_template_safe('cli/novo_questionario.html', dados=request.form)
-
-        # 3) Persistência (usa os modelos já importados no topo do arquivo)
-        q = Questionario(
-            nome=nome,
-            versao=versao,
-            descricao=descricao,
-            modo=modo,
-            cliente_id=current_user.cliente_id,
-            criado_por_id=current_user.id,
-
-            # Configurações de nota/relatório
-            calcular_nota=calcular_nota,
-            ocultar_nota_aplicacao=ocultar_nota,
-            base_calculo=base_calculo,
-            casas_decimais=casas_decimais,
-            modo_configuracao=modo_configuracao,
-            modo_exibicao_nota=ModoExibicaoNota.PERCENTUAL if 'ModoExibicaoNota' in globals() else 'percentual',
-
-            incluir_assinatura=incluir_assinatura,
-            incluir_foto_capa=incluir_foto_capa,
-
-            # Status inicial
-            ativo=True,
-            publicado=False,
-            status=StatusQuestionario.RASCUNHO if 'StatusQuestionario' in globals() else 'rascunho'
-        )
-        db.session.add(q)
-        db.session.commit()
-
-        log_acao(f"Craiu questionário: {nome}", None, "Questionario", q.id)
-        flash('Questionário criado com sucesso!', 'success')
-
-        # 4) PRG → vai direto para a etapa de Tópicos com o id correto
-        return redirect(url_for('cli.gerenciar_topicos', id=q.id))
-
-    # GET: renderiza formulário vazio
+        
+        # 3) Tentar criar o questionário
+        try:
+            print("DEBUG: Tentando criar questionário no banco...")
+            
+            q = Questionario(
+                nome=nome,
+                versao=versao,
+                descricao=descricao,
+                modo=modo,
+                cliente_id=current_user.cliente_id,
+                criado_por_id=current_user.id,
+                
+                # Configurações de nota/relatório
+                calcular_nota=calcular_nota,
+                ocultar_nota_aplicacao=ocultar_nota,
+                base_calculo=base_calculo,
+                casas_decimais=casas_decimais,
+                modo_configuracao=modo_configuracao,
+                modo_exibicao_nota=ModoExibicaoNota.PERCENTUAL if 'ModoExibicaoNota' in globals() else 'percentual',
+                
+                incluir_assinatura=incluir_assinatura,
+                incluir_foto_capa=incluir_foto_capa,
+                
+                # Status inicial
+                ativo=True,
+                publicado=False,
+                status=StatusQuestionario.RASCUNHO if 'StatusQuestionario' in globals() else 'rascunho'
+            )
+            
+            db.session.add(q)
+            db.session.commit()
+            
+            print(f"DEBUG: Questionário criado com ID: {q.id}")
+            
+            log_acao(f"Criou questionário: {nome}", None, "Questionario", q.id)
+            flash('Questionário criado com sucesso!', 'success')
+            
+            print(f"DEBUG: Redirecionando para gerenciar_topicos com ID: {q.id}")
+            
+            # 4) Redirecionar para tópicos
+            return redirect(url_for('cli.gerenciar_topicos', id=q.id))
+            
+        except Exception as e:
+            print(f"DEBUG: ERRO ao criar questionário: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            db.session.rollback()
+            flash(f'Erro ao criar questionário: {str(e)}', 'danger')
+            return render_template_safe('cli/novo_questionario.html', dados=request.form)
+    
+    # GET: renderizar formulário vazio
+    print("DEBUG: Renderizando formulário GET")
     return render_template_safe('cli/novo_questionario.html', dados=None)
 
 
@@ -707,42 +747,7 @@ def duplicar_questionario(id):
         flash(f"Erro ao duplicar questionário: {str(e)}", "danger")
         return redirect(url_for('cli.listar_questionarios'))
 
-@cli_bp.route('/questionario/<int:id>/publicar', methods=['POST'])
-@login_required
-def publicar_questionario(id):
-    """Publica questionário para uso"""
-    try:
-        questionario = Questionario.query.get_or_404(id)
-        
-        if questionario.cliente_id != current_user.cliente_id:
-            flash("Questionário não encontrado.", "error")
-            return redirect(url_for('cli.listar_questionarios'))
-        
-        # Validar se tem pelo menos 1 tópico e 1 pergunta
-        total_perguntas = db.session.query(func.count(Pergunta.id)).join(Topico).filter(
-            Topico.questionario_id == id,
-            Topico.ativo == True,
-            Pergunta.ativo == True
-        ).scalar()
-        
-        if total_perguntas == 0:
-            flash("Não é possível publicar um questionário sem perguntas.", "warning")
-            return redirect(url_for('cli.visualizar_questionario', id=id))
-        
-        questionario.publicado = True
-        questionario.status = StatusQuestionario.PUBLICADO
-        questionario.data_publicacao = datetime.now()
-        
-        db.session.commit()
-        log_acao(f"Publicou questionário: {questionario.nome}", None, "Questionario", id)
-        
-        flash("Questionário publicado com sucesso! Agora pode ser usado em aplicações.", "success")
-        
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Erro ao publicar questionário: {str(e)}", "danger")
-    
-    return redirect(url_for('cli.visualizar_questionario', id=id))
+
 
 @cli_bp.route('/questionario/<int:id>/desativar', methods=['POST'])
 @login_required
@@ -801,33 +806,42 @@ def gerenciar_topicos(id):
     except Exception as e:
         flash(f"Erro ao carregar tópicos: {str(e)}", "danger")
         return redirect(url_for('cli.listar_questionarios'))
+    
 
 @cli_bp.route('/questionario/<int:id>/topico/novo', methods=['GET', 'POST'])
 @login_required
 def novo_topico(id):
-    """Criar novo tópico"""
+    """Criar novo tópico - VERSÃO CORRIGIDA"""
+    print(f"DEBUG novo_topico: método={request.method}, id={id}")
+    
     try:
         questionario = Questionario.query.get_or_404(id)
+        print(f"DEBUG: Questionário encontrado: {questionario.nome}")
         
         if questionario.cliente_id != current_user.cliente_id:
+            print("DEBUG: Cliente não autorizado")
             flash("Questionário não encontrado.", "error")
             return redirect(url_for('cli.listar_questionarios'))
         
         if request.method == 'POST':
+            print("DEBUG: Processando POST do tópico")
             try:
                 nome = request.form.get('nome', '').strip()
                 descricao = request.form.get('descricao', '').strip()
+                print(f"DEBUG: nome='{nome}', descricao='{descricao}'")
                 
                 if not nome:
                     flash("Nome do tópico é obrigatório.", "danger")
+                    print("DEBUG: Nome vazio, re-renderizando formulário")
                     return render_template_safe('cli/novo_topico.html', questionario=questionario)
                 
                 # Obter próxima ordem
                 ultima_ordem = db.session.query(func.max(Topico.ordem)).filter_by(
                     questionario_id=id
                 ).scalar() or 0
+                print(f"DEBUG: Última ordem: {ultima_ordem}")
                 
-                novo_topico = Topico(
+                novo_topico_obj = Topico(
                     nome=nome,
                     descricao=descricao,
                     ordem=ultima_ordem + 1,
@@ -835,22 +849,48 @@ def novo_topico(id):
                     ativo=True
                 )
                 
-                db.session.add(novo_topico)
+                db.session.add(novo_topico_obj)
                 db.session.commit()
                 
-                log_acao(f"Criou tópico: {nome}", None, "Topico", novo_topico.id)
+                print(f"DEBUG: Tópico criado com ID: {novo_topico_obj.id}")
+                
+                log_acao(f"Criou tópico: {nome}", None, "Topico", novo_topico_obj.id)
                 flash("Tópico criado com sucesso!", "success")
                 
+                print(f"DEBUG: Redirecionando para gerenciar_topicos com id={id}")
                 return redirect(url_for('cli.gerenciar_topicos', id=id))
                 
             except Exception as e:
+                print(f"DEBUG: Erro no POST: {e}")
+                import traceback
+                traceback.print_exc()
                 db.session.rollback()
                 flash(f"Erro ao criar tópico: {str(e)}", "danger")
+                return render_template_safe('cli/novo_topico.html', questionario=questionario)
         
-        return render_template_safe('cli/novo_topico.html', questionario=questionario)
+        # GET - Mostrar formulário
+        print("DEBUG: Renderizando template novo_topico.html para GET")
+        
+        # TESTE DIRETO DO TEMPLATE ANTES DE USAR render_template_safe
+        try:
+            from flask import render_template
+            test_html = render_template('cli/novo_topico.html', questionario=questionario)
+            print("DEBUG: Template novo_topico.html renderizado com sucesso!")
+            return test_html
+        except Exception as template_error:
+            print(f"DEBUG: Erro específico no template novo_topico.html: {template_error}")
+            import traceback
+            traceback.print_exc()
+            flash(f"Erro no template novo_topico.html: {template_error}", "danger")
+            return redirect(url_for('cli.gerenciar_topicos', id=id))
+        
     except Exception as e:
+        print(f"DEBUG: Erro geral em novo_topico: {e}")
+        import traceback
+        traceback.print_exc()
         flash(f"Erro ao carregar formulário: {str(e)}", "danger")
         return redirect(url_for('cli.listar_questionarios'))
+        
 
 @cli_bp.route('/topico/<int:topico_id>/editar', methods=['GET', 'POST'])
 @login_required
@@ -919,14 +959,22 @@ def remover_topico(topico_id):
 
 # ===================== PERGUNTAS =====================
 
+# SUBSTITUIR as rotas existentes no routes.py por estas versões corrigidas
+
+# ===================== PERGUNTAS CORRIGIDAS =====================
+
 @cli_bp.route('/topico/<int:topico_id>/perguntas')
 @login_required
 def gerenciar_perguntas(topico_id):
-    """Tela 3: Gerenciar perguntas do tópico"""
+    """Tela 3: Gerenciar perguntas do tópico - CORRIGIDA"""
+    print(f"DEBUG gerenciar_perguntas: topico_id={topico_id}")
+    
     try:
         topico = Topico.query.get_or_404(topico_id)
+        print(f"DEBUG: Tópico encontrado: {topico.nome}")
         
         if topico.questionario.cliente_id != current_user.cliente_id:
+            print("DEBUG: Cliente não autorizado")
             flash("Tópico não encontrado.", "error")
             return redirect(url_for('cli.listar_questionarios'))
         
@@ -935,42 +983,68 @@ def gerenciar_perguntas(topico_id):
             ativo=True
         ).order_by(Pergunta.ordem).all()
         
-        return render_template_safe('cli/gerenciar_perguntas.html',
-                             topico=topico,
-                             perguntas=perguntas)
+        print(f"DEBUG: {len(perguntas)} perguntas encontradas")
+        
+        # TESTE DIRETO DO TEMPLATE
+        try:
+            from flask import render_template
+            html = render_template('cli/gerenciar_perguntas.html',
+                                 topico=topico,
+                                 perguntas=perguntas)
+            print("DEBUG: Template gerenciar_perguntas.html renderizado com sucesso!")
+            return html
+        except Exception as template_error:
+            print(f"DEBUG: Erro no template gerenciar_perguntas.html: {template_error}")
+            import traceback
+            traceback.print_exc()
+            flash(f"Erro no template: {template_error}", "danger")
+            return redirect(url_for('cli.gerenciar_topicos', id=topico.questionario_id))
+            
     except Exception as e:
+        print(f"DEBUG: Erro em gerenciar_perguntas: {e}")
+        import traceback
+        traceback.print_exc()
         flash(f"Erro ao carregar perguntas: {str(e)}", "danger")
         return redirect(url_for('cli.listar_questionarios'))
 
 @cli_bp.route('/topico/<int:topico_id>/pergunta/nova', methods=['GET', 'POST'])
 @login_required
 def nova_pergunta(topico_id):
-    """Criar nova pergunta"""
+    """Criar nova pergunta - CORRIGIDA"""
+    print(f"DEBUG nova_pergunta: método={request.method}, topico_id={topico_id}")
+    
     try:
         topico = Topico.query.get_or_404(topico_id)
+        print(f"DEBUG: Tópico encontrado: {topico.nome}")
         
         if topico.questionario.cliente_id != current_user.cliente_id:
+            print("DEBUG: Cliente não autorizado")
             flash("Tópico não encontrado.", "error")
             return redirect(url_for('cli.listar_questionarios'))
         
         if request.method == 'POST':
+            print("DEBUG: Processando POST da pergunta")
             try:
                 texto = request.form.get('texto', '').strip()
-                tipo = request.form.get('tipo')
+                tipo = request.form.get('tipo', 'SIM_NAO_NA')
                 obrigatoria = request.form.get('obrigatoria') == 'on'
                 permite_observacao = request.form.get('permite_observacao') == 'on'
                 peso = int(request.form.get('peso', 1))
                 
+                print(f"DEBUG: texto='{texto}', tipo='{tipo}', peso={peso}")
+                
                 if not texto:
                     flash("Texto da pergunta é obrigatório.", "danger")
+                    print("DEBUG: Texto vazio, re-renderizando formulário")
                     return render_template_safe('cli/nova_pergunta.html', topico=topico)
                 
                 # Obter próxima ordem
                 ultima_ordem = db.session.query(func.max(Pergunta.ordem)).filter_by(
                     topico_id=topico_id
                 ).scalar() or 0
+                print(f"DEBUG: Última ordem: {ultima_ordem}")
                 
-                nova_pergunta = Pergunta(
+                nova_pergunta_obj = Pergunta(
                     texto=texto,
                     tipo=tipo,
                     obrigatoria=obrigatoria,
@@ -981,38 +1055,156 @@ def nova_pergunta(topico_id):
                     ativo=True
                 )
                 
-                db.session.add(nova_pergunta)
+                db.session.add(nova_pergunta_obj)
                 db.session.flush()
+                print(f"DEBUG: Pergunta criada com ID: {nova_pergunta_obj.id}")
                 
                 # Adicionar opções se for múltipla escolha
                 if tipo in ['MULTIPLA_ESCOLHA', 'ESCALA_NUMERICA'] and 'OpcaoPergunta' in globals():
+                    print("DEBUG: Processando opções da pergunta")
                     opcoes_texto = request.form.getlist('opcao_texto[]')
                     opcoes_valor = request.form.getlist('opcao_valor[]')
                     
                     for i, texto_opcao in enumerate(opcoes_texto):
                         if texto_opcao.strip():
+                            valor_opcao = opcoes_valor[i] if i < len(opcoes_valor) and opcoes_valor[i] else 0
                             opcao = OpcaoPergunta(
                                 texto=texto_opcao.strip(),
-                                valor=float(opcoes_valor[i]) if i < len(opcoes_valor) and opcoes_valor[i] else 0,
+                                valor=float(valor_opcao),
                                 ordem=i + 1,
-                                pergunta_id=nova_pergunta.id
+                                pergunta_id=nova_pergunta_obj.id
                             )
                             db.session.add(opcao)
+                            print(f"DEBUG: Opção adicionada: {texto_opcao} = {valor_opcao}")
                 
                 db.session.commit()
-                log_acao(f"Criou pergunta: {texto[:50]}...", None, "Pergunta", nova_pergunta.id)
+                log_acao(f"Criou pergunta: {texto[:50]}...", None, "Pergunta", nova_pergunta_obj.id)
                 
                 flash("Pergunta criada com sucesso!", "success")
+                print(f"DEBUG: Redirecionando para gerenciar_perguntas com topico_id={topico_id}")
                 return redirect(url_for('cli.gerenciar_perguntas', topico_id=topico_id))
                 
             except Exception as e:
+                print(f"DEBUG: Erro no POST da pergunta: {e}")
+                import traceback
+                traceback.print_exc()
                 db.session.rollback()
                 flash(f"Erro ao criar pergunta: {str(e)}", "danger")
+                return render_template_safe('cli/nova_pergunta.html', topico=topico)
         
-        return render_template_safe('cli/nova_pergunta.html', topico=topico)
+        # GET - Mostrar formulário
+        print("DEBUG: Renderizando template nova_pergunta.html para GET")
+        
+        # TESTE DIRETO DO TEMPLATE
+        try:
+            from flask import render_template
+            html = render_template('cli/nova_pergunta.html', topico=topico)
+            print("DEBUG: Template nova_pergunta.html renderizado com sucesso!")
+            return html
+        except Exception as template_error:
+            print(f"DEBUG: Erro no template nova_pergunta.html: {template_error}")
+            import traceback
+            traceback.print_exc()
+            flash(f"Erro no template: {template_error}", "danger")
+            return redirect(url_for('cli.gerenciar_perguntas', topico_id=topico_id))
+            
     except Exception as e:
+        print(f"DEBUG: Erro geral em nova_pergunta: {e}")
+        import traceback
+        traceback.print_exc()
         flash(f"Erro ao carregar formulário: {str(e)}", "danger")
         return redirect(url_for('cli.listar_questionarios'))
+
+# ===================== PUBLICAR QUESTIONÁRIO CORRIGIDA =====================
+
+# ===================== PUBLICAR QUESTIONÁRIO - VERSÃO ÚNICA =====================
+
+@cli_bp.route('/questionario/<int:id>/publicar', methods=['POST'])
+@login_required
+def publicar_questionario(id):
+    """Publica questionário para uso - VERSÃO ÚNICA SEM DUPLICAÇÃO"""
+    print(f"DEBUG publicar_questionario: id={id}")
+    
+    try:
+        questionario = Questionario.query.get_or_404(id)
+        print(f"DEBUG: Questionário encontrado: {questionario.nome}")
+        
+        if questionario.cliente_id != current_user.cliente_id:
+            print("DEBUG: Cliente não autorizado")
+            flash("Questionário não encontrado.", "error")
+            return redirect(url_for('cli.listar_questionarios'))
+        
+        # Validar se tem pelo menos 1 tópico e 1 pergunta
+        print("DEBUG: Validando estrutura do questionário")
+        total_perguntas = db.session.query(func.count(Pergunta.id)).join(Topico).filter(
+            Topico.questionario_id == id,
+            Topico.ativo == True,
+            Pergunta.ativo == True
+        ).scalar()
+        
+        print(f"DEBUG: Total de perguntas encontradas: {total_perguntas}")
+        
+        if total_perguntas == 0:
+            flash("Não é possível publicar um questionário sem perguntas.", "warning")
+            print("DEBUG: Questionário sem perguntas, não pode publicar")
+            return redirect(url_for('cli.gerenciar_topicos', id=id))
+        
+        # Publicar questionário
+        print("DEBUG: Publicando questionário")
+        questionario.publicado = True
+        questionario.status = StatusQuestionario.PUBLICADO if 'StatusQuestionario' in globals() else 'publicado'
+        questionario.data_publicacao = datetime.now()
+        
+        db.session.commit()
+        log_acao(f"Publicou questionário: {questionario.nome}", None, "Questionario", id)
+        
+        flash("Questionário publicado com sucesso! Agora pode ser usado em aplicações.", "success")
+        print("DEBUG: Questionário publicado com sucesso")
+        
+    except Exception as e:
+        print(f"DEBUG: Erro ao publicar questionário: {e}")
+        import traceback
+        traceback.print_exc()
+        db.session.rollback()
+        flash(f"Erro ao publicar questionário: {str(e)}", "danger")
+    
+    return redirect(url_for('cli.gerenciar_topicos', id=id))
+
+# ===================== ROTA DE TESTE PARA DEBUG =====================
+
+@cli_bp.route('/test-publish/<int:id>')
+@login_required
+def test_publish(id):
+    """Teste da funcionalidade de publicar"""
+    try:
+        questionario = Questionario.query.get_or_404(id)
+        
+        # Contar estrutura
+        total_topicos = Topico.query.filter_by(questionario_id=id, ativo=True).count()
+        total_perguntas = db.session.query(func.count(Pergunta.id)).join(Topico).filter(
+            Topico.questionario_id == id,
+            Topico.ativo == True,
+            Pergunta.ativo == True
+        ).scalar()
+        
+        return f"""
+        <h3>Debug Questionário ID {id}</h3>
+        <p><strong>Nome:</strong> {questionario.nome}</p>
+        <p><strong>Status:</strong> {'Publicado' if questionario.publicado else 'Rascunho'}</p>
+        <p><strong>Tópicos:</strong> {total_topicos}</p>
+        <p><strong>Perguntas:</strong> {total_perguntas}</p>
+        <p><strong>Cliente:</strong> {questionario.cliente_id} (Atual: {current_user.cliente_id})</p>
+        
+        <br>
+        {f'<a href="/cli/questionario/{id}/publicar" onclick="return confirm(\'Publicar?\')">✅ PODE PUBLICAR</a>' if total_perguntas > 0 else '❌ NÃO PODE PUBLICAR (sem perguntas)'}
+        <br><br>
+        <a href="/cli/questionario/{id}/topicos">← Voltar aos Tópicos</a>
+        """
+        
+    except Exception as e:
+        return f"Erro: {str(e)}"
+
+
 
 @cli_bp.route('/pergunta/<int:pergunta_id>/editar', methods=['GET', 'POST'])
 @login_required

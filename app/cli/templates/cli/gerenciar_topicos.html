@@ -1,63 +1,147 @@
-{% extends 'base_cliq.html' %}
-{% block title %}Tópicos do Questionário{% endblock %}
+<!DOCTYPE html>
+<html lang="pt-BR">
 
-{% block content %}
-<div class="container py-4">
-  <div class="d-flex align-items-center justify-content-between mb-3">
-    <div>
-      <h1 class="h4 mb-1">Tópicos — {{ questionario.nome }}</h1>
-      <div class="text-muted">
-        ID: {{ questionario.id }} • Versão: {{ questionario.versao or '1.0' }}
-      </div>
-    </div>
-    <div class="btn-group">
-      <!-- Botão abre modal via HTMX (GET do formulário parcial) -->
-      <button
-        class="btn btn-primary"
-        hx-get="{{ url_for_safe('cli.novo_topico', id=questionario.id) }}"
-        hx-target="#modalTopicoBody"
-        hx-swap="innerHTML"
-        hx-headers='{"X-Partial":"1"}'
-        onclick="new bootstrap.Modal(document.getElementById('modalTopico')).show()">
-        <i class="bi bi-plus-circle"></i> Novo tópico
-      </button>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerenciar Tópicos - {{ questionario.nome }}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
 
-      <a class="btn btn-outline-secondary"
-         href="{{ url_for_safe('cli.listar_questionarios') }}">
-        <i class="bi bi-arrow-left"></i> Questionários
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container">
+      <a class="navbar-brand" href="{{ url_for('cli.index') }}">
+        <i class="fas fa-clipboard-check"></i> QualiGestor CLIQ
       </a>
     </div>
-  </div>
+  </nav>
 
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-      {% for category, message in messages %}
-        <div class="alert alert-{{ 'warning' if category=='error' else category }} alert-dismissible fade show" role="alert">
-          {{ message }}
-          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-      {% endfor %}
-    {% endif %}
-  {% endwith %}
+  <div class="container mt-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('cli.index') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('cli.listar_questionarios') }}">Questionários</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('cli.visualizar_questionario', id=questionario.id) }}">{{
+            questionario.nome }}</a></li>
+        <li class="breadcrumb-item active">Gerenciar Tópicos</li>
+      </ol>
+    </nav>
 
-  <!-- Tabela de tópicos vira ALVO de substituição após salvar -->
-  <div id="topicosTable">
-    {% include 'cli/_topicos_table.html' %}
-  </div>
-</div>
-
-<!-- Modal Bootstrap para criar/editar Tópico -->
-<div class="modal fade" id="modalTopico" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Tópico</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+    <!-- Cabeçalho -->
+    <div class="row mb-4">
+      <div class="col-md-8">
+        <h2><i class="fas fa-list"></i> Gerenciar Tópicos</h2>
+        <p class="text-muted">Questionário: <strong>{{ questionario.nome }}</strong></p>
       </div>
-      <div class="modal-body" id="modalTopicoBody">
-        <!-- O formulário parcial será injetado aqui pelo HTMX -->
+      <div class="col-md-4 text-end">
+        <a href="{{ url_for('cli.novo_topico', id=questionario.id) }}" class="btn btn-success">
+          <i class="fas fa-plus"></i> Novo Tópico
+        </a>
+      </div>
+    </div>
+
+    <!-- Alertas -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show"
+      role="alert">
+      {{ message }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <!-- Lista de Tópicos -->
+    {% if topicos %}
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-list-ul"></i> Tópicos do Questionário</h5>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Ordem</th>
+                <th>Nome</th>
+                <th>Descrição</th>
+                <th>Perguntas</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for topico in topicos %}
+              <tr>
+                <td><span class="badge bg-secondary">{{ topico.ordem }}</span></td>
+                <td>
+                  <strong>{{ topico.nome }}</strong>
+                </td>
+                <td>{{ topico.descricao or '-' }}</td>
+                <td>
+                  <span class="badge bg-info">{{ topico.total_perguntas or 0 }} perguntas</span>
+                </td>
+                <td>
+                  <div class="btn-group btn-group-sm">
+                    <a href="{{ url_for('cli.gerenciar_perguntas', topico_id=topico.id) }}" class="btn btn-primary"
+                      title="Gerenciar Perguntas">
+                      <i class="fas fa-question-circle"></i>
+                    </a>
+                    <a href="{{ url_for('cli.editar_topico', topico_id=topico.id) }}" class="btn btn-warning"
+                      title="Editar">
+                      <i class="fas fa-edit"></i>
+                    </a>
+                    <form method="POST" action="{{ url_for('cli.remover_topico', topico_id=topico.id) }}"
+                      style="display: inline;" onsubmit="return confirm('Tem certeza que deseja remover este tópico?')">
+                      <button type="submit" class="btn btn-danger btn-sm" title="Remover">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="text-center py-5">
+      <i class="fas fa-list-ul fa-3x text-muted mb-3"></i>
+      <h4>Nenhum tópico criado ainda</h4>
+      <p class="text-muted">Comece criando o primeiro tópico para seu questionário.</p>
+      <a href="{{ url_for('cli.novo_topico', id=questionario.id) }}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Criar Primeiro Tópico
+      </a>
+    </div>
+    {% endif %}
+
+    <!-- Botões de Navegação -->
+    <div class="row mt-4">
+      <div class="col-md-6">
+        <a href="{{ url_for('cli.visualizar_questionario', id=questionario.id) }}" class="btn btn-secondary">
+          <i class="fas fa-arrow-left"></i> Voltar ao Questionário
+        </a>
+      </div>
+      <div class="col-md-6 text-end">
+        {% if topicos %}
+        <form method="POST" action="/cli/questionario/{{ questionario.id }}/publicar" style="display: inline;">
+          <button type="submit" class="btn btn-success"
+            onclick="return confirm('Tem certeza que deseja publicar este questionário?')">
+            <i class="fas fa-rocket"></i> Publicar Questionário
+          </button>
+        </form>
+        {% endif %}
       </div>
     </div>
   </div>
-</div>
-{% endblock %}
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>

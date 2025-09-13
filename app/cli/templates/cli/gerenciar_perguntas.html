@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciar Perguntas - {{ topico.nome }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/cli/">
+                <i class="fas fa-clipboard-check"></i> QualiGestor CLIQ
+            </a>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Breadcrumb -->
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/cli/">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="/cli/questionarios">Questionários</a></li>
+                <li class="breadcrumb-item"><a href="/cli/questionario/{{ topico.questionario.id }}/topicos">Tópicos</a></li>
+                <li class="breadcrumb-item active">{{ topico.nome }} - Perguntas</li>
+            </ol>
+        </nav>
+
+        <!-- Cabeçalho -->
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <h2><i class="fas fa-question-circle"></i> Gerenciar Perguntas</h2>
+                <p class="text-muted">
+                    <strong>Questionário:</strong> {{ topico.questionario.nome }} | 
+                    <strong>Tópico:</strong> {{ topico.nome }}
+                </p>
+            </div>
+            <div class="col-md-4 text-end">
+                <a href="/cli/topico/{{ topico.id }}/pergunta/nova" class="btn btn-success">
+                    <i class="fas fa-plus"></i> Nova Pergunta
+                </a>
+            </div>
+        </div>
+
+        <!-- Alertas -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else 'warning' if category == 'warning' else category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Lista de Perguntas -->
+        {% if perguntas %}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-list-ol"></i> Perguntas do Tópico</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th width="80">Ordem</th>
+                                    <th>Pergunta</th>
+                                    <th width="120">Tipo</th>
+                                    <th width="100">Obrigatória</th>
+                                    <th width="80">Peso</th>
+                                    <th width="150">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for pergunta in perguntas %}
+                                <tr>
+                                    <td><span class="badge bg-secondary">{{ pergunta.ordem }}</span></td>
+                                    <td>
+                                        <strong>{{ pergunta.texto }}</strong>
+                                        {% if pergunta.permite_observacao %}
+                                        <br><small class="text-muted"><i class="fas fa-comment"></i> Permite observação</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if pergunta.tipo == 'SIM_NAO_NA' %}
+                                        <span class="badge bg-info">Sim/Não/N.A.</span>
+                                        {% elif pergunta.tipo == 'MULTIPLA_ESCOLHA' %}
+                                        <span class="badge bg-warning">Múltipla Escolha</span>
+                                        {% elif pergunta.tipo == 'NOTA' %}
+                                        <span class="badge bg-success">Nota</span>
+                                        {% elif pergunta.tipo == 'TEXTO_LIVRE' %}
+                                        <span class="badge bg-secondary">Texto Livre</span>
+                                        {% else %}
+                                        <span class="badge bg-light text-dark">{{ pergunta.tipo }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if pergunta.obrigatoria %}
+                                        <span class="badge bg-danger">Sim</span>
+                                        {% else %}
+                                        <span class="badge bg-light text-dark">Não</span>
+                                        {% endif %}
+                                    </td>
+                                    <td><span class="badge bg-primary">{{ pergunta.peso }}</span></td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="/cli/pergunta/{{ pergunta.id }}/editar" 
+                                               class="btn btn-warning" title="Editar">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <form method="POST" action="/cli/pergunta/{{ pergunta.id }}/remover" 
+                                                  style="display: inline;" 
+                                                  onsubmit="return confirm('Tem certeza que deseja remover esta pergunta?')">
+                                                <input type="hidden" name="topico_id" value="{{ topico.id }}">
+                                                <button type="submit" class="btn btn-danger btn-sm" title="Remover">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-question-circle fa-3x text-muted mb-3"></i>
+                <h4>Nenhuma pergunta criada ainda</h4>
+                <p class="text-muted">Comece criando a primeira pergunta para este tópico.</p>
+                <a href="/cli/topico/{{ topico.id }}/pergunta/nova" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Criar Primeira Pergunta
+                </a>
+            </div>
+        {% endif %}
+
+        <!-- Botões de Navegação -->
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <a href="/cli/questionario/{{ topico.questionario.id }}/topicos" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Voltar aos Tópicos
+                </a>
+            </div>
+            <div class="col-md-6 text-end">
+                {% if perguntas %}
+                <div class="btn-group">
+                    <a href="/cli/topico/{{ topico.id }}/pergunta/nova" class="btn btn-success">
+                        <i class="fas fa-plus"></i> Adicionar Pergunta
+                    </a>
+                    <button class="btn btn-info" onclick="alert('Funcionalidade de preview em desenvolvimento')">
+                        <i class="fas fa-eye"></i> Preview
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
