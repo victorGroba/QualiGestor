@@ -30,7 +30,11 @@ def admin_required(f):
     from functools import wraps
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or current_user.tipo != TipoUsuario.ADMIN:
+        if not current_user.is_authenticated:
+            flash('Acesso negado. Faça login primeiro.', 'error')
+            return redirect(url_for('auth.login'))
+        
+        if current_user.tipo not in [TipoUsuario.ADMIN, TipoUsuario.SUPER_ADMIN]:
             flash('Acesso restrito a administradores.', 'error')
             return redirect(url_for('cli.index'))
         return f(*args, **kwargs)
@@ -894,7 +898,7 @@ def novo_avaliado():
 @cli_bp.route('/avaliado/<int:id>/editar', methods=['GET', 'POST'])
 @login_required
 def editar_avaliado(id):
-    """Edita um avaliado"""
+    
     avaliado = Avaliado.query.get_or_404(id)
     
     if avaliado.cliente_id != current_user.cliente_id:
@@ -1776,3 +1780,27 @@ def gerar_conteudo_html_relatorio(dados, tipo_relatorio):
     return "<p>Dados do relatório não disponíveis</p>"
 
 # ===================== FIM DAS ROTAS CLI ======================
+# ===================== ROTAS DE COMPATIBILIDADE =====================
+
+@cli_bp.route('/checklists')
+@cli_bp.route('/listar-checklists')
+@login_required
+def listar_checklists():
+    """Redirecionamento para listar questionários (compatibilidade)"""
+    return redirect(url_for('cli.listar_questionarios'))
+
+@cli_bp.route('/checklist/novo')
+@cli_bp.route('/novo-checklist')
+@login_required
+def novo_checklist():
+    """Redirecionamento para novo questionário (compatibilidade)"""
+    return redirect(url_for('cli.novo_questionario'))
+
+# Função auxiliar para verificar permissões
+def verificar_permissao_admin():
+    """Verifica se usuário tem permissão de admin"""
+    if not current_user.is_authenticated:
+        return False
+    return current_user.tipo in [TipoUsuario.ADMIN, TipoUsuario.SUPER_ADMIN]
+
+    

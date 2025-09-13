@@ -62,7 +62,7 @@ def inicializar_sistema():
                 nome='Administrador',
                 email='admin@admin.com',
                 senha_hash=generate_password_hash('admin123'),
-                tipo=models.TipoUsuario.ADMIN,
+                tipo=models.TipoUsuario.SUPER_ADMIN,
                 cliente_id=cliente_padrao.id,
                 grupo_id=grupo_padrao.id,
                 ativo=True

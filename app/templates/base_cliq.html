@@ -192,8 +192,8 @@
         </h2>
         <div id="collapseAplicacoes" class="accordion-collapse collapse" data-bs-parent="#accordionSidebar">
           <div class="accordion-body py-0 px-4">
-            <a class="nav-link" href="{{ url_for('cli.listar_checklists') }}">Listar aplicações</a>
-            <a class="nav-link" href="{{ url_for('cli.iniciar_aplicacao') }}">Nova aplicação</a>
+            <a class="nav-link" href="{{ url_for('cli.listar_aplicacoes') }}">Listar aplicações</a>
+            <a class="nav-link" href="{{ url_for('cli.nova_aplicacao') }}">Nova aplicação</a>
             <a class="nav-link" href="#">Configurações de listagem</a>
             <a class="nav-link" href="#">Exportar aplicações</a>
           </div>
@@ -209,8 +209,7 @@
         <div id="collapseQuestionarios" class="accordion-collapse collapse" data-bs-parent="#accordionSidebar">
           <div class="accordion-body py-0 px-4">
             <a class="nav-link" href="{{ url_for('cli.listar_questionarios') }}">Listar questionários</a>
-            <a class="nav-link" href="{{ url_for('cli.criar_formulario') }}">Novo questionário</a>
-          </div>
+            <a class="nav-link" href="{{ url_for('cli.novo_questionario') }}">Novo questionário</a>          </div>
         </div>
       </div>
 

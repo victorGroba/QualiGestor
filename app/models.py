@@ -24,6 +24,7 @@ class TipoResposta(enum.Enum):
 
 class TipoUsuario(enum.Enum):
     """Tipos de usuário do sistema"""
+    SUPER_ADMIN = "super_admin"  # ADICIONAR ESTA LINHA
     ADMIN = "admin"
     GESTOR = "gestor"
     AUDITOR = "auditor"
