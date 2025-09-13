@@ -10,7 +10,6 @@ from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
 # from weasyprint import HTML  # COMENTAR SE DER ERRO
 from sqlalchemy import func, extract, and_, or_, desc
-from flask import request, make_response
 
 # ==================== CORREÇÃO 1: IMPORTS ROBUSTOS ====================
 try:
@@ -360,88 +359,23 @@ def listar_questionarios():
 @cli_bp.route('/novo-questionario', methods=['GET', 'POST'])
 @login_required
 def novo_questionario():
-    """
-    Tela de criação de questionário (CLIq) — versão corrigida.
-    - Lê 'nome' (não 'titulo')
-    - Mantém dados preenchidos se houver erro (sem redirecionar)
-    - Ao salvar, redireciona para a gestão de tópicos com id=<q.id>
-    """
+    """Cria um novo questionário - Tela 1: Configurações gerais"""
     if request.method == 'POST':
-        # 1) Coleta os campos do formulário (alinha com o template)
-        nome = (request.form.get('nome') or '').strip()
-        descricao = (request.form.get('descricao') or '').strip()
+        return processar_novo_questionario()
 
-        # campos booleanos típicos (marcadores on/off do seu template)
-        calcular_nota = request.form.get('calcular_nota') == 'on'
-        ocultar_nota = request.form.get('ocultar_nota') == 'on'
-        incluir_assinatura = request.form.get('incluir_assinatura') == 'on'
-        incluir_foto_capa = request.form.get('incluir_foto_capa') == 'on'
+    try:
+        # GET - Mostrar formulário
+        usuarios = Usuario.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).all()
+        grupos = Grupo.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).all()
+        integracoes = Integracao.query.filter_by(ativa=True).all()
 
-        # numéricos/opcionais com defaults sensatos
-        versao = (request.form.get('versao') or '1.0').strip()
-        modo = (request.form.get('modo') or 'Avaliado').strip()
-        base_calculo = int(request.form.get('base_calculo') or 100)
-        casas_decimais = int(request.form.get('casas_decimais') or 2)
-        modo_configuracao = (request.form.get('modo_configuracao') or 'percentual').strip()
-
-        # 2) Validação mínima (SEM redirecionar em caso de erro)
-        erros = []
-        if not nome:
-            erros.append('Nome do questionário é obrigatório.')
-
-        # impede duplicidade para o mesmo cliente
-        existente = Questionario.query.filter_by(
-            nome=nome,
-            cliente_id=current_user.cliente_id,
-            ativo=True
-        ).first()
-        if existente:
-            erros.append(f"Já existe um questionário ativo com o nome '{nome}'.")
-
-        if erros:
-            for e in erros:
-                flash(e, 'warning')
-            # re-renderiza com os dados preenchidos
-            return render_template_safe('cli/novo_questionario.html', dados=request.form)
-
-        # 3) Persistência (usa os modelos já importados no topo do arquivo)
-        q = Questionario(
-            nome=nome,
-            versao=versao,
-            descricao=descricao,
-            modo=modo,
-            cliente_id=current_user.cliente_id,
-            criado_por_id=current_user.id,
-
-            # Configurações de nota/relatório
-            calcular_nota=calcular_nota,
-            ocultar_nota_aplicacao=ocultar_nota,
-            base_calculo=base_calculo,
-            casas_decimais=casas_decimais,
-            modo_configuracao=modo_configuracao,
-            modo_exibicao_nota=ModoExibicaoNota.PERCENTUAL if 'ModoExibicaoNota' in globals() else 'percentual',
-
-            incluir_assinatura=incluir_assinatura,
-            incluir_foto_capa=incluir_foto_capa,
-
-            # Status inicial
-            ativo=True,
-            publicado=False,
-            status=StatusQuestionario.RASCUNHO if 'StatusQuestionario' in globals() else 'rascunho'
-        )
-        db.session.add(q)
-        db.session.commit()
-
-        log_acao(f"Craiu questionário: {nome}", None, "Questionario", q.id)
-        flash('Questionário criado com sucesso!', 'success')
-
-        # 4) PRG → vai direto para a etapa de Tópicos com o id correto
-        return redirect(url_for('cli.gerenciar_topicos', id=q.id))
-
-    # GET: renderiza formulário vazio
-    return render_template_safe('cli/novo_questionario.html', dados=None)
-
-
+        return render_template_safe('cli/novo_questionario.html',
+                               usuarios=usuarios,
+                               grupos=grupos,
+                               integracoes=integracoes)
+    except Exception as e:
+        flash(f"Erro ao carregar formulário: {str(e)}", "danger")
+        return redirect(url_for('cli.listar_questionarios'))
 
 def processar_novo_questionario():
     """Processa a criação de novo questionário"""
@@ -1171,7 +1105,7 @@ def novo_avaliado():
             cliente_id=current_user.cliente_id, ativo=True
         ).all()
 
-        return render_template_safe('cli/cadastrar_avaliado.html', grupos=grupos)
+        return render_template_safe('cli/novo_avaliado.html', grupos=grupos)
     except Exception as e:
         flash(f"Erro ao carregar formulário: {str(e)}", "danger")
         return redirect(url_for('cli.listar_avaliados'))
@@ -1328,7 +1262,7 @@ def nova_aplicacao():
             publicado=True
         ).all()
         
-        return render_template_safe('cli/iniciar_aplicacao.html',
+        return render_template_safe('cli/nova_aplicacao.html',
                              avaliados=avaliados,
                              questionarios=questionarios)
     except Exception as e:
@@ -2605,10 +2539,10 @@ def buscar():
 
 # ===================== GRUPOS (BONUS) =====================
 
-@cli_bp.route('/grupos', endpoint='listar_grupos')
+@cli_bp.route('/grupos')
 @login_required
 @admin_required
-def listar_grupos():
+def gerenciar_grupos():
     """Página de gestão de grupos"""
     try:
         grupos = Grupo.query.filter_by(
@@ -2623,7 +2557,7 @@ def listar_grupos():
                 ativo=True
             ).count()
         
-        return render_template_safe('cli/listar_grupos.html', grupos=grupos)
+        return render_template_safe('cli/grupos.html', grupos=grupos)
     except Exception as e:
         flash(f"Erro ao carregar grupos: {str(e)}", "danger")
         return render_template_safe('cli/index.html')
@@ -2666,6 +2600,62 @@ def novo_grupo():
 # ===================== FORÇA REGISTRO DE ROTAS CRÍTICAS - SOLUÇÃO DEFINITIVA =====================
 
 # Força o registro das rotas mais críticas ANTES de qualquer template ser renderizado
+def force_register_critical_routes():
+    """Força o registro das rotas críticas que sempre devem existir"""
+    
+    try:
+        # FORÇAR registro da rota listar_grupos - a mais problemática
+        if not hasattr(cli_bp, '_listar_grupos_registered'):
+            
+            @cli_bp.route('/grupos', endpoint='listar_grupos')
+            @cli_bp.route('/listar-grupos', endpoint='listar_grupos_alt')
+            @login_required
+            def force_listar_grupos():
+                """Rota FORÇADA para listar_grupos"""
+                return render_template_safe('cli/index.html', 
+                                          mensagem="Redirecionamento: Grupos em desenvolvimento",
+                                          stats={'total_aplicacoes': 0, 'questionarios_ativos': 0, 
+                                               'avaliados_ativos': 0, 'media_nota_mes': 0})
+            
+            cli_bp._listar_grupos_registered = True
+            print("✅ Rota cli.listar_grupos registrada forçadamente")
+        
+        # FORÇAR outras rotas críticas
+        critical_routes = {
+            'gerenciar_usuarios': ['/usuarios', '/gerenciar-usuarios'],
+            'configuracoes': ['/configuracoes', '/configuracao'],
+            'notificacoes': ['/notificacoes'],
+            'relatorios': ['/relatorios']
+        }
+        
+        for endpoint, routes in critical_routes.items():
+            attr_name = f'_{endpoint}_registered'
+            if not hasattr(cli_bp, attr_name):
+                
+                def create_forced_route(endpoint_name):
+                    @login_required
+                    def forced_route():
+                        return render_template_safe('cli/index.html',
+                                                  mensagem=f"Redirecionamento: {endpoint_name} carregando...",
+                                                  stats={'total_aplicacoes': 0, 'questionarios_ativos': 0, 
+                                                       'avaliados_ativos': 0, 'media_nota_mes': 0})
+                    return forced_route
+                
+                route_func = create_forced_route(endpoint)
+                route_func.__name__ = f'force_{endpoint}'
+                
+                for route in routes:
+                    cli_bp.add_url_rule(route, endpoint=endpoint, view_func=route_func, methods=['GET'])
+                
+                setattr(cli_bp, attr_name, True)
+                print(f"✅ Rota cli.{endpoint} registrada forçadamente")
+                
+    except Exception as e:
+        print(f"⚠️ Erro ao forçar registro de rotas: {e}")
+
+# Executar IMEDIATAMENTE
+force_register_critical_routes()
+
 # ===================== REGISTRO AUTOMÁTICO EM RUNTIME =====================
 
 def register_missing_route_on_demand(endpoint):
@@ -2942,9 +2932,3 @@ except Exception as e:
     print(f"Erro na verificação de rotas: {e}")
 
 # ===================== FIM DO SISTEMA DE AUTO-REGISTRO =====================
-
-# --- Alias de compatibilidade: adicionar_topico -> novo_topico ---
-try:
-    cli_bp.add_url_rule('/questionario/<int:questionario_id>/topicos/novo', endpoint='adicionar_topico', view_func=novo_topico, methods=['GET','POST'])
-except Exception:
-    pass

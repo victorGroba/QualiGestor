@@ -1,8 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
-from ..models import db, Cliente
-
 from flask_login import login_required
-
+from ..models import db, Cliente, Avaliado  # Importar Avaliado explicitamente
 
 admin_bp = Blueprint('admin', __name__, template_folder='templates')
 
@@ -54,51 +52,50 @@ def excluir_cliente(id):
     flash('Cliente excluído com sucesso!')
     return redirect(url_for('admin.listar_clientes'))
 
-
-# CRUD Loja
-@admin_bp.route('/lojas')
+# CRUD Avaliado/Loja
+@admin_bp.route('/avaliados')
 @login_required
-def listar_lojas():
-    lojas = Loja.query.all()
-    return render_template('admin/lojas.html', lojas=lojas)
+def listar_avaliados():
+    avaliados = Avaliado.query.all()
+    return render_template('admin/avaliados.html', avaliados=avaliados)
 
-@admin_bp.route('/lojas/nova', methods=['GET', 'POST'])
+@admin_bp.route('/avaliados/novo', methods=['GET', 'POST'])
 @login_required
-def nova_loja():
+def novo_avaliado():
     clientes = Cliente.query.all()
     if request.method == 'POST':
-        loja = Loja(
+        avaliado = Avaliado(
             nome=request.form['nome'],
             endereco=request.form.get('endereco'),
             telefone=request.form.get('telefone'),
             cliente_id=request.form.get('cliente_id')
         )
-        db.session.add(loja)
+        db.session.add(avaliado)
         db.session.commit()
-        flash('Loja criada com sucesso!')
-        return redirect(url_for('admin.listar_lojas'))
-    return render_template('admin/loja_form.html', clientes=clientes)
+        flash('Avaliado criado com sucesso!')
+        return redirect(url_for('admin.listar_avaliados'))
+    return render_template('admin/avaliado_form.html', clientes=clientes)
 
-@admin_bp.route('/lojas/<int:id>/editar', methods=['GET', 'POST'])
+@admin_bp.route('/avaliados/<int:id>/editar', methods=['GET', 'POST'])
 @login_required
-def editar_loja(id):
-    loja = Loja.query.get_or_404(id)
+def editar_avaliado(id):
+    avaliado = Avaliado.query.get_or_404(id)
     clientes = Cliente.query.all()
     if request.method == 'POST':
-        loja.nome = request.form['nome']
-        loja.endereco = request.form.get('endereco')
-        loja.telefone = request.form.get('telefone')
-        loja.cliente_id = request.form.get('cliente_id')
+        avaliado.nome = request.form['nome']
+        avaliado.endereco = request.form.get('endereco')
+        avaliado.telefone = request.form.get('telefone')
+        avaliado.cliente_id = request.form.get('cliente_id')
         db.session.commit()
-        flash('Loja atualizada com sucesso!')
-        return redirect(url_for('admin.listar_lojas'))
-    return render_template('admin/loja_form.html', loja=loja, clientes=clientes)
+        flash('Avaliado atualizado com sucesso!')
+        return redirect(url_for('admin.listar_avaliados'))
+    return render_template('admin/avaliado_form.html', avaliado=avaliado, clientes=clientes)
 
-@admin_bp.route('/lojas/<int:id>/excluir')
+@admin_bp.route('/avaliados/<int:id>/excluir')
 @login_required
-def excluir_loja(id):
-    loja = Loja.query.get_or_404(id)
-    db.session.delete(loja)
+def excluir_avaliado(id):
+    avaliado = Avaliado.query.get_or_404(id)
+    db.session.delete(avaliado)
     db.session.commit()
-    flash('Loja excluída com sucesso!')
-    return redirect(url_for('admin.listar_lojas'))
+    flash('Avaliado excluído com sucesso!')
+    return redirect(url_for('admin.listar_avaliados'))

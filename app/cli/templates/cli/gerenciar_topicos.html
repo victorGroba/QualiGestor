@@ -2,75 +2,62 @@
 {% block title %}Tópicos do Questionário{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
-  <h4 class="mb-4">Tópicos de: {{ questionario.nome }}</h4>
+<div class="container py-4">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+      <h1 class="h4 mb-1">Tópicos — {{ questionario.nome }}</h1>
+      <div class="text-muted">
+        ID: {{ questionario.id }} • Versão: {{ questionario.versao or '1.0' }}
+      </div>
+    </div>
+    <div class="btn-group">
+      <!-- Botão abre modal via HTMX (GET do formulário parcial) -->
+      <button
+        class="btn btn-primary"
+        hx-get="{{ url_for_safe('cli.novo_topico', id=questionario.id) }}"
+        hx-target="#modalTopicoBody"
+        hx-swap="innerHTML"
+        hx-headers='{"X-Partial":"1"}'
+        onclick="new bootstrap.Modal(document.getElementById('modalTopico')).show()">
+        <i class="bi bi-plus-circle"></i> Novo tópico
+      </button>
+
+      <a class="btn btn-outline-secondary"
+         href="{{ url_for_safe('cli.listar_questionarios') }}">
+        <i class="bi bi-arrow-left"></i> Questionários
+      </a>
+    </div>
+  </div>
 
   {% with messages = get_flashed_messages(with_categories=true) %}
-    {% for category, message in messages %}
-      <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-        {{ message }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-      </div>
-    {% endfor %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ 'warning' if category=='error' else category }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
   {% endwith %}
 
-  <div class="card mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
-      <strong>Tópicos</strong>
-      <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalNovoTopico">
-        <i class="lucide lucide-plus"></i> Adicionar Tópico
-      </button>
-    </div>
-    <div class="card-body">
-      {% if questionario.topicos %}
-        <ul class="list-group">
-          {% for topico in questionario.topicos %}
-          <li class="list-group-item d-flex justify-content-between align-items-center">
-            <div>
-              <strong>{{ topico.nome }}</strong>
-              <div class="text-muted small">{{ topico.descricao }}</div>
-            </div>
-            <div>
-              <a href="#" class="btn btn-outline-secondary btn-sm me-1" title="Ver perguntas"><i class="lucide lucide-list"></i></a>
-              <a href="#" class="btn btn-outline-info btn-sm me-1" title="Tags"><i class="lucide lucide-tags"></i></a>
-              <a href="{{ url_for('cli.duplicar_topico', id=topico.id) }}" class="btn btn-outline-warning btn-sm me-1" title="Duplicar"><i class="lucide lucide-copy"></i></a>
-              <a href="{{ url_for('cli.remover_topico', id=topico.id) }}" class="btn btn-outline-danger btn-sm" onclick="return confirm('Remover este tópico?')"><i class="lucide lucide-trash-2"></i></a>
-            </div>
-          </li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <div class="text-center text-muted">Nenhum tópico cadastrado.</div>
-      {% endif %}
-    </div>
+  <!-- Tabela de tópicos vira ALVO de substituição após salvar -->
+  <div id="topicosTable">
+    {% include 'cli/_topicos_table.html' %}
   </div>
 </div>
 
-<!-- Modal Novo Tópico -->
-<div class="modal fade" id="modalNovoTopico" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
-    <form method="POST" action="{{ url_for('cli.adicionar_topico', questionario_id=questionario.id) }}">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">Novo Tópico</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body">
-          <div class="mb-3">
-            <label class="form-label">Nome</label>
-            <input type="text" class="form-control" name="nome" required>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Descrição</label>
-            <textarea class="form-control" name="descricao" rows="3"></textarea>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="submit" class="btn btn-primary">Adicionar</button>
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-        </div>
+<!-- Modal Bootstrap para criar/editar Tópico -->
+<div class="modal fade" id="modalTopico" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Tópico</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
       </div>
-    </form>
+      <div class="modal-body" id="modalTopicoBody">
+        <!-- O formulário parcial será injetado aqui pelo HTMX -->
+      </div>
+    </div>
   </div>
 </div>
 {% endblock %}

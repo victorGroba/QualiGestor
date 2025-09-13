@@ -1,0 +1,73 @@
+{% if topicos and topicos|length %}
+  <div class="card shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th style="width: 80px;">Ordem</th>
+              <th>Nome</th>
+              <th class="text-muted d-none d-md-table-cell">Descrição</th>
+              <th style="width: 160px;" class="text-center">Perguntas</th>
+              <th style="width: 260px;" class="text-end">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for t in topicos %}
+            <tr id="row-topico-{{ t.id }}">
+              <td><span class="badge bg-secondary">{{ t.ordem or loop.index }}</span></td>
+              <td class="fw-semibold">{{ t.nome }}</td>
+              <td class="text-muted d-none d-md-table-cell">{{ t.descricao or '-' }}</td>
+              <td class="text-center">
+                <span class="badge bg-info">{{ t.total_perguntas or 0 }}</span>
+              </td>
+              <td class="text-end">
+                <div class="btn-group">
+                  <a class="btn btn-sm btn-outline-primary"
+                     href="{{ url_for_safe('cli.listar_perguntas', topico_id=t.id) }}">
+                    <i class="bi bi-list-check"></i> Perguntas
+                  </a>
+
+                  <!-- EDITAR via modal HTMX -->
+                  <button
+                    class="btn btn-sm btn-outline-secondary"
+                    hx-get="{{ url_for_safe('cli.editar_topico', topico_id=t.id) }}"
+                    hx-target="#modalTopicoBody"
+                    hx-swap="innerHTML"
+                    hx-headers='{"X-Partial":"1"}'
+                    onclick="new bootstrap.Modal(document.getElementById('modalTopico')).show()">
+                    <i class="bi bi-pencil"></i>
+                  </button>
+
+                  <!-- REMOVER via HTMX (sem reload) -->
+                  <button
+                    class="btn btn-sm btn-outline-danger"
+                    hx-delete="{{ url_for_safe('cli.remover_topico', topico_id=t.id) }}"
+                    hx-confirm="Remover este tópico?"
+                    hx-target="#topicosTable"
+                    hx-swap="outerHTML">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+{% else %}
+  <div class="text-center py-5">
+    <p class="text-muted mb-3">Ainda não há tópicos neste questionário.</p>
+    <button
+      class="btn btn-primary"
+      hx-get="{{ url_for_safe('cli.novo_topico', id=questionario.id) }}"
+      hx-target="#modalTopicoBody"
+      hx-swap="innerHTML"
+      hx-headers='{"X-Partial":"1"}'
+      onclick="new bootstrap.Modal(document.getElementById('modalTopico')).show()">
+      <i class="bi bi-plus-circle"></i> Criar primeiro tópico
+    </button>
+  </div>
+{% endif %}
