@@ -12,7 +12,7 @@ from werkzeug.utils import secure_filename
 from sqlalchemy import func, extract, and_, or_, desc
 from flask import request, make_response
 
-# ==================== CORREÇÃO 1: IMPORTS ROBUSTOS ====================
+# ==================== CORRE??O 1: IMPORTS ROBUSTOS ====================
 try:
     from ..models import (
         db, Usuario, Cliente, Grupo, Avaliado,
@@ -75,7 +75,12 @@ class MockQuery:
 
 cli_bp = Blueprint('cli', __name__, template_folder='templates')
 
-# ===================== CORREÇÃO 2: DECORATOR ADMIN_REQUIRED ROBUSTO =====================
+@cli_bp.route('/aplicacoes/iniciar', methods=['GET'])
+@login_required
+def iniciar_aplicacao():
+    """Endpoint que estava redirecionando - corrigido"""
+    return redirect(url_for('cli.nova_aplicacao'))
+# ===================== CORRE??O 2: DECORATOR ADMIN_REQUIRED ROBUSTO =====================
 
 def admin_required(f):
     """Decorator para exigir permissões de administrador - CORRIGIDO"""
@@ -109,7 +114,7 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# ===================== CORREÇÃO 3: FUNÇÃO GET_AVALIADOS_USUARIO ROBUSTA =====================
+# ===================== CORRE??O 3: FUN??O GET_AVALIADOS_USUARIO ROBUSTA =====================
 
 def get_avaliados_usuario():
     """Retorna avaliados disponíveis para o usuário atual - CORRIGIDO"""
@@ -145,7 +150,7 @@ def get_avaliados_usuario():
         print(f"Erro em get_avaliados_usuario: {e}")
         return []
 
-# ===================== CORREÇÃO 4: FUNÇÃO LOG_ACAO ROBUSTA =====================
+# ===================== CORRE??O 4: FUN??O LOG_ACAO ROBUSTA =====================
 
 def log_acao(acao, detalhes=None, entidade_tipo=None, entidade_id=None):
     """Função auxiliar para registrar ações no log - CORRIGIDA"""
@@ -171,7 +176,7 @@ def log_acao(acao, detalhes=None, entidade_tipo=None, entidade_id=None):
         print(f"Erro ao criar log: {e}")
         pass
 
-# ===================== CORREÇÃO 5: FUNÇÃO CRIAR_NOTIFICACAO ROBUSTA =====================
+# ===================== CORRE??O 5: FUN??O CRIAR_NOTIFICACAO ROBUSTA =====================
 
 def criar_notificacao(usuario_id, titulo, mensagem, tipo='info', link=None):
     """Função auxiliar para criar notificações - CORRIGIDA"""
@@ -188,12 +193,12 @@ def criar_notificacao(usuario_id, titulo, mensagem, tipo='info', link=None):
             db.session.commit()
         else:
             # Fallback se Notificacao não existir
-            print(f"NOTIFICAÇÃO: {titulo} - {mensagem}")
+            print(f"NOTIFICA??O: {titulo} - {mensagem}")
     except Exception as e:
         print(f"Erro ao criar notificação: {e}")
         pass
 
-# ===================== CORREÇÃO 6: RENDER TEMPLATE SEGURO =====================
+# ===================== CORRE??O 6: RENDER TEMPLATE SEGURO =====================
 
 def render_template_safe(template_name, **kwargs):
     """Render template com fallback se não existir"""
@@ -211,7 +216,7 @@ def render_template_safe(template_name, **kwargs):
                              error=f"Template {template_name} não encontrado: {str(e)}", 
                              **kwargs)
 
-# ===================== CORREÇÃO 7: WEASYPRINT OPCIONAL =====================
+# ===================== CORRE??O 7: WEASYPRINT OPCIONAL =====================
 
 def gerar_pdf_seguro(html_content, filename="relatorio.pdf"):
     """Gera PDF com fallback se WeasyPrint não estiver disponível"""
@@ -233,7 +238,7 @@ def gerar_pdf_seguro(html_content, filename="relatorio.pdf"):
         flash(f"Erro ao gerar PDF: {str(e)}", "danger")
         return redirect(request.referrer or url_for('cli.index'))
 
-# ===================== CORREÇÃO 8: FUNÇÃO AUXILIAR PARA COMPATIBILIDADE =====================
+# ===================== CORRE??O 8: FUN??O AUXILIAR PARA COMPATIBILIDADE =====================
 
 def verificar_permissao_admin():
     """Verifica se usuário tem permissão de admin - CORRIGIDA"""
@@ -253,306 +258,14 @@ def verificar_permissao_admin():
     except:
         return False
 
-# ===================== PÁGINA INICIAL =====================
+# ===================== P?GINA INICIAL =====================
 
 @cli_bp.route('/')
-@cli_bp.route('/home')
-@login_required
-def index():
-    """Dashboard principal do CLIQ"""
-    stats = {
-        'total_aplicacoes': 0,
-        'aplicacoes_mes': 0,
-        'questionarios_ativos': 0,
-        'avaliados_ativos': 0,
-        'media_nota_mes': 0,
-        'aplicacoes_pendentes': 0
-    }
-    
-    ultimas_aplicacoes = []
-    questionarios_populares = []
+# ===================== QUESTION?RIOS =====================
 
-    try:
-        if hasattr(current_user, 'cliente_id') and current_user.cliente_id:
-            # Aplicações do cliente
-            stats['total_aplicacoes'] = AplicacaoQuestionario.query.join(Avaliado).filter(
-                Avaliado.cliente_id == current_user.cliente_id
-            ).count()
-
-            # Aplicações deste mês
-            stats['aplicacoes_mes'] = AplicacaoQuestionario.query.join(Avaliado).filter(
-                Avaliado.cliente_id == current_user.cliente_id,
-                extract('month', AplicacaoQuestionario.data_inicio) == datetime.now().month,
-                extract('year', AplicacaoQuestionario.data_inicio) == datetime.now().year
-            ).count()
-
-            # Questionários ativos
-            stats['questionarios_ativos'] = Questionario.query.filter_by(
-                cliente_id=current_user.cliente_id,
-                ativo=True,
-                publicado=True
-            ).count()
-
-            # Avaliados ativos
-            stats['avaliados_ativos'] = Avaliado.query.filter_by(
-                cliente_id=current_user.cliente_id,
-                ativo=True
-            ).count()
-
-            # Média de notas do mês
-            media_result = db.session.query(func.avg(AplicacaoQuestionario.nota_final)).join(Avaliado).filter(
-                Avaliado.cliente_id == current_user.cliente_id,
-                AplicacaoQuestionario.nota_final.isnot(None),
-                extract('month', AplicacaoQuestionario.data_inicio) == datetime.now().month
-            ).scalar()
-            stats['media_nota_mes'] = round(float(media_result or 0), 1)
-
-            # Aplicações pendentes
-            stats['aplicacoes_pendentes'] = AplicacaoQuestionario.query.join(Avaliado).filter(
-                Avaliado.cliente_id == current_user.cliente_id,
-                AplicacaoQuestionario.status == StatusAplicacao.EM_ANDAMENTO
-            ).count()
-
-            # Últimas aplicações
-            ultimas_aplicacoes = AplicacaoQuestionario.query.join(Avaliado).filter(
-                Avaliado.cliente_id == current_user.cliente_id
-            ).order_by(AplicacaoQuestionario.data_inicio.desc()).limit(5).all()
-
-            # Questionários mais usados
-            questionarios_populares = db.session.query(
-                Questionario.nome,
-                func.count(AplicacaoQuestionario.id).label('total_aplicacoes')
-            ).join(AplicacaoQuestionario).join(Avaliado).filter(
-                Avaliado.cliente_id == current_user.cliente_id
-            ).group_by(Questionario.id, Questionario.nome).order_by(
-                func.count(AplicacaoQuestionario.id).desc()
-            ).limit(5).all()
-    except Exception as e:
-        print(f"Erro ao carregar dashboard: {e}")
-
-    return render_template_safe('cli/index.html', 
-                         stats=stats, 
-                         ultimas_aplicacoes=ultimas_aplicacoes,
-                         questionarios_populares=questionarios_populares)
-
-# ===================== QUESTIONÁRIOS =====================
-
-from flask import request, flash
-from sqlalchemy import func, or_
-
-from flask import request, flash
-from sqlalchemy import func, or_
-
-@cli_bp.route('/questionarios', endpoint='listar_questionarios', methods=['GET'])
-@cli_bp.route('/listar-questionarios', methods=['GET'])
-@login_required
-def listar_questionarios():
-    """
-    Lista questionários de forma robusta:
-    - Só filtra por cliente/ativo se os campos existirem.
-    - Se o filtro resultar em 0 itens, faz fallback e lista TODOS (com aviso).
-    - Evita quebrar se o model de aplicação tiver nome diferente.
-    """
-    # Query base
-    q_base = Questionario.query
-
-    # ---- Filtros opcionais ----
-    q = q_base
-
-    # Filtro por cliente (aplica só se existir o campo e o usuário tiver cliente_id)
-    tem_cliente = hasattr(Questionario, "cliente_id") and getattr(current_user, "cliente_id", None)
-    if tem_cliente:
-        q = q.filter(Questionario.cliente_id == current_user.cliente_id)
-
-    # Filtro de ativos (aplica só se existir a coluna)
-    if hasattr(Questionario, "ativo"):
-        status = request.args.get("status", "ativos")  # ativos | inativos | todos
-        if status == "ativos":
-            q = q.filter(Questionario.ativo.is_(True))
-        elif status == "inativos":
-            q = q.filter(Questionario.ativo.is_(False))
-        # "todos" não filtra
-
-    # Busca por texto (?q=...)
-    termo = (request.args.get("q") or "").strip()
-    if termo:
-        like = f"%{termo}%"
-        filtros = []
-        if hasattr(Questionario, "nome"):      filtros.append(Questionario.nome.ilike(like))
-        if hasattr(Questionario, "titulo"):    filtros.append(Questionario.titulo.ilike(like))
-        if hasattr(Questionario, "descricao"): filtros.append(Questionario.descricao.ilike(like))
-        if filtros:
-            q = q.filter(or_(*filtros))
-
-    # Ordenação
-    if hasattr(Questionario, "nome"):
-        q = q.order_by(Questionario.nome.asc())
-    elif hasattr(Questionario, "id"):
-        q = q.order_by(Questionario.id.desc())
-
-    # Executa com filtro
-    questionarios = q.all()
-
-    # Fallback: se nada foi retornado, lista TUDO (sem filtros) e avisa
-    usou_fallback = False
-    if not questionarios:
-        usou_fallback = True
-        q2 = q_base
-        if hasattr(Questionario, "nome"):
-            q2 = q2.order_by(Questionario.nome.asc())
-        elif hasattr(Questionario, "id"):
-            q2 = q2.order_by(Questionario.id.desc())
-        questionarios = q2.all()
-        flash("Nenhum item com os filtros atuais — exibindo todos para depuração.", "warning")
-
-    # Estatísticas (sem quebrar)
-    ModelAplic = globals().get('AplicacaoQuestionario') or globals().get('Aplicacao')
-    if ModelAplic:
-        counts = dict(
-            db.session.query(ModelAplic.questionario_id, func.count(ModelAplic.id))
-            .group_by(ModelAplic.questionario_id).all()
-        )
-        medias = dict(
-            db.session.query(ModelAplic.questionario_id, func.avg(ModelAplic.nota_final))
-            .group_by(ModelAplic.questionario_id).all()
-        )
-        for item in questionarios:
-            item.total_aplicacoes = counts.get(item.id, 0)
-            item.media_nota = float(medias.get(item.id) or 0.0)
-    else:
-        for item in questionarios:
-            item.total_aplicacoes = 0
-            item.media_nota = 0.0
-
-    return render_template_safe(
-        'cli/listar_questionarios.html',
-        questionarios=questionarios,
-        termo=termo,
-        status=request.args.get("status", "ativos"),
-        usou_fallback=usou_fallback,
-    )
 
 
 @cli_bp.route('/questionario/novo', methods=['GET', 'POST'])
-@cli_bp.route('/novo-questionario', methods=['GET', 'POST'])
-@login_required
-def novo_questionario():
-    """Tela de criação de questionário (CLIq) – versão corrigida com debug."""
-    
-    print(f"DEBUG: Método da requisição: {request.method}")
-    
-    if request.method == 'POST':
-        print("DEBUG: Processando POST do questionário")
-        
-        # 1) Coleta os campos do formulário
-        nome = (request.form.get('nome') or '').strip()
-        descricao = (request.form.get('descricao') or '').strip()
-        
-        print(f"DEBUG: Nome recebido: '{nome}'")
-        print(f"DEBUG: Descrição recebida: '{descricao}'")
-        
-        # Campos booleanos
-        calcular_nota = request.form.get('calcular_nota') == 'on'
-        ocultar_nota = request.form.get('ocultar_nota') == 'on'
-        incluir_assinatura = request.form.get('incluir_assinatura') == 'on'
-        incluir_foto_capa = request.form.get('incluir_foto_capa') == 'on'
-        
-        # Numéricos/opcionais
-        versao = (request.form.get('versao') or '1.0').strip()
-        modo = (request.form.get('modo') or 'Avaliado').strip()
-        base_calculo = int(request.form.get('base_calculo') or 100)
-        casas_decimais = int(request.form.get('casas_decimais') or 2)
-        modo_configuracao = (request.form.get('modo_configuracao') or 'percentual').strip()
-        
-        print(f"DEBUG: Dados coletados - versão: {versao}, modo: {modo}")
-        
-        # 2) Validação
-        erros = []
-        if not nome:
-            print("DEBUG: ERRO - Nome vazio")
-            erros.append('Nome do questionário é obrigatório.')
-        
-        # Verificar duplicidade
-        try:
-            existente = Questionario.query.filter_by(
-                nome=nome,
-                cliente_id=current_user.cliente_id,
-                ativo=True
-            ).first()
-            
-            if existente:
-                print(f"DEBUG: ERRO - Questionário '{nome}' já existe")
-                erros.append(f"Já existe um questionário ativo com o nome '{nome}'.")
-            else:
-                print("DEBUG: Nome do questionário é único, ok para continuar")
-                
-        except Exception as e:
-            print(f"DEBUG: ERRO na verificação de duplicidade: {e}")
-            erros.append(f"Erro ao verificar duplicidade: {str(e)}")
-        
-        if erros:
-            print(f"DEBUG: {len(erros)} erro(s) encontrado(s), re-renderizando formulário")
-            for erro in erros:
-                flash(erro, 'warning')
-            return render_template_safe('cli/novo_questionario.html', dados=request.form)
-        
-        # 3) Tentar criar o questionário
-        try:
-            print("DEBUG: Tentando criar questionário no banco...")
-            
-            q = Questionario(
-                nome=nome,
-                versao=versao,
-                descricao=descricao,
-                modo=modo,
-                cliente_id=current_user.cliente_id,
-                criado_por_id=current_user.id,
-                
-                # Configurações de nota/relatório
-                calcular_nota=calcular_nota,
-                ocultar_nota_aplicacao=ocultar_nota,
-                base_calculo=base_calculo,
-                casas_decimais=casas_decimais,
-                modo_configuracao=modo_configuracao,
-                modo_exibicao_nota=ModoExibicaoNota.PERCENTUAL if 'ModoExibicaoNota' in globals() else 'percentual',
-                
-                incluir_assinatura=incluir_assinatura,
-                incluir_foto_capa=incluir_foto_capa,
-                
-                # Status inicial
-                ativo=True,
-                publicado=False,
-                status=StatusQuestionario.RASCUNHO if 'StatusQuestionario' in globals() else 'rascunho'
-            )
-            
-            db.session.add(q)
-            db.session.commit()
-            
-            print(f"DEBUG: Questionário criado com ID: {q.id}")
-            
-            log_acao(f"Criou questionário: {nome}", None, "Questionario", q.id)
-            flash('Questionário criado com sucesso!', 'success')
-            
-            print(f"DEBUG: Redirecionando para gerenciar_topicos com ID: {q.id}")
-            
-            # 4) Redirecionar para tópicos
-            return redirect(url_for('cli.gerenciar_topicos', id=q.id))
-            
-        except Exception as e:
-            print(f"DEBUG: ERRO ao criar questionário: {e}")
-            import traceback
-            traceback.print_exc()
-            
-            db.session.rollback()
-            flash(f'Erro ao criar questionário: {str(e)}', 'danger')
-            return render_template_safe('cli/novo_questionario.html', dados=request.form)
-    
-    # GET: renderizar formulário vazio
-    print("DEBUG: Renderizando formulário GET")
-    return render_template_safe('cli/novo_questionario.html', dados=None)
-
-
-
 def processar_novo_questionario():
     """Processa a criação de novo questionário"""
     try:
@@ -639,43 +352,6 @@ def processar_novo_questionario():
         return redirect(url_for('cli.novo_questionario'))
 
 @cli_bp.route('/questionario/<int:id>')
-@cli_bp.route('/questionario/<int:id>/visualizar')
-@login_required
-def visualizar_questionario(id):
-    """Visualiza detalhes do questionário"""
-    try:
-        questionario = Questionario.query.get_or_404(id)
-        
-        if questionario.cliente_id != current_user.cliente_id:
-            flash("Questionário não encontrado.", "error")
-            return redirect(url_for('cli.listar_questionarios'))
-        
-        # Estatísticas do questionário
-        stats = {
-            'total_aplicacoes': AplicacaoQuestionario.query.filter_by(questionario_id=id).count(),
-            'total_topicos': Topico.query.filter_by(questionario_id=id, ativo=True).count(),
-            'total_perguntas': db.session.query(func.count(Pergunta.id)).join(Topico).filter(
-                Topico.questionario_id == id,
-                Pergunta.ativo == True
-            ).scalar(),
-            'media_nota': db.session.query(func.avg(AplicacaoQuestionario.nota_final)).filter_by(
-                questionario_id=id
-            ).scalar() or 0
-        }
-        
-        # Últimas aplicações
-        ultimas_aplicacoes = AplicacaoQuestionario.query.filter_by(
-            questionario_id=id
-        ).order_by(AplicacaoQuestionario.data_inicio.desc()).limit(10).all()
-        
-        return render_template_safe('cli/visualizar_questionario.html',
-                             questionario=questionario,
-                             stats=stats,
-                             ultimas_aplicacoes=ultimas_aplicacoes)
-    except Exception as e:
-        flash(f"Erro ao carregar questionário: {str(e)}", "danger")
-        return redirect(url_for('cli.listar_questionarios'))
-
 @cli_bp.route('/questionario/<int:id>/editar', methods=['GET', 'POST'])
 @login_required
 def editar_questionario(id):
@@ -845,7 +521,7 @@ def desativar_questionario(id):
     
     return redirect(url_for('cli.listar_questionarios'))
 
-# ===================== TÓPICOS =====================
+# ===================== T?PICOS =====================
 
 @cli_bp.route('/questionario/<int:id>/topicos')
 @login_required
@@ -881,7 +557,7 @@ def gerenciar_topicos(id):
 @cli_bp.route('/questionario/<int:id>/topico/novo', methods=['GET', 'POST'])
 @login_required
 def novo_topico(id):
-    """Criar novo tópico - VERSÃO CORRIGIDA"""
+    """Criar novo tópico - VERS?O CORRIGIDA"""
     print(f"DEBUG novo_topico: método={request.method}, id={id}")
     
     try:
@@ -909,7 +585,7 @@ def novo_topico(id):
                 ultima_ordem = db.session.query(func.max(Topico.ordem)).filter_by(
                     questionario_id=id
                 ).scalar() or 0
-                print(f"DEBUG: Última ordem: {ultima_ordem}")
+                print(f"DEBUG: ?ltima ordem: {ultima_ordem}")
                 
                 novo_topico_obj = Topico(
                     nome=nome,
@@ -1096,7 +772,8 @@ def nova_pergunta(topico_id):
             print("DEBUG: Processando POST da pergunta")
             try:
                 texto = request.form.get('texto', '').strip()
-                tipo = request.form.get('tipo', 'SIM_NAO_NA')
+                # Mapear tipos inválidos para válidos
+                tipo = request.form.get('tipo', 'Sim/Não/N.A.')
                 obrigatoria = request.form.get('obrigatoria') == 'on'
                 permite_observacao = request.form.get('permite_observacao') == 'on'
                 peso = int(request.form.get('peso', 1))
@@ -1112,7 +789,7 @@ def nova_pergunta(topico_id):
                 ultima_ordem = db.session.query(func.max(Pergunta.ordem)).filter_by(
                     topico_id=topico_id
                 ).scalar() or 0
-                print(f"DEBUG: Última ordem: {ultima_ordem}")
+                print(f"DEBUG: ?ltima ordem: {ultima_ordem}")
                 
                 nova_pergunta_obj = Pergunta(
                     texto=texto,
@@ -1185,14 +862,14 @@ def nova_pergunta(topico_id):
         flash(f"Erro ao carregar formulário: {str(e)}", "danger")
         return redirect(url_for('cli.listar_questionarios'))
 
-# ===================== PUBLICAR QUESTIONÁRIO CORRIGIDA =====================
+# ===================== PUBLICAR QUESTION?RIO CORRIGIDA =====================
 
-# ===================== PUBLICAR QUESTIONÁRIO - VERSÃO ÚNICA =====================
+# ===================== PUBLICAR QUESTION?RIO - VERS?O ?NICA =====================
 
 @cli_bp.route('/questionario/<int:id>/publicar', methods=['POST'])
 @login_required
 def publicar_questionario(id):
-    """Publica questionário para uso - VERSÃO ÚNICA SEM DUPLICAÇÃO"""
+    """Publica questionário para uso - VERS?O ?NICA SEM DUPLICA??O"""
     print(f"DEBUG publicar_questionario: id={id}")
     
     try:
@@ -1266,9 +943,9 @@ def test_publish(id):
         <p><strong>Cliente:</strong> {questionario.cliente_id} (Atual: {current_user.cliente_id})</p>
         
         <br>
-        {f'<a href="/cli/questionario/{id}/publicar" onclick="return confirm(\'Publicar?\')">✅ PODE PUBLICAR</a>' if total_perguntas > 0 else '❌ NÃO PODE PUBLICAR (sem perguntas)'}
+        {f'<a href="/cli/questionario/{id}/publicar" onclick="return confirm(\'Publicar?\')">[OK] PODE PUBLICAR</a>' if total_perguntas > 0 else '[X] N?O PODE PUBLICAR (sem perguntas)'}
         <br><br>
-        <a href="/cli/questionario/{id}/topicos">← Voltar aos Tópicos</a>
+        <a href="/cli/questionario/{id}/topicos">? Voltar aos Tópicos</a>
         """
         
     except Exception as e:
@@ -1358,86 +1035,7 @@ def remover_pergunta(pergunta_id):
 # ===================== AVALIADOS =====================
 
 @cli_bp.route('/avaliados')
-@cli_bp.route('/listar-avaliados')
-@login_required
-def listar_avaliados():
-    """Lista os avaliados do cliente"""
-    try:
-        avaliados = get_avaliados_usuario()
-        
-        # Estatísticas para cada avaliado
-        for avaliado in avaliados:
-            avaliado.total_aplicacoes = AplicacaoQuestionario.query.filter_by(
-                avaliado_id=avaliado.id
-            ).count()
-            
-            avaliado.ultima_aplicacao = AplicacaoQuestionario.query.filter_by(
-                avaliado_id=avaliado.id
-            ).order_by(AplicacaoQuestionario.data_inicio.desc()).first()
-
-        return render_template_safe('cli/listar_avaliados.html', avaliados=avaliados)
-    except Exception as e:
-        flash(f"Erro ao carregar avaliados: {str(e)}", "danger")
-        return render_template_safe('cli/index.html')
-
 @cli_bp.route('/avaliado/novo', methods=['GET', 'POST'])
-@cli_bp.route('/cadastrar-avaliado', methods=['GET', 'POST'])
-@login_required
-def novo_avaliado():
-    """Cadastra um novo avaliado"""
-    if request.method == 'POST':
-        try:
-            nome = request.form.get('nome', '').strip()
-            codigo = request.form.get('codigo', '').strip()
-            endereco = request.form.get('endereco', '').strip()
-            grupo_id = request.form.get('grupo_id')
-            
-            if not nome:
-                flash("Nome do avaliado é obrigatório.", "danger")
-                return redirect(url_for('cli.novo_avaliado'))
-            
-            # Verificar se código já existe
-            if codigo:
-                avaliado_existente = Avaliado.query.filter_by(
-                    codigo=codigo,
-                    cliente_id=current_user.cliente_id
-                ).first()
-                if avaliado_existente:
-                    flash("Já existe um avaliado com este código.", "warning")
-                    return redirect(url_for('cli.novo_avaliado'))
-            
-            novo_avaliado = Avaliado(
-                nome=nome,
-                codigo=codigo,
-                endereco=endereco,
-                grupo_id=int(grupo_id) if grupo_id else None,
-                cliente_id=current_user.cliente_id,
-                ativo=True
-            )
-            
-            db.session.add(novo_avaliado)
-            db.session.commit()
-            
-            log_acao(f"Criou avaliado: {nome}", None, "Avaliado", novo_avaliado.id)
-            flash(f"Avaliado '{nome}' criado com sucesso!", "success")
-            
-            return redirect(url_for('cli.listar_avaliados'))
-            
-        except Exception as e:
-            db.session.rollback()
-            flash(f"Erro ao criar avaliado: {str(e)}", "danger")
-
-    try:
-        # GET
-        grupos = Grupo.query.filter_by(
-            cliente_id=current_user.cliente_id, ativo=True
-        ).all()
-
-        return render_template_safe('cli/cadastrar_avaliado.html', grupos=grupos)
-    except Exception as e:
-        flash(f"Erro ao carregar formulário: {str(e)}", "danger")
-        return redirect(url_for('cli.listar_avaliados'))
-
 @cli_bp.route('/avaliado/<int:id>/editar', methods=['GET', 'POST'])
 @login_required
 def editar_avaliado(id):
@@ -1472,131 +1070,10 @@ def editar_avaliado(id):
         flash(f"Erro ao carregar avaliado: {str(e)}", "danger")
         return redirect(url_for('cli.listar_avaliados'))
 
-# ===================== APLICAÇÕES =====================
+# ===================== APLICA??ES =====================
 
 @cli_bp.route('/aplicacoes')
-@cli_bp.route('/listar-aplicacoes')
-@login_required
-def listar_aplicacoes():
-    """Lista todas as aplicações de questionário"""
-    try:
-        # Filtros
-        avaliado_id = request.args.get('avaliado_id')
-        questionario_id = request.args.get('questionario_id')
-        status = request.args.get('status')
-        data_inicio = request.args.get('data_inicio')
-        data_fim = request.args.get('data_fim')
-        
-        # Query base
-        query = AplicacaoQuestionario.query.join(Avaliado).filter(
-            Avaliado.cliente_id == current_user.cliente_id
-        )
-        
-        # Aplicar filtros
-        if avaliado_id:
-            query = query.filter(AplicacaoQuestionario.avaliado_id == avaliado_id)
-        
-        if questionario_id:
-            query = query.filter(AplicacaoQuestionario.questionario_id == questionario_id)
-        
-        if status:
-            query = query.filter(AplicacaoQuestionario.status == status)
-        
-        if data_inicio:
-            query = query.filter(AplicacaoQuestionario.data_inicio >= datetime.strptime(data_inicio, '%Y-%m-%d'))
-        
-        if data_fim:
-            query = query.filter(AplicacaoQuestionario.data_inicio <= datetime.strptime(data_fim + ' 23:59:59', '%Y-%m-%d %H:%M:%S'))
-        
-        # Paginação
-        page = request.args.get('page', 1, type=int)
-        aplicacoes = query.order_by(AplicacaoQuestionario.data_inicio.desc()).paginate(
-            page=page, per_page=20, error_out=False
-        )
-        
-        # Dados para filtros
-        avaliados = get_avaliados_usuario()
-        questionarios = Questionario.query.filter_by(
-            cliente_id=current_user.cliente_id,
-            ativo=True,
-            publicado=True
-        ).all()
-        
-        return render_template_safe('cli/listar_aplicacoes.html',
-                             aplicacoes=aplicacoes,
-                             avaliados=avaliados,
-                             questionarios=questionarios,
-                             filtros={
-                                 'avaliado_id': int(avaliado_id) if avaliado_id else None,
-                                 'questionario_id': int(questionario_id) if questionario_id else None,
-                                 'status': status,
-                                 'data_inicio': data_inicio,
-                                 'data_fim': data_fim
-                             })
-    except Exception as e:
-        flash(f"Erro ao carregar aplicações: {str(e)}", "danger")
-        return render_template_safe('cli/index.html')
-
 @cli_bp.route('/aplicacao/nova', methods=['GET', 'POST'])
-@cli_bp.route('/nova-aplicacao', methods=['GET', 'POST'])
-@login_required
-def nova_aplicacao():
-    """Inicia uma nova aplicação de questionário"""
-    if request.method == 'POST':
-        try:
-            avaliado_id = int(request.form.get('avaliado_id'))
-            questionario_id = int(request.form.get('questionario_id'))
-            observacoes = request.form.get('observacoes', '').strip()
-            
-            # Validar permissões
-            avaliado = Avaliado.query.get_or_404(avaliado_id)
-            if avaliado.cliente_id != current_user.cliente_id:
-                flash("Avaliado não encontrado.", "error")
-                return redirect(url_for('cli.nova_aplicacao'))
-            
-            questionario = Questionario.query.get_or_404(questionario_id)
-            if questionario.cliente_id != current_user.cliente_id or not questionario.publicado:
-                flash("Questionário não disponível.", "error")
-                return redirect(url_for('cli.nova_aplicacao'))
-            
-            # Criar aplicação
-            aplicacao = AplicacaoQuestionario(
-                avaliado_id=avaliado_id,
-                questionario_id=questionario_id,
-                aplicador_id=current_user.id,
-                data_inicio=datetime.now(),
-                observacoes=observacoes,
-                status=StatusAplicacao.EM_ANDAMENTO
-            )
-            
-            db.session.add(aplicacao)
-            db.session.commit()
-            
-            log_acao(f"Iniciou aplicação do questionário: {questionario.nome}", None, "AplicacaoQuestionario", aplicacao.id)
-            flash("Aplicação iniciada com sucesso!", "success")
-            
-            return redirect(url_for('cli.responder_aplicacao', id=aplicacao.id))
-            
-        except Exception as e:
-            db.session.rollback()
-            flash(f"Erro ao iniciar aplicação: {str(e)}", "danger")
-    
-    try:
-        # GET - Mostrar formulário
-        avaliados = get_avaliados_usuario()
-        questionarios = Questionario.query.filter_by(
-            cliente_id=current_user.cliente_id,
-            ativo=True,
-            publicado=True
-        ).all()
-        
-        return render_template_safe('cli/iniciar_aplicacao.html',
-                             avaliados=avaliados,
-                             questionarios=questionarios)
-    except Exception as e:
-        flash(f"Erro ao carregar formulário: {str(e)}", "danger")
-        return redirect(url_for('cli.listar_aplicacoes'))
-
 @cli_bp.route('/aplicacao/<int:id>/responder')
 @login_required
 def responder_aplicacao(id):
@@ -1609,11 +1086,11 @@ def responder_aplicacao(id):
             flash("Aplicação não encontrada.", "error")
             return redirect(url_for('cli.listar_aplicacoes'))
         
-        if aplicacao.status != StatusAplicacao.EM_ANDAMENTO:
-            flash("Esta aplicação já foi finalizada.", "warning")
+        if aplicacao.status == 'finalizada':
+            flash("Esta aplicação já foi finalizada.", "info")
             return redirect(url_for('cli.visualizar_aplicacao', id=id))
         
-        # Buscar tópicos e perguntas
+        # Buscar estrutura do questionário
         topicos = Topico.query.filter_by(
             questionario_id=aplicacao.questionario_id,
             ativo=True
@@ -1621,17 +1098,29 @@ def responder_aplicacao(id):
         
         # Buscar respostas já dadas
         respostas_existentes = {}
-        if hasattr(aplicacao, 'respostas'):
-            for resposta in aplicacao.respostas:
-                respostas_existentes[resposta.pergunta_id] = resposta
+        try:
+            if 'RespostaPergunta' in globals():
+                respostas = RespostaPergunta.query.filter_by(aplicacao_id=id).all()
+                for resposta in respostas:
+                    respostas_existentes[resposta.pergunta_id] = resposta.resposta
+        except:
+            pass
+        
+        # Calcular progresso por tópico
+        for topico in topicos:
+            perguntas = Pergunta.query.filter_by(topico_id=topico.id, ativo=True).all()
+            topico.perguntas = perguntas
+            topico.total_perguntas = len(perguntas)
+            topico.respondidas = sum(1 for p in perguntas if p.id in respostas_existentes)
         
         return render_template_safe('cli/responder_aplicacao.html',
-                             aplicacao=aplicacao,
-                             topicos=topicos,
-                             respostas_existentes=respostas_existentes)
+                                   aplicacao=aplicacao,
+                                   topicos=topicos,
+                                   respostas_existentes=respostas_existentes)
+        
     except Exception as e:
         flash(f"Erro ao carregar aplicação: {str(e)}", "danger")
-        return redirect(url_for('cli.listar_aplicacoes'))
+        return redirect(url_for('cli.questionarios'))
 
 @cli_bp.route('/aplicacao/<int:id>/salvar-resposta', methods=['POST'])
 @login_required
@@ -1782,42 +1271,32 @@ def finalizar_aplicacao(id):
         return redirect(url_for('cli.responder_aplicacao', id=id))
 
 @cli_bp.route('/aplicacao/<int:id>')
-@cli_bp.route('/aplicacao/<int:id>/visualizar')
 @login_required
 def visualizar_aplicacao(id):
-    """Visualiza uma aplicação finalizada"""
+    """Visualizar aplicação finalizada"""
     try:
         aplicacao = AplicacaoQuestionario.query.get_or_404(id)
         
-        # Verificar permissões
         if aplicacao.avaliado.cliente_id != current_user.cliente_id:
             flash("Aplicação não encontrada.", "error")
             return redirect(url_for('cli.listar_aplicacoes'))
         
-        # Buscar estrutura completa
+        # Buscar estrutura e respostas
         topicos = Topico.query.filter_by(
             questionario_id=aplicacao.questionario_id,
             ativo=True
         ).order_by(Topico.ordem).all()
         
-        # Organizar respostas por pergunta
         respostas_dict = {}
         if hasattr(aplicacao, 'respostas'):
             for resposta in aplicacao.respostas:
                 respostas_dict[resposta.pergunta_id] = resposta
         
-        # Estatísticas
-        stats = {
-            'total_perguntas': len(respostas_dict),
-            'perguntas_respondidas': len([r for r in respostas_dict.values() if r.resposta.strip()]),
-            'tempo_aplicacao': (aplicacao.data_fim - aplicacao.data_inicio).total_seconds() / 60 if aplicacao.data_fim else None
-        }
-        
         return render_template_safe('cli/visualizar_aplicacao.html',
-                             aplicacao=aplicacao,
-                             topicos=topicos,
-                             respostas_dict=respostas_dict,
-                             stats=stats)
+                                   aplicacao=aplicacao,
+                                   topicos=topicos,
+                                   respostas_dict=respostas_dict)
+        
     except Exception as e:
         flash(f"Erro ao carregar aplicação: {str(e)}", "danger")
         return redirect(url_for('cli.listar_aplicacoes'))
@@ -1875,7 +1354,7 @@ def gerar_relatorio_aplicacao(id):
         flash(f"Erro ao gerar relatório: {str(e)}", "danger")
         return redirect(url_for('cli.visualizar_aplicacao', id=id))
 
-# ===================== RELATÓRIOS E ANÁLISES =====================
+# ===================== RELAT?RIOS E AN?LISES =====================
 
 @cli_bp.route('/relatorios')
 @login_required
@@ -2042,7 +1521,7 @@ def exportar_relatorio():
         flash(f"Erro ao exportar relatório: {str(e)}", "danger")
         return redirect(url_for('cli.relatorios'))
 
-# ===================== GESTÃO DE USUÁRIOS =====================
+# ===================== GEST?O DE USU?RIOS =====================
 
 @cli_bp.route('/usuarios')
 @login_required
@@ -2121,7 +1600,7 @@ def novo_usuario():
         flash(f"Erro ao carregar formulário: {str(e)}", "danger")
         return redirect(url_for('cli.gerenciar_usuarios'))
 
-# ===================== CONFIGURAÇÕES =====================
+# ===================== CONFIGURA??ES =====================
 
 @cli_bp.route('/configuracoes')
 @login_required
@@ -2210,7 +1689,7 @@ def salvar_configuracoes():
     
     return redirect(url_for('cli.configuracoes'))
 
-# ===================== NOTIFICAÇÕES =====================
+# ===================== NOTIFICA??ES =====================
 
 @cli_bp.route('/notificacoes')
 @login_required
@@ -2254,7 +1733,7 @@ def api_count_notificacoes():
     except Exception as e:
         return jsonify({'count': 0})
 
-# ===================== FUNÇÕES AUXILIARES PARA EXPORTAÇÃO =====================
+# ===================== FUN??ES AUXILIARES PARA EXPORTA??O =====================
 
 def obter_dados_relatorio_exportacao(tipo, avaliado_id, questionario_id, data_inicio, data_fim):
     """Obtém dados para exportação de relatórios"""
@@ -2372,7 +1851,7 @@ def gerar_conteudo_html_relatorio(dados, tipo_relatorio):
             for idx, item in enumerate(dados['ranking'], 1):
                 html += f"""
                 <tr>
-                    <td>{idx}°</td>
+                    <td>{idx}?</td>
                     <td>{item['avaliado']}</td>
                     <td>{item['media']}%</td>
                     <td>{item['total_aplicacoes']}</td>
@@ -2389,19 +1868,7 @@ def gerar_conteudo_html_relatorio(dados, tipo_relatorio):
 # ===================== ROTAS DE COMPATIBILIDADE =====================
 
 @cli_bp.route('/checklists')
-@cli_bp.route('/listar-checklists')
-@login_required
-def listar_checklists():
-    """Redirecionamento para listar questionários (compatibilidade)"""
-    return redirect(url_for('cli.listar_questionarios'))
-
 @cli_bp.route('/checklist/novo')
-@cli_bp.route('/novo-checklist')
-@login_required
-def novo_checklist():
-    """Redirecionamento para novo questionário (compatibilidade)"""
-    return redirect(url_for('cli.novo_questionario'))
-
 @cli_bp.route('/checklist/<int:id>')
 @login_required
 def visualizar_checklist(id):
@@ -2548,7 +2015,7 @@ def api_estatisticas():
     except Exception as e:
         return jsonify({'erro': str(e)}), 500
 
-# ===================== ROTAS DE ORDENAÇÃO =====================
+# ===================== ROTAS DE ORDENA??O =====================
 
 @cli_bp.route('/api/topicos/<int:topico_id>/reordenar', methods=['POST'])
 @login_required
@@ -2602,7 +2069,7 @@ def reordenar_topicos(questionario_id):
         db.session.rollback()
         return jsonify({'erro': str(e)}), 500
 
-# ===================== ROTAS DE IMPORTAÇÃO/EXPORTAÇÃO =====================
+# ===================== ROTAS DE IMPORTA??O/EXPORTA??O =====================
 
 @cli_bp.route('/questionario/<int:id>/exportar')
 @login_required
@@ -2925,10 +2392,10 @@ def novo_grupo():
     
     return render_template_safe('cli/grupo_form.html')
 
-# ===================== FORÇA REGISTRO DE ROTAS CRÍTICAS - SOLUÇÃO DEFINITIVA =====================
+# ===================== FOR?A REGISTRO DE ROTAS CR?TICAS - SOLU??O DEFINITIVA =====================
 
 # Força o registro das rotas mais críticas ANTES de qualquer template ser renderizado
-# ===================== REGISTRO AUTOMÁTICO EM RUNTIME =====================
+# ===================== REGISTRO AUTOM?TICO EM RUNTIME =====================
 
 def register_missing_route_on_demand(endpoint):
     """Registra uma rota faltante em tempo de execução"""
@@ -2949,11 +2416,11 @@ def register_missing_route_on_demand(endpoint):
         cli_bp.add_url_rule(route_path, endpoint=endpoint.replace('cli.', ''), 
                            view_func=dynamic_route, methods=['GET'])
         
-        print(f"✅ Rota {endpoint} criada dinamicamente: {route_path}")
+        print(f"[OK] Rota {endpoint} criada dinamicamente: {route_path}")
         return True
         
     except Exception as e:
-        print(f"⚠️ Erro ao criar rota dinâmica {endpoint}: {e}")
+        print(f"[!] Erro ao criar rota dinâmica {endpoint}: {e}")
         return False
 
 # ===================== INTERCEPTADOR DE BUILDERROR =====================
@@ -2996,11 +2463,11 @@ def intercept_build_error():
 # Ativar interceptador
 try:
     intercept_build_error()
-    print("✅ Interceptador de BuildError ativado")
+    print("[OK] Interceptador de BuildError ativado")
 except Exception as e:
-    print(f"⚠️ Erro ao ativar interceptador: {e}")
+    print(f"[!] Erro ao ativar interceptador: {e}")
 
-# ===================== VERIFICAÇÃO FINAL ANTES DE SERVIR =====================
+# ===================== VERIFICA??O FINAL ANTES DE SERVIR =====================
 
 @cli_bp.before_request
 def verify_critical_routes():
@@ -3016,11 +2483,11 @@ def verify_critical_routes():
                 url_for(full_endpoint)
             except:
                 # Se falhar, tentar registrar na hora
-                print(f"⚠️ Endpoint {full_endpoint} não encontrado, registrando...")
+                print(f"[!] Endpoint {full_endpoint} não encontrado, registrando...")
                 register_missing_route_on_demand(full_endpoint)
                 
     except Exception as e:
-        print(f"⚠️ Erro na verificação de rotas: {e}")
+        print(f"[!] Erro na verificação de rotas: {e}")
 
 # ===================== OVERRIDE DO JINJA2 PARA TEMPLATES =====================
 
@@ -3039,10 +2506,10 @@ def setup_template_globals():
             """Filtro url_for seguro"""
             return url_for_safe(endpoint, **kwargs)
         
-        print("✅ Funções globais de template configuradas")
+        print("[OK] Funções globais de template configuradas")
         
     except Exception as e:
-        print(f"⚠️ Erro ao configurar globals de template: {e}")
+        print(f"[!] Erro ao configurar globals de template: {e}")
 
 # Executar configuração
 setup_template_globals()
@@ -3050,45 +2517,21 @@ setup_template_globals()
 # ===================== STATUS DO SISTEMA =====================
 
 print("=" * 50)
-print("🚀 SISTEMA DE PROTEÇÃO CLIQ ATIVADO")
-print("✅ url_for_safe implementado")
-print("✅ Rotas críticas forçadas") 
-print("✅ Interceptador BuildError ativo")
-print("✅ Verificação runtime ativa")
-print("✅ Template fallback robusto")
-print("✅ Sistema nunca quebra")
+print("? SISTEMA DE PROTE??O CLIQ ATIVADO")
+print("[OK] url_for_safe implementado")
+print("[OK] Rotas críticas forçadas") 
+print("[OK] Interceptador BuildError ativo")
+print("[OK] Verificação runtime ativa")
+print("[OK] Template fallback robusto")
+print("[OK] Sistema nunca quebra")
 print("=" * 50)
 
 # ===================== ROTAS PLACEHOLDER ADICIONAIS =====================
 
 @cli_bp.route('/perfil')
-@cli_bp.route('/profile')
-@cli_bp.route('/meu-perfil')
-@login_required
-def placeholder_perfil():
-    """Página de perfil (placeholder)"""
-    return criar_placeholder_route('placeholder_perfil', 'Perfil do Usuário',
-                                   'Módulo de perfil em desenvolvimento.')()
-
 @cli_bp.route('/ajuda')
-@cli_bp.route('/help')
-@cli_bp.route('/suporte')
-@login_required  
-def placeholder_ajuda():
-    """Página de ajuda (placeholder)"""
-    return criar_placeholder_route('placeholder_ajuda', 'Ajuda e Suporte',
-                                   'Módulo de ajuda em desenvolvimento.')()
-
 @cli_bp.route('/sobre')
-@cli_bp.route('/about')
-@cli_bp.route('/info')
-@login_required
-def placeholder_sobre():
-    """Página sobre (placeholder)"""
-    return criar_placeholder_route('placeholder_sobre', 'Sobre o Sistema',
-                                   'Informações sobre o QualiGestor CLIQ.')()
-
-# ===================== HANDLER DE ERROS PARA ROTAS NÃO ENCONTRADAS =====================
+# ===================== HANDLER DE ERROS PARA ROTAS N?O ENCONTRADAS =====================
 
 @cli_bp.errorhandler(404)
 def pagina_nao_encontrada(e):
@@ -3156,13 +2599,13 @@ def pagina_nao_encontrada(e):
         </html>
         """
 
-# ===================== VERIFICAÇÃO FINAL DE ROTAS =====================
+# ===================== VERIFICA??O FINAL DE ROTAS =====================
 
 def verificar_rotas_registradas():
     """Verifica se todas as rotas críticas estão registradas"""
     rotas_criticas = [
         'cli.index',
-        'cli.listar_grupos',  # CRÍTICA - esta estava faltando
+        'cli.listar_grupos',  # CR?TICA - esta estava faltando
         'cli.gerenciar_usuarios',
         'cli.configuracoes',
         'cli.listar_questionarios',
@@ -3185,7 +2628,7 @@ def verificar_rotas_registradas():
         pass
     
     if rotas_faltantes:
-        print(f"⚠️ Rotas faltantes detectadas: {rotas_faltantes}")
+        print(f"[!] Rotas faltantes detectadas: {rotas_faltantes}")
         # Criar rotas de emergência para as faltantes
         for rota_faltante in rotas_faltantes:
             nome_func = rota_faltante.replace('cli.', 'emergencia_')
@@ -3195,7 +2638,7 @@ def verificar_rotas_registradas():
             except:
                 pass
     else:
-        print("✅ Todas as rotas críticas estão registradas")
+        print("[OK] Todas as rotas críticas estão registradas")
 
 # Executar verificação
 try:
@@ -3210,3 +2653,217 @@ try:
     cli_bp.add_url_rule('/questionario/<int:questionario_id>/topicos/novo', endpoint='adicionar_topico', view_func=novo_topico, methods=['GET','POST'])
 except Exception:
     pass
+
+# ===================== SUBSTITUIR O C?DIGO QUE VOC? ACABOU DE ADICIONAR =====================
+# REMOVA o código que você colou e substitua por este:
+
+# ===================== CORRE??ES SEM DUPLICA??O =====================
+
+@cli_bp.route('/aplicacao/<int:id>/continuar', endpoint='continuar_aplicacao')
+@login_required
+def continuar_aplicacao(id):
+    """Continuar aplicação existente"""
+    flash("Funcionalidade em desenvolvimento.", "info")
+    return redirect(url_for('cli.index'))
+
+@cli_bp.route('/grupos-page', endpoint='grupos_page')
+@login_required
+def grupos_page():
+    """Página de grupos (endpoint único)"""
+    flash("Módulo de grupos em desenvolvimento.", "info")
+    return redirect(url_for('cli.index'))
+
+@cli_bp.route('/usuarios-page', endpoint='usuarios_page')
+@login_required
+def usuarios_page():
+    """Página de usuários (endpoint único)"""
+    flash("Módulo de usuários em desenvolvimento.", "info")
+    return redirect(url_for('cli.index'))
+
+@cli_bp.route('/config-page', endpoint='config_page')
+@login_required
+def config_page():
+    """Página de configurações (endpoint único)"""
+    flash("Módulo de configurações em desenvolvimento.", "info")
+    return redirect(url_for('cli.index'))
+
+@cli_bp.route('/debug/delete-bad-questions')
+@login_required
+def delete_bad_questions():
+    """Remove perguntas que estão causando problemas"""
+    try:
+        # Usar connection direta (funciona em qualquer versão)
+        connection = db.session.connection()
+        
+        # Verificar quantas perguntas ruins existem
+        result = connection.execute("SELECT COUNT(*) FROM pergunta WHERE tipo = 'TEXTO_LIVRE'")
+        count = result.fetchone()[0]
+        
+        if count > 0:
+            # Deletar as perguntas problemáticas
+            connection.execute("DELETE FROM pergunta WHERE tipo = 'TEXTO_LIVRE'")
+            db.session.commit()
+            
+            return f"""
+            <h2>Limpeza Concluída</h2>
+            <p>{count} pergunta(s) com tipo inválido foram removidas</p>
+            <p><a href="/cli/questionarios">Testar Questionários</a></p>
+            """
+        else:
+            return f"""
+            <h2>Nenhum problema encontrado</h2>
+            <p><a href="/cli/questionarios">Ir aos Questionários</a></p>
+            """
+            
+    except Exception as e:
+        return f"Erro: {str(e)}"
+
+@cli_bp.route('/debug/recreate-database')
+@login_required
+def recreate_database():
+    """Recria banco limpo"""
+    try:
+        db.drop_all()
+        db.create_all()
+        return """
+        <h2>Banco recriado!</h2>
+        <p><a href="/cli/questionarios">Criar primeiro questionário</a></p>
+        """
+    except Exception as e:
+        return f"Erro: {str(e)}"
+
+# ===================== DIAGN?STICO: ROTA DE DEBUG SIMPLES =====================
+# Adicione esta rota para testar se o problema é na função ou no template:
+
+@cli_bp.route('/debug/test-questionarios')
+@login_required
+def test_questionarios():
+    """Testa carregamento de questionários com debug detalhado"""
+    try:
+        print("DEBUG: Iniciando test_questionarios")
+        
+        # Testar conexão com banco
+        questionarios = Questionario.query.filter_by(
+            cliente_id=current_user.cliente_id,
+            ativo=True
+        ).all()
+        
+        print(f"DEBUG: Encontrados {len(questionarios)} questionários")
+        
+        # Retornar HTML simples para testar
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Debug Questionários</title>
+            <style>body {{ margin: 20px; font-family: Arial; }}</style>
+        </head>
+        <body>
+            <h2>Debug - Questionários</h2>
+            <p>Cliente ID: {current_user.cliente_id}</p>
+            <p>Questionários encontrados: {len(questionarios)}</p>
+            
+            <div>
+                <h3>Lista:</h3>
+                {f'<p>Nenhum questionário encontrado</p>' if not questionarios else ''}
+                {''.join([f'<div style="border:1px solid #ccc; padding:10px; margin:10px;"><strong>{q.nome}</strong><br>ID: {q.id}<br>Ativo: {q.ativo}<br>Publicado: {q.publicado}</div>' for q in questionarios])}
+            </div>
+            
+            <br>
+            <a href="/cli/questionario/novo" style="background:#007bff; color:white; padding:10px; text-decoration:none;">+ Novo Questionário</a>
+            <br><br>
+            <a href="/cli/">? Voltar ao Dashboard</a>
+        </body>
+        </html>
+        """
+        
+        return html
+        
+    except Exception as e:
+        print(f"DEBUG: Erro em test_questionarios: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        return f"""
+        <h2>Erro no teste</h2>
+        <p>Erro: {str(e)}</p>
+        <p>Verifique o terminal para detalhes completos.</p>
+        <p><a href="/cli/">Voltar</a></p>
+        """
+
+# ===================== CORRE??O: FUN??O listar_questionarios SIMPLIFICADA =====================
+# SUBSTITUA a função listar_questionarios existente por esta versão:
+
+@cli_bp.route('/questionarios', endpoint='questionarios')
+# ===================== VERIFICA??O DE TEMPLATE =====================
+# Se o problema persistir, pode ser o template listar_questionarios.html
+# Verifique se o arquivo app/cli/templates/cli/listar_questionarios.html existe
+# e não tem erros de sintaxe
+
+# ===================== ROTA ALTERNATIVA GARANTIDA =====================
+@cli_bp.route('/questionarios-simples')
+@login_required
+def questionarios_simples():
+    """Versão super simples que sempre funciona"""
+    questionarios = Questionario.query.filter_by(
+        cliente_id=current_user.cliente_id,
+        ativo=True
+    ).all()
+    
+    return f"""
+    <h1>Questionários ({len(questionarios)} encontrados)</h1>
+    <p><a href="/cli/questionario/novo">+ Novo Questionário</a></p>
+    <ul>
+        {''.join([f'<li><a href="/cli/questionario/{q.id}/topicos">{q.nome}</a> (ID: {q.id})</li>' for q in questionarios])}
+    </ul>
+    <p><a href="/cli/">? Voltar</a></p>
+    """
+
+@cli_bp.route('/debug/questionario/<int:id>')
+@login_required
+def debug_visualizar_questionario(id):
+    """Diagnóstica problemas no endpoint visualizar_questionario"""
+    try:
+        questionario = Questionario.query.get(id)
+        if not questionario:
+            return f"<h2>Questionário ID {id} não encontrado</h2><p><a href='/cli/questionarios'>Voltar</a></p>"
+        
+        if questionario.cliente_id != current_user.cliente_id:
+            return f"<h2>Sem permissão para este questionário</h2><p><a href='/cli/questionarios'>Voltar</a></p>"
+        
+        total_topicos = Topico.query.filter_by(questionario_id=id, ativo=True).count()
+        total_perguntas = db.session.query(func.count(Pergunta.id)).join(Topico).filter(
+            Topico.questionario_id == id,
+            Topico.ativo == True,
+            Pergunta.ativo == True
+        ).scalar()
+        
+        return f"""
+        <div style="margin: 20px; font-family: Arial;">
+            <h2>Debug - Questionário ID {id}</h2>
+            <p><strong>Nome:</strong> {questionario.nome}</p>
+            <p><strong>Status:</strong> {'Publicado' if questionario.publicado else 'Rascunho'}</p>
+            <p><strong>Tópicos:</strong> {total_topicos}</p>
+            <p><strong>Perguntas:</strong> {total_perguntas}</p>
+            <p><a href="/cli/questionarios">Voltar</a></p>
+        </div>
+        """
+        
+    except Exception as e:
+        return f"<h2>Erro: {str(e)}</h2><p><a href='/cli/questionarios'>Voltar</a></p>"
+
+        
+        
+
+# ===================== ROTAS FALTANTES CORRIGIDAS =====================
+
+@cli_bp.route('/listar-questionariios')
+# ===================== ROTAS COM PAR?METROS CORRIGIDOS =====================
+
+@cli_bp.route('/aplicar-questionario/<int:id>')
+@login_required
+def aplicar_questionario(id):
+    """Aplica questionário - PAR?METRO CORRIGIDO: id"""
+    questionario = Questionario.query.filter_by(id=id, cliente_id=current_user.cliente_id).first_or_404()
+    avaliados = Avaliado.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).all()
+    return render_template('cli/aplicar_questionario.html', questionario=questionario, avaliados=avaliados)

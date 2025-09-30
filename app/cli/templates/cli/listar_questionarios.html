@@ -4,56 +4,97 @@
 {% block content %}
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h4>Questionários Cadastrados</h4>
-        <a href="{{ url_for('cli.novo_questionario') }}" class="btn btn-primary">
+        <h1 class="h3 mb-0">
+            <i class="fas fa-list-alt text-primary me-2"></i>
+            Questionários
+        </h1>
+        {% if has_endpoint('cli.novo_questionario') %}
+        <a href="{{ url_for_safe('cli.novo_questionario') }}" class="btn btn-primary">
             <i class="fas fa-plus"></i> Novo Questionário
         </a>
+        {% else %}
+        <button class="btn btn-secondary" disabled>
+            <i class="fas fa-plus"></i> Novo Questionário <small>(em breve)</small>
+        </button>
+        {% endif %}
     </div>
 
     <div class="card shadow-sm">
         <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>Nome</th>
-                            <th>Versão</th>
-                            <th>Status</th>
-                            <th>Criado em</th>
-                            <th>Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for formulario in formularios %}
-                        <tr>
-                            <td>{{ formulario.nome }}</td>
-                            <td>{{ formulario.versao }}</td>
-                            <td>
-                                <span class="badge bg-{{ 'success' if formulario.publicado else 'warning' }}">
-                                    {{ 'Publicado' if formulario.publicado else 'Rascunho' }}
-                                </span>
-                            </td>
-                            <td>{{ formulario.criado_em.strftime('%d/%m/%Y') if formulario.criado_em else '-' }}</td>
-                            <td>
-                                <a href="{{ url_for('cli.visualizar_formulario', formulario_id=formulario.id) }}" 
-                                   class="btn btn-sm btn-outline-primary" title="Visualizar">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                <a href="{{ url_for('cli.selecionar_loja', formulario_id=formulario.id) }}" 
-                                   class="btn btn-sm btn-outline-success" title="Aplicar">
-                                    <i class="fas fa-play"></i>
-                                </a>
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="5" class="text-center text-muted py-4">
-                                Nenhum questionário cadastrado
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <div class="row">
+                <div class="col-12">
+                    <p class="text-muted mb-4">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Gerencie os questionários e checklists do sistema.
+                    </p>
+
+                    <!-- Placeholder para lista de questionários -->
+                    <div class="alert alert-info">
+                        <h5 class="alert-heading">
+                            <i class="fas fa-construction me-2"></i>
+                            Funcionalidade Básica
+                        </h5>
+                        <p class="mb-0">
+                            A listagem completa de questionários será implementada conforme os modelos forem criados.
+                        </p>
+                    </div>
+
+                    <!-- Estrutura futura da tabela -->
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Nome</th>
+                                    <th>Versão</th>
+                                    <th>Status</th>
+                                    <th>Data Criação</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if questionarios and questionarios|length %}
+                                {% for q in questionarios %}
+                                {% set nome = q.nome or q.titulo %}
+                                {% set versao = q.versao or '1.0' %}
+                                {% set pub = q.publicado if q.publicado is not none else q.ativo %}
+                                {% set dt = q.criado_em or q.data_criacao or q.created_at %}
+                                <tr>
+                                    <td>{{ q.id }}</td>
+                                    <td>{{ nome }}</td>
+                                    <td>{{ versao }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ 'success' if pub else 'warning' }}">
+                                            {{ 'Publicado' if pub else 'Rascunho' }}
+                                        </span>
+                                    </td>
+                                    <td>{{ dt.strftime('%d/%m/%Y') if dt else '-' }}</td>
+                                    <td>
+                                        <a href="{{ url_for_safe('cli.visualizar_questionario', questionario_id=q.id) }}"
+                                            class="btn btn-sm btn-outline-primary" title="Visualizar">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{{ url_for_safe('cli.selecionar_loja', questionario_id=q.id) }}"
+                                            class="btn btn-sm btn-outline-success" title="Aplicar">
+                                            <i class="fas fa-play"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-4">
+                                        <i class="fas fa-inbox fa-2x mb-2"></i><br>
+                                        Nenhum questionário cadastrado ainda.
+                                        {% if usou_fallback %}<br><small>(Nem mesmo no fallback)</small>{% endif %}
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            </tbody>
+
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

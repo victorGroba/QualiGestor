@@ -1,0 +1,42 @@
+{% extends "base_cliq.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-play me-2"></i>Aplicar Questionário - {{ questionario.nome }}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p>Selecione o avaliado para aplicar este questionário:</p>
+                    
+                    {% if avaliados %}
+                        <div class="list-group">
+                            {% for avaliado in avaliados %}
+                            <a href="#" class="list-group-item list-group-item-action">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-1">{{ avaliado.nome }}</h6>
+                                        <small class="text-muted">{{ avaliado.email or 'Sem email' }}</small>
+                                    </div>
+                                    <span class="badge bg-primary">Aplicar</span>
+                                </div>
+                            </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-users fa-3x"></i>
+                            <h4>Nenhum avaliado disponível</h4>
+                            <p>Cadastre avaliados antes de aplicar questionários.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

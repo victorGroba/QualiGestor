@@ -75,6 +75,11 @@ class MockQuery:
 
 cli_bp = Blueprint('cli', __name__, template_folder='templates')
 
+@cli_bp.route('/aplicacoes/iniciar', methods=['GET'])
+@login_required
+def iniciar_aplicacao():
+    """Endpoint que estava redirecionando - corrigido"""
+    return redirect(url_for('cli.nova_aplicacao'))
 # ===================== CORREÇÃO 2: DECORATOR ADMIN_REQUIRED ROBUSTO =====================
 
 def admin_required(f):
@@ -337,100 +342,6 @@ def index():
 
 # ===================== QUESTIONÁRIOS =====================
 
-from flask import request, flash
-from sqlalchemy import func, or_
-
-from flask import request, flash
-from sqlalchemy import func, or_
-
-@cli_bp.route('/questionarios', endpoint='listar_questionarios', methods=['GET'])
-@cli_bp.route('/listar-questionarios', methods=['GET'])
-@login_required
-def listar_questionarios():
-    """
-    Lista questionários de forma robusta:
-    - Só filtra por cliente/ativo se os campos existirem.
-    - Se o filtro resultar em 0 itens, faz fallback e lista TODOS (com aviso).
-    - Evita quebrar se o model de aplicação tiver nome diferente.
-    """
-    # Query base
-    q_base = Questionario.query
-
-    # ---- Filtros opcionais ----
-    q = q_base
-
-    # Filtro por cliente (aplica só se existir o campo e o usuário tiver cliente_id)
-    tem_cliente = hasattr(Questionario, "cliente_id") and getattr(current_user, "cliente_id", None)
-    if tem_cliente:
-        q = q.filter(Questionario.cliente_id == current_user.cliente_id)
-
-    # Filtro de ativos (aplica só se existir a coluna)
-    if hasattr(Questionario, "ativo"):
-        status = request.args.get("status", "ativos")  # ativos | inativos | todos
-        if status == "ativos":
-            q = q.filter(Questionario.ativo.is_(True))
-        elif status == "inativos":
-            q = q.filter(Questionario.ativo.is_(False))
-        # "todos" não filtra
-
-    # Busca por texto (?q=...)
-    termo = (request.args.get("q") or "").strip()
-    if termo:
-        like = f"%{termo}%"
-        filtros = []
-        if hasattr(Questionario, "nome"):      filtros.append(Questionario.nome.ilike(like))
-        if hasattr(Questionario, "titulo"):    filtros.append(Questionario.titulo.ilike(like))
-        if hasattr(Questionario, "descricao"): filtros.append(Questionario.descricao.ilike(like))
-        if filtros:
-            q = q.filter(or_(*filtros))
-
-    # Ordenação
-    if hasattr(Questionario, "nome"):
-        q = q.order_by(Questionario.nome.asc())
-    elif hasattr(Questionario, "id"):
-        q = q.order_by(Questionario.id.desc())
-
-    # Executa com filtro
-    questionarios = q.all()
-
-    # Fallback: se nada foi retornado, lista TUDO (sem filtros) e avisa
-    usou_fallback = False
-    if not questionarios:
-        usou_fallback = True
-        q2 = q_base
-        if hasattr(Questionario, "nome"):
-            q2 = q2.order_by(Questionario.nome.asc())
-        elif hasattr(Questionario, "id"):
-            q2 = q2.order_by(Questionario.id.desc())
-        questionarios = q2.all()
-        flash("Nenhum item com os filtros atuais — exibindo todos para depuração.", "warning")
-
-    # Estatísticas (sem quebrar)
-    ModelAplic = globals().get('AplicacaoQuestionario') or globals().get('Aplicacao')
-    if ModelAplic:
-        counts = dict(
-            db.session.query(ModelAplic.questionario_id, func.count(ModelAplic.id))
-            .group_by(ModelAplic.questionario_id).all()
-        )
-        medias = dict(
-            db.session.query(ModelAplic.questionario_id, func.avg(ModelAplic.nota_final))
-            .group_by(ModelAplic.questionario_id).all()
-        )
-        for item in questionarios:
-            item.total_aplicacoes = counts.get(item.id, 0)
-            item.media_nota = float(medias.get(item.id) or 0.0)
-    else:
-        for item in questionarios:
-            item.total_aplicacoes = 0
-            item.media_nota = 0.0
-
-    return render_template_safe(
-        'cli/listar_questionarios.html',
-        questionarios=questionarios,
-        termo=termo,
-        status=request.args.get("status", "ativos"),
-        usou_fallback=usou_fallback,
-    )
 
 
 @cli_bp.route('/questionario/novo', methods=['GET', 'POST'])
@@ -642,39 +553,168 @@ def processar_novo_questionario():
 @cli_bp.route('/questionario/<int:id>/visualizar')
 @login_required
 def visualizar_questionario(id):
-    """Visualiza detalhes do questionário"""
+    """Visualiza detalhes do questionário - VERSÃO CORRIGIDA"""
     try:
         questionario = Questionario.query.get_or_404(id)
         
         if questionario.cliente_id != current_user.cliente_id:
             flash("Questionário não encontrado.", "error")
-            return redirect(url_for('cli.listar_questionarios'))
+            return redirect(url_for('cli.questionarios'))  # CORRIGIDO: usar 'questionarios'
         
-        # Estatísticas do questionário
+        # Estatísticas básicas (sem AplicacaoQuestionario por enquanto)
         stats = {
-            'total_aplicacoes': AplicacaoQuestionario.query.filter_by(questionario_id=id).count(),
             'total_topicos': Topico.query.filter_by(questionario_id=id, ativo=True).count(),
             'total_perguntas': db.session.query(func.count(Pergunta.id)).join(Topico).filter(
                 Topico.questionario_id == id,
+                Topico.ativo == True,
                 Pergunta.ativo == True
-            ).scalar(),
-            'media_nota': db.session.query(func.avg(AplicacaoQuestionario.nota_final)).filter_by(
-                questionario_id=id
-            ).scalar() or 0
+            ).scalar() or 0,
+            'total_aplicacoes': 0,  # Simplificado por enquanto
+            'media_nota': 0         # Simplificado por enquanto
         }
         
-        # Últimas aplicações
-        ultimas_aplicacoes = AplicacaoQuestionario.query.filter_by(
-            questionario_id=id
-        ).order_by(AplicacaoQuestionario.data_inicio.desc()).limit(10).all()
+        # Buscar tópicos para exibir
+        topicos = Topico.query.filter_by(
+            questionario_id=id,
+            ativo=True
+        ).order_by(Topico.ordem).all()
         
-        return render_template_safe('cli/visualizar_questionario.html',
-                             questionario=questionario,
-                             stats=stats,
-                             ultimas_aplicacoes=ultimas_aplicacoes)
+        # Adicionar contagem de perguntas para cada tópico
+        for topico in topicos:
+            topico.total_perguntas = Pergunta.query.filter_by(
+                topico_id=topico.id,
+                ativo=True
+            ).count()
+        
+        # Template inline que sempre funciona
+        return f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Questionário: {questionario.nome}</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+        </head>
+        <body>
+            <div class="container mt-4">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="/cli/">Dashboard</a></li>
+                        <li class="breadcrumb-item"><a href="/cli/questionarios">Questionários</a></li>
+                        <li class="breadcrumb-item active">{questionario.nome}</li>
+                    </ol>
+                </nav>
+                
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h2>{questionario.nome}</h2>
+                        <p class="text-muted">{questionario.descricao or 'Sem descrição'}</p>
+                    </div>
+                    <div>
+                        <span class="badge bg-{'success' if questionario.publicado else 'secondary'} me-2">
+                            {'Publicado' if questionario.publicado else 'Rascunho'}
+                        </span>
+                        <span class="badge bg-info">v{questionario.versao}</span>
+                    </div>
+                </div>
+                
+                <!-- Estatísticas -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h5 class="card-title">{stats['total_topicos']}</h5>
+                                <p class="card-text">Tópicos</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h5 class="card-title">{stats['total_perguntas']}</h5>
+                                <p class="card-text">Perguntas</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h5 class="card-title">{stats['total_aplicacoes']}</h5>
+                                <p class="card-text">Aplicações</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h5 class="card-title">{stats['media_nota']}%</h5>
+                                <p class="card-text">Média</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5>Estrutura do Questionário</h5>
+                                <a href="/cli/questionario/{id}/topicos" class="btn btn-primary btn-sm">Gerenciar Tópicos</a>
+                            </div>
+                            <div class="card-body">
+                                {f'<p class="text-muted">Nenhum tópico criado ainda.</p>' if not topicos else ''}
+                                {''.join([f'''
+                                <div class="border-bottom mb-3 pb-3">
+                                    <h6>{topico.nome}</h6>
+                                    <p class="text-muted mb-1">{topico.descricao or 'Sem descrição'}</p>
+                                    <small class="text-secondary">{topico.total_perguntas} pergunta(s)</small>
+                                    <div class="mt-2">
+                                        <a href="/cli/topico/{topico.id}/perguntas" class="btn btn-outline-primary btn-sm">Ver Perguntas</a>
+                                    </div>
+                                </div>
+                                ''' for topico in topicos])}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Ações</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="d-grid gap-2">
+                                    <a href="/cli/questionario/{id}/topicos" class="btn btn-primary">Gerenciar Conteúdo</a>
+                                    <a href="/cli/questionario/{id}/editar" class="btn btn-outline-secondary">Editar Questionário</a>
+                                    <a href="/cli/questionario/{id}/duplicar" class="btn btn-outline-info">Duplicar</a>
+                                    {'<button class="btn btn-success" onclick="publicarQuestionario()">Publicar</button>' if not questionario.publicado and stats['total_perguntas'] > 0 else ''}
+                                    {'<a href="/cli/aplicacao/nova?questionario=' + str(id) + '" class="btn btn-warning">Nova Aplicação</a>' if questionario.publicado else ''}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <a href="/cli/questionarios" class="btn btn-secondary">← Voltar aos Questionários</a>
+                </div>
+            </div>
+            
+            <script>
+            function publicarQuestionario() {{
+                if(confirm('Deseja publicar este questionário?')) {{
+                    fetch('/cli/questionario/{id}/publicar', {{method: 'POST'}})
+                    .then(() => location.reload());
+                }}
+            }}
+            </script>
+        </body>
+        </html>
+        """
+        
     except Exception as e:
+        print(f"DEBUG: Erro em visualizar_questionario: {e}")
         flash(f"Erro ao carregar questionário: {str(e)}", "danger")
-        return redirect(url_for('cli.listar_questionarios'))
+        return redirect(url_for('cli.questionarios'))
 
 @cli_bp.route('/questionario/<int:id>/editar', methods=['GET', 'POST'])
 @login_required
@@ -1096,7 +1136,8 @@ def nova_pergunta(topico_id):
             print("DEBUG: Processando POST da pergunta")
             try:
                 texto = request.form.get('texto', '').strip()
-                tipo = request.form.get('tipo', 'SIM_NAO_NA')
+                # Mapear tipos inválidos para válidos
+                tipo = request.form.get('tipo', 'Sim/Não/N.A.')
                 obrigatoria = request.form.get('obrigatoria') == 'on'
                 permite_observacao = request.form.get('permite_observacao') == 'on'
                 peso = int(request.form.get('peso', 1))
@@ -1538,64 +1579,76 @@ def listar_aplicacoes():
         return render_template_safe('cli/index.html')
 
 @cli_bp.route('/aplicacao/nova', methods=['GET', 'POST'])
-@cli_bp.route('/nova-aplicacao', methods=['GET', 'POST'])
+@cli_bp.route('/aplicacoes/nova', methods=['GET', 'POST'])
 @login_required
 def nova_aplicacao():
-    """Inicia uma nova aplicação de questionário"""
+    """Criar nova aplicação"""
     if request.method == 'POST':
         try:
-            avaliado_id = int(request.form.get('avaliado_id'))
-            questionario_id = int(request.form.get('questionario_id'))
+            questionario_id = request.form.get('questionario_id')
+            avaliado_nome = request.form.get('avaliado_nome', '').strip()
+            avaliado_codigo = request.form.get('avaliado_codigo', '').strip()
+            avaliado_local = request.form.get('avaliado_local', '').strip()
             observacoes = request.form.get('observacoes', '').strip()
             
-            # Validar permissões
-            avaliado = Avaliado.query.get_or_404(avaliado_id)
-            if avaliado.cliente_id != current_user.cliente_id:
-                flash("Avaliado não encontrado.", "error")
-                return redirect(url_for('cli.nova_aplicacao'))
+            if not questionario_id:
+                flash("Selecione um questionário.", "warning")
+                return redirect(request.url)
             
-            questionario = Questionario.query.get_or_404(questionario_id)
-            if questionario.cliente_id != current_user.cliente_id or not questionario.publicado:
-                flash("Questionário não disponível.", "error")
-                return redirect(url_for('cli.nova_aplicacao'))
+            if not avaliado_nome:
+                flash("Informe o nome do avaliado.", "warning")
+                return redirect(request.url)
+            
+            # Verificar questionário
+            questionario = Questionario.query.get(questionario_id)
+            if not questionario or questionario.cliente_id != current_user.cliente_id or not questionario.publicado:
+                flash("Questionário não encontrado ou não publicado.", "error")
+                return redirect(request.url)
+            
+            # Criar ou buscar avaliado
+            avaliado = Avaliado(
+                nome=avaliado_nome,
+                codigo=avaliado_codigo,
+                endereco=avaliado_local,
+                cliente_id=current_user.cliente_id,
+                ativo=True
+            )
+            db.session.add(avaliado)
+            db.session.flush()
             
             # Criar aplicação
             aplicacao = AplicacaoQuestionario(
-                avaliado_id=avaliado_id,
                 questionario_id=questionario_id,
+                avaliado_id=avaliado.id,
                 aplicador_id=current_user.id,
                 data_inicio=datetime.now(),
                 observacoes=observacoes,
-                status=StatusAplicacao.EM_ANDAMENTO
+                status='em_andamento'
             )
             
             db.session.add(aplicacao)
             db.session.commit()
             
-            log_acao(f"Iniciou aplicação do questionário: {questionario.nome}", None, "AplicacaoQuestionario", aplicacao.id)
-            flash("Aplicação iniciada com sucesso!", "success")
-            
+            flash(f"Aplicação criada com sucesso!", "success")
             return redirect(url_for('cli.responder_aplicacao', id=aplicacao.id))
             
         except Exception as e:
             db.session.rollback()
-            flash(f"Erro ao iniciar aplicação: {str(e)}", "danger")
+            flash(f"Erro ao criar aplicação: {str(e)}", "danger")
+            return redirect(request.url)
     
-    try:
-        # GET - Mostrar formulário
-        avaliados = get_avaliados_usuario()
-        questionarios = Questionario.query.filter_by(
-            cliente_id=current_user.cliente_id,
-            ativo=True,
-            publicado=True
-        ).all()
-        
-        return render_template_safe('cli/iniciar_aplicacao.html',
-                             avaliados=avaliados,
-                             questionarios=questionarios)
-    except Exception as e:
-        flash(f"Erro ao carregar formulário: {str(e)}", "danger")
-        return redirect(url_for('cli.listar_aplicacoes'))
+    # GET - Mostrar formulário
+    questionario_id = request.args.get('questionario')
+    
+    questionarios = Questionario.query.filter_by(
+        cliente_id=current_user.cliente_id,
+        publicado=True,
+        ativo=True
+    ).order_by(Questionario.nome).all()
+    
+    return render_template_safe('cli/nova_aplicacao.html',
+                               questionarios=questionarios,
+                               questionario_selecionado=questionario_id)
 
 @cli_bp.route('/aplicacao/<int:id>/responder')
 @login_required
@@ -1609,11 +1662,11 @@ def responder_aplicacao(id):
             flash("Aplicação não encontrada.", "error")
             return redirect(url_for('cli.listar_aplicacoes'))
         
-        if aplicacao.status != StatusAplicacao.EM_ANDAMENTO:
-            flash("Esta aplicação já foi finalizada.", "warning")
+        if aplicacao.status == 'finalizada':
+            flash("Esta aplicação já foi finalizada.", "info")
             return redirect(url_for('cli.visualizar_aplicacao', id=id))
         
-        # Buscar tópicos e perguntas
+        # Buscar estrutura do questionário
         topicos = Topico.query.filter_by(
             questionario_id=aplicacao.questionario_id,
             ativo=True
@@ -1621,17 +1674,29 @@ def responder_aplicacao(id):
         
         # Buscar respostas já dadas
         respostas_existentes = {}
-        if hasattr(aplicacao, 'respostas'):
-            for resposta in aplicacao.respostas:
-                respostas_existentes[resposta.pergunta_id] = resposta
+        try:
+            if 'RespostaPergunta' in globals():
+                respostas = RespostaPergunta.query.filter_by(aplicacao_id=id).all()
+                for resposta in respostas:
+                    respostas_existentes[resposta.pergunta_id] = resposta.resposta
+        except:
+            pass
+        
+        # Calcular progresso por tópico
+        for topico in topicos:
+            perguntas = Pergunta.query.filter_by(topico_id=topico.id, ativo=True).all()
+            topico.perguntas = perguntas
+            topico.total_perguntas = len(perguntas)
+            topico.respondidas = sum(1 for p in perguntas if p.id in respostas_existentes)
         
         return render_template_safe('cli/responder_aplicacao.html',
-                             aplicacao=aplicacao,
-                             topicos=topicos,
-                             respostas_existentes=respostas_existentes)
+                                   aplicacao=aplicacao,
+                                   topicos=topicos,
+                                   respostas_existentes=respostas_existentes)
+        
     except Exception as e:
         flash(f"Erro ao carregar aplicação: {str(e)}", "danger")
-        return redirect(url_for('cli.listar_aplicacoes'))
+        return redirect(url_for('cli.questionarios'))
 
 @cli_bp.route('/aplicacao/<int:id>/salvar-resposta', methods=['POST'])
 @login_required
@@ -1782,42 +1847,32 @@ def finalizar_aplicacao(id):
         return redirect(url_for('cli.responder_aplicacao', id=id))
 
 @cli_bp.route('/aplicacao/<int:id>')
-@cli_bp.route('/aplicacao/<int:id>/visualizar')
 @login_required
 def visualizar_aplicacao(id):
-    """Visualiza uma aplicação finalizada"""
+    """Visualizar aplicação finalizada"""
     try:
         aplicacao = AplicacaoQuestionario.query.get_or_404(id)
         
-        # Verificar permissões
         if aplicacao.avaliado.cliente_id != current_user.cliente_id:
             flash("Aplicação não encontrada.", "error")
             return redirect(url_for('cli.listar_aplicacoes'))
         
-        # Buscar estrutura completa
+        # Buscar estrutura e respostas
         topicos = Topico.query.filter_by(
             questionario_id=aplicacao.questionario_id,
             ativo=True
         ).order_by(Topico.ordem).all()
         
-        # Organizar respostas por pergunta
         respostas_dict = {}
         if hasattr(aplicacao, 'respostas'):
             for resposta in aplicacao.respostas:
                 respostas_dict[resposta.pergunta_id] = resposta
         
-        # Estatísticas
-        stats = {
-            'total_perguntas': len(respostas_dict),
-            'perguntas_respondidas': len([r for r in respostas_dict.values() if r.resposta.strip()]),
-            'tempo_aplicacao': (aplicacao.data_fim - aplicacao.data_inicio).total_seconds() / 60 if aplicacao.data_fim else None
-        }
-        
         return render_template_safe('cli/visualizar_aplicacao.html',
-                             aplicacao=aplicacao,
-                             topicos=topicos,
-                             respostas_dict=respostas_dict,
-                             stats=stats)
+                                   aplicacao=aplicacao,
+                                   topicos=topicos,
+                                   respostas_dict=respostas_dict)
+        
     except Exception as e:
         flash(f"Erro ao carregar aplicação: {str(e)}", "danger")
         return redirect(url_for('cli.listar_aplicacoes'))
@@ -3210,3 +3265,400 @@ try:
     cli_bp.add_url_rule('/questionario/<int:questionario_id>/topicos/novo', endpoint='adicionar_topico', view_func=novo_topico, methods=['GET','POST'])
 except Exception:
     pass
+
+# ===================== SUBSTITUIR O CÓDIGO QUE VOCÊ ACABOU DE ADICIONAR =====================
+# REMOVA o código que você colou e substitua por este:
+
+# ===================== CORREÇÕES SEM DUPLICAÇÃO =====================
+
+@cli_bp.route('/aplicacao/<int:id>/continuar', endpoint='continuar_aplicacao')
+@login_required
+def continuar_aplicacao(id):
+    """Continuar aplicação existente"""
+    flash("Funcionalidade em desenvolvimento.", "info")
+    return redirect(url_for('cli.index'))
+
+@cli_bp.route('/grupos-page', endpoint='grupos_page')
+@login_required
+def grupos_page():
+    """Página de grupos (endpoint único)"""
+    flash("Módulo de grupos em desenvolvimento.", "info")
+    return redirect(url_for('cli.index'))
+
+@cli_bp.route('/usuarios-page', endpoint='usuarios_page')
+@login_required
+def usuarios_page():
+    """Página de usuários (endpoint único)"""
+    flash("Módulo de usuários em desenvolvimento.", "info")
+    return redirect(url_for('cli.index'))
+
+@cli_bp.route('/config-page', endpoint='config_page')
+@login_required
+def config_page():
+    """Página de configurações (endpoint único)"""
+    flash("Módulo de configurações em desenvolvimento.", "info")
+    return redirect(url_for('cli.index'))
+
+@cli_bp.route('/debug/delete-bad-questions')
+@login_required
+def delete_bad_questions():
+    """Remove perguntas que estão causando problemas"""
+    try:
+        # Usar connection direta (funciona em qualquer versão)
+        connection = db.session.connection()
+        
+        # Verificar quantas perguntas ruins existem
+        result = connection.execute("SELECT COUNT(*) FROM pergunta WHERE tipo = 'TEXTO_LIVRE'")
+        count = result.fetchone()[0]
+        
+        if count > 0:
+            # Deletar as perguntas problemáticas
+            connection.execute("DELETE FROM pergunta WHERE tipo = 'TEXTO_LIVRE'")
+            db.session.commit()
+            
+            return f"""
+            <h2>Limpeza Concluída</h2>
+            <p>{count} pergunta(s) com tipo inválido foram removidas</p>
+            <p><a href="/cli/questionarios">Testar Questionários</a></p>
+            """
+        else:
+            return f"""
+            <h2>Nenhum problema encontrado</h2>
+            <p><a href="/cli/questionarios">Ir aos Questionários</a></p>
+            """
+            
+    except Exception as e:
+        return f"Erro: {str(e)}"
+
+@cli_bp.route('/debug/recreate-database')
+@login_required
+def recreate_database():
+    """Recria banco limpo"""
+    try:
+        db.drop_all()
+        db.create_all()
+        return """
+        <h2>Banco recriado!</h2>
+        <p><a href="/cli/questionarios">Criar primeiro questionário</a></p>
+        """
+    except Exception as e:
+        return f"Erro: {str(e)}"
+
+# ===================== DIAGNÓSTICO: ROTA DE DEBUG SIMPLES =====================
+# Adicione esta rota para testar se o problema é na função ou no template:
+
+@cli_bp.route('/debug/test-questionarios')
+@login_required
+def test_questionarios():
+    """Testa carregamento de questionários com debug detalhado"""
+    try:
+        print("DEBUG: Iniciando test_questionarios")
+        
+        # Testar conexão com banco
+        questionarios = Questionario.query.filter_by(
+            cliente_id=current_user.cliente_id,
+            ativo=True
+        ).all()
+        
+        print(f"DEBUG: Encontrados {len(questionarios)} questionários")
+        
+        # Retornar HTML simples para testar
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Debug Questionários</title>
+            <style>body {{ margin: 20px; font-family: Arial; }}</style>
+        </head>
+        <body>
+            <h2>Debug - Questionários</h2>
+            <p>Cliente ID: {current_user.cliente_id}</p>
+            <p>Questionários encontrados: {len(questionarios)}</p>
+            
+            <div>
+                <h3>Lista:</h3>
+                {f'<p>Nenhum questionário encontrado</p>' if not questionarios else ''}
+                {''.join([f'<div style="border:1px solid #ccc; padding:10px; margin:10px;"><strong>{q.nome}</strong><br>ID: {q.id}<br>Ativo: {q.ativo}<br>Publicado: {q.publicado}</div>' for q in questionarios])}
+            </div>
+            
+            <br>
+            <a href="/cli/questionario/novo" style="background:#007bff; color:white; padding:10px; text-decoration:none;">+ Novo Questionário</a>
+            <br><br>
+            <a href="/cli/">← Voltar ao Dashboard</a>
+        </body>
+        </html>
+        """
+        
+        return html
+        
+    except Exception as e:
+        print(f"DEBUG: Erro em test_questionarios: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        return f"""
+        <h2>Erro no teste</h2>
+        <p>Erro: {str(e)}</p>
+        <p>Verifique o terminal para detalhes completos.</p>
+        <p><a href="/cli/">Voltar</a></p>
+        """
+
+# ===================== CORREÇÃO: FUNÇÃO listar_questionarios SIMPLIFICADA =====================
+# SUBSTITUA a função listar_questionarios existente por esta versão:
+
+@cli_bp.route('/questionarios', endpoint='questionarios')
+@cli_bp.route('/listar-questionarios')
+@login_required
+def listar_questionarios():
+    """Lista todos os questionários do cliente - VERSÃO CORRIGIDA"""
+    try:
+        print(f"DEBUG listar_questionarios: cliente_id={current_user.cliente_id}")
+        
+        # Buscar questionários de forma mais simples
+        questionarios = Questionario.query.filter_by(
+            cliente_id=current_user.cliente_id,
+            ativo=True
+        ).order_by(Questionario.nome).all()
+        
+        print(f"DEBUG: {len(questionarios)} questionários encontrados")
+        
+        # Adicionar estatísticas básicas sem causar problemas
+        for questionario in questionarios:
+            questionario.total_aplicacoes = 0  # Simplificado
+            questionario.media_nota = 0        # Simplificado
+        
+        print("DEBUG: Tentando renderizar template...")
+        
+        # Tentar render template, com fallback se falhar
+        try:
+            return render_template('cli/listar_questionarios.html', questionarios=questionarios)
+        except Exception as template_error:
+            print(f"DEBUG: Erro no template: {template_error}")
+            
+            # Fallback: HTML inline simples
+            return f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Questionários - QualiGestor</title>
+                <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+            </head>
+            <body>
+                <div class="container mt-4">
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <h2>Questionários</h2>
+                                <a href="/cli/questionario/novo" class="btn btn-primary">+ Novo Questionário</a>
+                            </div>
+                            
+                            {f'<div class="alert alert-info">Nenhum questionário criado ainda. <a href="/cli/questionario/novo" class="btn btn-primary btn-sm">Criar primeiro questionário</a></div>' if not questionarios else ''}
+                            
+                            <div class="row">
+                                {''.join([f'''
+                                <div class="col-md-6 col-lg-4 mb-3">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <h5 class="card-title">{q.nome}</h5>
+                                            <p class="card-text">{(q.descricao or 'Sem descrição')[:100]}...</p>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <small class="text-muted">V. {q.versao}</small>
+                                                <span class="badge bg-{'success' if q.publicado else 'secondary'}">
+                                                    {'Publicado' if q.publicado else 'Rascunho'}
+                                                </span>
+                                            </div>
+                                            <div class="mt-3">
+                                                <a href="/cli/questionario/{q.id}/topicos" class="btn btn-primary btn-sm">Gerenciar</a>
+                                                <a href="/cli/questionario/{q.id}" class="btn btn-outline-secondary btn-sm">Visualizar</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                ''' for q in questionarios])}
+                            </div>
+                            
+                            <div class="mt-4">
+                                <a href="/cli/" class="btn btn-secondary">← Voltar ao Dashboard</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+        
+    except Exception as e:
+        print(f"DEBUG: Erro geral em listar_questionarios: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        flash(f"Erro ao carregar questionários: {str(e)}", "danger")
+        return redirect(url_for('cli.index'))
+
+# ===================== VERIFICAÇÃO DE TEMPLATE =====================
+# Se o problema persistir, pode ser o template listar_questionarios.html
+# Verifique se o arquivo app/cli/templates/cli/listar_questionarios.html existe
+# e não tem erros de sintaxe
+
+# ===================== ROTA ALTERNATIVA GARANTIDA =====================
+@cli_bp.route('/questionarios-simples')
+@login_required
+def questionarios_simples():
+    """Versão super simples que sempre funciona"""
+    questionarios = Questionario.query.filter_by(
+        cliente_id=current_user.cliente_id,
+        ativo=True
+    ).all()
+    
+    return f"""
+    <h1>Questionários ({len(questionarios)} encontrados)</h1>
+    <p><a href="/cli/questionario/novo">+ Novo Questionário</a></p>
+    <ul>
+        {''.join([f'<li><a href="/cli/questionario/{q.id}/topicos">{q.nome}</a> (ID: {q.id})</li>' for q in questionarios])}
+    </ul>
+    <p><a href="/cli/">← Voltar</a></p>
+    """
+
+@cli_bp.route('/debug/questionario/<int:id>')
+@login_required
+def debug_visualizar_questionario(id):
+    """Diagnóstica problemas no endpoint visualizar_questionario"""
+    try:
+        questionario = Questionario.query.get(id)
+        if not questionario:
+            return f"<h2>Questionário ID {id} não encontrado</h2><p><a href='/cli/questionarios'>Voltar</a></p>"
+        
+        if questionario.cliente_id != current_user.cliente_id:
+            return f"<h2>Sem permissão para este questionário</h2><p><a href='/cli/questionarios'>Voltar</a></p>"
+        
+        total_topicos = Topico.query.filter_by(questionario_id=id, ativo=True).count()
+        total_perguntas = db.session.query(func.count(Pergunta.id)).join(Topico).filter(
+            Topico.questionario_id == id,
+            Topico.ativo == True,
+            Pergunta.ativo == True
+        ).scalar()
+        
+        return f"""
+        <div style="margin: 20px; font-family: Arial;">
+            <h2>Debug - Questionário ID {id}</h2>
+            <p><strong>Nome:</strong> {questionario.nome}</p>
+            <p><strong>Status:</strong> {'Publicado' if questionario.publicado else 'Rascunho'}</p>
+            <p><strong>Tópicos:</strong> {total_topicos}</p>
+            <p><strong>Perguntas:</strong> {total_perguntas}</p>
+            <p><a href="/cli/questionarios">Voltar</a></p>
+        </div>
+        """
+        
+    except Exception as e:
+        return f"<h2>Erro: {str(e)}</h2><p><a href='/cli/questionarios'>Voltar</a></p>"
+
+        
+        
+
+# ===================== ROTAS FALTANTES CORRIGIDAS =====================
+
+@cli_bp.route('/')
+@cli_bp.route('/index')
+@login_required
+def index():
+    """Página inicial do CLIQ"""
+    return redirect(url_for('cli.home'))
+
+@cli_bp.route('/listar-grupos')
+@login_required 
+def listar_grupos():
+    """Lista grupos"""
+    grupos = Grupo.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).all()
+    return render_template('cli/listar_grupos.html', grupos=grupos)
+
+@cli_bp.route('/gerenciar-usuarios')
+@login_required
+def gerenciar_usuarios():
+    """Gerenciar usuários"""
+    usuarios = Usuario.query.filter_by(cliente_id=current_user.cliente_id).all()
+    return render_template('cli/gerenciar_usuarios.html', usuarios=usuarios)
+
+@cli_bp.route('/configuracoes')
+@login_required
+def configuracoes():
+    """Configurações do sistema"""
+    return render_template('cli/configuracoes.html')
+
+@cli_bp.route('/listar-questionariios')
+@cli_bp.route('/listar-questionarios-alt')
+@login_required
+def listar_questionariios():
+    """Lista questionários - rota com grafia do log"""
+    return redirect(url_for('cli.questionarios'))
+
+@cli_bp.route('/listar-aplicacoes')
+@login_required
+def listar_aplicacoes():
+    """Lista aplicações"""
+    aplicacoes = Aplicacao.query.join(Questionario).filter(
+        Questionario.cliente_id == current_user.cliente_id
+    ).order_by(Aplicacao.data_inicio.desc()).all()
+    return render_template('cli/listar_aplicacoes.html', aplicacoes=aplicacoes)
+
+@cli_bp.route('/relatorios')
+@login_required
+def relatorios():
+    """Relatórios"""
+    return render_template('cli/relatorios.html')
+
+@cli_bp.route('/notificacoes')
+@login_required
+def notificacoes():
+    """Notificações"""
+    return render_template('cli/notificacoes.html')
+
+# ===================== ROTAS COM PARÂMETROS CORRIGIDOS =====================
+
+@cli_bp.route('/gerenciar-topicos/<int:id>', methods=['GET', 'POST'])
+@login_required
+def gerenciar_topicos(id):
+    """Gerencia tópicos - PARÂMETRO CORRIGIDO: id"""
+    questionario = Questionario.query.filter_by(id=id, cliente_id=current_user.cliente_id).first_or_404()
+    
+    if request.method == 'POST':
+        nome_topico = request.form.get('nome')
+        if nome_topico:
+            topico = Topico(nome=nome_topico, questionario_id=id, ordem=len(questionario.topicos) + 1)
+            db.session.add(topico)
+            db.session.commit()
+            flash('Tópico adicionado com sucesso!', 'success')
+    
+    topicos = Topico.query.filter_by(questionario_id=id).order_by(Topico.ordem).all()
+    return render_template('cli/gerenciar_topicos.html', questionario=questionario, topicos=topicos)
+
+@cli_bp.route('/aplicar-questionario/<int:id>')
+@login_required
+def aplicar_questionario(id):
+    """Aplica questionário - PARÂMETRO CORRIGIDO: id"""
+    questionario = Questionario.query.filter_by(id=id, cliente_id=current_user.cliente_id).first_or_404()
+    avaliados = Avaliado.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).all()
+    return render_template('cli/aplicar_questionario.html', questionario=questionario, avaliados=avaliados)
+
+@cli_bp.route('/visualizar-questionario/<int:id>')
+@login_required
+def visualizar_questionario(id):
+    """Visualiza questionário - PARÂMETRO CORRIGIDO: id"""
+    questionario = Questionario.query.filter_by(id=id, cliente_id=current_user.cliente_id).first_or_404()
+    topicos = Topico.query.filter_by(questionario_id=id).order_by(Topico.ordem).all()
+    return render_template('cli/visualizar_questionario.html', questionario=questionario, topicos=topicos)
+
+@cli_bp.route('/editar-questionario/<int:id>', methods=['GET', 'POST'])
+@login_required
+def editar_questionario(id):
+    """Edita questionário - PARÂMETRO CORRIGIDO: id"""
+    questionario = Questionario.query.filter_by(id=id, cliente_id=current_user.cliente_id).first_or_404()
+    
+    if request.method == 'POST':
+        questionario.nome = request.form.get('nome')
+        questionario.descricao = request.form.get('descricao')
+        questionario.ativo = bool(request.form.get('ativo'))
+        db.session.commit()
+        flash('Questionário atualizado com sucesso!', 'success')
+        return redirect(url_for('cli.questionarios'))
+    
+    return render_template('cli/questionario_form.html', questionario=questionario)

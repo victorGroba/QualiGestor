@@ -2,7 +2,7 @@
 import os
 from pathlib import Path
 from typing import Optional
-from flask import Flask
+from flask import Flask, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_migrate import Migrate
@@ -122,6 +122,46 @@ def create_app() -> Flask:
         app.register_blueprint(admin_bp, url_prefix="/admin")
     except Exception:
         pass
+
+        # === Helpers Jinja: expõe has_endpoint() para os templates ===
+    def has_endpoint(name: str) -> bool:
+        try:
+            # verifica se existe um endpoint com esse nome (ex.: 'cli.novo_questionario')
+            return name in {rule.endpoint for rule in app.url_map.iter_rules()}
+        except Exception:
+            return False
+
+    @app.context_processor
+    def inject_has_endpoint():
+        # deixa disponível em todos os templates
+        return dict(has_endpoint=has_endpoint)
+        # === Helpers disponíveis em TODOS os templates ===
+    def has_endpoint(name: str) -> bool:
+        try:
+            return name in {rule.endpoint for rule in app.url_map.iter_rules()}
+        except Exception:
+            return False
+
+    def url_for_safe(endpoint: str, **values) -> str:
+        """
+        Tenta gerar a URL do endpoint; se falhar, cai no índice do CLI ou '/'.
+        """
+        try:
+            return url_for(endpoint, **values)
+        except Exception:
+            try:
+                return url_for('cli.index') if has_endpoint('cli.index') else '/'
+            except Exception:
+                return '/'
+
+    @app.context_processor
+    def inject_nav_helpers():
+        return dict(
+            has_endpoint=has_endpoint,
+            url_for_safe=url_for_safe,
+        )
+
+
 
     return app
 

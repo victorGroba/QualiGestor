@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplicação: {{ aplicacao.questionario.nome }} - QualiGestor CLIQ</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .resultado-card {
+            border-left: 4px solid #007bff;
+        }
+        .resposta-item {
+            border-bottom: 1px solid #e9ecef;
+            padding: 15px 0;
+        }
+        .resposta-item:last-child {
+            border-bottom: none;
+        }
+        .nota-destaque {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+        .status-badge {
+            font-size: 0.9rem;
+        }
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            .container-fluid {
+                margin: 0;
+                padding: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Main content -->
+            <main class="col-md-12 px-md-4">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom no-print">
+                    <h1 class="h2">
+                        <i class="fas fa-clipboard-check me-2"></i>
+                        Resultado da Aplicação
+                    </h1>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <div class="btn-group me-2">
+                            <button onclick="window.print()" class="btn btn-outline-primary">
+                                <i class="fas fa-print me-1"></i>
+                                Imprimir
+                            </button>
+                            <a href="{{ url_for('cli.gerar_pdf_aplicacao', id=aplicacao.id) }}" class="btn btn-danger">
+                                <i class="fas fa-file-pdf me-1"></i>
+                                Gerar PDF
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Breadcrumb -->
+                <nav aria-label="breadcrumb" class="no-print">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{{ url_for('cli.index') }}">Dashboard</a></li>
+                        <li class="breadcrumb-item"><a href="{{ url_for('cli.listar_aplicacoes') }}">Aplicações</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">Visualizar Aplicação</li>
+                    </ol>
+                </nav>
+
+                <!-- Cabeçalho da aplicação -->
+                <div class="card resultado-card mb-4">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <h3>{{ aplicacao.questionario.nome }}</h3>
+                                <p class="text-muted mb-1">{{ aplicacao.questionario.descricao or 'Sem descrição' }}</p>
+                                <small class="text-muted">Versão {{ aplicacao.questionario.versao }}</small>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <div class="mb-2">
+                                    {% if aplicacao.status == 'finalizada' %}
+                                    <span class="badge bg-success status-badge">
+                                        <i class="fas fa-check me-1"></i>
+                                        Finalizada
+                                    </span>
+                                    {% else %}
+                                    <span class="badge bg-warning status-badge">
+                                        <i class="fas fa-clock me-1"></i>
+                                        Em Andamento
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                {% if aplicacao.nota_final %}
+                                <div class="nota-destaque text-primary">
+                                    {{ aplicacao.nota_final }}%
+                                </div>
+                                <small class="text-muted">Nota Final</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Informações da aplicação -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6><i class="fas fa-info-circle me-1"></i>Informações da Aplicação</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-sm-6">
+                                        <strong>Data de Início:</strong><br>
+                                        {{ aplicacao.data_inicio.strftime('%d/%m/%Y às %H:%M') }}
+                                    </div>
+                                    {% if aplicacao.data_fim %}
+                                    <div class="col-sm-6">
+                                        <strong>Data de Finalização:</strong><br>
+                                        {{ aplicacao.data_fim.strftime('%d/%m/%Y às %H:%M') }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                
+                                {% if aplicacao.data_fim and aplicacao.data_inicio %}
+                                <div class="mt-2">
+                                    <strong>Tempo de Aplicação:</strong><br>
+                                    {{ ((aplicacao.data_fim - aplicacao.data_inicio).total_seconds() / 60) | round(0) | int }} minutos
+                                </div>
+                                {% endif %}
+                                
+                                {% if aplicacao.observacoes %}
+                                <div class="mt-3">
+                                    <strong>Observações Iniciais:</strong><br>
+                                    <em>{{ aplicacao.observacoes }}</em>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6><i class="fas fa-user me-1"></i>Dados do Avaliado</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-2">
+                                    <strong>Nome:</strong><br>
+                                    {{ aplicacao.avaliado.nome }}
+                                </div>
+                                
+                                {% if aplicacao.avaliado.codigo %}
+                                <div class="mb-2">
+                                    <strong>Código:</strong><br>
+                                    {{ aplicacao.avaliado.codigo }}
+                                </div>
+                                {% endif %}
+                                
+                                {% if aplicacao.avaliado.endereco %}
+                                <div class="mb-2">
+                                    <strong>Local:</strong><br>
+                                    {{ aplicacao.avaliado.endereco }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Respostas por tópico -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-list-check me-1"></i>Respostas por Tópico</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if topicos %}
+                        {% for topico in topicos %}
+                        <div class="mb-4">
+                            <h6 class="border-bottom pb-2 mb-3">
+                                <i class="fas fa-folder me-1"></i>
+                                {{ topico.nome }}
+                                {% if topico.descricao %}
+                                <small class="text-muted">- {{ topico.descricao }}</small>
+                                {% endif %}
+                            </h6>
+                            
+                            {% set perguntas_topico = topico.perguntas if topico.perguntas else [] %}
+                            {% if perguntas_topico %}
+                            {% for pergunta in perguntas_topico %}
+                            <div class="resposta-item">
+                                <div class="row">
+                                    <div class="col-md-8">
+                                        <strong>{{ pergunta.texto }}</strong>
+                                        {% if pergunta.obrigatoria %}
+                                        <span class="badge bg-danger ms-1">Obrigatória</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-4">
+                                        {% set resposta = respostas_dict.get(pergunta.id) %}
+                                        {% if resposta %}
+                                        <div class="text-end">
+                                            <span class="badge bg-primary">{{ resposta.resposta or 'Sem resposta' }}</span>
+                                            {% if resposta.observacao %}
+                                            <br><small class="text-muted">Obs: {{ resposta.observacao }}</small>
+                                            {% endif %}
+                                        </div>
+                                        {% else %}
+                                        <div class="text-end">
+                                            <span class="badge bg-secondary">Não respondida</span>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                            {% else %}
+                            <div class="alert alert-info">
+                                <small>Nenhuma pergunta encontrada neste tópico.</small>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                        {% else %}
+                        <div class="alert alert-warning">
+                            <h6><i class="fas fa-exclamation-triangle me-1"></i>Nenhum tópico encontrado</h6>
+                            <p>Este questionário não possui tópicos configurados.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Ações -->
+                <div class="mt-4 no-print">
+                    <div class="d-flex gap-2 flex-wrap">
+                        <a href="{{ url_for('cli.listar_aplicacoes') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-1"></i>
+                            Voltar às Aplicações
+                        </a>
+                        
+                        {% if aplicacao.status != 'finalizada' %}
+                        <a href="{{ url_for('cli.responder_aplicacao', id=aplicacao.id) }}" class="btn btn-primary">
+                            <i class="fas fa-play me-1"></i>
+                            Continuar Aplicação
+                        </a>
+                        {% endif %}
+                        
+                        {% if aplicacao.status == 'finalizada' %}
+                        <a href="{{ url_for('cli.gerar_pdf_aplicacao', id=aplicacao.id) }}" class="btn btn-danger">
+                            <i class="fas fa-file-pdf me-1"></i>
+                            Baixar PDF
+                        </a>
+                        
+                        <button class="btn btn-info" onclick="compartilharResultado()">
+                            <i class="fas fa-share me-1"></i>
+                            Compartilhar
+                        </button>
+                        
+                        <button class="btn btn-warning" onclick="reabrirAplicacao()">
+                            <i class="fas fa-edit me-1"></i>
+                            Reabrir para Edição
+                        </button>
+                        {% endif %}
+                        
+                        <button class="btn btn-outline-danger" onclick="excluirAplicacao()">
+                            <i class="fas fa-trash me-1"></i>
+                            Excluir
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Rodapé da impressão -->
+                <div class="d-print-block d-none mt-4 text-center">
+                    <hr>
+                    <small class="text-muted">
+                        Relatório gerado em {{ moment().format('DD/MM/YYYY [às] HH:mm') }} pelo sistema QualiGestor CLIQ
+                    </small>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function compartilharResultado() {
+            if (navigator.share) {
+                navigator.share({
+                    title: 'Resultado da Aplicação - {{ aplicacao.questionario.nome }}',
+                    text: 'Confira o resultado desta aplicação do QualiGestor CLIQ',
+                    url: window.location.href
+                });
+            } else {
+                // Fallback para navegadores que não suportam Web Share API
+                const url = window.location.href;
+                navigator.clipboard.writeText(url).then(() => {
+                    alert('Link copiado para a área de transferência!');
+                });
+            }
+        }
+
+        function reabrirAplicacao() {
+            if (confirm('Deseja reabrir esta aplicação para edição? Isso permitirá alterar as respostas.')) {
+                fetch(`/cli/aplicacao/{{ aplicacao.id }}/reabrir`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.sucesso) {
+                        window.location.href = '/cli/aplicacao/{{ aplicacao.id }}/responder';
+                    } else {
+                        alert('Erro ao reabrir aplicação: ' + data.erro);
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    alert('Erro ao reabrir aplicação.');
+                });
+            }
+        }
+
+        function excluirAplicacao() {
+            if (confirm('Deseja realmente excluir esta aplicação? Esta ação não pode ser desfeita.')) {
+                fetch(`/cli/aplicacao/{{ aplicacao.id }}/excluir`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.sucesso) {
+                        window.location.href = '/cli/aplicacoes';
+                    } else {
+                        alert('Erro ao excluir aplicação: ' + data.erro);
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    alert('Erro ao excluir aplicação.');
+                });
+            }
+        }
+
+        // Atalhos de teclado
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'p') {
+                e.preventDefault();
+                window.print();
+            }
+        });
+    </script>
+</body>
+</html>

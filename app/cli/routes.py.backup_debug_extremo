@@ -337,101 +337,35 @@ def index():
 
 # ===================== QUESTIONÁRIOS =====================
 
-from flask import request, flash
-from sqlalchemy import func, or_
+# SUBSTITUIR no seu routes.py:
 
-from flask import request, flash
-from sqlalchemy import func, or_
-
-@cli_bp.route('/questionarios', endpoint='listar_questionarios', methods=['GET'])
-@cli_bp.route('/listar-questionarios', methods=['GET'])
+@cli_bp.route('/questionarios')
+@cli_bp.route('/questionarios')
 @login_required
 def listar_questionarios():
-    """
-    Lista questionários de forma robusta:
-    - Só filtra por cliente/ativo se os campos existirem.
-    - Se o filtro resultar em 0 itens, faz fallback e lista TODOS (com aviso).
-    - Evita quebrar se o model de aplicação tiver nome diferente.
-    """
-    # Query base
-    q_base = Questionario.query
-
-    # ---- Filtros opcionais ----
-    q = q_base
-
-    # Filtro por cliente (aplica só se existir o campo e o usuário tiver cliente_id)
-    tem_cliente = hasattr(Questionario, "cliente_id") and getattr(current_user, "cliente_id", None)
-    if tem_cliente:
-        q = q.filter(Questionario.cliente_id == current_user.cliente_id)
-
-    # Filtro de ativos (aplica só se existir a coluna)
-    if hasattr(Questionario, "ativo"):
-        status = request.args.get("status", "ativos")  # ativos | inativos | todos
-        if status == "ativos":
-            q = q.filter(Questionario.ativo.is_(True))
-        elif status == "inativos":
-            q = q.filter(Questionario.ativo.is_(False))
-        # "todos" não filtra
-
-    # Busca por texto (?q=...)
-    termo = (request.args.get("q") or "").strip()
-    if termo:
-        like = f"%{termo}%"
-        filtros = []
-        if hasattr(Questionario, "nome"):      filtros.append(Questionario.nome.ilike(like))
-        if hasattr(Questionario, "titulo"):    filtros.append(Questionario.titulo.ilike(like))
-        if hasattr(Questionario, "descricao"): filtros.append(Questionario.descricao.ilike(like))
-        if filtros:
-            q = q.filter(or_(*filtros))
-
-    # Ordenação
-    if hasattr(Questionario, "nome"):
-        q = q.order_by(Questionario.nome.asc())
-    elif hasattr(Questionario, "id"):
-        q = q.order_by(Questionario.id.desc())
-
-    # Executa com filtro
-    questionarios = q.all()
-
-    # Fallback: se nada foi retornado, lista TUDO (sem filtros) e avisa
-    usou_fallback = False
-    if not questionarios:
-        usou_fallback = True
-        q2 = q_base
-        if hasattr(Questionario, "nome"):
-            q2 = q2.order_by(Questionario.nome.asc())
-        elif hasattr(Questionario, "id"):
-            q2 = q2.order_by(Questionario.id.desc())
-        questionarios = q2.all()
-        flash("Nenhum item com os filtros atuais — exibindo todos para depuração.", "warning")
-
-    # Estatísticas (sem quebrar)
-    ModelAplic = globals().get('AplicacaoQuestionario') or globals().get('Aplicacao')
-    if ModelAplic:
-        counts = dict(
-            db.session.query(ModelAplic.questionario_id, func.count(ModelAplic.id))
-            .group_by(ModelAplic.questionario_id).all()
-        )
-        medias = dict(
-            db.session.query(ModelAplic.questionario_id, func.avg(ModelAplic.nota_final))
-            .group_by(ModelAplic.questionario_id).all()
-        )
-        for item in questionarios:
-            item.total_aplicacoes = counts.get(item.id, 0)
-            item.media_nota = float(medias.get(item.id) or 0.0)
-    else:
-        for item in questionarios:
-            item.total_aplicacoes = 0
-            item.media_nota = 0.0
-
-    return render_template_safe(
-        'cli/listar_questionarios.html',
-        questionarios=questionarios,
-        termo=termo,
-        status=request.args.get("status", "ativos"),
-        usou_fallback=usou_fallback,
-    )
-
+    try:
+        # CORREÇÃO: Query mais robusta para listar questionários
+        base_query = db.session.query(Questionario)
+        
+        # Filtrar por cliente se não for admin
+        if hasattr(current_user, 'cliente_id') and current_user.cliente_id:
+            base_query = base_query.filter(Questionario.cliente_id == current_user.cliente_id)
+        
+        # Filtrar apenas questionários ativos
+        questionarios = base_query.filter(
+            Questionario.ativo == True
+        ).order_by(Questionario.criado_em.desc()).all()
+        
+        # DEBUG: Adicione este log para verificar
+        print(f"DEBUG: Encontrados {len(questionarios)} questionários para o usuário {current_user.id}")
+        
+        return render_template('cli/listar_questionarios.html', 
+                             questionarios=questionarios)
+    except Exception as e:
+        # LOG do erro específico
+        print(f"ERRO ao listar questionários: {str(e)}")
+        flash(f'Erro ao carregar questionários: {str(e)}', 'error')
+        return render_template('cli/listar_questionarios.html', questionarios=[])
 
 @cli_bp.route('/questionario/novo', methods=['GET', 'POST'])
 @cli_bp.route('/novo-questionario', methods=['GET', 'POST'])
@@ -536,7 +470,7 @@ def novo_questionario():
             print(f"DEBUG: Redirecionando para gerenciar_topicos com ID: {q.id}")
             
             # 4) Redirecionar para tópicos
-            return redirect(url_for('cli.gerenciar_topicos', id=q.id))
+            return redirect(url_for('cli.gerenciar_topicos', questionario_id=q.id))
             
         except Exception as e:
             print(f"DEBUG: ERRO ao criar questionário: {e}")
@@ -631,7 +565,7 @@ def processar_novo_questionario():
         log_acao(f"Criou questionário: {nome}", None, "Questionario", novo_questionario.id)
         
         flash(f"Questionário '{nome}' criado com sucesso!", "success")
-        return redirect(url_for('cli.gerenciar_topicos', id=novo_questionario.id))
+        return redirect(url_for('cli.gerenciar_topicos', questionario_id=novo_questionario.id))
         
     except Exception as e:
         db.session.rollback()
@@ -847,35 +781,37 @@ def desativar_questionario(id):
 
 # ===================== TÓPICOS =====================
 
-@cli_bp.route('/questionario/<int:id>/topicos')
+@cli_bp.route('/gerenciar_topicos/<int:questionario_id>')
 @login_required
-def gerenciar_topicos(id):
-    """Tela 2: Gerenciar tópicos do questionário"""
+def gerenciar_topicos(questionario_id):
     try:
-        questionario = Questionario.query.get_or_404(id)
+        questionario = Questionario.query.get_or_404(questionario_id)
         
-        if questionario.cliente_id != current_user.cliente_id:
-            flash("Questionário não encontrado.", "error")
-            return redirect(url_for('cli.listar_questionarios'))
+        # Verificar permissão
+        if hasattr(current_user, 'cliente_id') and questionario.cliente_id != current_user.cliente_id:
+            abort(403)
         
-        topicos = Topico.query.filter_by(
-            questionario_id=id,
-            ativo=True
-        ).order_by(Topico.ordem).all()
+        # CORREÇÃO: Buscar categorias com relacionamento correto
+        categorias = db.session.query(Categoria).filter(
+            Categoria.questionario_id == questionario_id
+        ).order_by(Categoria.ordem.asc()).all()
         
-        # Contar perguntas por tópico
-        for topico in topicos:
-            topico.total_perguntas = Pergunta.query.filter_by(
-                topico_id=topico.id,
-                ativo=True
-            ).count()
+        # Para cada categoria, buscar perguntas
+        for categoria in categorias:
+            categoria.perguntas_list = db.session.query(Pergunta).filter(
+                Pergunta.categoria_id == categoria.id
+            ).order_by(Pergunta.ordem.asc()).all()
         
-        return render_template_safe('cli/gerenciar_topicos.html',
+        print(f"DEBUG: Encontradas {len(categorias)} categorias para questionário {questionario_id}")
+        
+        return render_template('cli/gerenciar_topicos.html',
                              questionario=questionario,
-                             topicos=topicos)
+                             categorias=categorias)
     except Exception as e:
-        flash(f"Erro ao carregar tópicos: {str(e)}", "danger")
+        print(f"ERRO ao gerenciar tópicos: {str(e)}")
+        flash(f'Erro ao carregar tópicos: {str(e)}', 'error')
         return redirect(url_for('cli.listar_questionarios'))
+
     
 
 @cli_bp.route('/questionario/<int:id>/topico/novo', methods=['GET', 'POST'])
@@ -928,7 +864,7 @@ def novo_topico(id):
                 flash("Tópico criado com sucesso!", "success")
                 
                 print(f"DEBUG: Redirecionando para gerenciar_topicos com id={id}")
-                return redirect(url_for('cli.gerenciar_topicos', id=id))
+                return redirect(url_for('cli.gerenciar_topicos', questionario_id=id))
                 
             except Exception as e:
                 print(f"DEBUG: Erro no POST: {e}")
@@ -952,7 +888,7 @@ def novo_topico(id):
             import traceback
             traceback.print_exc()
             flash(f"Erro no template novo_topico.html: {template_error}", "danger")
-            return redirect(url_for('cli.gerenciar_topicos', id=id))
+            return redirect(url_for('cli.gerenciar_topicos', questionario_id=id))
         
     except Exception as e:
         print(f"DEBUG: Erro geral em novo_topico: {e}")
@@ -986,7 +922,7 @@ def editar_topico(topico_id):
                 log_acao(f"Editou tópico: {topico.nome}", None, "Topico", topico_id)
                 
                 flash("Tópico atualizado com sucesso!", "success")
-                return redirect(url_for('cli.gerenciar_topicos', id=topico.questionario_id))
+                return redirect(url_for('cli.gerenciar_topicos', questionario_id=topico.questionario_id))
                 
             except Exception as e:
                 db.session.rollback()
@@ -1025,7 +961,7 @@ def remover_topico(topico_id):
         flash(f"Erro ao remover tópico: {str(e)}", "danger")
         questionario_id = request.args.get('questionario_id')
     
-    return redirect(url_for('cli.gerenciar_topicos', id=questionario_id))
+    return redirect(url_for('cli.gerenciar_topicos', questionario_id=questionario_id))
 
 # ===================== PERGUNTAS =====================
 
@@ -1068,7 +1004,7 @@ def gerenciar_perguntas(topico_id):
             import traceback
             traceback.print_exc()
             flash(f"Erro no template: {template_error}", "danger")
-            return redirect(url_for('cli.gerenciar_topicos', id=topico.questionario_id))
+            return redirect(url_for('cli.gerenciar_topicos', questionario_id=topico.questionario_id))
             
     except Exception as e:
         print(f"DEBUG: Erro em gerenciar_perguntas: {e}")
@@ -1217,7 +1153,7 @@ def publicar_questionario(id):
         if total_perguntas == 0:
             flash("Não é possível publicar um questionário sem perguntas.", "warning")
             print("DEBUG: Questionário sem perguntas, não pode publicar")
-            return redirect(url_for('cli.gerenciar_topicos', id=id))
+            return redirect(url_for('cli.gerenciar_topicos', questionario_id=id))
         
         # Publicar questionário
         print("DEBUG: Publicando questionário")
@@ -1238,7 +1174,7 @@ def publicar_questionario(id):
         db.session.rollback()
         flash(f"Erro ao publicar questionário: {str(e)}", "danger")
     
-    return redirect(url_for('cli.gerenciar_topicos', id=id))
+    return redirect(url_for('cli.gerenciar_topicos', questionario_id=id))
 
 # ===================== ROTA DE TESTE PARA DEBUG =====================
 
@@ -1708,10 +1644,10 @@ def salvar_resposta(id):
         db.session.rollback()
         return jsonify({'erro': str(e)}), 500
 
-@cli_bp.route('/aplicacao/<int:id>/finalizar', methods=['POST'])
+@cli_bp.route('/aplicacao/<int:id>/finalizar', methods=['GET', 'POST'])
 @login_required
 def finalizar_aplicacao(id):
-    """Finaliza uma aplicação"""
+    """Finaliza uma aplicação com assinaturas obrigatórias"""
     try:
         aplicacao = AplicacaoQuestionario.query.get_or_404(id)
         
@@ -1724,7 +1660,29 @@ def finalizar_aplicacao(id):
             flash("Esta aplicação já foi finalizada.", "warning")
             return redirect(url_for('cli.visualizar_aplicacao', id=id))
         
-        # Verificar perguntas obrigatórias se disponível
+        if request.method == 'GET':
+            # Mostrar tela de finalização com assinaturas
+            # Estatísticas da aplicação
+            stats = {
+                'total_perguntas': 0,
+                'perguntas_respondidas': 0,
+                'tempo_aplicacao': 0
+            }
+            
+            if hasattr(aplicacao, 'respostas'):
+                stats['total_perguntas'] = len(aplicacao.respostas)
+                stats['perguntas_respondidas'] = len([r for r in aplicacao.respostas if r.resposta.strip()])
+                if aplicacao.data_inicio:
+                    stats['tempo_aplicacao'] = (datetime.now() - aplicacao.data_inicio).total_seconds() / 60
+            
+            return render_template('cli/finalizar_aplicacao.html', 
+                                 aplicacao=aplicacao, 
+                                 stats=stats)
+        
+        # POST - Processar finalização
+        print(f"DEBUG: Finalizando aplicação {id}")
+        
+        # Verificar perguntas obrigatórias
         if 'RespostaPergunta' in globals():
             perguntas_obrigatorias = db.session.query(Pergunta.id).join(Topico).filter(
                 Topico.questionario_id == aplicacao.questionario_id,
@@ -1746,6 +1704,27 @@ def finalizar_aplicacao(id):
                 flash(f"Existem {len(perguntas_faltando)} pergunta(s) obrigatória(s) sem resposta.", "warning")
                 return redirect(url_for('cli.responder_aplicacao', id=id))
         
+        # Processar assinaturas se habilitado
+        if aplicacao.questionario.incluir_assinatura:
+            assinatura1_data = request.form.get('assinatura1_data', '')
+            assinatura2_data = request.form.get('assinatura2_data', '')
+            
+            print(f"DEBUG: Assinatura 1 recebida: {len(assinatura1_data)} caracteres")
+            print(f"DEBUG: Assinatura 2 recebida: {len(assinatura2_data)} caracteres")
+            
+            if not assinatura1_data or not assinatura2_data:
+                flash("As duas assinaturas são obrigatórias.", "danger")
+                return redirect(url_for('cli.finalizar_aplicacao', id=id))
+            
+            # Salvar assinaturas na aplicação
+            aplicacao.assinatura_aplicador = assinatura1_data
+            aplicacao.assinatura_responsavel = assinatura2_data
+            aplicacao.assinatura_aplicador_nome = current_user.nome
+            aplicacao.assinatura_responsavel_nome = aplicacao.avaliado.nome
+            aplicacao.data_assinatura = datetime.now()
+            
+            print("DEBUG: Assinaturas salvas com sucesso")
+        
         # Calcular nota final se configurado
         if aplicacao.questionario.calcular_nota and hasattr(aplicacao, 'respostas'):
             total_pontos = 0
@@ -1759,15 +1738,18 @@ def finalizar_aplicacao(id):
             if total_pontos > 0:
                 if aplicacao.questionario.modo_configuracao == 'percentual':
                     aplicacao.nota_final = (pontos_obtidos / total_pontos) * 100
-                else:  # pontos
+                else:
                     aplicacao.nota_final = pontos_obtidos
                     
                 aplicacao.nota_final = round(aplicacao.nota_final, aplicacao.questionario.casas_decimais)
+            
+            print(f"DEBUG: Nota final calculada: {aplicacao.nota_final}")
         
         # Finalizar aplicação
         aplicacao.data_fim = datetime.now()
         aplicacao.status = StatusAplicacao.FINALIZADA
         aplicacao.observacoes_finais = request.form.get('observacoes_finais', '')
+        aplicacao.finalizado_por_id = current_user.id
         
         db.session.commit()
         
@@ -1777,6 +1759,9 @@ def finalizar_aplicacao(id):
         return redirect(url_for('cli.visualizar_aplicacao', id=id))
         
     except Exception as e:
+        print(f"DEBUG: Erro ao finalizar aplicação: {e}")
+        import traceback
+        traceback.print_exc()
         db.session.rollback()
         flash(f"Erro ao finalizar aplicação: {str(e)}", "danger")
         return redirect(url_for('cli.responder_aplicacao', id=id))
@@ -3210,3 +3195,277 @@ try:
     cli_bp.add_url_rule('/questionario/<int:questionario_id>/topicos/novo', endpoint='adicionar_topico', view_func=novo_topico, methods=['GET','POST'])
 except Exception:
     pass
+
+@cli_bp.route('/aplicar_questionario/<int:questionario_id>')
+@login_required
+def aplicar_questionario(questionario_id):
+    try:
+        questionario = Questionario.query.get_or_404(questionario_id)
+        
+        # Verificar permissão
+        if hasattr(current_user, 'cliente_id') and questionario.cliente_id != current_user.cliente_id:
+            flash('Você não tem permissão para aplicar este questionário', 'error')
+            return redirect(url_for('cli.listar_questionarios'))
+        
+        # Verificar se está publicado
+        if not questionario.publicado:
+            flash('Este questionário ainda não foi publicado', 'warning')
+            return redirect(url_for('cli.listar_questionarios'))
+        
+        # Buscar avaliados/lojas disponíveis
+        if hasattr(current_user, 'cliente_id'):
+            avaliados = Avaliado.query.filter_by(
+                cliente_id=current_user.cliente_id,
+                ativo=True
+            ).order_by(Avaliado.nome).all()
+        else:
+            avaliados = Avaliado.query.filter_by(ativo=True).order_by(Avaliado.nome).all()
+        
+        return render_template('cli/selecionar_avaliado.html',
+                             questionario=questionario,
+                             avaliados=avaliados)
+    except Exception as e:
+        print(f"ERRO ao aplicar questionário: {str(e)}")
+        flash(f'Erro ao aplicar questionário: {str(e)}', 'error')
+        return redirect(url_for('cli.listar_questionarios'))
+
+@cli_bp.route('/salvar_topico/<int:formulario_id>', methods=['POST'])
+@login_required
+def salvar_topico(formulario_id):
+    """Salva tópico - corrigido"""
+    try:
+        formulario = Formulario.query.get_or_404(formulario_id)
+        
+        # Verificar permissão
+        if hasattr(current_user, 'cliente_id'):
+            if formulario.cliente_id != current_user.cliente_id:
+                abort(403)
+        
+        nome = request.form.get('nome', '').strip()
+        descricao = request.form.get('descricao', '').strip()
+        categoria_id = request.form.get('categoria_id')
+        
+        if not nome:
+            flash('Nome do tópico é obrigatório', 'error')
+            return redirect(url_for('cli.gerenciar_topicos', formulario_id=formulario_id))
+        
+        if categoria_id:  # Editando
+            categoria = Categoria.query.get_or_404(categoria_id)
+            categoria.nome = nome
+            categoria.descricao = descricao
+        else:  # Criando
+            # Obter próxima ordem
+            max_ordem = db.session.query(db.func.max(Categoria.ordem)).filter_by(
+                formulario_id=formulario_id
+            ).scalar() or 0
+            
+            categoria = Categoria(
+                nome=nome,
+                descricao=descricao,
+                formulario_id=formulario_id,
+                ordem=max_ordem + 1
+            )
+            db.session.add(categoria)
+        
+        db.session.commit()
+        flash('Tópico salvo com sucesso!', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Erro ao salvar tópico: {str(e)}', 'error')
+        
+    return redirect(url_for('cli.gerenciar_topicos', formulario_id=formulario_id))        
+
+@cli_bp.route('/salvar_categoria/<int:questionario_id>', methods=['POST'])
+@login_required
+def salvar_categoria(questionario_id):
+    try:
+        questionario = Questionario.query.get_or_404(questionario_id)
+        
+        # Verificar permissão
+        if hasattr(current_user, 'cliente_id') and questionario.cliente_id != current_user.cliente_id:
+            return jsonify({'success': False, 'message': 'Sem permissão'}), 403
+        
+        nome = request.form.get('nome', '').strip()
+        descricao = request.form.get('descricao', '').strip()
+        categoria_id = request.form.get('categoria_id')
+        
+        if not nome:
+            return jsonify({'success': False, 'message': 'Nome é obrigatório'}), 400
+        
+        if categoria_id and categoria_id != 'novo':  # Editando
+            categoria = Categoria.query.get_or_404(categoria_id)
+            categoria.nome = nome
+            categoria.descricao = descricao
+            action = 'atualizada'
+        else:  # Criando nova
+            # Obter próxima ordem
+            max_ordem = db.session.query(db.func.max(Categoria.ordem)).filter_by(
+                questionario_id=questionario_id
+            ).scalar() or 0
+            
+            categoria = Categoria(
+                nome=nome,
+                descricao=descricao,
+                questionario_id=questionario_id,
+                ordem=max_ordem + 1
+            )
+            db.session.add(categoria)
+            action = 'criada'
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Categoria {action} com sucesso!',
+            'categoria_id': categoria.id
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"ERRO ao salvar categoria: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@cli_bp.route('/salvar_pergunta/<int:categoria_id>', methods=['POST'])
+@login_required
+def salvar_pergunta(categoria_id):
+    try:
+        categoria = Categoria.query.get_or_404(categoria_id)
+        
+        # Verificar permissão através do questionário
+        if hasattr(current_user, 'cliente_id') and categoria.questionario.cliente_id != current_user.cliente_id:
+            return jsonify({'success': False, 'message': 'Sem permissão'}), 403
+        
+        texto = request.form.get('texto', '').strip()
+        tipo_resposta = request.form.get('tipo_resposta')
+        obrigatoria = request.form.get('obrigatoria') == 'on'
+        pergunta_id = request.form.get('pergunta_id')
+        
+        if not texto:
+            return jsonify({'success': False, 'message': 'Texto da pergunta é obrigatório'}), 400
+        
+        if pergunta_id and pergunta_id != 'nova':  # Editando
+            pergunta = Pergunta.query.get_or_404(pergunta_id)
+            pergunta.texto = texto
+            pergunta.tipo_resposta = tipo_resposta
+            pergunta.obrigatoria = obrigatoria
+            action = 'atualizada'
+        else:  # Criando nova
+            # Obter próxima ordem
+            max_ordem = db.session.query(db.func.max(Pergunta.ordem)).filter_by(
+                categoria_id=categoria_id
+            ).scalar() or 0
+            
+            pergunta = Pergunta(
+                texto=texto,
+                tipo_resposta=tipo_resposta,
+                obrigatoria=obrigatoria,
+                categoria_id=categoria_id,
+                ordem=max_ordem + 1
+            )
+            db.session.add(pergunta)
+            action = 'criada'
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Pergunta {action} com sucesso!',
+            'pergunta_id': pergunta.id
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"ERRO ao salvar pergunta: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+@cli_bp.route('/continuar_aplicacao/<int:id>')
+@login_required
+def continuar_aplicacao(id):
+    """Continua uma aplicação em andamento"""
+    try:
+        from app.models import AplicacaoQuestionario
+        aplicacao = AplicacaoQuestionario.query.get_or_404(id)
+        
+        # Verificar permissão
+        if hasattr(current_user, 'cliente_id'):
+            if aplicacao.questionario.cliente_id != current_user.cliente_id:
+                flash('Sem permissão para continuar esta aplicação', 'error')
+                return redirect(url_for('cli.listar_aplicacoes'))
+        
+        return render_template('cli/aplicar_questionario_form.html', aplicacao=aplicacao)
+    except Exception as e:
+        flash(f'Erro ao continuar aplicação: {str(e)}', 'error')
+        return redirect(url_for('cli.listar_aplicacoes'))
+@cli_bp.route('/iniciar_aplicacao/<int:questionario_id>', methods=['POST'])
+@login_required
+def iniciar_aplicacao(questionario_id):
+    """Inicia uma nova aplicação de questionário"""
+    try:
+        from app.models import Questionario, Avaliado, AplicacaoQuestionario, StatusAplicacao
+        from datetime import datetime
+        
+        questionario = Questionario.query.get_or_404(questionario_id)
+        avaliado_id = request.form.get('avaliado_id')
+        observacoes = request.form.get('observacoes', '')
+        
+        if not avaliado_id:
+            flash('Selecione um avaliado', 'error')
+            return redirect(url_for('cli.aplicar_questionario', questionario_id=questionario_id))
+        
+        avaliado = Avaliado.query.get_or_404(avaliado_id)
+        
+        # Criar aplicação
+        aplicacao = AplicacaoQuestionario(
+            questionario_id=questionario_id,
+            avaliado_id=avaliado_id,
+            aplicador_id=current_user.id,
+            data_inicio=datetime.utcnow(),
+            status=StatusAplicacao.EM_ANDAMENTO,
+            observacoes=observacoes
+        )
+        
+        db.session.add(aplicacao)
+        db.session.commit()
+        
+        flash('Aplicação iniciada com sucesso!', 'success')
+        return redirect(url_for('cli.continuar_aplicacao', id=aplicacao.id))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Erro ao iniciar aplicação: {str(e)}', 'error')
+        return redirect(url_for('cli.aplicar_questionario', questionario_id=questionario_id))
+
+@cli_bp.route('/questionarios')
+@login_required
+def questionarios():
+    """Lista questionários - VERSÃO CORRIGIDA DEFINITIVA"""
+    try:
+        print(f"DEBUG: Usuário atual: {current_user.id} (cliente: {getattr(current_user, 'cliente_id', 'N/A')})")
+        
+        # QUERY MAIS SIMPLES POSSÍVEL - SEM FILTROS PROBLEMÁTICOS
+        questionarios = Questionario.query.order_by(Questionario.criado_em.desc()).all()
+        
+        print(f"DEBUG: Query retornou {len(questionarios)} questionários")
+        
+        # Debug detalhado
+        for q in questionarios:
+            print(f"DEBUG: Q{q.id}: {q.nome} (cliente={q.cliente_id}, ativo={getattr(q, 'ativo', 'N/A')})")
+        
+        # Se o usuário tem cliente_id, filtrar apenas no Python (mais seguro)
+        if hasattr(current_user, 'cliente_id') and current_user.cliente_id:
+            questionarios_filtrados = [q for q in questionarios if q.cliente_id == current_user.cliente_id]
+            print(f"DEBUG: Após filtro por cliente: {len(questionarios_filtrados)} questionários")
+            questionarios = questionarios_filtrados
+        
+        print(f"DEBUG: Enviando {len(questionarios)} questionários para o template")
+        
+        return render_template('cli/listar_questionarios.html', 
+                             questionarios=questionarios)
+                             
+    except Exception as e:
+        print(f"ERRO na função questionarios: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        flash(f'Erro ao carregar questionários: {str(e)}', 'error')
+        return render_template('cli/listar_questionarios.html', questionarios=[])
