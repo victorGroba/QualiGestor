@@ -1,0 +1,194 @@
+{% extends 'base_cliq.html' %}
+{% block title %}Responder Aplicação{% endblock %}
+
+{% block content %}
+{# CSRF para chamadas fetch (Flask-WTF / CSRFProtect). Se não usar, não interfere. #}
+<meta name="csrf-token" content="{{ csrf_token() if csrf_token is defined }}">
+
+<div class="container-fluid py-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h4 class="mb-0">Responder: {{ aplicacao.questionario.nome }}</h4>
+      <div class="text-muted small">
+        Avaliado: {{ aplicacao.avaliado.nome }} • Início: {{ aplicacao.data_inicio.strftime('%d/%m/%Y %H:%M') }}
+      </div>
+    </div>
+
+    <form method="post" action="{{ url_for('cli.finalizar_aplicacao', id=aplicacao.id) }}">
+      {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+      <button type="submit" class="btn btn-success">
+        Finalizar Aplicação
+      </button>
+    </form>
+  </div>
+
+  {% for topico in topicos %}
+  <div class="card mb-3">
+    <div class="card-header">
+      <strong>{{ loop.index }}. {{ topico.nome }}</strong>
+      {% if topico.descricao %}<div class="small text-muted">{{ topico.descricao }}</div>{% endif %}
+    </div>
+
+    <div class="card-body">
+      {% for p in topico.perguntas %}
+      {% set r = respostas_existentes.get(p.id) %}
+
+      <div class="mb-4 js-pergunta" data-pergunta-id="{{ p.id }}">
+        <label class="form-label d-block">
+          {{ loop.index }}. {{ p.texto }}
+          {% if p.obrigatoria %}<span class="badge text-bg-warning ms-2">Obrigatória</span>{% endif %}
+          {% if p.peso and p.peso != 1 %}<span class="badge text-bg-secondary ms-2">Peso {{ p.peso }}</span>{% endif %}
+        </label>
+
+        {# Normaliza o tipo para string #}
+        {% set tipo = (p.tipo.name if p.tipo and (p.tipo.name is defined)
+                       else (p.tipo.value if p.tipo and (p.tipo.value is defined)
+                       else (p.tipo ~ ''))) %}
+
+        {% if tipo in ['SIM_NAO_NA', 'MULTIPLA_ESCOLHA'] %}
+          <div>
+            {% for op in p.opcoes %}
+              <div class="form-check form-check-inline">
+                <input class="form-check-input js-resp-radio"
+                       type="radio"
+                       name="pergunta_{{ p.id }}"
+                       id="p{{ p.id }}_op{{ op.id }}"
+                       value="{{ op.texto }}"
+                       data-aplicacao-id="{{ aplicacao.id }}"
+                       data-pergunta-id="{{ p.id }}"
+                       {% if r and r.resposta == op.texto %}checked{% endif %}>
+                <label class="form-check-label" for="p{{ p.id }}_op{{ op.id }}">{{ op.texto }}</label>
+              </div>
+            {% endfor %}
+          </div>
+
+        {% elif tipo in ['ESCALA_NUMERICA', 'NOTA'] %}
+          <input type="number"
+                 class="form-control js-resp-input"
+                 data-aplicacao-id="{{ aplicacao.id }}"
+                 data-pergunta-id="{{ p.id }}"
+                 value="{{ r.resposta if r else '' }}"
+                 placeholder="Informe um número">
+
+        {% elif tipo == 'TEXTO_CURTO' %}
+          <input type="text"
+                 class="form-control js-resp-input"
+                 data-aplicacao-id="{{ aplicacao.id }}"
+                 data-pergunta-id="{{ p.id }}"
+                 value="{{ r.resposta if r else '' }}"
+                 placeholder="Digite sua resposta">
+
+        {% else %}
+          <div class="text-muted">Tipo de pergunta não suportado no template ({{ tipo }}).</div>
+        {% endif %}
+
+        {% if p.permite_observacao %}
+        <div class="mt-2">
+          <input type="text"
+                 class="form-control form-control-sm js-obs-input"
+                 data-aplicacao-id="{{ aplicacao.id }}"
+                 data-pergunta-id="{{ p.id }}"
+                 value="{{ r.observacao if r and r.observacao else '' }}"
+                 placeholder="Observação (opcional)">
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<script>
+(function () {
+  function getCsrfToken() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    return meta && meta.content ? meta.content : null;
+  }
+
+  async function salvarResposta(aplicacaoId, perguntaId, resposta, observacao = "") {
+    try {
+      const csrf = getCsrfToken();
+      const res = await fetch(`/cli/aplicacao/${aplicacaoId}/salvar-resposta`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(csrf ? { 'X-CSRFToken': csrf } : {})
+        },
+        body: JSON.stringify({
+          pergunta_id: perguntaId,
+          resposta: resposta ?? "",
+          observacao: observacao ?? ""
+        })
+      });
+
+      // tenta parsear JSON; se não vier, não quebra
+      let data = {};
+      try { data = await res.json(); } catch (_) {}
+
+      if (!res.ok || (data && data.erro)) {
+        console.error('Erro ao salvar resposta:', data || res.statusText);
+      }
+    } catch (e) {
+      console.error('Falha ao salvar resposta:', e);
+    }
+  }
+
+  // Radios (SIM_NAO_NA / MULTIPLA_ESCOLHA)
+  document.addEventListener('change', function (ev) {
+    const el = ev.target;
+    if (!el.classList.contains('js-resp-radio')) return;
+
+    const aplicacaoId = el.getAttribute('data-aplicacao-id');
+    const perguntaId = el.getAttribute('data-pergunta-id');
+    const resposta = el.value;
+
+    // Busca observação (se existir) no mesmo bloco .js-pergunta
+    const container = el.closest('.js-pergunta');
+    const obsInput = container ? container.querySelector('.js-obs-input') : null;
+    const observacao = obsInput ? obsInput.value : "";
+
+    salvarResposta(aplicacaoId, perguntaId, resposta, observacao);
+  });
+
+  // Inputs de número/texto (resposta digitada)
+  document.addEventListener('blur', function (ev) {
+    const el = ev.target;
+    if (!el.classList.contains('js-resp-input')) return;
+    const aplicacaoId = el.getAttribute('data-aplicacao-id');
+    const perguntaId = el.getAttribute('data-pergunta-id');
+    const resposta = el.value;
+
+    // Observação (se existir) no mesmo bloco
+    const container = el.closest('.js-pergunta');
+    const obsInput = container ? container.querySelector('.js-obs-input') : null;
+    const observacao = obsInput ? obsInput.value : "";
+
+    salvarResposta(aplicacaoId, perguntaId, resposta, observacao);
+  }, true);
+
+  // Observação: ao sair do campo, envia junto a resposta atual (radio/numero/texto)
+  document.addEventListener('blur', function (ev) {
+    const el = ev.target;
+    if (!el.classList.contains('js-obs-input')) return;
+
+    const aplicacaoId = el.getAttribute('data-aplicacao-id');
+    const perguntaId = el.getAttribute('data-pergunta-id');
+    const container = el.closest('.js-pergunta');
+
+    // tenta pegar valor atual da resposta (prioriza radio selecionado)
+    let respostaAtual = "";
+    const radioSelecionado = container ? container.querySelector(`input[name="pergunta_${perguntaId}"]:checked`) : null;
+    if (radioSelecionado) {
+      respostaAtual = radioSelecionado.value;
+    } else {
+      const typed = container ? container.querySelector('.js-resp-input') : null;
+      respostaAtual = typed ? typed.value : "";
+    }
+
+    const observacao = el.value || "";
+    salvarResposta(aplicacaoId, perguntaId, respostaAtual, observacao);
+  }, true);
+})();
+</script>
+{% endblock %}

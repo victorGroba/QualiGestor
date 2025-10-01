@@ -148,28 +148,34 @@ def get_avaliados_usuario():
 # ===================== CORREÇÃO 4: FUNÇÃO LOG_ACAO ROBUSTA =====================
 
 def log_acao(acao, detalhes=None, entidade_tipo=None, entidade_id=None):
-    """Função auxiliar para registrar ações no log - CORRIGIDA"""
+    """Registra ação no log. Serializa 'detalhes' para JSON."""
     try:
-        # Verificar se LogAuditoria existe
-        if 'LogAuditoria' in globals():
-            log = LogAuditoria(
-                usuario_id=current_user.id,
-                cliente_id=current_user.cliente_id,
-                acao=acao,
-                detalhes=detalhes,
-                entidade_tipo=entidade_tipo,
-                entidade_id=entidade_id,
-                ip=request.remote_addr if request else None,
-                user_agent=request.user_agent.string if request else None
-            )
-            db.session.add(log)
-            db.session.commit()
+        if detalhes is None:
+            detalhes_str = None
+        elif isinstance(detalhes, (dict, list)):
+            detalhes_str = json.dumps(detalhes, ensure_ascii=False, separators=(',', ':'))
         else:
-            # Fallback - apenas print se LogAuditoria não existir
-            print(f"LOG: {acao} - {detalhes}")
+            detalhes_str = str(detalhes)
+
+        log = LogAuditoria(
+            acao=acao,
+            detalhes=detalhes_str,          # 👈 agora é string/JSON
+            entidade_tipo=entidade_tipo,
+            entidade_id=entidade_id,
+            ip=(request.remote_addr if request else None),
+            user_agent=(request.headers.get('User-Agent') if request else None),
+            usuario_id=getattr(current_user, 'id', None),
+            cliente_id=getattr(current_user, 'cliente_id', None),
+        )
+        db.session.add(log)
+        db.session.commit()
     except Exception as e:
-        print(f"Erro ao criar log: {e}")
-        pass
+        # não derruba a requisição se o log falhar
+        db.session.rollback()
+        try:
+            current_app.logger.exception(f"Erro ao criar log: {e}")
+        except Exception:
+            print(f"Erro ao criar log: {e}")
 
 # ===================== CORREÇÃO 5: FUNÇÃO CRIAR_NOTIFICACAO ROBUSTA =====================
 
@@ -1380,63 +1386,121 @@ def listar_avaliados():
         flash(f"Erro ao carregar avaliados: {str(e)}", "danger")
         return render_template_safe('cli/index.html')
 
-@cli_bp.route('/avaliado/novo', methods=['GET', 'POST'])
-@cli_bp.route('/cadastrar-avaliado', methods=['GET', 'POST'])
+# Alias compatível com o template antigo (NÃO remova o de baixo):
+@cli_bp.route('/avaliados/cadastrar', methods=['GET', 'POST'], endpoint='cadastrar_avaliado')
+@cli_bp.route('/avaliados/novo', methods=['GET', 'POST'])
 @login_required
 def novo_avaliado():
     """Cadastra um novo avaliado"""
+
+    # Descobre se o usuário é admin (ajuste se seu Enum for diferente)
+    is_admin = getattr(current_user, 'tipo', None)
+    try:
+        # se usar Enum TipoUsuario.ADMIN:
+        from app.models import TipoUsuario
+        is_admin = (current_user.tipo == TipoUsuario.ADMIN)
+    except Exception:
+        # fallback: se for string:
+        is_admin = (str(getattr(current_user, 'tipo', '')).upper() == 'ADMIN')
+
     if request.method == 'POST':
         try:
-            nome = request.form.get('nome', '').strip()
-            codigo = request.form.get('codigo', '').strip()
-            endereco = request.form.get('endereco', '').strip()
-            grupo_id = request.form.get('grupo_id')
-            
+            nome = (request.form.get('nome') or '').strip()
+            codigo = (request.form.get('codigo') or '').strip()
+            endereco = (request.form.get('endereco') or '').strip()
+            email = (request.form.get('email') or '').strip()
+            idioma = (request.form.get('idioma') or '').strip()
+            cliente_id_raw = request.form.get('cliente_id')
+            grupo_id_raw = request.form.get('grupo_id')
+
             if not nome:
                 flash("Nome do avaliado é obrigatório.", "danger")
-                return redirect(url_for('cli.novo_avaliado'))
-            
-            # Verificar se código já existe
+                return redirect(url_for('cli.cadastrar_avaliado'))
+
+            # Define cliente_id: admin pode escolher; usuário normal força current_user.cliente_id
+            if is_admin and cliente_id_raw:
+                try:
+                    cliente_id = int(cliente_id_raw)
+                except ValueError:
+                    flash("Cliente inválido.", "warning")
+                    return redirect(url_for('cli.cadastrar_avaliado'))
+                cliente = Cliente.query.filter_by(id=cliente_id, ativo=True).first()
+                if not cliente:
+                    flash("Cliente não encontrado.", "warning")
+                    return redirect(url_for('cli.cadastrar_avaliado'))
+            else:
+                cliente_id = current_user.cliente_id
+
+            # Valida grupo (se enviado) e se pertence ao mesmo cliente
+            grupo = None
+            if grupo_id_raw:
+                try:
+                    gid = int(grupo_id_raw)
+                except ValueError:
+                    flash("Grupo inválido.", "warning")
+                    return redirect(url_for('cli.cadastrar_avaliado'))
+                grupo = Grupo.query.filter_by(id=gid, cliente_id=cliente_id, ativo=True).first()
+                if not grupo:
+                    flash("Grupo não encontrado ou sem permissão.", "warning")
+                    return redirect(url_for('cli.cadastrar_avaliado'))
+
+            # Código (se informado) deve ser único por cliente
             if codigo:
-                avaliado_existente = Avaliado.query.filter_by(
-                    codigo=codigo,
-                    cliente_id=current_user.cliente_id
-                ).first()
-                if avaliado_existente:
+                ja_existe = Avaliado.query.filter_by(codigo=codigo, cliente_id=cliente_id).first()
+                if ja_existe:
                     flash("Já existe um avaliado com este código.", "warning")
-                    return redirect(url_for('cli.novo_avaliado'))
-            
-            novo_avaliado = Avaliado(
+                    return redirect(url_for('cli.cadastrar_avaliado'))
+
+            avaliado = Avaliado(
                 nome=nome,
-                codigo=codigo,
-                endereco=endereco,
-                grupo_id=int(grupo_id) if grupo_id else None,
-                cliente_id=current_user.cliente_id,
+                codigo=codigo or None,
+                endereco=endereco or None,
+                grupo_id=(grupo.id if grupo else None),
+                cliente_id=cliente_id,
                 ativo=True
             )
-            
-            db.session.add(novo_avaliado)
+
+            # Campos opcionais (só seta se existirem no modelo)
+            for campo, valor in [('email', email or None), ('idioma', idioma or None)]:
+                try:
+                    setattr(avaliado, campo, valor)
+                except Exception:
+                    pass
+
+            db.session.add(avaliado)
             db.session.commit()
-            
-            log_acao(f"Criou avaliado: {nome}", None, "Avaliado", novo_avaliado.id)
+
+            log_acao("Criou avaliado", {"nome": nome, "codigo": codigo}, "Avaliado", avaliado.id)
             flash(f"Avaliado '{nome}' criado com sucesso!", "success")
-            
             return redirect(url_for('cli.listar_avaliados'))
-            
+
         except Exception as e:
             db.session.rollback()
             flash(f"Erro ao criar avaliado: {str(e)}", "danger")
+            return redirect(url_for('cli.cadastrar_avaliado'))
 
+    # GET
     try:
-        # GET
-        grupos = Grupo.query.filter_by(
-            cliente_id=current_user.cliente_id, ativo=True
-        ).all()
+        # Admin enxerga todos os clientes; usuário comum só o seu
+        if is_admin:
+            clientes = Cliente.query.filter_by(ativo=True).order_by(Cliente.nome.asc()).all()
+        else:
+            clientes = Cliente.query.filter_by(id=current_user.cliente_id).all()
 
-        return render_template_safe('cli/cadastrar_avaliado.html', grupos=grupos)
+        # Carrega grupos do cliente do usuário (simples); se quiser, pode filtrar por cliente selecionado via JS
+        grupos = Grupo.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).order_by(Grupo.nome.asc()).all()
+
+        return render_template_safe(
+            'cli/cadastrar_avaliado.html',
+            clientes=clientes,
+            grupos=grupos,
+            is_admin=is_admin
+        )
     except Exception as e:
         flash(f"Erro ao carregar formulário: {str(e)}", "danger")
         return redirect(url_for('cli.listar_avaliados'))
+
+
 
 @cli_bp.route('/avaliado/<int:id>/editar', methods=['GET', 'POST'])
 @login_required
@@ -1633,80 +1697,7 @@ def responder_aplicacao(id):
         flash(f"Erro ao carregar aplicação: {str(e)}", "danger")
         return redirect(url_for('cli.listar_aplicacoes'))
 
-@cli_bp.route('/aplicacao/<int:id>/salvar-resposta', methods=['POST'])
-@login_required
-def salvar_resposta(id):
-    """Salva uma resposta individual (AJAX)"""
-    try:
-        aplicacao = AplicacaoQuestionario.query.get_or_404(id)
-        
-        # Verificar permissões
-        if aplicacao.avaliado.cliente_id != current_user.cliente_id:
-            return jsonify({'erro': 'Acesso negado'}), 403
-        
-        if aplicacao.status != StatusAplicacao.EM_ANDAMENTO:
-            return jsonify({'erro': 'Aplicação já finalizada'}), 400
-        
-        data = request.get_json()
-        pergunta_id = data.get('pergunta_id')
-        resposta_texto = data.get('resposta', '')
-        observacao = data.get('observacao', '')
-        
-        pergunta = Pergunta.query.get_or_404(pergunta_id)
-        
-        # Buscar resposta existente ou criar nova
-        if 'RespostaPergunta' in globals():
-            resposta = RespostaPergunta.query.filter_by(
-                aplicacao_id=id,
-                pergunta_id=pergunta_id
-            ).first()
-            
-            if not resposta:
-                resposta = RespostaPergunta(
-                    aplicacao_id=id,
-                    pergunta_id=pergunta_id
-                )
-            
-            resposta.resposta = resposta_texto
-            resposta.observacao = observacao
-            resposta.data_resposta = datetime.now()
-            
-            # Calcular pontuação se aplicável
-            if pergunta.tipo == 'SIM_NAO_NA':
-                if resposta_texto.lower() == 'sim':
-                    resposta.pontos = pergunta.peso
-                elif resposta_texto.lower() == 'não':
-                    resposta.pontos = 0
-                else:  # N.A.
-                    resposta.pontos = None
-            elif pergunta.tipo in ['MULTIPLA_ESCOLHA', 'ESCALA_NUMERICA'] and 'OpcaoPergunta' in globals():
-                opcao = OpcaoPergunta.query.filter_by(
-                    pergunta_id=pergunta_id,
-                    texto=resposta_texto
-                ).first()
-                if opcao:
-                    resposta.pontos = opcao.valor * pergunta.peso
-            elif pergunta.tipo == 'NOTA':
-                try:
-                    nota = float(resposta_texto)
-                    resposta.pontos = nota * pergunta.peso
-                except:
-                    resposta.pontos = 0
-            
-            db.session.add(resposta)
-            db.session.commit()
-            
-            return jsonify({
-                'sucesso': True,
-                'mensagem': 'Resposta salva com sucesso',
-                'pontos': getattr(resposta, 'pontos', 0)
-            })
-        else:
-            return jsonify({'erro': 'Sistema de respostas não disponível'}), 500
-        
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'erro': str(e)}), 500
+
 
 @cli_bp.route('/aplicacao/<int:id>/finalizar', methods=['POST'])
 @login_required
@@ -2164,51 +2155,81 @@ def configuracoes():
         flash(f"Erro ao carregar configurações: {str(e)}", "danger")
         return render_template_safe('cli/index.html')
 
-@cli_bp.route('/configuracoes/salvar', methods=['POST'])
+@cli_bp.route('/aplicacao/<int:id>/salvar-resposta', methods=['POST'])
 @login_required
-@admin_required
-def salvar_configuracoes():
-    """Salvar configurações do sistema"""
+def salvar_resposta(id):
+    """Salva uma resposta individual (AJAX)"""
     try:
-        if 'ConfiguracaoCliente' in globals():
-            config = ConfiguracaoCliente.query.filter_by(
-                cliente_id=current_user.cliente_id
+        aplicacao = AplicacaoQuestionario.query.get_or_404(id)
+
+        # Permissão
+        if aplicacao.avaliado.cliente_id != current_user.cliente_id:
+            return jsonify({'erro': 'Acesso negado'}), 403
+        if aplicacao.status != StatusAplicacao.EM_ANDAMENTO:
+            return jsonify({'erro': 'Aplicação já finalizada'}), 400
+
+        data = request.get_json() or {}
+        pergunta_id = data.get('pergunta_id')
+        resposta_texto = (data.get('resposta') or '').strip()
+        observacao = (data.get('observacao') or '').strip()
+
+        pergunta = Pergunta.query.get_or_404(pergunta_id)
+
+        # Normaliza tipo para string de comparação
+        if hasattr(pergunta.tipo, 'name'):
+            tipo = pergunta.tipo.name  # Enum
+        elif hasattr(pergunta.tipo, 'value'):
+            tipo = str(pergunta.tipo.value).upper().replace(" ", "_")
+        else:
+            tipo = str(pergunta.tipo or "").upper().replace(" ", "_")
+
+        # Busca/Cria resposta
+        resposta = RespostaPergunta.query.filter_by(
+            aplicacao_id=id,
+            pergunta_id=pergunta_id
+        ).first()
+        if not resposta:
+            resposta = RespostaPergunta(
+                aplicacao_id=id,
+                pergunta_id=pergunta_id
+            )
+
+        resposta.resposta = resposta_texto
+        resposta.observacao = observacao
+        resposta.pontos = 0  # default
+
+        # Pontuação por tipo
+        if tipo in ['SIM_NAO_NA', 'MULTIPLA_ESCOLHA']:
+            opcao = OpcaoPergunta.query.filter_by(
+                pergunta_id=pergunta_id,
+                texto=resposta_texto
             ).first()
-            
-            if not config:
-                config = ConfiguracaoCliente(cliente_id=current_user.cliente_id)
-            
-            # Atualizar configurações
-            config.cor_primaria = request.form.get('cor_primaria', '#007bff')
-            config.cor_secundaria = request.form.get('cor_secundaria', '#6c757d')
-            config.mostrar_notas = 'mostrar_notas' in request.form
-            config.permitir_fotos = 'permitir_fotos' in request.form
-            config.obrigar_plano_acao = 'obrigar_plano_acao' in request.form
-            
-            # Upload de logo
-            if 'logo' in request.files:
-                logo = request.files['logo']
-                if logo and logo.filename:
-                    filename = secure_filename(logo.filename)
-                    logo_path = os.path.join(current_app.config.get('UPLOAD_FOLDER', '/tmp'), 'logos', filename)
-                    
-                    # Criar diretório se não existir
-                    os.makedirs(os.path.dirname(logo_path), exist_ok=True)
-                    logo.save(logo_path)
-                    config.logo_url = f'/uploads/logos/{filename}'
-            
-            db.session.add(config)
-            db.session.commit()
-            
-            log_acao("Salvou configurações do sistema", None, "ConfiguracaoCliente", config.id)
-        
-        flash('Configurações salvas com sucesso!', 'success')
-        
+            if opcao and opcao.valor is not None:
+                resposta.pontos = float(opcao.valor) * (pergunta.peso or 1)
+
+        elif tipo in ['ESCALA_NUMERICA', 'NOTA']:
+            try:
+                nota = float(resposta_texto)
+                resposta.pontos = nota * (pergunta.peso or 1)
+            except ValueError:
+                resposta.pontos = 0
+
+        elif tipo == 'TEXTO_CURTO':
+            # mantém pontos = 0
+            pass
+
+        db.session.add(resposta)
+        db.session.commit()
+
+        return jsonify({
+            'sucesso': True,
+            'mensagem': 'Resposta salva com sucesso',
+            'pontos': resposta.pontos or 0
+        })
     except Exception as e:
         db.session.rollback()
-        flash(f'Erro ao salvar configurações: {str(e)}', 'error')
-    
-    return redirect(url_for('cli.configuracoes'))
+        return jsonify({'erro': f'Falha ao salvar: {str(e)}'}), 500
+
 
 # ===================== NOTIFICAÇÕES =====================
 
