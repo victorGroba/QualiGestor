@@ -8,6 +8,14 @@ from flask_login import LoginManager
 from flask_migrate import Migrate
 from dotenv import load_dotenv
 
+# CSRF (opcional, se Flask-WTF estiver instalado)
+try:
+    from flask_wtf import CSRFProtect
+    from flask_wtf.csrf import generate_csrf
+except Exception:
+    CSRFProtect = None
+    generate_csrf = None
+
 # ----------------------------
 # Extensões globais
 # ----------------------------
@@ -24,7 +32,6 @@ def _sqlite_uri(db_path: Path) -> str:
     Monta uma URI SQLite compatível com Windows/macOS/Linux,
     evitando problemas com barras invertidas e espaços.
     """
-    # SQLAlchemy aceita caminhos POSIX. Ex.: sqlite:///C:/meu caminho/banco.db
     return f"sqlite:///{db_path.as_posix()}"
 
 
@@ -39,10 +46,7 @@ def create_app() -> Flask:
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
     app.config["SESSION_COOKIE_SECURE"] = False  # em produção com HTTPS -> True
-
-    # Evita 404 por barra final ("/rota" vs "/rota/")
-    # (não resolve endpoints duplicados, apenas normaliza trailing slash)
-    app.url_map.strict_slashes = False
+    app.url_map.strict_slashes = False  # normaliza trailing slash
 
     # -------------------------------------------------------------------------
     # Caminhos do projeto
@@ -70,7 +74,7 @@ def create_app() -> Flask:
         return dict(versao=app.config.get("VERSAO", "dev"))
 
     # -------------------------------------------------------------------------
-    # Helpers para templates (import RELATIVO e protegido)
+    # Helpers para templates
     # -------------------------------------------------------------------------
     try:
         from .utils.helpers import opcao_pergunta_por_id  # type: ignore
@@ -83,59 +87,7 @@ def create_app() -> Flask:
         def inject_custom_functions():
             return dict()
 
-    # -------------------------------------------------------------------------
-    # Extensões
-    # -------------------------------------------------------------------------
-    db.init_app(app)
-    migrate.init_app(app, db)
-    login_manager.init_app(app)
-    login_manager.login_view = "auth.login"
-
-    # -------------------------------------------------------------------------
-    # Models e user loader
-    # -------------------------------------------------------------------------
-    from .models import Usuario  # import local para evitar ciclos
-
-    @login_manager.user_loader
-    def load_user(user_id: str) -> Optional["Usuario"]:
-        try:
-            return Usuario.query.get(int(user_id))
-        except Exception:
-            return None
-
-    # -------------------------------------------------------------------------
-    # Blueprints (atenção: não registre o mesmo blueprint em outro lugar)
-    # -------------------------------------------------------------------------
-    from .auth.routes import auth_bp
-    from .main.routes import main_bp
-    from .cli.routes import cli_bp
-    from .panorama.routes import panorama_bp
-
-    app.register_blueprint(auth_bp)
-    app.register_blueprint(main_bp)                 # '/' e '/painel'
-    app.register_blueprint(cli_bp, url_prefix="/cli")
-    app.register_blueprint(panorama_bp, url_prefix="/panorama")
-
-    # Admin opcional
-    try:
-        from .admin.routes import admin_bp
-        app.register_blueprint(admin_bp, url_prefix="/admin")
-    except Exception:
-        pass
-
-        # === Helpers Jinja: expõe has_endpoint() para os templates ===
-    def has_endpoint(name: str) -> bool:
-        try:
-            # verifica se existe um endpoint com esse nome (ex.: 'cli.novo_questionario')
-            return name in {rule.endpoint for rule in app.url_map.iter_rules()}
-        except Exception:
-            return False
-
-    @app.context_processor
-    def inject_has_endpoint():
-        # deixa disponível em todos os templates
-        return dict(has_endpoint=has_endpoint)
-        # === Helpers disponíveis em TODOS os templates ===
+    # Helpers de navegação globais
     def has_endpoint(name: str) -> bool:
         try:
             return name in {rule.endpoint for rule in app.url_map.iter_rules()}
@@ -161,7 +113,60 @@ def create_app() -> Flask:
             url_for_safe=url_for_safe,
         )
 
+    # -------------------------------------------------------------------------
+    # Extensões
+    # -------------------------------------------------------------------------
+    db.init_app(app)
+    migrate.init_app(app, db)
+    login_manager.init_app(app)
+    login_manager.login_view = "auth.login"
 
+    # CSRFProtect (se disponível)
+    if CSRFProtect is not None:
+        try:
+            csrf = CSRFProtect()
+            csrf.init_app(app)
+        except Exception as e:
+            print(f"[WARN] CSRFProtect não habilitado: {e}")
+
+    # Expor csrf_token() nos templates (só se Flask-WTF estiver disponível)
+    @app.context_processor
+    def inject_csrf():
+        if generate_csrf:
+            return {"csrf_token": generate_csrf}
+        return {}
+
+    # -------------------------------------------------------------------------
+    # Models e user loader
+    # -------------------------------------------------------------------------
+    from .models import Usuario  # import local para evitar ciclos
+
+    @login_manager.user_loader
+    def load_user(user_id: str) -> Optional["Usuario"]:
+        try:
+            return Usuario.query.get(int(user_id))
+        except Exception:
+            return None
+
+    # -------------------------------------------------------------------------
+    # Blueprints
+    # -------------------------------------------------------------------------
+    from .auth.routes import auth_bp
+    from .main.routes import main_bp
+    from .cli.routes import cli_bp
+    from .panorama.routes import panorama_bp
+
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(main_bp)                 # '/' e '/painel'
+    app.register_blueprint(cli_bp, url_prefix="/cli")
+    app.register_blueprint(panorama_bp, url_prefix="/panorama")
+
+    # Admin opcional
+    try:
+        from .admin.routes import admin_bp
+        app.register_blueprint(admin_bp, url_prefix="/admin")
+    except Exception:
+        pass
 
     return app
 

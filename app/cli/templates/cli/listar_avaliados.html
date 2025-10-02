@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="container mt-4">
-  <h4 class="mb-4">Avaliado</h4>
+  <h4 class="mb-4">Avaliados</h4>
 
   <!-- Filtro -->
   <div class="card mb-4 shadow-sm">
@@ -12,14 +12,20 @@
       <form method="GET" class="row g-3 align-items-end">
         <div class="col-md-5">
           <label class="form-label">Nome</label>
-          <input type="text" class="form-control" name="nome" placeholder="Nome do avaliado" value="{{ request.args.get('nome', '') }}">
+          <input type="text"
+                 class="form-control"
+                 name="nome"
+                 placeholder="Nome do avaliado"
+                 value="{{ request.args.get('nome', '') }}">
         </div>
         <div class="col-md-5">
           <label class="form-label">Campos do avaliado</label>
           <select class="form-select" name="campo_id">
             <option value="">Selecione um campo do avaliado</option>
-            {% for campo in campos_personalizados %}
-              <option value="{{ campo.id }}" {% if request.args.get('campo_id') == campo.id|string %}selected{% endif %}>{{ campo.nome }}</option>
+            {% for campo in (campos_personalizados or []) %}
+              <option value="{{ campo.id }}" {% if request.args.get('campo_id') == campo.id|string %}selected{% endif %}>
+                {{ campo.nome }}
+              </option>
             {% endfor %}
           </select>
         </div>
@@ -35,9 +41,16 @@
     <div class="card-body">
       <div class="d-flex justify-content-between align-items-center mb-3">
         <h5 class="mb-0">Listagem</h5>
-        <a href="{{ url_for('cli.cadastrar_avaliado') }}" class="btn btn-primary">
-          <i class="fas fa-plus me-1"></i> Novo avaliado
-        </a>
+
+        {% if has_endpoint('cli.cadastrar_avaliado') %}
+          <a href="{{ url_for('cli.cadastrar_avaliado') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i> Novo avaliado
+          </a>
+        {% else %}
+          <button type="button" class="btn btn-secondary" disabled>
+            <i class="fas fa-plus me-1"></i> Novo avaliado
+          </button>
+        {% endif %}
       </div>
 
       <div class="mb-3">
@@ -50,7 +63,7 @@
           <thead class="table-light">
             <tr>
               <th>Nome do avaliado</th>
-              <th>Grupos</th>
+              <th>Grupo</th>
               <th>Endereço</th>
               <th>E-mail</th>
               <th class="text-center">Ações</th>
@@ -64,15 +77,40 @@
               <td>{{ a.endereco or '-' }}</td>
               <td>{{ a.email or '-' }}</td>
               <td class="text-center">
-                <a href="{{ url_for('cli.editar_avaliado', avaliado_id=a.id) }}" class="text-primary me-2" title="Editar">
-                  <i class="fas fa-pen-to-square"></i>
-                </a>
-                <form method="POST" action="{{ url_for('cli.excluir_avaliado', avaliado_id=a.id) }}" style="display:inline;" onsubmit="return confirm('Deseja realmente excluir este avaliado?');">
-                  <button type="submit" class="btn btn-link p-0 text-danger" title="Excluir">
+
+                {# Editar #}
+                {% if has_endpoint('cli.editar_avaliado') %}
+                  <a href="{{ url_for('cli.editar_avaliado', id=a.id) }}"
+                     class="text-primary me-2"
+                     title="Editar">
+                    <i class="fas fa-pen-to-square"></i>
+                  </a>
+                {% else %}
+                  <button type="button" class="btn btn-link p-0 text-secondary me-2" title="Editar indisponível" disabled>
+                    <i class="fas fa-pen-to-square"></i>
+                  </button>
+                {% endif %}
+
+                {# Excluir (soft delete) #}
+                {% if has_endpoint('cli.excluir_avaliado') %}
+                  <form method="POST"
+                        action="{{ url_for('cli.excluir_avaliado', id=a.id) }}"
+                        style="display:inline;"
+                        onsubmit="return confirm('Deseja realmente excluir este avaliado?');">
+                    {% if csrf_token is defined %}
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    {% endif %}
+                    <button type="submit" class="btn btn-link p-0 text-danger" title="Excluir">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </form>
+                {% else %}
+                  <button type="button" class="btn btn-link p-0 text-secondary" title="Excluir indisponível" disabled>
                     <i class="fas fa-trash"></i>
                   </button>
-                </form>
-              </td> 
+                {% endif %}
+
+              </td>
             </tr>
             {% else %}
             <tr>

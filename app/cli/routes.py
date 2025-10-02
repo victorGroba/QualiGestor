@@ -1363,29 +1363,35 @@ def remover_pergunta(pergunta_id):
 
 # ===================== AVALIADOS =====================
 
-@cli_bp.route('/avaliados')
-@cli_bp.route('/listar-avaliados')
+@cli_bp.route('/listar-avaliados', methods=['GET'])
+@cli_bp.route('/avaliados', methods=['GET'])
 @login_required
 def listar_avaliados():
-    """Lista os avaliados do cliente"""
+    """Lista avaliados do cliente do usuário, com filtro opcional por nome."""
     try:
-        avaliados = get_avaliados_usuario()
-        
-        # Estatísticas para cada avaliado
-        for avaliado in avaliados:
-            avaliado.total_aplicacoes = AplicacaoQuestionario.query.filter_by(
-                avaliado_id=avaliado.id
-            ).count()
-            
-            avaliado.ultima_aplicacao = AplicacaoQuestionario.query.filter_by(
-                avaliado_id=avaliado.id
-            ).order_by(AplicacaoQuestionario.data_inicio.desc()).first()
+        nome = (request.args.get('nome') or '').strip()
 
-        return render_template_safe('cli/listar_avaliados.html', avaliados=avaliados)
+        q = Avaliado.query.filter_by(cliente_id=current_user.cliente_id)
+        if nome:
+            q = q.filter(Avaliado.nome.ilike(f'%{nome}%'))
+
+        avaliados = q.order_by(Avaliado.nome.asc()).all()
+
+        # Se você tiver campos personalizados, carregue aqui; senão, passe lista vazia
+        campos_personalizados = []
+
+        return render_template_safe(
+            'cli/listar_avaliados.html',
+            avaliados=avaliados,
+            campos_personalizados=campos_personalizados
+        )
     except Exception as e:
-        flash(f"Erro ao carregar avaliados: {str(e)}", "danger")
-        return render_template_safe('cli/index.html')
-
+        flash(f'Erro ao listar avaliados: {str(e)}', 'danger')
+        return render_template_safe(
+            'cli/listar_avaliados.html',
+            avaliados=[],
+            campos_personalizados=[]
+        )
 # Alias compatível com o template antigo (NÃO remova o de baixo):
 @cli_bp.route('/avaliados/cadastrar', methods=['GET', 'POST'], endpoint='cadastrar_avaliado')
 @cli_bp.route('/avaliados/novo', methods=['GET', 'POST'])
@@ -1502,39 +1508,129 @@ def novo_avaliado():
 
 
 
+@cli_bp.route('/avaliados/<int:id>/editar', methods=['GET', 'POST'])
 @cli_bp.route('/avaliado/<int:id>/editar', methods=['GET', 'POST'])
 @login_required
 def editar_avaliado(id):
+    """Edita um avaliado do cliente atual."""
     try:
         avaliado = Avaliado.query.get_or_404(id)
-        
+
+        # segurança: o avaliado precisa pertencer ao mesmo cliente do usuário
         if avaliado.cliente_id != current_user.cliente_id:
-            flash("Avaliado não encontrado.", "error")
+            flash("Avaliado não encontrado.", "danger")
             return redirect(url_for('cli.listar_avaliados'))
-        
+
         if request.method == 'POST':
             try:
-                avaliado.nome = request.form.get('nome', '').strip()
-                avaliado.codigo = request.form.get('codigo', '').strip()
-                avaliado.endereco = request.form.get('endereco', '').strip()
-                avaliado.grupo_id = int(request.form.get('grupo_id')) if request.form.get('grupo_id') else None
-                avaliado.ativo = request.form.get('ativo') == 'on'
-                
+                nome = (request.form.get('nome') or '').strip()
+                codigo = (request.form.get('codigo') or '').strip()
+                endereco = (request.form.get('endereco') or '').strip()
+                grupo_id_raw = request.form.get('grupo_id')
+                ativo_flag = request.form.get('ativo') == 'on'
+
+                if not nome:
+                    flash("Nome é obrigatório.", "warning")
+                    return redirect(url_for('cli.editar_avaliado', id=id))
+
+                # valida grupo (se enviado) e se pertence ao mesmo cliente
+                grupo = None
+                if grupo_id_raw:
+                    try:
+                        gid = int(grupo_id_raw)
+                    except ValueError:
+                        flash("Grupo inválido.", "warning")
+                        return redirect(url_for('cli.editar_avaliado', id=id))
+
+                    grupo = Grupo.query.filter_by(
+                        id=gid, cliente_id=current_user.cliente_id, ativo=True
+                    ).first()
+                    if not grupo:
+                        flash("Grupo não encontrado ou sem permissão.", "warning")
+                        return redirect(url_for('cli.editar_avaliado', id=id))
+
+                # código único por cliente (se fornecido e mudou)
+                if codigo and codigo != (avaliado.codigo or ''):
+                    existe = Avaliado.query.filter_by(
+                        cliente_id=current_user.cliente_id, codigo=codigo
+                    ).first()
+                    if existe and existe.id != id:
+                        flash("Já existe um avaliado com este código.", "warning")
+                        return redirect(url_for('cli.editar_avaliado', id=id))
+
+                # aplica alterações
+                avaliado.nome = nome
+                avaliado.codigo = (codigo or None)
+                avaliado.endereco = (endereco or None)
+                avaliado.grupo_id = (grupo.id if grupo else None)
+                avaliado.ativo = ativo_flag
+
+                # campos opcionais, se existirem no modelo
+                for campo in ('email', 'idioma'):
+                    if campo in request.form:
+                        try:
+                            valor = (request.form.get(campo) or None)
+                            setattr(avaliado, campo, valor)
+                        except Exception:
+                            pass
+
                 db.session.commit()
-                log_acao(f"Editou avaliado: {avaliado.nome}", None, "Avaliado", id)
-                
+
+                log_acao(
+                    "Editou avaliado",
+                    {"id": id, "nome": avaliado.nome, "codigo": avaliado.codigo},
+                    "Avaliado",
+                    id
+                )
+
                 flash("Avaliado atualizado com sucesso!", "success")
                 return redirect(url_for('cli.listar_avaliados'))
-                
+
             except Exception as e:
                 db.session.rollback()
                 flash(f"Erro ao atualizar avaliado: {str(e)}", "danger")
-        
-        grupos = Grupo.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).all()
+
+        # GET: carrega grupos do mesmo cliente
+        grupos = Grupo.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).order_by(Grupo.nome.asc()).all()
         return render_template_safe('cli/editar_avaliado.html', avaliado=avaliado, grupos=grupos)
+
     except Exception as e:
         flash(f"Erro ao carregar avaliado: {str(e)}", "danger")
         return redirect(url_for('cli.listar_avaliados'))
+    
+
+@cli_bp.route('/avaliados/<int:id>/excluir', methods=['POST'])
+@cli_bp.route('/avaliado/<int:id>/excluir', methods=['POST'])
+@login_required
+def excluir_avaliado(id):
+    """Marca o avaliado como inativo (soft delete) e registra log."""
+    current_app.logger.info(f"[CLI] excluir_avaliado() chamado para id={id}")
+    try:
+        avaliado = Avaliado.query.get_or_404(id)
+
+        # segurança: precisa ser do mesmo cliente do usuário
+        if avaliado.cliente_id != current_user.cliente_id:
+            current_app.logger.warning(
+                f"[CLI] excluir_avaliado bloqueado: user.cliente={current_user.cliente_id} != avaliado.cliente={avaliado.cliente_id}"
+            )
+            flash("Avaliado não encontrado.", "danger")
+            return redirect(url_for('cli.listar_avaliados'))
+
+        # soft delete (mais seguro com FKs)
+        avaliado.ativo = False
+        db.session.commit()
+
+        log_acao("Excluiu avaliado", {"id": id, "nome": avaliado.nome}, "Avaliado", id)
+        flash("Avaliado excluído (inativado) com sucesso.", "success")
+        current_app.logger.info(f"[CLI] excluir_avaliado OK id={id}")
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception(f"[CLI] erro excluir_avaliado id={id}: {e}")
+        flash(f"Erro ao excluir avaliado: {str(e)}", "danger")
+
+    return redirect(url_for('cli.listar_avaliados'))
+
 
 # ===================== APLICAÇÕES =====================
 
