@@ -80,19 +80,56 @@ def cadastrar_usuario():
         cliente_id = request.form.get('cliente_id')
 
         tipo_usuario = str_para_tipo_usuario(perfil_form)
-        senha_hash = generate_password_hash(senha)
+        senha_hash = generate_password_hash(senha) if senha else None
 
-        novo_usuario = Usuario(
-            nome=nome,
-            email=email,
-            senha=senha_hash,
-            tipo=tipo_usuario,
-            cliente_id=cliente_id
-        )
+        # --- monta kwargs apenas com colunas válidas do modelo Usuario ---
+        try:
+            cols = [c.name for c in Usuario.__table__.columns]
+        except Exception:
+            cols = []
+
+        data = {}
+        if 'nome' in cols and nome:
+            data['nome'] = nome
+        if 'email' in cols and email:
+            data['email'] = email
+        if 'tipo' in cols and tipo_usuario is not None:
+            data['tipo'] = tipo_usuario
+        # cliente_id pode ser None
+        if 'cliente_id' in cols:
+            try:
+                data['cliente_id'] = int(cliente_id) if cliente_id not in (None, '', 'None') else None
+            except Exception:
+                data['cliente_id'] = None
+
+        # cria a instância sem passar 'senha' (que pode não existir no model)
+        novo_usuario = Usuario(**data)
+
+        # procura campos prováveis para armazenar o hash da senha e seta o valor
+        possiveis_campos_senha = ['senha_hash', 'password_hash', 'hash_senha', 'password', 'senha']
+        campo_setado = None
+        for campo in possiveis_campos_senha:
+            if campo in cols:
+                if senha_hash is not None:
+                    setattr(novo_usuario, campo, senha_hash)
+                campo_setado = campo
+                break
+
+        # se não encontrou coluna de senha, cria atributo temporário (não ideal)
+        if senha_hash is not None and campo_setado is None:
+            setattr(novo_usuario, 'senha', senha_hash)
+
+        # grava no banco
         db.session.add(novo_usuario)
-        db.session.commit()
-        flash('Usuário cadastrado com sucesso!', 'success')
-        return redirect(url_for('auth.cadastrar_usuario'))
+        try:
+            db.session.commit()
+            flash('Usuário cadastrado com sucesso!', 'success')
+            return redirect(url_for('auth.cadastrar_usuario'))
+        except Exception as e:
+            db.session.rollback()
+            print("Erro ao inserir usuário:", e)
+            flash('Erro ao cadastrar usuário. Verifique os logs.', 'danger')
+            return render_template('auth/cadastrar_usuario.html', clientes=clientes)
 
     return render_template('auth/cadastrar_usuario.html', clientes=clientes)
 

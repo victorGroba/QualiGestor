@@ -2,7 +2,7 @@
 import os
 from pathlib import Path
 from typing import Optional
-from flask import Flask, url_for
+from flask import Flask, url_for, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_migrate import Migrate
@@ -22,6 +22,16 @@ except Exception:
 db = SQLAlchemy()
 migrate = Migrate()
 login_manager = LoginManager()
+
+# Instância global do CSRF (pode ser None se Flask-WTF não estiver disponível)
+csrf = None
+if CSRFProtect is not None:
+    try:
+        csrf = CSRFProtect()
+    except Exception as e:
+        # Falha ao instanciar CSRFProtect; deixamos csrf = None
+        print(f"[WARN] Falha ao instanciar CSRFProtect: {e}")
+        csrf = None
 
 # Carrega variáveis do .env (se existir)
 load_dotenv()
@@ -121,10 +131,13 @@ def create_app() -> Flask:
     login_manager.init_app(app)
     login_manager.login_view = "auth.login"
 
-    # CSRFProtect (se disponível)
-    if CSRFProtect is not None:
+    # CSRFProtect (se disponível) - iniciando a instância global 'csrf'
+    if csrf is not None:
         try:
-            csrf = CSRFProtect()
+            # Opções úteis para desenvolvimento/diagnóstico:
+            # - desativa limite de tempo do token (útil para testes locais). Em produção,
+            #   remova ou ajuste conforme desejado.
+            app.config.setdefault("WTF_CSRF_TIME_LIMIT", None)
             csrf.init_app(app)
         except Exception as e:
             print(f"[WARN] CSRFProtect não habilitado: {e}")
@@ -135,6 +148,34 @@ def create_app() -> Flask:
         if generate_csrf:
             return {"csrf_token": generate_csrf}
         return {}
+
+    # Adiciona um cookie de debug com o token CSRF (APENAS para desenvolvimento)
+    # -------------------------------------------------------------------------
+    # Esse cookie facilita testes manuais e com curl (ex.: pegar token facilmente).
+    # NÃO deixar esse cookie habilitado em produção — remova ou comente o bloco abaixo
+    # quando migrar para ambiente público/HTTPS.
+    try:
+        if generate_csrf:
+            @app.after_request
+            def set_csrf_cookie(response):
+                try:
+                    # gera token e seta cookie legível via DevTools (httponly=False) para debug
+                    token_val = generate_csrf()
+                    response.set_cookie(
+                        "csrf_token_debug",
+                        token_val,
+                        httponly=False,  # debug only
+                        samesite=app.config.get("SESSION_COOKIE_SAMESITE", "Lax"),
+                        secure=app.config.get("SESSION_COOKIE_SECURE", False)
+                    )
+                except Exception:
+                    # não interrompe a resposta se algo falhar aqui
+                    pass
+                return response
+    except Exception:
+        # se algo de import/availability falhar, continuamos sem o cookie de debug
+        pass
+    # -------------------------------------------------------------------------
 
     # -------------------------------------------------------------------------
     # Models e user loader
@@ -171,4 +212,5 @@ def create_app() -> Flask:
     return app
 
 
-__all__ = ["db", "create_app"]
+# Exportações do módulo
+__all__ = ["db", "create_app", "csrf"]
