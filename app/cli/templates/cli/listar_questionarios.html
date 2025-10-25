@@ -21,20 +21,22 @@
 
     <div class="card shadow-sm">
         <div class="card-body">
-            
+
             <form method="GET" action="{{ url_for('cli.listar_questionarios') }}" class="mb-4">
                 <div class="row g-2">
                     <div class="col-md-6">
                         <div class="input-group">
                             <span class="input-group-text"><i class="fas fa-search"></i></span>
-                            <input type="text" name="q" class="form-control" placeholder="Buscar por nome..." value="{{ termo or '' }}">
+                            <input type="text" name="q" class="form-control" placeholder="Buscar por nome..."
+                                value="{{ termo or '' }}">
                         </div>
                     </div>
                     <div class="col-md-4">
                         <select name="status" class="form-select">
-                            <option value="ativos" {% if status == 'ativos' %}selected{% endif %}>Somente Ativos</option>
-                            <option value="inativos" {% if status == 'inativos' %}selected{% endif %}>Somente Inativos</option>
-                            <option value="todos" {% if status == 'todos' %}selected{% endif %}>Todos</option>
+                            <option value="ativos" {% if status=='ativos' %}selected{% endif %}>Somente Ativos</option>
+                            <option value="inativos" {% if status=='inativos' %}selected{% endif %}>Somente Inativos
+                            </option>
+                            <option value="todos" {% if status=='todos' %}selected{% endif %}>Todos</option>
                         </select>
                     </div>
                     <div class="col-md-2">
@@ -73,22 +75,26 @@
                             </td>
                             <td>{{ dt.strftime('%d/%m/%Y') if dt else '-' }}</td>
                             <td class="text-end">
-                                
+
                                 <div class="btn-group" role="group">
-                                    
-                                    <a href="{{ url_for_safe('cli.visualizar_questionario', id=q.id) }}"
-                                       class="btn btn-sm btn-primary" title="Editar / Visualizar Estrutura">
+
+                                    <a href="{{ url_for_safe('cli.gerenciar_topicos', id=q.id) }}"
+                                        class="btn btn-sm btn-primary" title="Editar Estrutura (Tópicos/Perguntas)">
                                         <i class="fas fa-edit"></i>
                                     </a>
 
-                                    <form action="{{ url_for_safe('cli.duplicar_questionario', id=q.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Tem certeza que deseja duplicar este questionário?');">
+                                    <form action="{{ url_for_safe('cli.duplicar_questionario', id=q.id) }}"
+                                        method="POST" class="d-inline"
+                                        onsubmit="return confirm('Tem certeza que deseja duplicar este questionário?');">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" class="btn btn-sm btn-secondary" title="Duplicar">
                                             <i class="fas fa-copy"></i>
                                         </button>
                                     </form>
 
-                                    <form action="{{ url_for_safe('cli.desativar_questionario', id=q.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Tem certeza que deseja desativar (remover) este questionário?');">
+                                    <form action="{{ url_for_safe('cli.desativar_questionario', id=q.id) }}"
+                                        method="POST" class="d-inline"
+                                        onsubmit="return confirm('Tem certeza que deseja desativar (remover) este questionário?');">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" class="btn btn-sm btn-danger" title="Remover (Desativar)">
                                             <i class="fas fa-trash"></i>
