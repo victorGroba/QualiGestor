@@ -1,2 +1,111 @@
 2025-10-25 12:51:13,493 INFO: QualiGestor startup [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\__init__.py:256]
 2025-10-25 12:51:15,549 INFO: QualiGestor startup [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\__init__.py:256]
+2025-10-25 13:11:23,414 INFO: QualiGestor startup [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\__init__.py:256]
+2025-10-25 13:11:25,641 INFO: QualiGestor startup [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\__init__.py:256]
+2025-10-25 13:23:25,688 INFO: QualiGestor startup [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\__init__.py:256]
+2025-10-25 13:25:11,988 INFO: QualiGestor startup [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\__init__.py:256]
+2025-10-25 13:25:39,678 INFO: QualiGestor startup [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\__init__.py:256]
+2025-10-25 13:28:45,649 INFO: QualiGestor startup [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\__init__.py:256]
+2025-10-25 13:28:47,634 INFO: QualiGestor startup [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\__init__.py:256]
+2025-10-25 13:29:11,313 ERROR: Erro ao carregar aplicação 12 para responder: name 'joinedload' is not defined [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:1877]
+Traceback (most recent call last):
+  File "F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py", line 1845, in responder_aplicacao
+    joinedload(Topico.perguntas).joinedload(Pergunta.opcoes), # Carrega perguntas e suas opções
+    ^^^^^^^^^^
+NameError: name 'joinedload' is not defined
+2025-10-25 13:41:52,696 INFO: QualiGestor startup [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\__init__.py:256]
+2025-10-25 13:41:54,476 INFO: QualiGestor startup [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\__init__.py:256]
+2025-10-25 13:42:11,900 ERROR: Erro ao carregar aplicação 12 para responder: 'Topico.perguntas' does not support object population - eager loading cannot be applied. [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:1879]
+Traceback (most recent call last):
+  File "F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py", line 1854, in responder_aplicacao
+    ).order_by(Topico.ordem).all()
+                             ~~~^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2704, in all
+    return self._iter().all()  # type: ignore
+           ~~~~~~~~~~^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2857, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+                                                  ~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+        params,
+        ^^^^^^^
+        execution_options={"_sa_orm_load_options": self.load_options},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2365, in execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2251, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<4 lines>...
+        conn,
+        ^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 309, in orm_execute_statement
+    return cls.orm_setup_cursor_result(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        session,
+        ^^^^^^^^
+    ...<4 lines>...
+        result,
+        ^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 616, in orm_setup_cursor_result
+    return loading.instances(result, querycontext)
+           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 132, in instances
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 224, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 114, in instances
+    query_entity.row_processor(context, cursor)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 2786, in row_processor
+    _instance = loading._instance_processor(
+        self,
+    ...<7 lines>...
+        polymorphic_discriminator=self._polymorphic_discriminator,
+    )
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 958, in _instance_processor
+    prop.create_row_processor(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        context, query_entity, path, mapper, result, adapter, populators
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\interfaces.py", line 1093, in create_row_processor
+    strat.create_row_processor(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        context,
+        ^^^^^^^^
+    ...<6 lines>...
+        populators,
+        ^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\strategies.py", line 2808, in create_row_processor
+    raise sa_exc.InvalidRequestError(
+    ...<2 lines>...
+    )
+sqlalchemy.exc.InvalidRequestError: 'Topico.perguntas' does not support object population - eager loading cannot be applied.
+2025-10-25 13:42:46,617 INFO: QualiGestor startup [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\__init__.py:256]
+2025-10-25 13:42:48,609 INFO: QualiGestor startup [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\__init__.py:256]
+2025-10-25 13:44:26,527 INFO: QualiGestor startup [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\__init__.py:256]
+2025-10-25 13:44:28,516 INFO: QualiGestor startup [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\__init__.py:256]
+2025-10-25 13:55:50,353 INFO: QualiGestor startup [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\__init__.py:256]
+2025-10-25 13:57:48,023 INFO: QualiGestor startup [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\__init__.py:256]

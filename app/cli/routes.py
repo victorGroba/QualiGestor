@@ -10,6 +10,8 @@ from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
 # from weasyprint import HTML  # COMENTAR SE DER ERRO
 from sqlalchemy import func, extract, and_, or_, desc
+from sqlalchemy.orm import joinedload
+
 from flask import request, make_response
 
 # ==================== CORREÇÃO 1: IMPORTS ROBUSTOS ====================
@@ -1827,37 +1829,55 @@ def nova_aplicacao():
 @cli_bp.route('/aplicacao/<int:id>/responder')
 @login_required
 def responder_aplicacao(id):
-    """Interface para responder aplicação"""
+    """Interface para responder aplicação - ATUALIZADA"""
     try:
         aplicacao = AplicacaoQuestionario.query.get_or_404(id)
-        
-        # Verificar permissões
+
+        # ... (Verificações de permissão e status como antes) ...
         if aplicacao.avaliado.cliente_id != current_user.cliente_id:
             flash("Aplicação não encontrada.", "error")
             return redirect(url_for('cli.listar_aplicacoes'))
-        
         if aplicacao.status != StatusAplicacao.EM_ANDAMENTO:
-            flash("Esta aplicação já foi finalizada.", "warning")
+            flash("Esta aplicação já foi finalizada ou cancelada.", "warning")
             return redirect(url_for('cli.visualizar_aplicacao', id=id))
-        
-        # Buscar tópicos e perguntas
-        topicos = Topico.query.filter_by(
-            questionario_id=aplicacao.questionario_id,
-            ativo=True
+        # --------------------------------------------------------
+
+        # --- MODIFICAÇÃO: Carregar perguntas junto com tópicos e respostas existentes ---
+        topicos = Topico.query.options(
+            joinedload(Topico.perguntas).joinedload(Pergunta.opcoes), # Carrega perguntas e suas opções
+            joinedload(Topico.perguntas).joinedload(Pergunta.respostas).load_only(
+                RespostaPergunta.id, RespostaPergunta.resposta, RespostaPergunta.observacao, RespostaPergunta.caminho_foto, RespostaPergunta.pergunta_id
+            ) # Carrega apenas campos necessários das respostas associadas
+        ).filter(
+            Topico.questionario_id == aplicacao.questionario_id,
+            Topico.ativo == True
         ).order_by(Topico.ordem).all()
-        
-        # Buscar respostas já dadas
-        respostas_existentes = {}
-        if hasattr(aplicacao, 'respostas'):
-            for resposta in aplicacao.respostas:
-                respostas_existentes[resposta.pergunta_id] = resposta
-        
-        return render_template_safe('cli/responder_aplicacao.html',
-                             aplicacao=aplicacao,
-                             topicos=topicos,
-                             respostas_existentes=respostas_existentes)
+
+        # Criar um dicionário de respostas existentes para acesso rápido no template
+        # Isso processa as respostas que foram carregadas com as perguntas
+        respostas_map = {}
+        for topico in topicos:
+            for pergunta in topico.perguntas:
+                 if pergunta.ativo: # Considera apenas perguntas ativas
+                    # A relação 'respostas' em Pergunta pode ter várias respostas (de outras aplicações)
+                    # Precisamos encontrar a resposta específica para ESTA aplicação
+                    resposta_atual = next((r for r in pergunta.respostas if r.aplicacao_id == aplicacao.id), None)
+                    if resposta_atual:
+                        respostas_map[pergunta.id] = resposta_atual
+        # --------------------------------------------------------------------------
+
+        # Log para debug
+        current_app.logger.debug(f"Renderizando responder_aplicacao para ID {id}. Respostas encontradas: {len(respostas_map)}")
+
+        return render_template_safe(
+            'cli/responder_aplicacao.html',
+            aplicacao=aplicacao,
+            topicos=topicos, # Passa a lista de tópicos (que agora contém perguntas->opções)
+            respostas_existentes=respostas_map # Passa o mapa de respostas desta aplicação
+        )
     except Exception as e:
-        flash(f"Erro ao carregar aplicação: {str(e)}", "danger")
+        current_app.logger.error(f"Erro ao carregar aplicação {id} para responder: {e}", exc_info=True)
+        flash(f"Erro ao carregar aplicação para responder: {str(e)}", "danger")
         return redirect(url_for('cli.listar_aplicacoes'))
 
 
@@ -2382,12 +2402,15 @@ def salvar_resposta(id):
             pass
 
         db.session.add(resposta)
+        db.session.flush() # Garante que a 'resposta' tenha um ID se for nova
+        resposta_id_retorno = resposta.id
         db.session.commit()
 
         return jsonify({
             'sucesso': True,
             'mensagem': 'Resposta salva com sucesso',
-            'pontos': resposta.pontos or 0
+            'pontos': resposta.pontos or 0,
+            'resposta_id': resposta_id_retorno # <<< ADICIONE ESTA CHAVE
         })
     except Exception as e:
         db.session.rollback()

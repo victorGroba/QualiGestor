@@ -68,8 +68,8 @@
                                             <i class="fas fa-eye"></i>
                                         </a>
                                         {% else %}
-                                        <a href="{{ url_for('cli.continuar_aplicacao', id=aplicacao.id) }}" 
-                                           class="btn btn-sm btn-outline-warning" title="Continuar">
+                                        <a href="{{ url_for('cli.responder_aplicacao', id=aplicacao.id) }}" 
+                                           class="btn btn-sm btn-outline-warning" title="Responder">
                                             <i class="fas fa-play"></i>
                                         </a>
                                         {% endif %}
