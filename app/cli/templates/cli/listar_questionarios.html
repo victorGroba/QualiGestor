@@ -21,80 +21,94 @@
 
     <div class="card shadow-sm">
         <div class="card-body">
-            <div class="row">
-                <div class="col-12">
-                    <p class="text-muted mb-4">
-                        <i class="fas fa-info-circle me-2"></i>
-                        Gerencie os questionários e checklists do sistema.
-                    </p>
-
-                    <!-- Placeholder para lista de questionários -->
-                    <div class="alert alert-info">
-                        <h5 class="alert-heading">
-                            <i class="fas fa-construction me-2"></i>
-                            Funcionalidade Básica
-                        </h5>
-                        <p class="mb-0">
-                            A listagem completa de questionários será implementada conforme os modelos forem criados.
-                        </p>
+            
+            <form method="GET" action="{{ url_for('cli.listar_questionarios') }}" class="mb-4">
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                            <input type="text" name="q" class="form-control" placeholder="Buscar por nome..." value="{{ termo or '' }}">
+                        </div>
                     </div>
-
-                    <!-- Estrutura futura da tabela -->
-                    <div class="table-responsive">
-                        <table class="table table-striped">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Nome</th>
-                                    <th>Versão</th>
-                                    <th>Status</th>
-                                    <th>Data Criação</th>
-                                    <th>Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% if questionarios and questionarios|length %}
-                                {% for q in questionarios %}
-                                {% set nome = q.nome or q.titulo %}
-                                {% set versao = q.versao or '1.0' %}
-                                {% set pub = q.publicado if q.publicado is not none else q.ativo %}
-                                {% set dt = q.criado_em or q.data_criacao or q.created_at %}
-                                <tr>
-                                    <td>{{ q.id }}</td>
-                                    <td>{{ nome }}</td>
-                                    <td>{{ versao }}</td>
-                                    <td>
-                                        <span class="badge bg-{{ 'success' if pub else 'warning' }}">
-                                            {{ 'Publicado' if pub else 'Rascunho' }}
-                                        </span>
-                                    </td>
-                                    <td>{{ dt.strftime('%d/%m/%Y') if dt else '-' }}</td>
-                                    <td>
-                                        <a href="{{ url_for_safe('cli.visualizar_questionario', questionario_id=q.id) }}"
-                                            class="btn btn-sm btn-outline-primary" title="Visualizar">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-                                        <a href="{{ url_for_safe('cli.selecionar_loja', questionario_id=q.id) }}"
-                                            class="btn btn-sm btn-outline-success" title="Aplicar">
-                                            <i class="fas fa-play"></i>
-                                        </a>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                                {% else %}
-                                <tr>
-                                    <td colspan="6" class="text-center text-muted py-4">
-                                        <i class="fas fa-inbox fa-2x mb-2"></i><br>
-                                        Nenhum questionário cadastrado ainda.
-                                        {% if usou_fallback %}<br><small>(Nem mesmo no fallback)</small>{% endif %}
-                                    </td>
-                                </tr>
-                                {% endif %}
-                            </tbody>
-
-                        </table>
+                    <div class="col-md-4">
+                        <select name="status" class="form-select">
+                            <option value="ativos" {% if status == 'ativos' %}selected{% endif %}>Somente Ativos</option>
+                            <option value="inativos" {% if status == 'inativos' %}selected{% endif %}>Somente Inativos</option>
+                            <option value="todos" {% if status == 'todos' %}selected{% endif %}>Todos</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-outline-primary w-100">Filtrar</button>
                     </div>
                 </div>
+            </form>
+
+            <div class="table-responsive">
+                <table class="table table-striped table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Nome</th>
+                            <th>Versão</th>
+                            <th>Status</th>
+                            <th>Data Criação</th>
+                            <th class="text-end">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if questionarios and questionarios|length %}
+                        {% for q in questionarios %}
+                        {% set nome = q.nome or q.titulo %}
+                        {% set versao = q.versao or '1.0' %}
+                        {% set pub = q.publicado if q.publicado is not none else q.ativo %}
+                        {% set dt = q.criado_em or q.data_criacao or q.created_at %}
+                        <tr>
+                            <td>{{ q.id }}</td>
+                            <td>{{ nome }}</td>
+                            <td>{{ versao }}</td>
+                            <td>
+                                <span class="badge bg-{{ 'success' if pub else 'warning' }}">
+                                    {{ 'Publicado' if pub else 'Rascunho' }}
+                                </span>
+                            </td>
+                            <td>{{ dt.strftime('%d/%m/%Y') if dt else '-' }}</td>
+                            <td class="text-end">
+                                
+                                <div class="btn-group" role="group">
+                                    
+                                    <a href="{{ url_for_safe('cli.visualizar_questionario', id=q.id) }}"
+                                       class="btn btn-sm btn-primary" title="Editar / Visualizar Estrutura">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+
+                                    <form action="{{ url_for_safe('cli.duplicar_questionario', id=q.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Tem certeza que deseja duplicar este questionário?');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-sm btn-secondary" title="Duplicar">
+                                            <i class="fas fa-copy"></i>
+                                        </button>
+                                    </form>
+
+                                    <form action="{{ url_for_safe('cli.desativar_questionario', id=q.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Tem certeza que deseja desativar (remover) este questionário?');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-sm btn-danger" title="Remover (Desativar)">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-4">
+                                <i class="fas fa-inbox fa-2x mb-2"></i><br>
+                                Nenhum questionário encontrado com os filtros atuais.
+                                {% if usou_fallback %}<br><small>(Nem mesmo no fallback)</small>{% endif %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>

@@ -1371,7 +1371,7 @@ def listar_avaliados():
     try:
         nome = (request.args.get('nome') or '').strip()
 
-        q = Avaliado.query.filter_by(cliente_id=current_user.cliente_id)
+        q = Avaliado.query.filter_by(cliente_id=current_user.cliente_id, ativo=True)
         if nome:
             q = q.filter(Avaliado.nome.ilike(f'%{nome}%'))
 
