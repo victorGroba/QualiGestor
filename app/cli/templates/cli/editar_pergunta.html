@@ -21,16 +21,7 @@
     </div>
     <p class="text-muted mb-4">Editando pergunta do tópico: <strong>{{ pergunta.topico.nome }}</strong></p>
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
+    {% include 'includes/_flash_messages.html' %} {# Assume que _flash_messages.html existe #}
 
     <div class="card shadow-sm">
          <div class="card-header">
@@ -38,7 +29,7 @@
         </div>
         <div class="card-body">
             <form method="POST" action="{{ url_for('cli.editar_pergunta', pergunta_id=pergunta.id) }}" id="form-pergunta">
-                
+
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                 <div class="mb-3">
@@ -50,18 +41,20 @@
                     <label for="tipo" class="form-label">Tipo de Resposta <span class="text-danger">*</span></label>
                     <select class="form-select" id="tipo" name="tipo" required onchange="toggleOpcoes()">
                         {# Tenta pré-selecionar o tipo atual #}
-                        <option value="SIM_NAO_NA" {% if pergunta.tipo.name == 'SIM_NAO_NA' %}selected{% endif %}>Sim / Não / N.A.</option>
-                        <option value="MULTIPLA_ESCOLHA" {% if pergunta.tipo.name == 'MULTIPLA_ESCOLHA' %}selected{% endif %}>Múltipla Escolha</option>
-                        <option value="ESCALA_NUMERICA" {% if pergunta.tipo.name == 'ESCALA_NUMERICA' %}selected{% endif %}>Escala Numérica</option>
-                        <option value="NOTA" {% if pergunta.tipo.name == 'NOTA' %}selected{% endif %}>Nota</option>
-                        <option value="TEXTO_CURTO" {% if pergunta.tipo.name == 'TEXTO_CURTO' %}selected{% endif %}>Texto Curto</option>
-                        <option value="TEXTO_LONGO" {% if pergunta.tipo.name == 'TEXTO_LONGO' %}selected{% endif %}>Texto Longo</option>
-                        <option value="FOTO" {% if pergunta.tipo.name == 'FOTO' %}selected{% endif %}>Foto</option>
-                        <option value="DATA" {% if pergunta.tipo.name == 'DATA' %}selected{% endif %}>Data</option>
-                        <option value="HORA" {% if pergunta.tipo.name == 'HORA' %}selected{% endif %}>Hora</option>
-                        <option value="NUMERO" {% if pergunta.tipo.name == 'NUMERO' %}selected{% endif %}>Número</option>
-                        <option value="PORCENTAGEM" {% if pergunta.tipo.name == 'PORCENTAGEM' %}selected{% endif %}>Porcentagem</option>
-                        <option value="MOEDA" {% if pergunta.tipo.name == 'MOEDA' %}selected{% endif %}>Moeda</option>
+                        {% set current_type = pergunta.tipo.name if pergunta.tipo else '' %}
+                        <option value="SIM_NAO_NA" {% if current_type == 'SIM_NAO_NA' %}selected{% endif %}>Sim / Não / N.A.</option>
+                        <option value="MULTIPLA_ESCOLHA" {% if current_type == 'MULTIPLA_ESCOLHA' %}selected{% endif %}>Múltipla Escolha</option>
+                        <option value="ESCALA_NUMERICA" {% if current_type == 'ESCALA_NUMERICA' %}selected{% endif %}>Escala Numérica</option>
+                        <option value="NOTA" {% if current_type == 'NOTA' %}selected{% endif %}>Nota</option>
+                        <option value="TEXTO_CURTO" {% if current_type == 'TEXTO_CURTO' %}selected{% endif %}>Texto Curto</option>
+                        <option value="TEXTO_LONGO" {% if current_type == 'TEXTO_LONGO' %}selected{% endif %}>Texto Longo</option>
+                        <option value="FOTO" {% if current_type == 'FOTO' %}selected{% endif %}>Foto</option>
+                        <option value="DATA" {% if current_type == 'DATA' %}selected{% endif %}>Data</option>
+                        <option value="HORA" {% if current_type == 'HORA' %}selected{% endif %}>Hora</option>
+                        <option value="NUMERO" {% if current_type == 'NUMERO' %}selected{% endif %}>Número</option>
+                        <option value="PORCENTAGEM" {% if current_type == 'PORCENTAGEM' %}selected{% endif %}>Porcentagem</option>
+                        <option value="MOEDA" {% if current_type == 'MOEDA' %}selected{% endif %}>Moeda</option>
+                        <option value="ASSINATURA" {% if current_type == 'ASSINATURA' %}selected{% endif %}>Assinatura Digital</option>
                     </select>
                 </div>
 
@@ -69,7 +62,7 @@
                     <h5>Opções de Resposta</h5>
                     <div id="opcoes-lista">
                         {# Preenche as opções existentes #}
-                        {% if pergunta.tipo.name in ['MULTIPLA_ESCOLHA', 'ESCALA_NUMERICA'] and pergunta.opcoes %}
+                        {% if current_type in ['MULTIPLA_ESCOLHA', 'ESCALA_NUMERICA'] and pergunta.opcoes %}
                             {% for opcao in pergunta.opcoes.order_by('ordem') %}
                                 <div class="input-group mb-2">
                                     <input type="text" name="opcao_texto[]" class="form-control form-control-sm" placeholder="Texto da Opção" value="{{ opcao.texto }}" required>
@@ -106,6 +99,13 @@
                     </div>
                 </div>
 
+                <div class="mb-3">
+                     <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" role="switch" id="exige_foto_se_nao_conforme" name="exige_foto_se_nao_conforme" {% if pergunta and pergunta.exige_foto_se_nao_conforme %}checked{% endif %}>
+                        <label class="form-check-label" for="exige_foto_se_nao_conforme">Exigir Foto se Não Conforme</label>
+                        <div class="form-text small text-muted">Marque se uma foto for necessária caso a resposta seja "Não" ou indique não conformidade.</div>
+                    </div>
+                </div>
                 <hr class="my-4">
 
                 <div class="d-flex justify-content-between">
@@ -130,10 +130,8 @@
 
         if (selectedType === 'MULTIPLA_ESCOLHA' || selectedType === 'ESCALA_NUMERICA') {
             opcoesContainer.style.display = 'block';
-             // Não adiciona automaticamente ao editar, pois já carrega as existentes
         } else {
             opcoesContainer.style.display = 'none';
-            // Não limpa ao editar, pois o backend vai ignorar se o tipo não for compatível
         }
     }
 
@@ -154,14 +152,12 @@
 
     function removerOpcao(button) {
         button.closest('.input-group').remove();
-        // Renumerar placeholders
         const lista = document.getElementById('opcoes-lista');
         Array.from(lista.children).forEach((div, i) => {
              div.querySelector('input[name="opcao_texto[]"]').placeholder = `Texto da Opção ${i + 1}`;
         });
     }
 
-    // Chama toggleOpcoes na carga inicial para mostrar/ocultar corretamente
-    document.addEventListener('DOMContentLoaded', toggleOpcoes); 
+    document.addEventListener('DOMContentLoaded', toggleOpcoes);
 </script>
 {% endblock %}

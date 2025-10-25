@@ -21,6 +21,7 @@ class TipoResposta(enum.Enum):
     NUMERO = "Número"
     PORCENTAGEM = "Porcentagem"
     MOEDA = "Moeda"
+    ASSINATURA = "Assinatura Digital"
 
 class TipoUsuario(enum.Enum):
     """Tipos de usuário do sistema"""
@@ -283,6 +284,10 @@ class Pergunta(db.Model):
     ordem = db.Column(db.Integer, nullable=False, default=0)
     ativo = db.Column(db.Boolean, default=True)
     
+    # --- LINHA ADICIONADA ---
+    exige_foto_se_nao_conforme = db.Column(db.Boolean, default=False, nullable=False) 
+    # -----------------------
+    
     # Configurações específicas por tipo
     configuracoes = db.Column(db.Text)  # JSON para configurações específicas
     
@@ -293,6 +298,7 @@ class Pergunta(db.Model):
     criado_em = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relacionamentos
+    # Certifique-se que OpcaoPergunta e RespostaPergunta estão definidas ANTES ou DEPOIS desta classe
     opcoes = db.relationship('OpcaoPergunta', backref='pergunta', lazy='dynamic', cascade='all, delete-orphan')
     respostas = db.relationship('RespostaPergunta', backref='pergunta', lazy='dynamic')
 
@@ -354,6 +360,10 @@ class RespostaPergunta(db.Model):
     resposta = db.Column(db.Text)  # Texto da resposta
     observacao = db.Column(db.Text)  # Observação adicional
     pontos = db.Column(db.Float)  # Pontos obtidos nesta resposta
+
+    # --- LINHA ADICIONADA ---
+    caminho_foto = db.Column(db.String(255), nullable=True) # Caminho para a foto de evidência
+    # -----------------------
     
     # Metadados
     data_resposta = db.Column(db.DateTime, default=datetime.utcnow)

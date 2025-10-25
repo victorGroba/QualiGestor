@@ -44,6 +44,14 @@ def _sqlite_uri(db_path: Path) -> str:
     """
     return f"sqlite:///{db_path.as_posix()}"
 
+# --- FUNÇÃO AUXILIAR PARA VERIFICAR EXTENSÕES DE ARQUIVO ---
+# Colocada aqui para fácil acesso, pode ser movida para utils/helpers.py depois
+def allowed_file(filename: str, allowed_extensions: set) -> bool:
+    """Verifica se o nome de arquivo tem uma extensão permitida."""
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in allowed_extensions
+# -----------------------------------------------------------
+
 
 def create_app() -> Flask:
     # Define pastas padrão (dentro de app/)
@@ -66,6 +74,13 @@ def create_app() -> Flask:
     instance_dir = root_dir / "instance"
     instance_dir.mkdir(parents=True, exist_ok=True)
 
+    # --- ADIÇÃO: Configuração da pasta de upload ---
+    UPLOAD_FOLDER = instance_dir / "uploads" / "fotos_respostas"
+    UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True) # Garante que a pasta exista
+    app.config['UPLOAD_FOLDER'] = str(UPLOAD_FOLDER) # Armazena como string no config
+    app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif', 'webp'} # Tipos permitidos
+    # ----------------------------------------------
+
     # Banco em instance/banco.db
     db_path = instance_dir / "banco.db"
     app.config["SQLALCHEMY_DATABASE_URI"] = _sqlite_uri(db_path)
@@ -77,7 +92,7 @@ def create_app() -> Flask:
     try:
         app.config["VERSAO"] = versao_path.read_text(encoding="utf-8").strip()
     except FileNotFoundError:
-        app.config["VERSAO"] = "1.4.0-beta"
+        app.config["VERSAO"] = "1.4.0-beta" # Mantive o seu default
 
     @app.context_processor
     def inject_version():
@@ -91,16 +106,24 @@ def create_app() -> Flask:
 
         @app.context_processor
         def inject_custom_functions():
-            return dict(opcao_pergunta_por_id=opcao_pergunta_por_id)
+            # Adiciona allowed_file ao contexto dos templates também, se útil
+            return dict(
+                opcao_pergunta_por_id=opcao_pergunta_por_id,
+                allowed_file=allowed_file # Permite usar no template se precisar
+            )
     except Exception:
         @app.context_processor
         def inject_custom_functions():
-            return dict()
+             # Adiciona allowed_file mesmo se outros helpers falharem
+            return dict(allowed_file=allowed_file)
 
     # Helpers de navegação globais
     def has_endpoint(name: str) -> bool:
         try:
-            return name in {rule.endpoint for rule in app.url_map.iter_rules()}
+            # Garante que app.url_map existe antes de iterar
+            if app.url_map:
+                return name in {rule.endpoint for rule in app.url_map.iter_rules()}
+            return False
         except Exception:
             return False
 
@@ -112,9 +135,15 @@ def create_app() -> Flask:
             return url_for(endpoint, **values)
         except Exception:
             try:
-                return url_for('cli.index') if has_endpoint('cli.index') else '/'
+                # Tenta gerar url_for dentro do contexto da app para garantir que url_map está pronto
+                with app.app_context():
+                    if has_endpoint('cli.index'):
+                        return url_for('cli.index')
+                    else:
+                        return '/'
             except Exception:
                 return '/'
+
 
     @app.context_processor
     def inject_nav_helpers():
@@ -130,13 +159,13 @@ def create_app() -> Flask:
     migrate.init_app(app, db)
     login_manager.init_app(app)
     login_manager.login_view = "auth.login"
+    login_manager.login_message = "Por favor, faça login para acessar esta página."
+    login_manager.login_message_category = "info"
+
 
     # CSRFProtect (se disponível) - iniciando a instância global 'csrf'
     if csrf is not None:
         try:
-            # Opções úteis para desenvolvimento/diagnóstico:
-            # - desativa limite de tempo do token (útil para testes locais). Em produção,
-            #   remova ou ajuste conforme desejado.
             app.config.setdefault("WTF_CSRF_TIME_LIMIT", None)
             csrf.init_app(app)
         except Exception as e:
@@ -149,49 +178,49 @@ def create_app() -> Flask:
             return {"csrf_token": generate_csrf}
         return {}
 
-    # Adiciona um cookie de debug com o token CSRF (APENAS para desenvolvimento)
-    # -------------------------------------------------------------------------
-    # Esse cookie facilita testes manuais e com curl (ex.: pegar token facilmente).
-    # NÃO deixar esse cookie habilitado em produção — remova ou comente o bloco abaixo
-    # quando migrar para ambiente público/HTTPS.
+    # Cookie de debug CSRF (REMOVER EM PRODUÇÃO)
+    # (Código mantido como no original)
     try:
         if generate_csrf:
             @app.after_request
             def set_csrf_cookie(response):
                 try:
-                    # gera token e seta cookie legível via DevTools (httponly=False) para debug
                     token_val = generate_csrf()
                     response.set_cookie(
                         "csrf_token_debug",
                         token_val,
-                        httponly=False,  # debug only
+                        httponly=False,
                         samesite=app.config.get("SESSION_COOKIE_SAMESITE", "Lax"),
                         secure=app.config.get("SESSION_COOKIE_SECURE", False)
                     )
                 except Exception:
-                    # não interrompe a resposta se algo falhar aqui
                     pass
                 return response
     except Exception:
-        # se algo de import/availability falhar, continuamos sem o cookie de debug
         pass
     # -------------------------------------------------------------------------
 
     # -------------------------------------------------------------------------
     # Models e user loader
     # -------------------------------------------------------------------------
-    from .models import Usuario  # import local para evitar ciclos
+    # É importante que os modelos sejam importados DEPOIS que 'db' foi inicializado
+    # e ANTES dos blueprints que os usam serem registrados.
+    with app.app_context():
+        from . import models # Importa tudo de models.py
 
     @login_manager.user_loader
-    def load_user(user_id: str) -> Optional["Usuario"]:
+    def load_user(user_id: str) -> Optional["models.Usuario"]:
         try:
-            return Usuario.query.get(int(user_id))
-        except Exception:
+            # Acessa Usuario através do módulo importado
+            return models.Usuario.query.get(int(user_id))
+        except Exception as e:
+            app.logger.error(f"Erro ao carregar usuário {user_id}: {e}")
             return None
 
     # -------------------------------------------------------------------------
     # Blueprints
     # -------------------------------------------------------------------------
+    # Importar DEPOIS da inicialização do app e db
     from .auth.routes import auth_bp
     from .main.routes import main_bp
     from .cli.routes import cli_bp
@@ -206,11 +235,28 @@ def create_app() -> Flask:
     try:
         from .admin.routes import admin_bp
         app.register_blueprint(admin_bp, url_prefix="/admin")
-    except Exception:
-        pass
+    except ImportError:
+         print("[INFO] Blueprint Admin não encontrado ou não importado.")
+    except Exception as e:
+         print(f"[WARN] Erro ao registrar blueprint Admin: {e}")
+
+
+    # Adicionar um logger básico para debug se não estiver em produção
+    if not app.debug:
+        import logging
+        from logging.handlers import RotatingFileHandler
+        # Exemplo: Log para instance/app.log
+        log_file = instance_dir / 'app.log'
+        file_handler = RotatingFileHandler(str(log_file), maxBytes=10240, backupCount=10)
+        file_handler.setFormatter(logging.Formatter(
+            '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'))
+        file_handler.setLevel(logging.INFO)
+        app.logger.addHandler(file_handler)
+        app.logger.setLevel(logging.INFO)
+        app.logger.info('QualiGestor startup')
 
     return app
 
 
-# Exportações do módulo
-__all__ = ["db", "create_app", "csrf"]
+# Exportações do módulo - MANTIDAS IGUAIS
+__all__ = ["db", "create_app", "csrf", "allowed_file"] # Adicionei allowed_file aqui

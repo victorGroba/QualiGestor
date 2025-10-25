@@ -21,16 +21,7 @@
     </div>
     <p class="text-muted mb-4">Adicionando pergunta ao tópico: <strong>{{ topico.nome }}</strong> (Questionário: {{ topico.questionario.nome }})</p>
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
+    {% include 'includes/_flash_messages.html' %} {# Assume que _flash_messages.html existe #}
 
     <div class="card shadow-sm">
         <div class="card-header">
@@ -38,7 +29,7 @@
         </div>
         <div class="card-body">
             <form method="POST" action="{{ url_for('cli.nova_pergunta', topico_id=topico.id) }}" id="form-pergunta">
-                
+
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                 <div class="mb-3">
@@ -49,7 +40,6 @@
                 <div class="mb-3">
                     <label for="tipo" class="form-label">Tipo de Resposta <span class="text-danger">*</span></label>
                     <select class="form-select" id="tipo" name="tipo" required onchange="toggleOpcoes()">
-                        {# Idealmente, carregar os tipos do Enum, mas para simplificar: #}
                         <option value="SIM_NAO_NA" selected>Sim / Não / N.A.</option>
                         <option value="MULTIPLA_ESCOLHA">Múltipla Escolha</option>
                         <option value="ESCALA_NUMERICA">Escala Numérica (Ex: 1-5)</option>
@@ -62,6 +52,7 @@
                         <option value="NUMERO">Número</option>
                         <option value="PORCENTAGEM">Porcentagem</option>
                         <option value="MOEDA">Moeda</option>
+                        <option value="ASSINATURA">Assinatura Digital</option>
                     </select>
                 </div>
 
@@ -94,6 +85,13 @@
                     </div>
                 </div>
 
+                <div class="mb-3">
+                     <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" role="switch" id="exige_foto_se_nao_conforme" name="exige_foto_se_nao_conforme">
+                        <label class="form-check-label" for="exige_foto_se_nao_conforme">Exigir Foto se Não Conforme</label>
+                        <div class="form-text small text-muted">Marque se uma foto for necessária caso a resposta seja "Não" ou indique não conformidade.</div>
+                    </div>
+                </div>
                 <hr class="my-4">
 
                 <div class="d-flex justify-content-between">
@@ -118,18 +116,15 @@
 
         if (selectedType === 'MULTIPLA_ESCOLHA' || selectedType === 'ESCALA_NUMERICA') {
             opcoesContainer.style.display = 'block';
-            // Adiciona uma opção inicial se não houver nenhuma
             if (document.getElementById('opcoes-lista').children.length === 0) {
-                 adicionarOpcao(); 
-                 // Se for escala, pode pré-popular algumas opções (ex: 1 a 5)
+                 adicionarOpcao();
                  if(selectedType === 'ESCALA_NUMERICA') {
-                     preencherEscalaPadrao(5); // Exemplo: Escala de 1 a 5
+                     preencherEscalaPadrao(5);
                  }
             }
         } else {
             opcoesContainer.style.display = 'none';
-             // Limpa opções se mudar para um tipo que não as usa
-            document.getElementById('opcoes-lista').innerHTML = ''; 
+            document.getElementById('opcoes-lista').innerHTML = '';
         }
     }
 
@@ -150,22 +145,18 @@
 
     function removerOpcao(button) {
         button.closest('.input-group').remove();
-        // Renumerar placeholders se necessário (opcional)
         const lista = document.getElementById('opcoes-lista');
         Array.from(lista.children).forEach((div, i) => {
              div.querySelector('input[name="opcao_texto[]"]').placeholder = `Texto da Opção ${i + 1}`;
         });
     }
-
-    function preencherEscalaPadrao(maxValor) {
+     function preencherEscalaPadrao(maxValor) {
          const lista = document.getElementById('opcoes-lista');
-         lista.innerHTML = ''; // Limpa antes
+         lista.innerHTML = '';
          for (let i = 1; i <= maxValor; i++) {
-             adicionarOpcao(String(i), String(i)); // Texto e Valor iguais
+             adicionarOpcao(String(i), String(i));
          }
     }
-
-    // Chama toggleOpcoes na carga inicial para garantir o estado correto
-    document.addEventListener('DOMContentLoaded', toggleOpcoes); 
+    document.addEventListener('DOMContentLoaded', toggleOpcoes);
 </script>
 {% endblock %}

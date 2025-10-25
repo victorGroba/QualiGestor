@@ -259,6 +259,8 @@ def verificar_permissao_admin():
     except:
         return False
 
+
+
 # ===================== PÁGINA INICIAL =====================
 
 @cli_bp.route('/')
@@ -1086,7 +1088,7 @@ def gerenciar_perguntas(topico_id):
 @cli_bp.route('/topico/<int:topico_id>/pergunta/nova', methods=['GET', 'POST'])
 @login_required
 def nova_pergunta(topico_id):
-    """Criar nova pergunta - CORRIGIDA"""
+    """Criar nova pergunta - CORRIGIDA e ATUALIZADA"""
     print(f"DEBUG nova_pergunta: método={request.method}, topico_id={topico_id}")
     
     try:
@@ -1102,12 +1104,16 @@ def nova_pergunta(topico_id):
             print("DEBUG: Processando POST da pergunta")
             try:
                 texto = request.form.get('texto', '').strip()
-                tipo = request.form.get('tipo', 'SIM_NAO_NA')
+                tipo_str = request.form.get('tipo', 'SIM_NAO_NA') # Pega como string
                 obrigatoria = request.form.get('obrigatoria') == 'on'
                 permite_observacao = request.form.get('permite_observacao') == 'on'
                 peso = int(request.form.get('peso', 1))
                 
-                print(f"DEBUG: texto='{texto}', tipo='{tipo}', peso={peso}")
+                # --- LINHA ADICIONADA ---
+                exige_foto = request.form.get('exige_foto_se_nao_conforme') == 'on'
+                # ------------------------
+
+                print(f"DEBUG: texto='{texto}', tipo='{tipo_str}', peso={peso}, exige_foto={exige_foto}")
                 
                 if not texto:
                     flash("Texto da pergunta é obrigatório.", "danger")
@@ -1116,42 +1122,60 @@ def nova_pergunta(topico_id):
                 
                 # Obter próxima ordem
                 ultima_ordem = db.session.query(func.max(Pergunta.ordem)).filter_by(
-                    topico_id=topico_id
+                    topico_id=topico_id, ativo=True # Considerar apenas ativos para ordem
                 ).scalar() or 0
                 print(f"DEBUG: Última ordem: {ultima_ordem}")
+
+                # --- CONVERSÃO STRING PARA ENUM ---
+                try:
+                    tipo_enum = TipoResposta[tipo_str]
+                except KeyError:
+                    flash(f"Tipo de resposta inválido: '{tipo_str}'. Usando SIM_NAO_NA como padrão.", "warning")
+                    tipo_enum = TipoResposta.SIM_NAO_NA # Default seguro
+                # ------------------------------------
                 
                 nova_pergunta_obj = Pergunta(
                     texto=texto,
-                    tipo=tipo,
+                    tipo=tipo_enum, # Salva o Enum
                     obrigatoria=obrigatoria,
                     permite_observacao=permite_observacao,
                     peso=peso,
                     ordem=ultima_ordem + 1,
+                    exige_foto_se_nao_conforme=exige_foto, # --- CAMPO ADICIONADO ---
                     topico_id=topico_id,
                     ativo=True
                 )
                 
                 db.session.add(nova_pergunta_obj)
-                db.session.flush()
+                db.session.flush() # Para obter o ID da pergunta para as opções
                 print(f"DEBUG: Pergunta criada com ID: {nova_pergunta_obj.id}")
                 
-                # Adicionar opções se for múltipla escolha
-                if tipo in ['MULTIPLA_ESCOLHA', 'ESCALA_NUMERICA'] and 'OpcaoPergunta' in globals():
+                # Adicionar opções se for múltipla escolha ou escala
+                # (Garante que tipo_enum existe antes de comparar)
+                if tipo_enum in [TipoResposta.MULTIPLA_ESCOLHA, TipoResposta.ESCALA_NUMERICA] and 'OpcaoPergunta' in globals():
                     print("DEBUG: Processando opções da pergunta")
                     opcoes_texto = request.form.getlist('opcao_texto[]')
                     opcoes_valor = request.form.getlist('opcao_valor[]')
                     
                     for i, texto_opcao in enumerate(opcoes_texto):
-                        if texto_opcao.strip():
-                            valor_opcao = opcoes_valor[i] if i < len(opcoes_valor) and opcoes_valor[i] else 0
+                        texto_opcao_strip = texto_opcao.strip()
+                        if texto_opcao_strip: # Ignora opções vazias
+                            try:
+                                # Tenta converter valor para float, default para 0 se falhar ou vazio
+                                valor_opcao_str = opcoes_valor[i] if i < len(opcoes_valor) else '0'
+                                valor_float = float(valor_opcao_str) if valor_opcao_str else 0.0
+                            except (ValueError, IndexError):
+                                valor_float = 0.0 # Default seguro
+
                             opcao = OpcaoPergunta(
-                                texto=texto_opcao.strip(),
-                                valor=float(valor_opcao),
+                                texto=texto_opcao_strip,
+                                valor=valor_float,
                                 ordem=i + 1,
-                                pergunta_id=nova_pergunta_obj.id
+                                pergunta_id=nova_pergunta_obj.id,
+                                ativo=True # Definindo ativo=True para novas opções
                             )
                             db.session.add(opcao)
-                            print(f"DEBUG: Opção adicionada: {texto_opcao} = {valor_opcao}")
+                            print(f"DEBUG: Opção adicionada: '{texto_opcao_strip}' = {valor_float}")
                 
                 db.session.commit()
                 log_acao(f"Criou pergunta: {texto[:50]}...", None, "Pergunta", nova_pergunta_obj.id)
@@ -1166,30 +1190,26 @@ def nova_pergunta(topico_id):
                 traceback.print_exc()
                 db.session.rollback()
                 flash(f"Erro ao criar pergunta: {str(e)}", "danger")
-                return render_template_safe('cli/nova_pergunta.html', topico=topico)
+                # Passa os dados do formulário de volta para preencher os campos
+                return render_template_safe('cli/nova_pergunta.html', topico=topico, form_data=request.form) 
         
         # GET - Mostrar formulário
         print("DEBUG: Renderizando template nova_pergunta.html para GET")
-        
-        # TESTE DIRETO DO TEMPLATE
-        try:
-            from flask import render_template
-            html = render_template('cli/nova_pergunta.html', topico=topico)
-            print("DEBUG: Template nova_pergunta.html renderizado com sucesso!")
-            return html
-        except Exception as template_error:
-            print(f"DEBUG: Erro no template nova_pergunta.html: {template_error}")
-            import traceback
-            traceback.print_exc()
-            flash(f"Erro no template: {template_error}", "danger")
-            return redirect(url_for('cli.gerenciar_perguntas', topico_id=topico_id))
+        return render_template_safe('cli/nova_pergunta.html', topico=topico)
             
     except Exception as e:
         print(f"DEBUG: Erro geral em nova_pergunta: {e}")
         import traceback
         traceback.print_exc()
         flash(f"Erro ao carregar formulário: {str(e)}", "danger")
-        return redirect(url_for('cli.listar_questionarios'))
+        # Tenta redirecionar para gerenciar_topicos se topico_id estiver disponível
+        redirect_url = url_for('cli.listar_questionarios')
+        if 'topico_id' in locals() and topico_id:
+             try:
+                 redirect_url = url_for('cli.gerenciar_topicos', id=topico_id)
+             except:
+                 pass # Mantém o redirect para listar_questionarios
+        return redirect(redirect_url)
 
 # ===================== PUBLICAR QUESTIONÁRIO CORRIGIDA =====================
 
@@ -1285,9 +1305,10 @@ def test_publish(id):
 @cli_bp.route('/pergunta/<int:pergunta_id>/editar', methods=['GET', 'POST'])
 @login_required
 def editar_pergunta(pergunta_id):
-    """Editar pergunta existente"""
+    """Editar pergunta existente - ATUALIZADA"""
     try:
-        pergunta = Pergunta.query.get_or_404(pergunta_id)
+        # Usar eager loading para carregar opções junto com a pergunta, se necessário
+        pergunta = Pergunta.query.options(db.joinedload(Pergunta.opcoes)).get_or_404(pergunta_id)
         
         if pergunta.topico.questionario.cliente_id != current_user.cliente_id:
             flash("Pergunta não encontrada.", "error")
@@ -1296,29 +1317,62 @@ def editar_pergunta(pergunta_id):
         if request.method == 'POST':
             try:
                 pergunta.texto = request.form.get('texto', '').strip()
-                pergunta.tipo = request.form.get('tipo')
+                tipo_str = request.form.get('tipo') # Pega como string
                 pergunta.obrigatoria = request.form.get('obrigatoria') == 'on'
                 pergunta.permite_observacao = request.form.get('permite_observacao') == 'on'
                 pergunta.peso = int(request.form.get('peso', 1))
                 
+                # --- LINHA ADICIONADA ---
+                pergunta.exige_foto_se_nao_conforme = request.form.get('exige_foto_se_nao_conforme') == 'on'
+                # ------------------------
+
+                # --- CONVERSÃO STRING PARA ENUM ---
+                tipo_enum_antigo = pergunta.tipo # Guarda o tipo antigo caso a conversão falhe
+                try:
+                    tipo_enum_novo = TipoResposta[tipo_str]
+                    pergunta.tipo = tipo_enum_novo # Atualiza o tipo com o Enum
+                except KeyError:
+                    flash(f"Tipo de resposta inválido recebido: '{tipo_str}'. Mantendo tipo anterior.", "warning")
+                    tipo_enum_novo = tipo_enum_antigo # Reverte para o tipo antigo se inválido
+                # ------------------------------------
+                
                 # Atualizar opções se necessário
-                if pergunta.tipo in ['MULTIPLA_ESCOLHA', 'ESCALA_NUMERICA'] and 'OpcaoPergunta' in globals():
-                    # Remover opções existentes
+                # (Garante que tipo_enum_novo existe antes de comparar)
+                if tipo_enum_novo in [TipoResposta.MULTIPLA_ESCOLHA, TipoResposta.ESCALA_NUMERICA] and 'OpcaoPergunta' in globals():
+                    # Remover opções existentes (mais seguro fazer update/delete individualmente, mas delete all é mais simples aqui)
                     OpcaoPergunta.query.filter_by(pergunta_id=pergunta_id).delete()
+                    db.session.flush() # Aplica o delete antes de adicionar novas
                     
                     # Adicionar novas opções
                     opcoes_texto = request.form.getlist('opcao_texto[]')
                     opcoes_valor = request.form.getlist('opcao_valor[]')
                     
+                    print(f"DEBUG editar_pergunta - Novas opções: Textos={opcoes_texto}, Valores={opcoes_valor}")
+
                     for i, texto_opcao in enumerate(opcoes_texto):
-                        if texto_opcao.strip():
-                            opcao = OpcaoPergunta(
-                                texto=texto_opcao.strip(),
-                                valor=float(opcoes_valor[i]) if i < len(opcoes_valor) and opcoes_valor[i] else 0,
+                        texto_opcao_strip = texto_opcao.strip()
+                        if texto_opcao_strip: # Ignora opções vazias
+                            try:
+                                valor_opcao_str = opcoes_valor[i] if i < len(opcoes_valor) else '0'
+                                valor_float = float(valor_opcao_str) if valor_opcao_str else 0.0
+                            except (ValueError, IndexError):
+                                valor_float = 0.0
+
+                            nova_opcao = OpcaoPergunta(
+                                texto=texto_opcao_strip,
+                                valor=valor_float,
                                 ordem=i + 1,
-                                pergunta_id=pergunta.id
+                                pergunta_id=pergunta.id,
+                                ativo=True
                             )
-                            db.session.add(opcao)
+                            db.session.add(nova_opcao)
+                            print(f"DEBUG: Opção '{texto_opcao_strip}' = {valor_float} adicionada/atualizada.")
+                else:
+                     # Se o tipo mudou para um que NÃO usa opções, remove as antigas
+                     if tipo_enum_antigo in [TipoResposta.MULTIPLA_ESCOLHA, TipoResposta.ESCALA_NUMERICA]:
+                          OpcaoPergunta.query.filter_by(pergunta_id=pergunta_id).delete()
+                          print(f"DEBUG: Opções removidas pois o tipo mudou para {tipo_enum_novo.name}")
+
                 
                 db.session.commit()
                 log_acao(f"Editou pergunta: {pergunta.texto[:50]}...", None, "Pergunta", pergunta_id)
@@ -1327,12 +1381,25 @@ def editar_pergunta(pergunta_id):
                 return redirect(url_for('cli.gerenciar_perguntas', topico_id=pergunta.topico_id))
                 
             except Exception as e:
+                print(f"DEBUG: Erro ao atualizar pergunta: {e}")
+                import traceback
+                traceback.print_exc()
                 db.session.rollback()
                 flash(f"Erro ao atualizar pergunta: {str(e)}", "danger")
+                # Re-renderiza o formulário com os dados atuais (antes do erro)
+                return render_template_safe('cli/editar_pergunta.html', pergunta=pergunta)
         
-        return render_template_safe('cli/editar_pergunta.html', pergunta=pergunta)
+        # GET - Mostrar formulário
+        print(f"DEBUG editar_pergunta GET: Carregando pergunta ID {pergunta_id} com tipo {pergunta.tipo.name if pergunta.tipo else 'N/A'}")
+        # Garante que as opções sejam carregadas para o template
+        opcoes_ordenadas = sorted(pergunta.opcoes, key=lambda o: o.ordem) if hasattr(pergunta, 'opcoes') else []
+        return render_template_safe('cli/editar_pergunta.html', pergunta=pergunta, opcoes=opcoes_ordenadas) 
+
     except Exception as e:
-        flash(f"Erro ao carregar pergunta: {str(e)}", "danger")
+        print(f"DEBUG: Erro geral em editar_pergunta: {e}")
+        import traceback
+        traceback.print_exc()
+        flash(f"Erro ao carregar pergunta para edição: {str(e)}", "danger")
         return redirect(url_for('cli.listar_questionarios'))
 
 @cli_bp.route('/pergunta/<int:pergunta_id>/remover', methods=['POST'])
@@ -3327,3 +3394,183 @@ try:
     cli_bp.add_url_rule('/questionario/<int:questionario_id>/topicos/novo', endpoint='adicionar_topico', view_func=novo_topico, methods=['GET','POST'])
 except Exception:
     pass
+
+# ... (Final da sua última rota existente ou função de configuração/verificação) ...
+
+# ===================== NOVAS ROTAS PARA UPLOAD DE FOTO =====================
+
+@cli_bp.route('/resposta/<int:resposta_id>/upload-foto', methods=['POST'])
+@login_required
+def upload_foto_resposta(resposta_id):
+    """Recebe upload de foto via AJAX para uma resposta específica."""
+    # Log inicial
+    current_app.logger.info(f"Recebida requisição POST para upload_foto_resposta ID: {resposta_id}")
+
+    try:
+        resposta = RespostaPergunta.query.get_or_404(resposta_id)
+        current_app.logger.debug(f"Resposta {resposta_id} encontrada.")
+
+        # --- VERIFICAÇÃO DE SEGURANÇA ---
+        aplicacao = AplicacaoQuestionario.query.get(resposta.aplicacao_id)
+        if not aplicacao:
+             current_app.logger.warning(f"Aplicação não encontrada para resposta {resposta_id}")
+             return jsonify({'erro': 'Aplicação associada não encontrada'}), 404
+
+        # Verifica se a aplicação ainda está em andamento (opcional, mas recomendado)
+        if aplicacao.status != StatusAplicacao.EM_ANDAMENTO:
+            current_app.logger.warning(f"Tentativa de upload para aplicação finalizada (ID: {aplicacao.id})")
+            return jsonify({'erro': 'Não é possível anexar fotos a uma aplicação finalizada'}), 400
+
+        avaliado = Avaliado.query.get(aplicacao.avaliado_id)
+        if not avaliado or avaliado.cliente_id != current_user.cliente_id:
+            current_app.logger.warning(
+                f"Tentativa de upload negada: User {current_user.id} (cliente {current_user.cliente_id}) "
+                f"tentou acessar resposta {resposta_id} (avaliado {aplicacao.avaliado_id}, cliente {avaliado.cliente_id if avaliado else 'N/A'})"
+            )
+            return jsonify({'erro': 'Acesso negado à resposta'}), 403
+        current_app.logger.debug(f"Verificação de permissão OK para resposta {resposta_id}.")
+        # ---------------------------------
+
+        if 'foto' not in request.files:
+            current_app.logger.error(f"Campo 'foto' não encontrado no request.files para resposta {resposta_id}")
+            return jsonify({'erro': 'Nenhum arquivo enviado (campo "foto" esperado)'}), 400
+
+        foto = request.files['foto']
+
+        if foto.filename == '':
+            current_app.logger.warning(f"Upload recebido com nome de arquivo vazio para resposta {resposta_id}")
+            return jsonify({'erro': 'Nome de arquivo vazio'}), 400
+
+        # Verifica a extensão do arquivo
+        allowed_extensions = current_app.config.get('ALLOWED_EXTENSIONS', {'png', 'jpg', 'jpeg'}) # Default seguro
+        if foto and allowed_file(foto.filename, allowed_extensions):
+
+            # Gera um nome de arquivo seguro e único
+            original_filename = secure_filename(foto.filename)
+            extension = original_filename.rsplit('.', 1)[1].lower()
+            unique_filename = f"resposta_{resposta.id}_{uuid.uuid4().hex[:12]}.{extension}"
+
+            # Caminho completo para salvar o arquivo
+            upload_folder = current_app.config.get('UPLOAD_FOLDER')
+            if not upload_folder:
+                 current_app.logger.error("Configuração UPLOAD_FOLDER não definida!")
+                 return jsonify({'erro': 'Configuração do servidor incompleta (UPLOAD_FOLDER)'}), 500
+
+            save_path = os.path.join(upload_folder, unique_filename)
+            current_app.logger.debug(f"Caminho para salvar: {save_path}")
+
+            # --- Salva o arquivo original ---
+            try:
+                 os.makedirs(upload_folder, exist_ok=True)
+                 foto.save(save_path)
+                 current_app.logger.info(f"Foto salva com sucesso em: {save_path} para resposta {resposta_id}")
+            except Exception as save_err:
+                 current_app.logger.error(f"Erro ao salvar upload para resposta {resposta_id}: {save_err}", exc_info=True)
+                 return jsonify({'erro': f'Erro no servidor ao salvar arquivo'}), 500
+            # ---------------------------------
+
+            # --- Opcional: Remover foto antiga se existir ---
+            if resposta.caminho_foto:
+                 try:
+                     old_path = os.path.join(upload_folder, resposta.caminho_foto)
+                     if os.path.exists(old_path):
+                         os.remove(old_path)
+                         current_app.logger.info(f"Foto antiga removida: {old_path}")
+                 except Exception as del_err:
+                     current_app.logger.error(f"Erro ao remover foto antiga {resposta.caminho_foto}: {del_err}")
+            # ---------------------------------------------
+
+            # Atualiza o caminho no banco de dados
+            resposta.caminho_foto = unique_filename
+            db.session.commit()
+            current_app.logger.info(f"Caminho da foto '{unique_filename}' salvo no BD para resposta {resposta_id}")
+
+            # Gera URL para a foto (se a rota 'get_foto_resposta' existir)
+            foto_url = None
+            # Tenta encontrar a função has_endpoint (pode estar global ou no contexto)
+            _has_endpoint_func = globals().get('has_endpoint') or current_app.jinja_env.globals.get('has_endpoint')
+            _url_for_func = globals().get('url_for_safe') or current_app.jinja_env.globals.get('url_for_safe') or url_for
+            if callable(_has_endpoint_func) and callable(_url_for_func):
+                try:
+                    if _has_endpoint_func('cli.get_foto_resposta'):
+                         foto_url = _url_for_func('cli.get_foto_resposta', filename=unique_filename, _external=True)
+                except Exception as url_err:
+                     current_app.logger.warning(f"Erro ao gerar URL para get_foto_resposta: {url_err}")
+
+
+            # Retorna sucesso com o nome do arquivo e URL
+            return jsonify({
+                'sucesso': True,
+                'mensagem': 'Foto enviada com sucesso!',
+                'filename': unique_filename,
+                'url': foto_url
+                }), 200
+
+        else:
+            current_app.logger.warning(f"Upload negado para resposta {resposta_id}: tipo de arquivo não permitido ({foto.filename})")
+            return jsonify({'erro': f"Tipo de arquivo não permitido. Permitidos: {', '.join(allowed_extensions)}"}), 400
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erro inesperado no upload da foto para resposta {resposta_id}: {e}", exc_info=True)
+        # Import traceback aqui para evitar import global desnecessário
+        import traceback
+        traceback.print_exc() # Imprime traceback completo no log do servidor
+        return jsonify({'erro': f'Erro interno do servidor'}), 500
+
+
+# --- ROTA AUXILIAR PARA SERVIR AS FOTOS SALVAS ---
+@cli_bp.route('/uploads/fotos_respostas/<path:filename>')
+@login_required
+def get_foto_resposta(filename):
+    """Serve um arquivo de foto de resposta, verificando permissão."""
+
+    upload_folder = current_app.config.get('UPLOAD_FOLDER')
+    if not upload_folder:
+        current_app.logger.error("Configuração UPLOAD_FOLDER não definida ao tentar servir foto.")
+        abort(500)
+
+    # --- VALIDAÇÃO DE PERMISSÃO ---
+    try:
+        # Tenta extrair o ID da resposta do nome do arquivo
+        if filename.startswith('resposta_') and '_' in filename:
+             parts = filename.split('_')
+             resposta_id_str = parts[1]
+             if resposta_id_str.isdigit():
+                 resposta_id = int(resposta_id_str)
+                 resposta = RespostaPergunta.query.get(resposta_id)
+                 # Verifica se a resposta existe e se o nome do arquivo no BD bate
+                 if resposta and resposta.caminho_foto == filename:
+                     aplicacao = AplicacaoQuestionario.query.get(resposta.aplicacao_id)
+                     if aplicacao:
+                         avaliado = Avaliado.query.get(aplicacao.avaliado_id)
+                         # Verifica se o cliente do avaliado é o mesmo do usuário logado
+                         if avaliado and avaliado.cliente_id == current_user.cliente_id:
+                              # Permissão OK, serve o arquivo
+                              current_app.logger.debug(f"Servindo foto '{filename}' para usuário {current_user.id}")
+                              return send_from_directory(upload_folder, filename, as_attachment=False)
+                         else:
+                              current_app.logger.warning(f"Permissão negada (cliente diferente) para foto '{filename}'. User: {current_user.id}, Avaliado_Cliente: {avaliado.cliente_id if avaliado else 'N/A'}.")
+                     else:
+                          current_app.logger.warning(f"Aplicação não encontrada para foto '{filename}' (resposta {resposta_id}).")
+                 else:
+                     current_app.logger.warning(f"Resposta não encontrada ou filename não corresponde para foto '{filename}' (ID {resposta_id}). DB filename: {resposta.caminho_foto if resposta else 'N/A'}")
+             else:
+                  current_app.logger.warning(f"Não foi possível extrair ID de resposta válido do nome de arquivo '{filename}'.")
+        else:
+             current_app.logger.warning(f"Nome de arquivo '{filename}' não segue o padrão esperado 'resposta_<id>_...'")
+
+        abort(403) # Forbidden
+
+    except FileNotFoundError:
+         current_app.logger.error(f"Arquivo não encontrado no disco: {os.path.join(upload_folder, filename)}")
+         abort(404)
+    except Exception as e:
+         current_app.logger.error(f"Erro ao servir foto '{filename}': {e}", exc_info=True)
+         abort(500)
+# ====================================================================
+
+
+
+
+
