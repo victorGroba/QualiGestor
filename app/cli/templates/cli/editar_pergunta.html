@@ -1,5 +1,5 @@
 {% extends 'base_cliq.html' %}
-{% block title %}Nova Pergunta - {{ topico.nome }}{% endblock %}
+{% block title %}Editar Pergunta - {{ pergunta.topico.nome }}{% endblock %}
 
 {% block content %}
 <div class="container py-4">
@@ -7,19 +7,19 @@
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="{{ url_for_safe('cli.index') }}">Dashboard</a></li>
             <li class="breadcrumb-item"><a href="{{ url_for_safe('cli.listar_questionarios') }}">Questionários</a></li>
-            <li class="breadcrumb-item"><a href="{{ url_for_safe('cli.gerenciar_topicos', id=topico.questionario_id) }}">{{ topico.questionario.nome }}</a></li>
-            <li class="breadcrumb-item"><a href="{{ url_for_safe('cli.gerenciar_perguntas', topico_id=topico.id) }}">{{ topico.nome }}</a></li>
-            <li class="breadcrumb-item active" aria-current="page">Nova Pergunta</li>
+            <li class="breadcrumb-item"><a href="{{ url_for_safe('cli.gerenciar_topicos', id=pergunta.topico.questionario_id) }}">{{ pergunta.topico.questionario.nome }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for_safe('cli.gerenciar_perguntas', topico_id=pergunta.topico_id) }}">{{ pergunta.topico.nome }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Editar Pergunta</li>
         </ol>
     </nav>
 
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="h3 mb-0"><i class="fas fa-plus-circle text-success me-2"></i> Nova Pergunta</h2>
-         <a href="{{ url_for_safe('cli.gerenciar_perguntas', topico_id=topico.id) }}" class="btn btn-sm btn-outline-secondary">
+        <h2 class="h3 mb-0"><i class="fas fa-edit text-warning me-2"></i> Editar Pergunta</h2>
+         <a href="{{ url_for_safe('cli.gerenciar_perguntas', topico_id=pergunta.topico_id) }}" class="btn btn-sm btn-outline-secondary">
              <i class="fas fa-arrow-left me-1"></i> Voltar às Perguntas
          </a>
     </div>
-    <p class="text-muted mb-4">Adicionando pergunta ao tópico: <strong>{{ topico.nome }}</strong> (Questionário: {{ topico.questionario.nome }})</p>
+    <p class="text-muted mb-4">Editando pergunta do tópico: <strong>{{ pergunta.topico.nome }}</strong></p>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
@@ -33,42 +33,54 @@
     {% endwith %}
 
     <div class="card shadow-sm">
-        <div class="card-header">
+         <div class="card-header">
              <h5 class="mb-0"><i class="fas fa-edit me-2"></i> Detalhes da Pergunta</h5>
         </div>
         <div class="card-body">
-            <form method="POST" action="{{ url_for('cli.nova_pergunta', topico_id=topico.id) }}" id="form-pergunta">
+            <form method="POST" action="{{ url_for('cli.editar_pergunta', pergunta_id=pergunta.id) }}" id="form-pergunta">
                 
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                 <div class="mb-3">
                     <label for="texto" class="form-label">Texto da Pergunta <span class="text-danger">*</span></label>
-                    <textarea class="form-control" id="texto" name="texto" rows="3" required placeholder="Ex: O ambiente está limpo e organizado?"></textarea>
+                    <textarea class="form-control" id="texto" name="texto" rows="3" required>{{ pergunta.texto or '' }}</textarea>
                 </div>
 
                 <div class="mb-3">
                     <label for="tipo" class="form-label">Tipo de Resposta <span class="text-danger">*</span></label>
                     <select class="form-select" id="tipo" name="tipo" required onchange="toggleOpcoes()">
-                        {# Idealmente, carregar os tipos do Enum, mas para simplificar: #}
-                        <option value="SIM_NAO_NA" selected>Sim / Não / N.A.</option>
-                        <option value="MULTIPLA_ESCOLHA">Múltipla Escolha</option>
-                        <option value="ESCALA_NUMERICA">Escala Numérica (Ex: 1-5)</option>
-                        <option value="NOTA">Nota (Ex: 0-10)</option>
-                        <option value="TEXTO_CURTO">Texto Curto</option>
-                        <option value="TEXTO_LONGO">Texto Longo</option>
-                        <option value="FOTO">Foto</option>
-                        <option value="DATA">Data</option>
-                        <option value="HORA">Hora</option>
-                        <option value="NUMERO">Número</option>
-                        <option value="PORCENTAGEM">Porcentagem</option>
-                        <option value="MOEDA">Moeda</option>
+                        {# Tenta pré-selecionar o tipo atual #}
+                        <option value="SIM_NAO_NA" {% if pergunta.tipo.name == 'SIM_NAO_NA' %}selected{% endif %}>Sim / Não / N.A.</option>
+                        <option value="MULTIPLA_ESCOLHA" {% if pergunta.tipo.name == 'MULTIPLA_ESCOLHA' %}selected{% endif %}>Múltipla Escolha</option>
+                        <option value="ESCALA_NUMERICA" {% if pergunta.tipo.name == 'ESCALA_NUMERICA' %}selected{% endif %}>Escala Numérica</option>
+                        <option value="NOTA" {% if pergunta.tipo.name == 'NOTA' %}selected{% endif %}>Nota</option>
+                        <option value="TEXTO_CURTO" {% if pergunta.tipo.name == 'TEXTO_CURTO' %}selected{% endif %}>Texto Curto</option>
+                        <option value="TEXTO_LONGO" {% if pergunta.tipo.name == 'TEXTO_LONGO' %}selected{% endif %}>Texto Longo</option>
+                        <option value="FOTO" {% if pergunta.tipo.name == 'FOTO' %}selected{% endif %}>Foto</option>
+                        <option value="DATA" {% if pergunta.tipo.name == 'DATA' %}selected{% endif %}>Data</option>
+                        <option value="HORA" {% if pergunta.tipo.name == 'HORA' %}selected{% endif %}>Hora</option>
+                        <option value="NUMERO" {% if pergunta.tipo.name == 'NUMERO' %}selected{% endif %}>Número</option>
+                        <option value="PORCENTAGEM" {% if pergunta.tipo.name == 'PORCENTAGEM' %}selected{% endif %}>Porcentagem</option>
+                        <option value="MOEDA" {% if pergunta.tipo.name == 'MOEDA' %}selected{% endif %}>Moeda</option>
                     </select>
                 </div>
 
                 <div id="opcoes-container" class="mb-3 border p-3 rounded bg-light" style="display: none;">
                     <h5>Opções de Resposta</h5>
                     <div id="opcoes-lista">
-                        </div>
+                        {# Preenche as opções existentes #}
+                        {% if pergunta.tipo.name in ['MULTIPLA_ESCOLHA', 'ESCALA_NUMERICA'] and pergunta.opcoes %}
+                            {% for opcao in pergunta.opcoes.order_by('ordem') %}
+                                <div class="input-group mb-2">
+                                    <input type="text" name="opcao_texto[]" class="form-control form-control-sm" placeholder="Texto da Opção" value="{{ opcao.texto }}" required>
+                                    <input type="number" name="opcao_valor[]" class="form-control form-control-sm" placeholder="Valor (Pontos)" value="{{ opcao.valor if opcao.valor is not none else '' }}" step="any">
+                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="removerOpcao(this)" title="Remover Opção">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
                     <button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="adicionarOpcao()">
                         <i class="fas fa-plus"></i> Adicionar Opção
                     </button>
@@ -77,19 +89,19 @@
 
                 <div class="mb-3">
                     <label for="peso" class="form-label">Peso da Pergunta</label>
-                    <input type="number" class="form-control" id="peso" name="peso" value="1" min="0" step="1">
-                    <div class="form-text">Define a importância desta pergunta no cálculo da nota final (padrão: 1).</div>
+                    <input type="number" class="form-control" id="peso" name="peso" value="{{ pergunta.peso | default(1) }}" min="0" step="1">
+                    <div class="form-text">Define a importância desta pergunta no cálculo da nota final.</div>
                 </div>
 
                 <div class="mb-3">
                     <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" role="switch" id="obrigatoria" name="obrigatoria" checked>
+                        <input class="form-check-input" type="checkbox" role="switch" id="obrigatoria" name="obrigatoria" {% if pergunta.obrigatoria %}checked{% endif %}>
                         <label class="form-check-label" for="obrigatoria">Resposta Obrigatória</label>
                     </div>
                 </div>
                  <div class="mb-3">
                      <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" role="switch" id="permite_observacao" name="permite_observacao" checked>
+                        <input class="form-check-input" type="checkbox" role="switch" id="permite_observacao" name="permite_observacao" {% if pergunta.permite_observacao %}checked{% endif %}>
                         <label class="form-check-label" for="permite_observacao">Permitir Observação Adicional</label>
                     </div>
                 </div>
@@ -97,11 +109,11 @@
                 <hr class="my-4">
 
                 <div class="d-flex justify-content-between">
-                    <a href="{{ url_for_safe('cli.gerenciar_perguntas', topico_id=topico.id) }}" class="btn btn-outline-secondary">
+                     <a href="{{ url_for_safe('cli.gerenciar_perguntas', topico_id=pergunta.topico_id) }}" class="btn btn-outline-secondary">
                         <i class="fas fa-times me-2"></i> Cancelar
                     </a>
                     <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-plus me-2"></i> Criar Pergunta
+                        <i class="fas fa-save me-2"></i> Salvar Alterações
                     </button>
                 </div>
             </form>
@@ -109,7 +121,7 @@
     </div>
 </div>
 
-{# Script JS para gerenciar opções dinamicamente #}
+{# Script JS para gerenciar opções dinamicamente (igual ao de nova_pergunta.html) #}
 <script>
     function toggleOpcoes() {
         const tipoSelect = document.getElementById('tipo');
@@ -118,18 +130,10 @@
 
         if (selectedType === 'MULTIPLA_ESCOLHA' || selectedType === 'ESCALA_NUMERICA') {
             opcoesContainer.style.display = 'block';
-            // Adiciona uma opção inicial se não houver nenhuma
-            if (document.getElementById('opcoes-lista').children.length === 0) {
-                 adicionarOpcao(); 
-                 // Se for escala, pode pré-popular algumas opções (ex: 1 a 5)
-                 if(selectedType === 'ESCALA_NUMERICA') {
-                     preencherEscalaPadrao(5); // Exemplo: Escala de 1 a 5
-                 }
-            }
+             // Não adiciona automaticamente ao editar, pois já carrega as existentes
         } else {
             opcoesContainer.style.display = 'none';
-             // Limpa opções se mudar para um tipo que não as usa
-            document.getElementById('opcoes-lista').innerHTML = ''; 
+            // Não limpa ao editar, pois o backend vai ignorar se o tipo não for compatível
         }
     }
 
@@ -150,22 +154,14 @@
 
     function removerOpcao(button) {
         button.closest('.input-group').remove();
-        // Renumerar placeholders se necessário (opcional)
+        // Renumerar placeholders
         const lista = document.getElementById('opcoes-lista');
         Array.from(lista.children).forEach((div, i) => {
              div.querySelector('input[name="opcao_texto[]"]').placeholder = `Texto da Opção ${i + 1}`;
         });
     }
 
-    function preencherEscalaPadrao(maxValor) {
-         const lista = document.getElementById('opcoes-lista');
-         lista.innerHTML = ''; // Limpa antes
-         for (let i = 1; i <= maxValor; i++) {
-             adicionarOpcao(String(i), String(i)); // Texto e Valor iguais
-         }
-    }
-
-    // Chama toggleOpcoes na carga inicial para garantir o estado correto
+    // Chama toggleOpcoes na carga inicial para mostrar/ocultar corretamente
     document.addEventListener('DOMContentLoaded', toggleOpcoes); 
 </script>
 {% endblock %}
