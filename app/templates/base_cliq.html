@@ -5,10 +5,13 @@
   <meta charset="UTF-8">
   <title>{% block title %}CLIQ - QualiGestor{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+
   <meta name="csrf-token" content="{{ csrf_token() }}">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
 
   <style>
     body {
@@ -109,7 +112,7 @@
       transition: margin-left 0.4s ease;
     }
 
-    .sidebar:hover ~ .main-content {
+    .sidebar:hover~.main-content {
       margin-left: 240px;
     }
 
@@ -119,16 +122,12 @@
         transform: translateX(-100%);
       }
 
-      .sidebar:hover {
-        width: 240px;
-      }
-
       .sidebar.show {
         transform: translateX(0);
       }
 
       .main-content,
-      .sidebar:hover ~ .main-content {
+      .sidebar:hover~.main-content {
         margin-left: 0;
       }
     }
@@ -139,28 +138,12 @@
       box-shadow: none;
     }
   </style>
-  {% block head %}
-<!-- Filtro personalizado para JSON -->
-<script>
-    // Adicionar filtro from_json globalmente para Jinja2
-    if (typeof window.jinja_filters === 'undefined') {
-        window.jinja_filters = {};
-    }
-    window.jinja_filters.from_json = function(value) {
-        try {
-            return JSON.parse(value);
-        } catch(e) {
-            return value;
-        }
-    };
-</script>
-{% endblock %}
+
+  {% block head %}{% endblock %}
 </head>
 
-<!-- HTMX -->
 <script src="https://unpkg.com/htmx.org@1.9.12"></script>
 
-<!-- Helper para fechar modal Bootstrap via evento do HTMX -->
 <script>
   document.addEventListener('DOMContentLoaded', () => {
     document.body.addEventListener('htmx:afterOnLoad', (evt) => {
@@ -218,7 +201,7 @@
         <div id="collapseQuestionarios" class="accordion-collapse collapse" data-bs-parent="#accordionSidebar">
           <div class="accordion-body py-0 px-4">
             <a class="nav-link" href="{{ url_for('cli.listar_questionarios') }}">Listar questionários</a>
-            <a class="nav-link" href="{{ url_for('cli.novo_questionario') }}">Novo questionário</a>          </div>
+            <a class="nav-link" href="{{ url_for('cli.novo_questionario') }}">Novo questionário</a>         </div>
         </div>
       </div>
 
@@ -271,7 +254,6 @@
 
   <main class="main-content">
     {% block content %}
-<!-- Filtro personalizado para JSON -->
 <script>
     // Adicionar filtro from_json globalmente para Jinja2
     if (typeof window.jinja_filters === 'undefined') {
@@ -289,6 +271,59 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    (function () {
+      function getMetaToken() {
+        var m = document.querySelector('meta[name="csrf-token"]');
+        return m ? m.getAttribute('content') : null;
+      }
+
+      function injectTokenIntoForm(f, token) {
+        if (!f) return;
+        try {
+          var method = (f.getAttribute('method') || '').toLowerCase();
+          if (method !== 'post') return;
+          if (f.querySelector('input[name="csrf_token"]')) return;
+          var input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = 'csrf_token';
+          input.value = token || '';
+          f.prepend(input);
+        } catch (e) {
+          console.error('Erro ao injetar CSRF no form', e);
+        }
+      }
+
+      function injectAllFormsOnce() {
+        var token = getMetaToken();
+        document.querySelectorAll('form').forEach(function (f) {
+          injectTokenIntoForm(f, token);
+        });
+      }
+
+      document.addEventListener('DOMContentLoaded', injectAllFormsOnce);
+      document.body.addEventListener('htmx:afterSwap', injectAllFormsOnce);
+      document.body.addEventListener('htmx:afterOnLoad', injectAllFormsOnce);
+
+      var mo = new MutationObserver(function (mutations) {
+        var token = getMetaToken();
+        mutations.forEach(function (m) {
+          m.addedNodes && m.addedNodes.forEach(function (node) {
+            if (node.nodeType !== 1) return;
+            if (node.tagName && node.tagName.toLowerCase() === 'form') {
+              injectTokenIntoForm(node, token);
+            } else {
+              var fs = node.querySelectorAll && node.querySelectorAll('form');
+              fs && fs.forEach(function (f) { injectTokenIntoForm(f, token); });
+            }
+          });
+        });
+      });
+      mo.observe(document.body, { childList: true, subtree: true });
+    })();
+  </script>
+
   <script>
     const sidebar = document.getElementById('sidebar');
     let closeTimeout;
@@ -299,82 +334,15 @@
         openItems.forEach(item => {
           bootstrap.Collapse.getOrCreateInstance(item).hide();
         });
-      }, 300); 
+      }, 300);
     });
 
     sidebar.addEventListener('mouseenter', () => {
       clearTimeout(closeTimeout);
     });
   </script>
-<script>
-(function () {
-  function getMetaToken() {
-    var m = document.querySelector('meta[name="csrf-token"]');
-    return m ? m.getAttribute('content') : null;
-  }
 
-  function injectTokenIntoForm(f, token) {
-    if (!f) return;
-    try {
-      var method = (f.getAttribute('method') || '').toLowerCase();
-      if (method !== 'post') return;
-      if (f.querySelector('input[name="csrf_token"]')) return;
-      var input = document.createElement('input');
-      input.type = 'hidden';
-      input.name = 'csrf_token';
-      input.value = token || '';
-      f.prepend(input);
-      // debug
-      // console.log('CSRF injected into form', f, token && token.slice(0,10) + '...');
-    } catch (e) {
-      console.error('Erro ao injetar CSRF no form', e);
-    }
-  }
-
-  function injectAllFormsOnce() {
-    var token = getMetaToken();
-    document.querySelectorAll('form').forEach(function (f) {
-      injectTokenIntoForm(f, token);
-    });
-  }
-
-  // roda ao carregar a página
-  document.addEventListener('DOMContentLoaded', function () {
-    injectAllFormsOnce();
-  });
-
-  // HTMX: quando um fragmento é trocado, injeta também (HTMX usa eventos)
-  document.body.addEventListener('htmx:afterSwap', function (evt) {
-    injectAllFormsOnce();
-  });
-  document.body.addEventListener('htmx:afterOnLoad', function (evt) {
-    injectAllFormsOnce();
-  });
-
-  // MutationObserver: pega forms adicionados dinamicamente por qualquer outra lib
-  var mo = new MutationObserver(function (mutations) {
-    var token = getMetaToken();
-    mutations.forEach(function (m) {
-      m.addedNodes && m.addedNodes.forEach(function (node) {
-        if (node.nodeType !== 1) return;
-        if (node.tagName && node.tagName.toLowerCase() === 'form') {
-          injectTokenIntoForm(node, token);
-        } else {
-          // se alguma subtree contém forms
-          var fs = node.querySelectorAll && node.querySelectorAll('form');
-          fs && fs.forEach(function (f) { injectTokenIntoForm(f, token); });
-        }
-      });
-    });
-  });
-  mo.observe(document.body, { childList: true, subtree: true });
-
-  // Debug helper: log token to console (apenas enquanto diagnostica)
-  // console.log('CSRF meta token:', getMetaToken());
-})();
-</script>
-
-
-</body>
+  {% block extra_js %}{% endblock %}
+  </body>
 
 </html>

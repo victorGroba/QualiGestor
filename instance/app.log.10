@@ -1,0 +1,140 @@
+2025-10-26 01:15:20,208 INFO: QualiGestor startup [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\__init__.py:256]
+2025-10-26 01:15:22,306 INFO: QualiGestor startup [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\__init__.py:256]
+2025-10-26 01:17:56,920 ERROR: Erro ao finalizar aplicação 15: 'AplicacaoQuestionario.respostas' does not support object population - eager loading cannot be applied. [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2273]
+Traceback (most recent call last):
+  File "F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py", line 2136, in finalizar_aplicacao
+    ).get_or_404(id)
+      ~~~~~~~~~~^^^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask_sqlalchemy\query.py", line 30, in get_or_404
+    rv = self.get(ident)
+  File "<string>", line 2, in get
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\util\deprecations.py", line 386, in warned
+    return fn(*args, **kwargs)  # type: ignore[no-any-return]
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 1126, in get
+    return self._get_impl(ident, loading.load_on_pk_identity)
+           ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 1135, in _get_impl
+    return self.session._get_impl(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        mapper,
+        ^^^^^^^
+    ...<6 lines>...
+        execution_options=self._execution_options,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 3873, in _get_impl
+    return db_load_fn(
+        self,
+    ...<5 lines>...
+        bind_arguments=bind_arguments,
+    )
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 694, in load_on_pk_identity
+    session.execute(
+    ~~~~~~~~~~~~~~~^
+        q,
+        ^^
+    ...<2 lines>...
+        bind_arguments=bind_arguments,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2365, in execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2251, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<4 lines>...
+        conn,
+        ^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 309, in orm_execute_statement
+    return cls.orm_setup_cursor_result(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        session,
+        ^^^^^^^^
+    ...<4 lines>...
+        result,
+        ^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 616, in orm_setup_cursor_result
+    return loading.instances(result, querycontext)
+           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 132, in instances
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 224, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 114, in instances
+    query_entity.row_processor(context, cursor)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 2786, in row_processor
+    _instance = loading._instance_processor(
+        self,
+    ...<7 lines>...
+        polymorphic_discriminator=self._polymorphic_discriminator,
+    )
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 958, in _instance_processor
+    prop.create_row_processor(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        context, query_entity, path, mapper, result, adapter, populators
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\interfaces.py", line 1093, in create_row_processor
+    strat.create_row_processor(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        context,
+        ^^^^^^^^
+    ...<6 lines>...
+        populators,
+        ^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\strategies.py", line 2808, in create_row_processor
+    raise sa_exc.InvalidRequestError(
+    ...<2 lines>...
+    )
+sqlalchemy.exc.InvalidRequestError: 'AplicacaoQuestionario.respostas' does not support object population - eager loading cannot be applied.
+2025-10-26 01:20:23,546 INFO: QualiGestor startup [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\__init__.py:256]
+2025-10-26 01:22:11,161 INFO: QualiGestor startup [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\__init__.py:256]
+2025-10-26 01:22:27,095 WARNING: Finalização aplicação 15 bloqueada. Perguntas obrigatórias faltando: {34, 35, 36} [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2211]
+2025-10-26 01:22:40,608 WARNING: Finalização aplicação 15 bloqueada. Perguntas obrigatórias faltando: {34, 35, 36} [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2211]
+2025-10-26 01:24:16,771 WARNING: Finalização aplicação 15 bloqueada. Perguntas obrigatórias faltando: {34, 35, 36} [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2211]
+2025-10-26 01:24:47,294 WARNING: Finalização aplicação 15 bloqueada. Perguntas obrigatórias faltando: {34, 35, 36} [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2211]
+2025-10-26 01:25:51,465 INFO: QualiGestor startup [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\__init__.py:256]
+2025-10-26 01:25:53,628 INFO: QualiGestor startup [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\__init__.py:256]
+2025-10-26 01:27:00,066 WARNING: Finalização aplicação 15 bloqueada. Perguntas obrigatórias faltando: {34, 35, 36} [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2211]
+2025-10-26 01:27:08,785 WARNING: Finalização aplicação 15 bloqueada. Perguntas obrigatórias faltando: {34, 35, 36} [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2211]
+2025-10-26 01:27:37,055 WARNING: Finalização aplicação 15 bloqueada. Perguntas obrigatórias faltando: {34, 35, 36} [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2211]
+2025-10-26 01:39:00,437 INFO: QualiGestor startup [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\__init__.py:256]
+2025-10-26 01:39:02,806 INFO: QualiGestor startup [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\__init__.py:256]
+2025-10-26 01:39:12,346 WARNING: Finalização aplicação 15 bloqueada. Perguntas obrigatórias faltando: {34, 35, 36} [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2211]
+2025-10-26 01:39:22,599 WARNING: Finalização aplicação 15 bloqueada. Perguntas obrigatórias faltando: {34, 35, 36} [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2211]
+2025-10-26 01:42:15,329 WARNING: Finalização aplicação 15 bloqueada. Perguntas obrigatórias faltando: {34, 35, 36} [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2211]
+2025-10-26 01:42:37,092 WARNING: Finalização aplicação 15 bloqueada. Perguntas obrigatórias faltando: {34, 35, 36} [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2211]
+2025-10-26 01:44:42,422 INFO: QualiGestor startup [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\__init__.py:256]
+2025-10-26 01:44:54,070 WARNING: Finalização aplicação 15 bloqueada. Perguntas obrigatórias faltando: {34, 35, 36} [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2211]
+2025-10-26 01:46:52,219 WARNING: Finalização aplicação 16 bloqueada. Perguntas obrigatórias faltando: {37, 38} [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2211]
+2025-10-26 15:24:17,192 INFO: QualiGestor startup [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\__init__.py:256]
+2025-10-26 15:24:19,015 INFO: QualiGestor startup [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\__init__.py:256]
+2025-10-26 15:29:26,501 INFO: QualiGestor startup [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\__init__.py:256]
+2025-10-26 15:29:28,398 INFO: QualiGestor startup [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\__init__.py:256]
+2025-10-26 15:31:25,870 WARNING: Finalização aplicação 18 bloqueada. Perguntas obrigatórias faltando: {37, 38} [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2211]
+2025-10-26 15:33:46,963 INFO: QualiGestor startup [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\__init__.py:256]
+2025-10-26 15:33:57,923 WARNING: Finalização aplicação 18 bloqueada. Perguntas obrigatórias faltando: {37, 38} [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2211]
+2025-10-26 15:35:51,433 WARNING: Finalização aplicação 18 bloqueada. Perguntas obrigatórias faltando: {37, 38} [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2211]
+2025-10-26 15:37:22,165 WARNING: Finalização aplicação 15 bloqueada. Perguntas obrigatórias faltando: {34, 35, 36} [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2211]
+2025-10-26 15:49:03,887 INFO: [Salvar Resposta 19] Commit bem-sucedido! [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2768]

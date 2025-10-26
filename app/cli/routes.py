@@ -2659,17 +2659,24 @@ def configuracoes():
         flash(f"Erro ao carregar configurações: {str(e)}", "danger")
         return render_template_safe('cli/index.html')
 
+# Em app/cli/routes.py
+
 @cli_bp.route('/aplicacao/<int:id>/salvar-resposta', methods=['POST'])
 @login_required
+@csrf.exempt
 def salvar_resposta(id):
-    """Salva uma resposta individual (AJAX)"""
+    """Salva uma resposta individual (AJAX) - COM LOGS DETALHADOS"""
+    # Adiciona um log no início da função
+    current_app.logger.info(f"--- Rota /salvar-resposta chamada para app ID: {id} ---")
     try:
         aplicacao = AplicacaoQuestionario.query.get_or_404(id)
 
         # Permissão
         if aplicacao.avaliado.cliente_id != current_user.cliente_id:
+            current_app.logger.warning(f"[Salvar Resposta {id}] Acesso negado - Cliente diferente.")
             return jsonify({'erro': 'Acesso negado'}), 403
         if aplicacao.status != StatusAplicacao.EM_ANDAMENTO:
+            current_app.logger.warning(f"[Salvar Resposta {id}] Aplicação não está em andamento (Status: {aplicacao.status}).")
             return jsonify({'erro': 'Aplicação já finalizada'}), 400
 
         data = request.get_json() or {}
@@ -2677,15 +2684,25 @@ def salvar_resposta(id):
         resposta_texto = (data.get('resposta') or '').strip()
         observacao = (data.get('observacao') or '').strip()
 
-        pergunta = Pergunta.query.get_or_404(pergunta_id)
+        # Adiciona logs para os dados recebidos
+        current_app.logger.info(f"[Salvar Resposta {id}] Dados recebidos: Pergunta ID={pergunta_id}, Resposta='{resposta_texto}', Observacao='{observacao}'")
+
+        if not pergunta_id:
+            current_app.logger.error(f"[Salvar Resposta {id}] Erro: 'pergunta_id' não recebido no JSON.")
+            return jsonify({'erro': 'ID da pergunta ausente'}), 400
+
+        pergunta = Pergunta.query.get(pergunta_id) # Usar get em vez de get_or_404 para log customizado
+        if not pergunta:
+            current_app.logger.error(f"[Salvar Resposta {id}] Erro: Pergunta com ID {pergunta_id} não encontrada no banco.")
+            return jsonify({'erro': f'Pergunta ID {pergunta_id} não encontrada'}), 404
+
+        current_app.logger.info(f"[Salvar Resposta {id}] Pergunta encontrada: ID={pergunta.id}, Texto='{pergunta.texto[:50]}...', Tipo={pergunta.tipo}")
 
         # Normaliza tipo para string de comparação
-        if hasattr(pergunta.tipo, 'name'):
-            tipo = pergunta.tipo.name  # Enum
-        elif hasattr(pergunta.tipo, 'value'):
-            tipo = str(pergunta.tipo.value).upper().replace(" ", "_")
-        else:
-            tipo = str(pergunta.tipo or "").upper().replace(" ", "_")
+        if hasattr(pergunta.tipo, 'name'): tipo = pergunta.tipo.name
+        elif hasattr(pergunta.tipo, 'value'): tipo = str(pergunta.tipo.value).upper().replace(" ", "_")
+        else: tipo = str(pergunta.tipo or "").upper().replace(" ", "_")
+        current_app.logger.info(f"[Salvar Resposta {id}] Tipo normalizado: {tipo}")
 
         # Busca/Cria resposta
         resposta = RespostaPergunta.query.filter_by(
@@ -2693,50 +2710,76 @@ def salvar_resposta(id):
             pergunta_id=pergunta_id
         ).first()
         if not resposta:
+            current_app.logger.info(f"[Salvar Resposta {id}] Criando nova entrada RespostaPergunta.")
             resposta = RespostaPergunta(
                 aplicacao_id=id,
                 pergunta_id=pergunta_id
             )
+        else:
+            current_app.logger.info(f"[Salvar Resposta {id}] Atualizando RespostaPergunta existente (ID: {resposta.id}).")
+
 
         resposta.resposta = resposta_texto
         resposta.observacao = observacao
-        resposta.pontos = 0  # default
+        resposta.pontos = 0  # default inicial
 
         # Pontuação por tipo
         if tipo in ['SIM_NAO_NA', 'MULTIPLA_ESCOLHA']:
+            current_app.logger.info(f"[Salvar Resposta {id}] Buscando OpcaoPergunta para pergunta_id={pergunta_id} e texto='{resposta_texto}'")
             opcao = OpcaoPergunta.query.filter_by(
                 pergunta_id=pergunta_id,
-                texto=resposta_texto
+                texto=resposta_texto # Atenção à correspondência exata aqui!
             ).first()
-            if opcao and opcao.valor is not None:
-                resposta.pontos = float(opcao.valor) * (pergunta.peso or 1)
+            if opcao:
+                current_app.logger.info(f"[Salvar Resposta {id}] OpcaoPergunta encontrada: ID={opcao.id}, Valor={opcao.valor}, Texto='{opcao.texto}'")
+                if opcao.valor is not None:
+                    peso_pergunta = pergunta.peso or 1
+                    resposta.pontos = float(opcao.valor) * peso_pergunta
+                    current_app.logger.info(f"[Salvar Resposta {id}] Pontos calculados: {float(opcao.valor)} (valor) * {peso_pergunta} (peso) = {resposta.pontos}")
+                else:
+                    current_app.logger.warning(f"[Salvar Resposta {id}] OpcaoPergunta encontrada (ID={opcao.id}) mas 'valor' é None. Pontos serão 0.")
+            else:
+                # Log crucial se a opção não for encontrada
+                current_app.logger.warning(f"[Salvar Resposta {id}] Nenhuma OpcaoPergunta encontrada para pergunta_id={pergunta_id} com texto='{resposta_texto}'. Pontos serão 0.")
 
         elif tipo in ['ESCALA_NUMERICA', 'NOTA']:
             try:
                 nota = float(resposta_texto)
-                resposta.pontos = nota * (pergunta.peso or 1)
+                peso_pergunta = pergunta.peso or 1
+                resposta.pontos = nota * peso_pergunta
+                current_app.logger.info(f"[Salvar Resposta {id}] Pontos (Escala/Nota) calculados: {nota} (valor) * {peso_pergunta} (peso) = {resposta.pontos}")
             except ValueError:
+                current_app.logger.warning(f"[Salvar Resposta {id}] Não foi possível converter resposta '{resposta_texto}' para float (Escala/Nota). Pontos serão 0.")
                 resposta.pontos = 0
 
-        elif tipo == 'TEXTO_CURTO':
-            # mantém pontos = 0
-            pass
+        elif tipo == 'TEXTO_CURTO' or tipo == 'TEXTO_LONGO': # Adicionado TEXTO_LONGO
+            current_app.logger.info(f"[Salvar Resposta {id}] Tipo Texto. Pontos mantidos em 0.")
+            pass # mantém pontos = 0
+        else:
+            current_app.logger.info(f"[Salvar Resposta {id}] Tipo {tipo}. Pontos mantidos em 0.")
+            pass # Outros tipos por enquanto não pontuam
 
-        db.session.add(resposta)
-        db.session.flush() # Garante que a 'resposta' tenha um ID se for nova
+        current_app.logger.info(f"[Salvar Resposta {id}] Preparando para salvar no DB: Resposta='{resposta.resposta}', Obs='{resposta.observacao}', Pontos={resposta.pontos}")
+        db.session.add(resposta) # Adiciona à sessão (seja novo ou existente)
+        db.session.flush() # Tenta aplicar à sessão para obter o ID se for novo
         resposta_id_retorno = resposta.id
-        db.session.commit()
+        current_app.logger.info(f"[Salvar Resposta {id}] Flush bem-sucedido. ID da Resposta (novo ou existente): {resposta_id_retorno}")
+        db.session.commit() # Tenta salvar permanentemente
+        current_app.logger.info(f"[Salvar Resposta {id}] Commit bem-sucedido!")
 
         return jsonify({
             'sucesso': True,
             'mensagem': 'Resposta salva com sucesso',
             'pontos': resposta.pontos or 0,
-            'resposta_id': resposta_id_retorno # <<< ADICIONE ESTA CHAVE
+            'resposta_id': resposta_id_retorno
         })
     except Exception as e:
-        db.session.rollback()
-        return jsonify({'erro': f'Falha ao salvar: {str(e)}'}), 500
-
+        db.session.rollback() # Desfaz TUDO em caso de QUALQUER erro
+        # Log CRÍTICO do erro
+        current_app.logger.error(f"[Salvar Resposta {id}] ERRO AO SALVAR RESPOSTA:", exc_info=True) # exc_info=True mostra o traceback completo
+        return jsonify({'erro': f'Falha interna ao salvar: {str(e)}'}), 500
+    finally:
+        current_app.logger.info(f"--- Rota /salvar-resposta finalizada para app ID: {id} ---")
 
 # ===================== NOTIFICAÇÕES =====================
 

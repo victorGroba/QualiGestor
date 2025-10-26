@@ -1,518 +1,238 @@
-{% extends 'base_cliq.html' %}
-{% block title %}Responder: {{ aplicacao.questionario.nome }}{% endblock %}
+{% extends "base_cliq.html" %}
 
 {% block content %}
-{# Meta tag para CSRF token, útil para JavaScript #}
-<meta name="csrf-token" content="{{ csrf_token() if csrf_token else '' }}">
-
-<div class="container-fluid py-3">
-    {# Cabeçalho da Aplicação #}
-    <div class="card mb-3 shadow-sm">
-        <div class="card-body p-2">
-            <div class="d-flex justify-content-between align-items-center flex-wrap">
-                <div class="mb-2 mb-md-0">
-                    <h5 class="mb-0 card-title">Aplicação: {{ aplicacao.questionario.nome }}</h5>
-                    <small class="text-muted">
-                        <i class="fas fa-store me-1"></i><strong>Avaliado:</strong> {{ aplicacao.avaliado.nome }} |
-                        <i class="fas fa-calendar-alt ms-2 me-1"></i><strong>Início:</strong> {{ aplicacao.data_inicio.strftime('%d/%m/%Y %H:%M') }} |
-                        <i class="fas fa-user ms-2 me-1"></i><strong>Aplicador:</strong> {{ aplicacao.aplicador.nome }}
-                    </small>
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-3">
+            <div class="card sticky-top" style="top: 20px;">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>Detalhes da Aplicação</h5>
                 </div>
-                {# Formulário para Finalizar Aplicação #}
-                <form id="form-finalizar" method="post" action="{{ url_for('cli.finalizar_aplicacao', id=aplicacao.id) }}" onsubmit="return confirmarFinalizacao();">
-                    {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
-                    <div class="input-group mb-2 d-none"> {# Escondido por padrão #}
-                         <span class="input-group-text">Observações Finais</span>
-                         <textarea name="observacoes_finais" class="form-control form-control-sm" rows="1"></textarea>
+                <div class="card-body">
+                    <h6 class="card-title">{{ aplicacao.questionario.nome }}</h6>
+                    <p class="card-text">
+                        <strong>Avaliador:</strong> {{ aplicacao.aplicador.nome }}<br>
+                        <strong>Avaliado:</strong> {{ aplicacao.avaliado.nome }}<br>
+                        <strong>Data Início:</strong> {{ aplicacao.data_inicio.strftime('%d/%m/%Y %H:%M') }}
+                    </p>
+                    <hr>
+                    <p class="text-muted small">
+                        Suas respostas são salvas automaticamente à medida que você preenche.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-9">
+            <form id="form-finalizar" action="{{ url_for('cli.finalizar_aplicacao', id=aplicacao.id) }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                {% for topico in topicos %}
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">{{ topico.nome }}</h5>
+                        {% if topico.descricao %}
+                            <p class="text-muted mb-0 small">{{ topico.descricao }}</p>
+                        {% endif %}
                     </div>
-                    <button type="submit" class="btn btn-success btn-lg">
+                    <div class="card-body">
+                        {% if perguntas_por_topico[topico.id] %}
+                            {% for pergunta in perguntas_por_topico[topico.id] %}
+                            <div class="mb-4 p-3 border rounded">
+                                <label class="form-label fw-bold">
+                                    {{ pergunta.texto }}
+                                    {% if pergunta.obrigatoria %}
+                                        <span class="text-danger">*</span>
+                                    {% endif %}
+                                </label>
+                                
+                                {% set resposta_salva = respostas_existentes.get(pergunta.id) %}
+                                
+                                {% if pergunta.tipo.name == 'SIM_NAO_NA' %}
+                                    <div class_id="resposta-container-{{ pergunta.id }}">
+                                        {% for opcao in pergunta.opcoes|sort(attribute='ordem') %}
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" 
+                                                   name="resposta-{{ pergunta.id }}" 
+                                                   id="opcao-{{ opcao.id }}" 
+                                                   value="{{ opcao.texto }}"
+                                                   data-pergunta-id="{{ pergunta.id }}"
+                                                   onchange="salvarResposta(this)"
+                                                   {% if resposta_salva and resposta_salva.resposta == opcao.texto %}checked{% endif %}>
+                                            <label class="form-check-label" for="opcao-{{ opcao.id }}">
+                                                {{ opcao.texto }}
+                                            </label>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+
+                                {% elif pergunta.tipo.name == 'MULTIPLA_ESCOLHA' %}
+                                    <select class="form-select" name="resposta-{{ pergunta.id }}"
+                                            data-pergunta-id="{{ pergunta.id }}"
+                                            onchange="salvarResposta(this)">
+                                        <option value="">Selecione...</option>
+                                        {% for opcao in pergunta.opcoes|sort(attribute='ordem') %}
+                                        <option value="{{ opcao.texto }}" {% if resposta_salva and resposta_salva.resposta == opcao.texto %}selected{% endif %}>
+                                            {{ opcao.texto }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                
+                                {% elif pergunta.tipo.name == 'NOTA' or pergunta.tipo.name == 'ESCALA_NUMERICA' %}
+                                    <input type="number" class="form-control" 
+                                           name="resposta-{{ pergunta.id }}"
+                                           data-pergunta-id="{{ pergunta.id }}"
+                                           value="{{ resposta_salva.resposta if resposta_salva else '' }}"
+                                           onblur="salvarResposta(this)">
+
+                                {% elif pergunta.tipo.name == 'TEXTO_CURTO' %}
+                                    <input type="text" class="form-control" 
+                                           name="resposta-{{ pergunta.id }}"
+                                           data-pergunta-id="{{ pergunta.id }}"
+                                           value="{{ resposta_salva.resposta if resposta_salva else '' }}"
+                                           onblur="salvarResposta(this)">
+                                
+                                {% elif pergunta.tipo.name == 'TEXTO_LONGO' %}
+                                    <textarea class="form-control" rows="3"
+                                              name="resposta-{{ pergunta.id }}"
+                                              data-pergunta-id="{{ pergunta.id }}"
+                                              onblur="salvarResposta(this)">{{ resposta_salva.resposta if resposta_salva else '' }}</textarea>
+                                
+                                {% else %}
+                                    <p class="text-danger small">Tipo de pergunta não suportado: {{ pergunta.tipo.name }}</p>
+                                {% endif %}
+
+                                {% if pergunta.permite_observacao %}
+                                <div class="mt-2">
+                                    <label for="obs-{{ pergunta.id }}" class="form-label small text-muted">Observação:</label>
+                                    <textarea class="form-control form-control-sm" 
+                                              id="obs-{{ pergunta.id }}"
+                                              name="observacao-{{ pergunta.id }}"
+                                              data-pergunta-id="{{ pergunta.id }}"
+                                              onblur="salvarResposta(this, true)"
+                                              rows="2">{{ resposta_salva.observacao if resposta_salva else '' }}</textarea>
+                                </div>
+                                {% endif %}
+
+                                <div id="feedback-{{ pergunta.id }}" class="form-text small mt-1"></div>
+
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-muted">Nenhuma pergunta encontrada neste tópico.</p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-comment-alt me-2"></i>Observações Finais</h5>
+                    </div>
+                    <div class="card-body">
+                        <textarea class="form-control" 
+                                  name="observacoes_finais" 
+                                  rows="4" 
+                                  placeholder="Digite aqui qualquer observação geral sobre a aplicação...">{{ aplicacao.observacoes_finais or '' }}</textarea>
+                    </div>
+                </div>
+
+                <div class="text-end mb-5">
+                    <a href="{{ url_for('cli.listar_aplicacoes') }}" class="btn btn-secondary">
+                        <i class="fas fa-times me-2"></i>Cancelar
+                    </a>
+                    <button type-="submit" class="btn btn-primary">
                         <i class="fas fa-check-circle me-2"></i>Finalizar Aplicação
                     </button>
-                </form>
-            </div>
-             {# Exibe mensagens flash aqui. 'ignore missing' evita erro se o template não existir. #}
-             {% include 'includes/_flash_messages.html' ignore missing %}
+                </div>
+            </form>
         </div>
     </div>
-
-
-    {# Loop pelos Tópicos #}
-    {% for topico in topicos %}
-    {% set topico_loop = loop %} {# <--- CORREÇÃO 1: Variável do loop pai salva #}
-    {# Verifica se o tópico tem perguntas ativas associadas antes de renderizar #}
-    {% set perguntas_ativas_do_topico = perguntas_por_topico.get(topico.id, []) %}
-    {% if perguntas_ativas_do_topico %}
-    <div class="card mb-3 shadow-sm">
-        <div class="card-header bg-light">
-            <strong class="text-primary"><i class="fas fa-folder me-2"></i>{{ loop.index }}. {{ topico.nome }}</strong>
-            {% if topico.descricao %}<p class="small text-muted mb-0 mt-1">{{ topico.descricao }}</p>{% endif %}
-        </div>
-
-        <div class="card-body">
-            {# Loop pelas Perguntas Ativas do Tópico #}
-            {% for p in perguntas_ativas_do_topico %}
-            {# Busca a resposta existente para esta pergunta nesta aplicação #}
-            {% set r = respostas_existentes.get(p.id) %}
-            {# Define um ID único para o bloco da pergunta #}
-            {% set pergunta_block_id = "pergunta-block-" ~ p.id %}
-
-            <div class="mb-4 pb-3 border-bottom js-pergunta" id="{{ pergunta_block_id }}" data-pergunta-id="{{ p.id }}">
-                {# Label da Pergunta #}
-                <label class="form-label d-block fw-bold mb-2">
-                    {# <--- CORREÇÃO 2: Usando a variável salva 'topico_loop' #}
-                    {{ topico_loop.index }}.{{ loop.index }}. {{ p.texto | safe }} {# Numeração Tópico.Pergunta #}
-                    {# Badges informativos #}
-                    {% if p.obrigatoria %}<span class="badge bg-warning text-dark ms-2 small">Obrigatória</span>{% endif %}
-                    {% if p.peso and p.peso != 1 %}<span class="badge bg-secondary ms-2 small">Peso {{ p.peso }}</span>{% endif %}
-                    {% if p.exige_foto_se_nao_conforme %}<span class="badge bg-info text-dark ms-2 small" title="Exige foto se Não Conforme"><i class="fas fa-camera"></i> Foto NC</span>{% endif %}
-                </label>
-
-                {# Input de Resposta baseado no Tipo #}
-                {% set tipo = p.tipo.name if p.tipo and p.tipo.name else (p.tipo | string) %}
-                {% set resposta_val = r.resposta if r else '' %}
-                {# Span oculto para guardar o resposta_id (essencial para upload) #}
-                <span class="js-resposta-id" data-resposta-id="{{ r.id if r else '' }}"></span>
-
-                {# --- Renderização dos Inputs de Resposta --- #}
-                <div class="resposta-input-area mb-2">
-                    {% if tipo in ['SIM_NAO_NA', 'MULTIPLA_ESCOLHA'] %}
-                        <div class="btn-group btn-group-sm flex-wrap" role="group" aria-label="Resposta {{ p.id }}">
-                            {% for op in p.opcoes %} {# Assumindo que opções foram carregadas e ordenadas #}
-                            <input type="radio" class="btn-check js-resp-radio" name="resposta-{{ p.id }}" id="resp-{{ p.id }}-{{ loop.index }}" value="{{ op.texto }}"
-                                   {% if resposta_val == op.texto %}checked{% endif %}
-                                   data-pergunta-id="{{ p.id }}"
-                                   data-exige-foto="{{ 'true' if p.exige_foto_se_nao_conforme else 'false' }}">
-                            {# Adiciona classes de cor baseadas no texto da opção #}
-                            {% set btn_class = 'btn-outline-secondary' %}
-                            {% if op.texto.lower() == 'sim' or op.texto.lower() == 'conforme' %} {% set btn_class = 'btn-outline-success' %}
-                            {% elif op.texto.lower() == 'não' or op.texto.lower() == 'nao' or op.texto.lower() == 'não conforme' %} {% set btn_class = 'btn-outline-danger' %}
-                            {% elif op.texto.lower() == 'n.a.' or op.texto.lower() == 'na' %} {% set btn_class = 'btn-outline-secondary' %}
-                            {% endif %}
-                            <label class="btn {{ btn_class }} mb-1" for="resp-{{ p.id }}-{{ loop.index }}">{{ op.texto }}</label>
-                            {% endfor %}
-                        </div>
-
-                    {% elif tipo in ['ESCALA_NUMERICA', 'NOTA', 'NUMERO', 'PORCENTAGEM'] %}
-                        <input type="number" class="form-control form-control-sm js-resp-input" style="max-width: 150px;" name="resposta-{{ p.id }}" value="{{ resposta_val }}"
-                               placeholder="Valor numérico" data-pergunta-id="{{ p.id }}"
-                               step="{{ '0.1' if tipo == 'NOTA' else 'any' if tipo == 'PORCENTAGEM' else '1' }}">
-
-                    {% elif tipo == 'TEXTO_CURTO' %}
-                        <input type="text" class="form-control form-control-sm js-resp-input" name="resposta-{{ p.id }}" value="{{ resposta_val }}"
-                               placeholder="Digite a resposta" data-pergunta-id="{{ p.id }}" maxlength="250">
-
-                    {% elif tipo == 'TEXTO_LONGO' %}
-                         <textarea class="form-control form-control-sm js-resp-input" name="resposta-{{ p.id }}" rows="3"
-                                  placeholder="Digite a resposta detalhada" data-pergunta-id="{{ p.id }}">{{ resposta_val }}</textarea>
-
-                    {% elif tipo == 'DATA' %}
-                        <input type="date" class="form-control form-control-sm js-resp-input" style="max-width: 200px;" name="resposta-{{ p.id }}" value="{{ resposta_val }}"
-                               data-pergunta-id="{{ p.id }}">
-
-                    {% elif tipo == 'HORA' %}
-                        <input type="time" class="form-control form-control-sm js-resp-input" style="max-width: 150px;" name="resposta-{{ p.id }}" value="{{ resposta_val }}"
-                               data-pergunta-id="{{ p.id }}">
-
-                    {% elif tipo == 'MOEDA' %}
-                         <input type="number" class="form-control form-control-sm js-resp-input" style="max-width: 150px;" name="resposta-{{ p.id }}" value="{{ resposta_val }}"
-                                step="0.01" placeholder="0,00" data-pergunta-id="{{ p.id }}">
-
-                    {% elif tipo == 'FOTO' %}
-                         <div class="alert alert-info alert-sm p-1 small">Utilize a seção "Anexar Evidência" abaixo para enviar a foto.</div>
-                    
-                    {% elif tipo == 'ASSINATURA' %}
-                         <div class="border p-3 text-center bg-light signature-placeholder" id="sig-placeholder-{{p.id}}" style="min-height: 150px;">
-                              <p class="text-muted small">Área de Assinatura Digital</p>
-                              <button type="button" class="btn btn-sm btn-outline-primary" disabled>Coletar Assinatura (em breve)</button>
-                         </div>
-                         <input type="hidden" class="js-resp-input" name="resposta-{{ p.id }}" id="sig-data-{{p.id}}" value="{{ resposta_val }}" data-pergunta-id="{{ p.id }}">
-
-                    {% else %}
-                        <div class="text-danger small">Tipo de pergunta não implementado no template: {{ tipo }}</div>
-                    {% endif %}
-                </div>
-                {# --- Fim dos Inputs de Resposta --- #}
-
-
-                {# --- Campo de Observação (se permitido) --- #}
-                {% if p.permite_observacao %}
-                <div class="input-group input-group-sm mb-2">
-                    <span class="input-group-text"><i class="fas fa-comment-dots"></i></span>
-                    <input type="text" class="form-control js-obs-input" placeholder="Observação (opcional)"
-                           value="{{ r.observacao if r and r.observacao else '' }}"
-                           data-pergunta-id="{{ p.id }}">
-                </div>
-                {% endif %}
-                {# --- Fim da Observação --- #}
-
-                {# --- INÍCIO: Bloco de Upload de Foto --- #}
-                {% if p.exige_foto_se_nao_conforme or tipo == 'FOTO' %}
-                    {% set resposta_obj = respostas_existentes.get(p.id) %}
-                    <div class="upload-section mt-2 pt-2 border-top"
-                         id="upload-section-{{ p.id }}"
-                         style="display: {{ 'block' if tipo == 'FOTO' else 'none' }};"
-                         data-pergunta-id="{{ p.id }}"
-                         data-resposta-id="{{ resposta_obj.id if resposta_obj else '' }}"
-                         data-exige-foto="{{ 'true' if p.exige_foto_se_nao_conforme else 'false' }}">
-
-                        <label for="foto-input-{{ p.id }}" class="form-label fw-bold {{ 'text-danger' if p.exige_foto_se_nao_conforme and tipo != 'FOTO' else 'text-primary' }} small mb-1">
-                            <i class="fas fa-camera"></i> Anexar Evidência {% if p.exige_foto_se_nao_conforme and tipo != 'FOTO' %}(Obrigatório se Não Conforme){% endif %}
-                        </label>
-                        <div class="input-group input-group-sm">
-                            <input class="form-control" type="file" id="foto-input-{{ p.id }}" accept="image/*">
-                            <button class="btn btn-outline-primary btn-upload" type="button" id="upload-button-{{ p.id }}"
-                                    onclick="iniciarUpload({{ p.id }})"
-                                    {% if not resposta_obj and tipo != 'FOTO' %}disabled title="Salve a resposta primeiro para habilitar o envio."{% endif %}>
-                                <i class="fas fa-upload"></i> Enviar
-                            </button>
-                        </div>
-                        <div class="upload-status mt-2" id="upload-status-{{ p.id }}">
-                            {% if resposta_obj and resposta_obj.caminho_foto %}
-                                <div class="alert alert-light alert-sm p-1 d-flex align-items-center justify-content-between">
-                                    <div>
-                                        {# CORREÇÃO CSS: Adicionado ; após cada propriedade #}
-                                        <a href="{{ url_for('cli.get_foto_resposta', filename=resposta_obj.caminho_foto) }}" target="_blank" title="Ver imagem {{ resposta_obj.caminho_foto }}">
-                                            <img src="{{ url_for('cli.get_foto_resposta', filename=resposta_obj.caminho_foto) }}"
-                                                 alt="Evidência" class="img-thumbnail"
-                                                 style="max-height: 45px; max-width: 70px; margin-right: 10px; vertical-align: middle;">
-                                        </a>
-                                        <span class="small text-truncate" style="max-width: 150px; display: inline-block;">{{ resposta_obj.caminho_foto }}</span>
-                                    </div>
-                                </div>
-                            {% endif %}
-                        </div>
-                        <div class="form-text small text-muted mt-1" id="upload-help-{{ p.id }}">Selecione a imagem e clique em Enviar. {% if tipo == 'FOTO' %}Esta pergunta requer uma foto.{% endif %}</div>
-                    </div>
-                {% endif %}
-                {# --- FIM: Bloco de Upload de Foto --- #}
-
-                <div class="save-feedback small text-muted mt-1 fst-italic" id="save-feedback-{{ p.id }}" style="min-height: 1.2em;"></div>
-
-            </div> {# Fim do js-pergunta #}
-            {% endfor %} {# Fim do loop de Perguntas #}
-        </div> {# Fim do card-body #}
-    </div> {# Fim do card do Tópico #}
-    {% endif %} {# Fim do if topico tem perguntas #}
-    {% endfor %} {# Fim do loop de Tópicos #}
-
-     <div class="mt-4 text-center">
-         <button type="submit" form="form-finalizar" class="btn btn-success btn-lg px-5">
-             <i class="fas fa-check-circle me-2"></i>Finalizar Aplicação
-         </button>
-     </div>
-
-</div> {# Fim do container-fluid #}
-
+</div>
 {% endblock %}
 
-{% block scripts %}
-{{ super() }} {# Inclui scripts do template base #}
+
+{% block extra_js %}
 <script>
-// Bloco IIFE para encapsular o escopo
-(function () {
-    const aplicacaoId = {{ aplicacao.id }};
+// Função Mágica: Salva a resposta via AJAX
+async function salvarResposta(inputElement, isObservacao = false) {
     
-    function getCsrfToken() {
-        const meta = document.querySelector('meta[name="csrf-token"]');
-        if (meta) return meta.content;
-        const input = document.querySelector('input[name="csrf_token"]');
-        return input ? input.value : null;
+    let perguntaId, respostaValue, observacaoValue;
+    
+    // Pega o ID da pergunta
+    perguntaId = inputElement.dataset.perguntaId;
+    
+    // Pega os elementos corretos
+    let respostaInput, observacaoInput;
+    
+    if (isObservacao) {
+        // Se o trigger foi o campo OBS, o input da resposta é o outro
+        observacaoInput = inputElement;
+        // Tenta encontrar o input de resposta (pode ser radio, select ou text)
+        respostaInput = document.querySelector(`[name="resposta-${perguntaId}"]:checked`) || 
+                        document.querySelector(`[name="resposta-${perguntaId}"]`);
+    } else {
+        // Se o trigger foi o campo RESPOSTA, o input da obs é o outro
+        respostaInput = inputElement;
+        observacaoInput = document.querySelector(`[name="observacao-${perguntaId}"]`);
     }
 
-    function toggleUploadSection(perguntaId, respostaValor) {
-        const uploadSection = document.getElementById(`upload-section-${perguntaId}`);
-        if (!uploadSection) return;
-        const exigeFoto = uploadSection.getAttribute('data-exige-foto') === 'true';
-        const isTipoFoto = uploadSection.style.display === 'block' && !exigeFoto;
-        const respostaNaoConforme = respostaValor && ['não', 'nao', 'no'].includes(respostaValor.trim().toLowerCase());
-        
-        if ((exigeFoto && respostaNaoConforme) || isTipoFoto) {
-            uploadSection.style.display = 'block';
-        } else {
-            uploadSection.style.display = 'none';
-        }
-        atualizarEstadoBotaoUpload(perguntaId);
+    // Pega os valores
+    respostaValue = respostaInput ? respostaInput.value : '';
+    observacaoValue = observacaoInput ? observacaoInput.value : '';
+
+    // ===================== CORREÇÃO AQUI =====================
+    // Adicionadas crases (`) para `feedback-${perguntaId}`
+    const feedbackEl = document.getElementById(`feedback-${perguntaId}`);
+    // =========================================================
+
+    if (feedbackEl) {
+        feedbackEl.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Salvando...';
+        feedbackEl.className = 'form-text small text-muted';
+    } else {
+        // Se não encontrar o feedbackEl, loga um erro no console mas continua
+        console.warn(`Elemento de feedback 'feedback-${perguntaId}' não encontrado.`);
     }
 
-    function atualizarEstadoBotaoUpload(perguntaId) {
-        const uploadButton = document.getElementById(`upload-button-${perguntaId}`);
-        const respostaIdSpan = document.querySelector(`#pergunta-block-${perguntaId} .js-resposta-id`);
-        const respostaId = respostaIdSpan?.getAttribute('data-resposta-id');
-        if (uploadButton) {
-            if (respostaId && aplicacaoId) {
-                uploadButton.disabled = false;
-                uploadButton.title = "Selecione um arquivo e clique para enviar/substituir a foto.";
-            } else {
-                uploadButton.disabled = true;
-                uploadButton.title = "Salve a resposta primeiro para habilitar o envio da foto.";
-                 const fileInput = document.getElementById(`foto-input-${perguntaId}`);
-                 if (fileInput) fileInput.value = '';
-            }
-        }
-    }
+    try {
+        const response = await fetch("{{ url_for('cli.salvar_resposta', id=aplicacao.id) }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                pergunta_id: parseInt(perguntaId),
+                resposta: respostaValue,
+                observacao: observacaoValue
+            })
+        });
 
-    // Função AJAX Genérica para salvar resposta (retorna Promise)
-    async function salvarRespostaAjax(perguntaId, respostaValor, observacaoValor) {
-        const url = `/cli/aplicacao/${aplicacaoId}/salvar-resposta`;
-        const token = getCsrfToken();
-        
-        // --- CORREÇÃO JS (Linha ~152): Define headers explicitamente ---
-        const headers = { 'Content-Type': 'application/json' };
-        if (token) {
-            headers['X-CSRFToken'] = token;
-        }
-        // -------------------------------------------------------------
+        const data = await response.json();
 
-        console.log("Enviando save AJAX para P" + String(perguntaId) + ": R='" + respostaValor + "', O='" + observacaoValor + "'");
-        const feedbackEl = document.getElementById(`save-feedback-${perguntaId}`);
-        if (feedbackEl) feedbackEl.innerHTML = '<i class="fas fa-spinner fa-spin text-muted small"></i> <span class="small text-muted">Salvando...</span>';
-
-        try {
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: headers, // Usa o objeto headers corrigido
-                body: JSON.stringify({
-                    pergunta_id: perguntaId,
-                    resposta: respostaValor ?? "",
-                    observacao: observacaoValor ?? ""
-                })
-            });
-
-            const data = await response.json();
-
-            // --- CORREÇÃO JS (Linha ~172): Simplifica verificação de erro ---
-            if (!response.ok || !data.sucesso) {
-                const errorMsg = data.erro || 'Erro HTTP ' + response.status + ' (' + response.statusText + ')';
-                throw new Error(errorMsg);
-            }
-            // -------------------------------------------------------------
-
-            console.log("P" + String(perguntaId) + " salvo com sucesso.", data);
+        if (response.ok && data.sucesso) {
             if (feedbackEl) {
-                feedbackEl.innerHTML = '<i class="fas fa-check text-success small"></i> <span class="small text-success">Salvo</span>';
-                setTimeout(() => {
-                    if (feedbackEl.innerHTML.includes('Salvo')) feedbackEl.innerHTML = '';
-                 }, 3000);
+                feedbackEl.innerHTML = '<i class="fas fa-check me-1"></i>Salvo com sucesso!';
+                feedbackEl.className = 'form-text small text-success';
             }
+        } else {
+            throw new Error(data.erro || 'Erro desconhecido');
+        }
 
-            if (data.resposta_id) {
-                const respostaIdSpan = document.querySelector(`#pergunta-block-${perguntaId} .js-resposta-id`);
-                const uploadSection = document.getElementById(`upload-section-${perguntaId}`);
-                if (respostaIdSpan) {
-                    respostaIdSpan.setAttribute('data-resposta-id', data.resposta_id);
-                }
-                if (uploadSection) {
-                     uploadSection.setAttribute('data-resposta-id', data.resposta_id);
-                }
-                console.log("Resposta ID " + String(data.resposta_id) + " armazenado para P" + String(perguntaId));
-            }
-            return data;
-
-        } catch (error) {
-            console.error("Erro ao salvar P" + String(perguntaId) + ":", error);
-            if (feedbackEl) feedbackEl.innerHTML = `<i class="fas fa-exclamation-triangle text-danger small"></i> <span class="small text-danger">Falha ao salvar</span>`;
-            alert("Falha ao salvar resposta para pergunta " + String(perguntaId) + ": " + error.message);
-            throw error;
+    } catch (error) {
+        console.error('Erro ao salvar resposta:', error);
+        if (feedbackEl) {
+            feedbackEl.innerHTML = `<i class="fas fa-exclamation-triangle me-1"></i>Falha ao salvar: ${error.message}`;
+            feedbackEl.className = 'form-text small text-danger';
         }
     }
+}
 
-    // Função principal chamada na mudança de resposta
-    async function handleRespostaChange(perguntaId, respostaValor, elementoInput) {
-        // --- CORREÇÃO JS (Linha ~206): Remove template literal ---
-        console.log('handleRespostaChange P' + String(perguntaId) + ': \'' + respostaValor + '\'');
-        // ---------------------------------------------------------
-        const perguntaBlock = document.getElementById(`pergunta-block-${perguntaId}`);
-        if (!perguntaBlock) return;
-
-        const obsInput = perguntaBlock.querySelector('.js-obs-input');
-        const observacaoValor = obsInput ? obsInput.value : "";
-
-        toggleUploadSection(perguntaId, respostaValor);
-
-        try {
-            await salvarRespostaAjax(perguntaId, respostaValor, observacaoValor);
-            atualizarEstadoBotaoUpload(perguntaId);
-        } catch (error) {
-             console.warn("Save falhou para P" + String(perguntaId) + ", estado visual pode estar inconsistente.");
-        }
+// Confirmação antes de finalizar (para garantir que o usuário não clique sem querer)
+document.getElementById('form-finalizar').addEventListener('submit', function(event) {
+    if (!confirm('Tem certeza que deseja finalizar esta aplicação? Você não poderá editá-la depois.')) {
+        event.preventDefault();
     }
+});
 
-    // Event listeners otimizados
-    const container = document.querySelector('.container-fluid');
-    if (container) {
-        container.addEventListener('change', (event) => {
-            const target = event.target;
-            if (target.matches('.js-resp-radio')) {
-                const perguntaId = target.getAttribute('data-pergunta-id');
-                if (perguntaId) {
-                    handleRespostaChange(perguntaId, target.value, target);
-                }
-            }
-        });
-
-        container.addEventListener('blur', async (event) => {
-            const target = event.target;
-            const perguntaBlock = target.closest('.js-pergunta');
-            if (!perguntaBlock) return;
-            const perguntaId = perguntaBlock.getAttribute('data-pergunta-id');
-            if (!perguntaId) return;
-
-            let respostaPrincipal = '';
-            let observacaoValor = '';
-            let mudou = false;
-
-            const obsInput = perguntaBlock.querySelector('.js-obs-input');
-            observacaoValor = obsInput ? obsInput.value : '';
-
-            const radioChecked = perguntaBlock.querySelector('input.js-resp-radio:checked');
-            const otherInput = perguntaBlock.querySelector('.js-resp-input:not(.js-obs-input)');
-            if (radioChecked) {
-                respostaPrincipal = radioChecked.value;
-            } else if (otherInput) {
-                respostaPrincipal = otherInput.value;
-            }
-
-            if (target.matches('.js-resp-input:not(.js-resp-radio)')) {
-                 if (target.value !== (target.dataset.lastValue || '')) {
-                     mudou = true;
-                     respostaPrincipal = target.value;
-                 }
-            } else if (target.matches('.js-obs-input')) {
-                 if (target.value !== (target.dataset.lastValue || '')) {
-                     mudou = true;
-                     observacaoValor = target.value;
-                 }
-            }
-
-            if (mudou) {
-                 try {
-                      await salvarRespostaAjax(perguntaId, respostaPrincipal, observacaoValor);
-                      target.dataset.lastValue = target.value;
-                      atualizarEstadoBotaoUpload(perguntaId);
-                 } catch (error) { /* Erro já tratado */ }
-            }
-        }, true);
-
-        container.addEventListener('focus', (event) => {
-            const target = event.target;
-            if (target.matches('.js-resp-input') || target.matches('.js-obs-input')) {
-                target.dataset.lastValue = target.value;
-            }
-        }, true);
-    } // Fim if(container)
-
-
-    // Função global para iniciar o upload
-    window.iniciarUpload = async function(perguntaId) {
-        const perguntaBlock = document.getElementById(`pergunta-block-${perguntaId}`);
-        if (!perguntaBlock) return;
-
-        const fileInput = document.getElementById(`foto-input-${perguntaId}`);
-        const uploadStatusDiv = document.getElementById(`upload-status-${perguntaId}`);
-        const uploadButton = document.getElementById(`upload-button-${perguntaId}`);
-        const uploadSection = document.getElementById(`upload-section-${perguntaId}`);
-        const respostaId = uploadSection?.getAttribute('data-resposta-id');
-        const token = getCsrfToken();
-        const uploadHelp = document.getElementById(`upload-help-${perguntaId}`);
-
-        if (!fileInput?.files?.length) {
-            alert('Por favor, selecione um arquivo de foto.');
-            return;
-        }
-        if (!respostaId) {
-            alert('Não foi possível enviar a foto. Certifique-se de que a resposta foi salva primeiro.');
-            console.warn("Tentativa de upload para P" + String(perguntaId) + " sem respostaId.");
-            return;
-        }
-
-        const file = fileInput.files[0];
-        const maxSizeMB = 10;
-        if (file.size > maxSizeMB * 1024 * 1024) {
-             alert("Arquivo muito grande. O tamanho máximo permitido é " + String(maxSizeMB) + " MB.");
-             fileInput.value = '';
-             return;
-        }
-
-        const formData = new FormData();
-        formData.append('foto', file);
-
-        if (uploadStatusDiv) uploadStatusDiv.innerHTML = '<div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div><span class="small">Enviando...</span>';
-        if (uploadButton) uploadButton.disabled = true;
-        if (uploadHelp) uploadHelp.textContent = 'Enviando foto...';
-
-
-        try {
-             // --- CORREÇÃO JS: Define headers condicionalmente ---
-            const headers_upload = {};
-            if (token) {
-                headers_upload['X-CSRFToken'] = token;
-            }
-            // ----------------------------------------------------
-            const response = await fetch(`/cli/resposta/${respostaId}/upload-foto`, {
-                method: 'POST',
-                headers: headers_upload, // Usa o objeto headers corrigido
-                body: formData
-            });
-
-            const data = await response.json();
-
-             // --- CORREÇÃO JS: Simplifica verificação de erro ---
-            if (!response.ok || !data.sucesso) {
-                 const errorMsg_upload = data.erro || 'Erro HTTP ' + response.status + ' (' + response.statusText + ')';
-                 throw new Error(errorMsg_upload);
-            }
-            // ----------------------------------------------------
-
-            console.log("Upload para R" + String(respostaId) + " OK:", data);
-            let previewHtml = '';
-            if (data.url) {
-                previewHtml = `
-                    <a href="${data.url}" target="_blank" title="Ver imagem ${data.filename}" class="me-2">
-                        <img src="${data.url}" alt="Preview" class="img-thumbnail" style="max-height: 45px; max-width: 70px; vertical-align: middle;">
-                    </a>`;
-            }
-             if (uploadStatusDiv) {
-                 uploadStatusDiv.innerHTML = `
-                    <div class="alert alert-success alert-sm p-1 d-flex align-items-center justify-content-between">
-                        <div>${previewHtml}<span class="small text-truncate" style="max-width: 150px; display: inline-block;">${data.filename} <i class="fas fa-check-circle"></i></span></div>
-                    </div>`;
-             }
-            if (fileInput) fileInput.value = '';
-            if (uploadHelp) uploadHelp.textContent = 'Foto enviada com sucesso. Para substituir, selecione outra e clique em Enviar.';
-
-        } catch (error) {
-            console.error("Erro no upload para R" + String(respostaId) + ":", error);
-             if (uploadStatusDiv) uploadStatusDiv.innerHTML = `<div class="alert alert-danger alert-sm p-1">Falha no envio: ${error.message}</div>`;
-             if (uploadHelp) uploadHelp.textContent = "Falha no envio. Tente novamente. (" + error.message + ")";
-
-        } finally {
-            if (uploadButton) uploadButton.disabled = false;
-             setTimeout(() => atualizarEstadoBotaoUpload(perguntaId), 100);
-        }
-    } // Fim de iniciarUpload
-
-    // Inicialização
-    document.addEventListener('DOMContentLoaded', () => {
-        document.querySelectorAll('.js-pergunta').forEach(perguntaBlock => {
-            const perguntaId = perguntaBlock.getAttribute('data-pergunta-id');
-            if (!perguntaId) return;
-            
-            const radioChecked = perguntaBlock.querySelector('input.js-resp-radio:checked');
-            const otherInput = perguntaBlock.querySelector('.js-resp-input:not(.js-resp-radio)');
-            let respostaInicial = '';
-            if (radioChecked) { respostaInicial = radioChecked.value; }
-            else if (otherInput) { respostaInicial = otherInput.value; }
-            
-            toggleUploadSection(perguntaId, respostaInicial);
-            atualizarEstadoBotaoUpload(perguntaId);
-        });
-    });
-
-    // Confirmação para Finalizar
-    window.confirmarFinalizacao = function() {
-        return confirm('Tem certeza que deseja finalizar esta aplicação? Após finalizar, não será possível alterar as respostas.');
-    }
-
-})(); // Fim da IIFE
 </script>
 {% endblock %}
