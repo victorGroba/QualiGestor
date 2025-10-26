@@ -137,15 +137,13 @@
               <select class="form-select" id="usuario_autorizado_select">
                 <option selected disabled>Selecione o usuário</option>
                 {% for usuario in usuarios %}
-                <option value="{{ usuario.nome }}|{{ usuario.email }}">{{ usuario.nome }} ({{ usuario.email }})</option>
+                <option value="{{ usuario.id }}">{{ usuario.nome }} ({{ usuario.email }})</option>
                 {% endfor %}
               </select>
               <button type="button" class="btn btn-outline-secondary" onclick="adicionarUsuarioAutorizado()">+</button>
             </div>
 
-            <!-- Campos ocultos para envio -->
-            <input type="hidden" name="usuarios_nomes[]" id="usuarios_nomes_hidden">
-            <input type="hidden" name="usuarios_emails[]" id="usuarios_emails_hidden">
+            <input type="hidden" name="usuarios_autorizados" id="usuarios_autorizados_hidden">
 
             <table class="table table-sm" id="tabelaUsuariosAutorizados">
               <thead>
@@ -303,45 +301,60 @@
   </form>
 </div>
 <script>
-  const usuariosSelecionados = [];
+  const usuariosSelecionados = []; // Mantém o estado dos usuários adicionados
+
   function adicionarUsuarioAutorizado() {
     const select = document.getElementById('usuario_autorizado_select');
     const tabela = document.getElementById('tabelaUsuariosAutorizados').querySelector('tbody');
-    const nomesHidden = document.getElementById('usuarios_nomes_hidden');
-    const emailsHidden = document.getElementById('usuarios_emails_hidden');
 
-    const valorSelecionado = select.value;
-    if (!valorSelecionado) return;
+    // MUDANÇA: Pegamos o ID e o Texto separadamente
+    const usuarioId = select.value;
+    
+    // Verificação robusta se a opção selecionada é válida
+    if (!usuarioId || select.selectedIndex === 0) return; 
+    
+    // Pegamos o texto (ex: "Ana Silva (ana@lab.com)")
+    const usuarioTexto = select.options[select.selectedIndex].text; 
+    
+    // Extraímos nome e email do texto
+    const match = usuarioTexto.match(/(.*) \((.*)\)/);
+    if (!match) return; // Se não encontrar o padrão, não faz nada
+    const nome = match[1];
+    const email = match[2];
 
-    const [nome, email] = valorSelecionado.split('|');
-    if (usuariosSelecionados.some(u => u.email === email)) return;
+    // MUDANÇA: Verificamos se o ID já foi adicionado
+    if (usuariosSelecionados.some(u => u.id === usuarioId)) {
+        alert("Usuário já adicionado.");
+        return;
+    }
 
-    usuariosSelecionados.push({ nome, email });
+    usuariosSelecionados.push({ id: usuarioId, nome, email });
 
     const linha = document.createElement('tr');
+    // MUDANÇA: O botão 'remover' agora usa o ID para encontrar o usuário
     linha.innerHTML = `
       <td>${nome}</td>
       <td>${email}</td>
-      <td><button type="button" class="btn btn-sm btn-danger" onclick="removerUsuarioAutorizado('${email}', this)">Remover</button></td>
+      <td><button type="button" class="btn btn-sm btn-danger" onclick="removerUsuarioAutorizado('${usuarioId}', this)">Remover</button></td>
     `;
     tabela.appendChild(linha);
 
-    atualizarInputsOcultos(nomesHidden, emailsHidden);
+    atualizarInputsOcultos();
   }
 
-  function removerUsuarioAutorizado(email, botao) {
-    const index = usuariosSelecionados.findIndex(u => u.email === email);
+  // MUDANÇA: Função 'remover' agora busca pelo ID (que é uma string)
+  function removerUsuarioAutorizado(id, botao) {
+    const index = usuariosSelecionados.findIndex(u => u.id === id);
     if (index > -1) usuariosSelecionados.splice(index, 1);
+    
     botao.closest('tr').remove();
-    atualizarInputsOcultos(
-      document.getElementById('usuarios_nomes_hidden'),
-      document.getElementById('usuarios_emails_hidden')
-    );
+    atualizarInputsOcultos();
   }
 
-  function atualizarInputsOcultos(nomesHidden, emailsHidden) {
-    nomesHidden.value = usuariosSelecionados.map(u => u.nome).join(',');
-    emailsHidden.value = usuariosSelecionados.map(u => u.email).join(',');
+  // MUDANÇA: Função 'atualizar' agora salva uma string de IDs (ex: "1,2,3")
+  function atualizarInputsOcultos() {
+    const idsHidden = document.getElementById('usuarios_autorizados_hidden');
+    idsHidden.value = usuariosSelecionados.map(u => u.id).join(',');
   }
 </script>
 {% endblock %}

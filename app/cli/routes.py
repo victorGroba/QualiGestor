@@ -510,8 +510,10 @@ def novo_questionario():
         # Campos booleanos
         calcular_nota = request.form.get('calcular_nota') == 'on'
         ocultar_nota = request.form.get('ocultar_nota') == 'on'
-        incluir_assinatura = request.form.get('incluir_assinatura') == 'on'
-        incluir_foto_capa = request.form.get('incluir_foto_capa') == 'on'
+        
+        # --- ATUALIZAÇÃO: Coletar todos os campos do seu HTML ---
+        incluir_assinatura = request.form.get('incluir_assinatura') == 'on' # <-- Adicionado do seu HTML
+        incluir_foto_capa = request.form.get('incluir_foto_capa') == 'on' # <-- Adicionado do seu HTML
         
         # Numéricos/opcionais
         versao = (request.form.get('versao') or '1.0').strip()
@@ -519,6 +521,12 @@ def novo_questionario():
         base_calculo = int(request.form.get('base_calculo') or 100)
         casas_decimais = int(request.form.get('casas_decimais') or 2)
         modo_configuracao = (request.form.get('modo_configuracao') or 'percentual').strip()
+        
+        # --- ATUALIZAÇÃO 1: Coletar os IDs dos usuários autorizados ---
+        # Recebe a string "1,2,3" do input hidden 'usuarios_autorizados'
+        usuarios_ids_str = request.form.get('usuarios_autorizados', '')
+        print(f"DEBUG: String de IDs de usuários recebida: '{usuarios_ids_str}'")
+        # --- FIM DA ATUALIZAÇÃO 1 ---
         
         print(f"DEBUG: Dados coletados - versão: {versao}, modo: {modo}")
         
@@ -550,7 +558,20 @@ def novo_questionario():
             print(f"DEBUG: {len(erros)} erro(s) encontrado(s), re-renderizando formulário")
             for erro in erros:
                 flash(erro, 'warning')
-            return render_template_safe('cli/novo_questionario.html', dados=request.form)
+
+            # --- ATUALIZAÇÃO 2: Precisamos carregar os usuários aqui também em caso de erro ---
+            usuarios = []
+            try:
+                usuarios = Usuario.query.filter_by(
+                    cliente_id=current_user.cliente_id, 
+                    ativo=True
+                ).order_by(Usuario.nome).all()
+            except Exception as e:
+                print(f"DEBUG: ERRO ao buscar usuários no POST (fallback de erro): {e}")
+            
+            # Passa 'usuarios' para o template poder renderizar o dropdown
+            return render_template_safe('cli/novo_questionario.html', dados=request.form, usuarios=usuarios)
+            # --- FIM DA ATUALIZAÇÃO 2 ---
         
         # 3) Tentar criar o questionário
         try:
@@ -572,6 +593,7 @@ def novo_questionario():
                 modo_configuracao=modo_configuracao,
                 modo_exibicao_nota=ModoExibicaoNota.PERCENTUAL if 'ModoExibicaoNota' in globals() else 'percentual',
                 
+                # Campos do seu HTML
                 incluir_assinatura=incluir_assinatura,
                 incluir_foto_capa=incluir_foto_capa,
                 
@@ -581,8 +603,59 @@ def novo_questionario():
                 status=StatusQuestionario.RASCUNHO if 'StatusQuestionario' in globals() else 'rascunho'
             )
             
+            # Adiciona todos os outros campos do formulário (do seu HTML) ao objeto 'q'
+            # Isso garante que todas as opções da tela sejam salvas
+            
+            # Configurações de aplicação
+            q.anexar_documentos = request.form.get('anexar_documentos') == 'on'
+            q.capturar_geolocalizacao = request.form.get('geolocalizacao') == 'on'
+            q.restringir_avaliados = request.form.get('restricao_avaliados') == 'on'
+            q.habilitar_reincidencia = request.form.get('reincidencia') == 'on'
+            
+            # Opções de preenchimento
+            # (Seu modelo 'Questionario' não tinha 'tipo_preenchimento', 'pontuacao_ativa', etc.
+            # Se tiver, descomente as linhas abaixo)
+            # q.tipo_preenchimento = ... (lógica para preenchimento_rapido/sequencial)
+            # q.pontuacao_ativa = request.form.get('pontuacao_ativa') == 'on'
+            
+            # Configurações do relatório
+            q.exibir_nota_anterior = request.form.get('exibir_nota_anterior') == 'on'
+            q.exibir_tabela_resumo = request.form.get('exibir_tabela_de_resumo') == 'on'
+            q.exibir_limites_aceitaveis = request.form.get('exibir_limites_aceitáveis') == 'on'
+            q.exibir_data_hora = request.form.get('exibir_data/hora_início_e_fim') == 'on'
+            q.exibir_questoes_omitidas = request.form.get('exibir_questões_omitidas') == 'on'
+            q.exibir_nao_conformidade = request.form.get('exibir_relatório_não_conformidade') == 'on'
+            # q.modo_exibicao_nota = request.form.get('modo_nota_pdf') # <-- Já pego acima
+            # q.agrupamento_fotos = request.form.get('agrupamento_fotos') # <-- Adicione este campo ao seu models.py
+            
             db.session.add(q)
-            db.session.commit()
+            db.session.flush()  # <-- IMPORTANTE: Isso obtém o q.id ANTES do commit
+            
+            print(f"DEBUG: Questionário ID {q.id} criado na sessão, processando usuários autorizados...")
+
+            # --- ATUALIZAÇÃO 3: Salvar os Usuários Autorizados ---
+            if 'UsuarioAutorizado' in globals() and usuarios_ids_str:
+                ids_list = usuarios_ids_str.split(',')
+                
+                for usuario_id_str in ids_list:
+                    usuario_id_str = usuario_id_str.strip()
+                    if usuario_id_str.isdigit():
+                        try:
+                            usuario_auth = UsuarioAutorizado(
+                                questionario_id=q.id,  # Associa ao novo questionário
+                                usuario_id=int(usuario_id_str) # Associa ao ID da consultora
+                            )
+                            db.session.add(usuario_auth)
+                            print(f"DEBUG: Adicionando usuário ID {usuario_id_str} ao questionário {q.id}")
+                        except Exception as e_auth:
+                            print(f"DEBUG: ERRO ao processar usuario_id {usuario_id_str}: {e_auth}")
+            elif 'UsuarioAutorizado' not in globals():
+                 print("DEBUG: ERRO - Modelo 'UsuarioAutorizado' não encontrado.")
+            else:
+                print("DEBUG: Nenhum usuário autorizado foi selecionado.")
+            # --- FIM DA ATUALIZAÇÃO 3 ---
+            
+            db.session.commit() # <-- Salva o Questionário E as associações
             
             print(f"DEBUG: Questionário criado com ID: {q.id}")
             
@@ -601,11 +674,40 @@ def novo_questionario():
             
             db.session.rollback()
             flash(f'Erro ao criar questionário: {str(e)}', 'danger')
-            return render_template_safe('cli/novo_questionario.html', dados=request.form)
+
+            # --- ATUALIZAÇÃO 4: Precisamos carregar os usuários aqui também em caso de erro grave ---
+            usuarios = []
+            try:
+                usuarios = Usuario.query.filter_by(
+                    cliente_id=current_user.cliente_id, 
+                    ativo=True
+                ).order_by(Usuario.nome).all()
+            except Exception as e_user:
+                print(f"DEBUG: ERRO ao buscar usuários no POST (except): {e_user}")
+
+            # Passa 'usuarios' para o template poder renderizar o dropdown
+            return render_template_safe('cli/novo_questionario.html', dados=request.form, usuarios=usuarios)
+            # --- FIM DA ATUALIZAÇÃO 4 ---
     
     # GET: renderizar formulário vazio
     print("DEBUG: Renderizando formulário GET")
-    return render_template_safe('cli/novo_questionario.html', dados=None)
+    
+    # --- ATUALIZAÇÃO 5: Buscar usuários (consultoras) para o dropdown no GET ---
+    try:
+        # Busca todos os usuários (consultoras) do mesmo cliente
+        usuarios = Usuario.query.filter_by(
+            cliente_id=current_user.cliente_id, 
+            ativo=True
+        ).order_by(Usuario.nome).all()
+        print(f"DEBUG: {len(usuarios)} usuários encontrados para o dropdown.")
+    except Exception as e:
+        print(f"DEBUG: ERRO ao buscar usuários no GET: {e}")
+        usuarios = []
+        flash("Erro ao carregar lista de usuários.", "danger")
+    # --- FIM DA ATUALIZAÇÃO 5 ---
+
+    # Passa 'usuarios' para o template
+    return render_template_safe('cli/novo_questionario.html', dados=None, usuarios=usuarios)
 
 
 
@@ -2348,10 +2450,12 @@ def visualizar_aplicacao(id):
         flash(f"Erro ao carregar aplicação: {str(e)}", "danger")
         return redirect(url_for('cli.listar_aplicacoes'))
 
+# Em app/cli/routes.py
+
 @cli_bp.route('/aplicacao/<int:id>/relatorio')
 @login_required
 def gerar_relatorio_aplicacao(id):
-    """Gera relatório em PDF da aplicação"""
+    """Gera relatório em PDF da aplicação (VERSÃO MELHORADA COM CÁLCULO POR TÓPICO)"""
     try:
         aplicacao = AplicacaoQuestionario.query.get_or_404(id)
         
@@ -2360,35 +2464,63 @@ def gerar_relatorio_aplicacao(id):
             flash("Aplicação não encontrada.", "error")
             return redirect(url_for('cli.listar_aplicacoes'))
         
-        # Buscar dados completos
+        # --- INÍCIO DA MELHORIA: CÁLCULO POR TÓPICO ---
+        
+        # 1. Buscar tópicos ativos
         topicos = Topico.query.filter_by(
             questionario_id=aplicacao.questionario_id,
             ativo=True
         ).order_by(Topico.ordem).all()
         
-        # Organizar respostas
-        respostas_dict = {}
-        if hasattr(aplicacao, 'respostas'):
-            for resposta in aplicacao.respostas:
-                respostas_dict[resposta.pergunta_id] = resposta
+        # 2. Buscar todas as respostas da aplicação e colocar num dict
+        respostas_dict = {r.pergunta_id: r for r in aplicacao.respostas}
         
-        # Gerar QR Code se necessário
+        # 3. Processar tópicos para calcular notas individuais
+        for topico in topicos:
+            topico.pontos_obtidos = 0.0
+            topico.pontos_maximos = 0.0
+            
+            # Carregar perguntas ativas para este tópico
+            perguntas_do_topico = topico.perguntas.filter_by(ativo=True).all()
+            
+            for pergunta in perguntas_do_topico:
+                # O "peso" da pergunta é o máximo de pontos
+                if pergunta.peso is not None and pergunta.peso > 0:
+                    topico.pontos_maximos += float(pergunta.peso)
+                
+                # Verificar se há resposta para esta pergunta
+                resposta = respostas_dict.get(pergunta.id)
+                if resposta and resposta.pontos is not None:
+                    topico.pontos_obtidos += float(resposta.pontos)
+            
+            # Calcular percentual do tópico
+            if topico.pontos_maximos > 0:
+                topico.percentual = (topico.pontos_obtidos / topico.pontos_maximos) * 100.0
+            else:
+                topico.percentual = 0.0
+        
+        # --- FIM DA MELHORIA ---
+
+        # Gerar QR Code (seu código existente)
         qr_code_url = None
         if hasattr(current_app, 'config') and current_app.config.get('SITE_URL'):
-            qr_url = f"{current_app.config['SITE_URL']}/aplicacao/{id}"
-            qr = qrcode.QRCode(version=1, box_size=10, border=5)
-            qr.add_data(qr_url)
-            qr.make(fit=True)
-            
-            img = qr.make_image(fill_color="black", back_color="white")
-            buffer = BytesIO()
-            img.save(buffer, format='PNG')
-            qr_code_url = f"data:image/png;base64,{base64.b64encode(buffer.getvalue()).decode()}"
+            try:
+                qr_url = f"{current_app.config['SITE_URL']}/aplicacao/{id}"
+                qr = qrcode.QRCode(version=1, box_size=10, border=5)
+                qr.add_data(qr_url)
+                qr.make(fit=True)
+                
+                img = qr.make_image(fill_color="black", back_color="white")
+                buffer = BytesIO()
+                img.save(buffer, format='PNG')
+                qr_code_url = f"data:image/png;base64,{base64.b64encode(buffer.getvalue()).decode()}"
+            except Exception as e_qr:
+                current_app.logger.error(f"Erro ao gerar QR Code: {e_qr}")
         
         # Renderizar template HTML
         html_content = render_template_safe('cli/relatorio_aplicacao.html',
                                      aplicacao=aplicacao,
-                                     topicos=topicos,
+                                     topicos=topicos,  # Agora os tópicos contêm .pontos_obtidos, .pontos_maximos, etc.
                                      respostas_dict=respostas_dict,
                                      qr_code_url=qr_code_url,
                                      data_geracao=datetime.now())
@@ -2398,6 +2530,8 @@ def gerar_relatorio_aplicacao(id):
         return gerar_pdf_seguro(html_content, filename)
         
     except Exception as e:
+        # Adiciona log detalhado do erro
+        current_app.logger.error(f"Erro DETALHADO em gerar_relatorio_aplicacao: {e}", exc_info=True)
         flash(f"Erro ao gerar relatório: {str(e)}", "danger")
         return redirect(url_for('cli.visualizar_aplicacao', id=id))
 

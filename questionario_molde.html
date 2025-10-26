@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Check-list de Monitoramento de Boas Práticas em Segurança Alimentar</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-blue: #2c5f7e;
+            --light-blue: #4a7c9e;
+            --accent-blue: #1e4d6b;
+            --text-dark: #333;
+            --border-color: #ddd;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+
+        .checklist-container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary-blue), var(--light-blue));
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: bold;
+            font-style: italic;
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .checkmark-icon {
+            width: 60px;
+            height: 60px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 20px auto;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .checkmark-icon svg {
+            width: 35px;
+            height: 35px;
+            fill: var(--primary-blue);
+        }
+
+        .metadata-section {
+            padding: 30px;
+            border-bottom: 3px solid var(--primary-blue);
+        }
+
+        .metadata-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        .metadata-item {
+            display: flex;
+            margin-bottom: 12px;
+        }
+
+        .metadata-label {
+            background: var(--primary-blue);
+            color: white;
+            padding: 8px 15px;
+            font-weight: bold;
+            font-size: 13px;
+            min-width: 120px;
+            text-transform: uppercase;
+        }
+
+        .metadata-value {
+            padding: 8px 15px;
+            color: var(--text-dark);
+            flex: 1;
+            border: 1px solid var(--border-color);
+            background: #f9f9f9;
+        }
+
+        .results-section {
+            padding: 30px;
+        }
+
+        .results-title {
+            text-align: center;
+            font-size: 22px;
+            font-weight: bold;
+            color: var(--text-dark);
+            margin-bottom: 30px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .question-block {
+            margin-bottom: 25px;
+            border-bottom: 1px dotted var(--border-color);
+            padding-bottom: 20px;
+        }
+
+        .question-block:last-child {
+            border-bottom: none;
+        }
+
+        .question-number {
+            background: var(--primary-blue);
+            color: white;
+            padding: 8px 15px;
+            display: inline-block;
+            font-weight: bold;
+            margin-bottom: 12px;
+            border-radius: 4px;
+        }
+
+        .question-title {
+            color: var(--primary-blue);
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .question-text {
+            color: var(--text-dark);
+            font-size: 13px;
+            line-height: 1.6;
+            margin-bottom: 8px;
+        }
+
+        .sub-question {
+            padding-left: 20px;
+            margin-bottom: 8px;
+        }
+
+        .observation {
+            font-style: italic;
+            color: #666;
+            font-size: 12px;
+            padding-left: 20px;
+        }
+
+        .answer-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        .answer {
+            background: #f0f8ff;
+            padding: 8px 20px;
+            border-radius: 4px;
+            font-weight: bold;
+            color: var(--primary-blue);
+            border: 1px solid var(--primary-blue);
+        }
+
+        .footer {
+            background: var(--accent-blue);
+            color: white;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .footer-logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo-circle {
+            width: 50px;
+            height: 50px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .logo-circle svg {
+            width: 30px;
+            height: 30px;
+            fill: var(--accent-blue);
+        }
+
+        .logo-text {
+            font-size: 28px;
+            font-weight: bold;
+            letter-spacing: 2px;
+        }
+
+        .footer-info {
+            text-align: right;
+            font-size: 11px;
+            line-height: 1.4;
+        }
+
+        .page-number {
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        @media print {
+            body {
+                padding: 0;
+                background: white;
+            }
+            .checklist-container {
+                box-shadow: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="checklist-container">
+        <!-- Header -->
+        <div class="header">
+            <h1>Check-list de Monitoramento de Boas<br>Práticas em Segurança Alimentar<br>2025</h1>
+            <div class="checkmark-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/>
+                </svg>
+            </div>
+        </div>
+
+        <!-- Metadata Section -->
+        <div class="metadata-section">
+            <div class="metadata-row">
+                <div>
+                    <div class="metadata-item">
+                        <div class="metadata-label">Data</div>
+                        <div class="metadata-value">24/10/25 09:12:00</div>
+                    </div>
+                    <div class="metadata-item">
+                        <div class="metadata-label">Avaliador</div>
+                        <div class="metadata-value">Consultora Mattos&Mattos 03</div>
+                    </div>
+                    <div class="metadata-item">
+                        <div class="metadata-label">Avaliado</div>
+                        <div class="metadata-value">BAFL</div>
+                    </div>
+                </div>
+                <div>
+                    <div class="metadata-item">
+                        <div class="metadata-label">Início</div>
+                        <div class="metadata-value">24/10/25 09:12:02</div>
+                    </div>
+                    <div class="metadata-item">
+                        <div class="metadata-label">Fim</div>
+                        <div class="metadata-value">24/10/25 14:34:04</div>
+                    </div>
+                    <div class="metadata-item">
+                        <div class="metadata-label">Nota</div>
+                        <div class="metadata-value">125,25 (91,42%)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div class="results-section">
+            <h2 class="results-title">Resultados</h2>
+
+            <!-- Question 1 -->
+            <div class="question-block">
+                <div class="question-number">1</div>
+                <div class="question-title">Abertura</div>
+                <div class="answer-section">
+                    <div class="question-text">1.1 - 1ª ou 2ª Visita?</div>
+                    <div class="answer">2ª</div>
+                </div>
+            </div>
+
+            <!-- Question 2 -->
+            <div class="question-block">
+                <div class="question-number">2</div>
+                <div class="question-title">Infraestrutura (14,40 / 18,82 -> 76,51 %)</div>
+                
+                <div class="sub-question">
+                    <div class="question-text">
+                        2.1 - Portas encontram-se em bom estado de conservação (livre de rachaduras, bolor, infiltrações e falhas)?<br>
+                        São de material de fácil limpeza e de cor clara?<br>
+                        Apresentam protetor de rodapés e fechamento automático (molas)? (0,00 / 1,11 -> 0,00 %)
+                    </div>
+                    <div class="observation">Observação: Não possuem fechamento automático de molas</div>
+                    <div class="answer-section">
+                        <div></div>
+                        <div class="answer">Não</div>
+                    </div>
+                </div>
+
+                <div class="sub-question">
+                    <div class="question-text">
+                        2.2 - Teto, forro e paredes de cor clara, de fácil limpeza, livres de rachaduras, bolores, infiltrações e falhas? (1,11 / 1,11 -> 100,00 %)
+                    </div>
+                    <div class="answer-section">
+                        <div></div>
+                        <div class="answer">Sim</div>
+                    </div>
+                </div>
+
+                <div class="sub-question">
+                    <div class="question-text">
+                        2.3 - As áreas previstas para manipulação dos alimentos, encontram-se bem definidas, com piso (por meio de barreiras físicas ou técnicas? (1,11 / 1,11 -> 100,00 %)
+                    </div>
+                    <div class="answer-section">
+                        <div></div>
+                        <div class="answer">Sim</div>
+                    </div>
+                </div>
+
+                <div class="sub-question">
+                    <div class="question-text">
+                        2.4 - Ventilação adequada em todas as áreas, garantindo conforto térmico? (1,11 / 1,11 -> 100,00 %)
+                    </div>
+                    <div class="answer-section">
+                        <div></div>
+                        <div class="answer">Sim</div>
+                    </div>
+                </div>
+
+                <div class="sub-question">
+                    <div class="question-text">
+                        2.5 - Equipamentos de climatização em bom estado de conservação e limpeza? (1,11 / 1,11 -> 100,00 %)
+                    </div>
+                    <div class="answer-section">
+                        <div></div>
+                        <div class="answer">Sim</div>
+                    </div>
+                </div>
+
+                <div class="sub-question">
+                    <div class="question-text">
+                        2.6 - Presença de sistema de exaustão e/ou insuflamento com troca de ar capaz de prevenir contaminações? (1,11 / 1,11 -> 100,00 %)
+                    </div>
+                    <div class="answer-section">
+                        <div></div>
+                        <div class="answer">Sim</div>
+                    </div>
+                </div>
+
+                <div class="sub-question">
+                    <div class="question-text">
+                        2.7 - Janelas, portas e aberturas, incluindo sistema de exaustão e áreas de armazenamento apresentam telas milimétricas para proteção contra pragas e vetores, de material de fácil limpeza e em bom estado de conservação? (1,11 / 1,11 -> 100,00 %)
+                    </div>
+                    <div class="observation">Observação: Todas apresentam de limpeza</div>
+                    <div class="answer-section">
+                        <div></div>
+                        <div class="answer">Sim</div>
+                    </div>
+                </div>
+
+                <div class="sub-question">
+                    <div class="question-text">
+                        2.8 - Piso de material liso, cor clara, de fácil limpeza, antiderrapante e em adequado estado de conservação? (0,00 / 1,11 -> 0,00 %)
+                    </div>
+                    <div class="answer-section">
+                        <div></div>
+                        <div class="answer">Não</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <div class="footer-logo">
+                <div class="logo-circle">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/>
+                    </svg>
+                </div>
+                <div class="logo-text">CLICQ</div>
+            </div>
+            <div class="footer-info">
+                Desenvolvido por: ParPareceti<br>
+                Manual compartilhado<br>
+                6152478d<br>
+                <span class="page-number">1</span>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

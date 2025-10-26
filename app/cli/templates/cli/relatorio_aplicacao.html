@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="pt_BR">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Relatório de Aplicação - {{ aplicacao.questionario.nome }}</title>
+    <style>
+        /* CSS para o WeasyPrint formatar o PDF */
+        @page {
+            size: A4;
+            margin: 2cm;
+
+            /* Adiciona cabeçalho e rodapé em CADA página */
+            @bottom-center {
+                content: "Página " counter(page) " de " counter(pages);
+                font-family: Arial, sans-serif;
+                font-size: 10px;
+                color: #666;
+            }
+
+            @top-right {
+                content: "QualiGestor - Relatório de Aplicação";
+                font-family: Arial, sans-serif;
+                font-size: 10px;
+                color: #666;
+            }
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            color: #333;
+        }
+
+        h1 {
+            font-size: 24px;
+            color: #0d6efd;
+            /* Azul do Bootstrap */
+            text-align: center;
+            border-bottom: 2px solid #0d6efd;
+            padding-bottom: 10px;
+        }
+
+        h2 {
+            font-size: 18px;
+            color: #444;
+            background-color: #f4f4f4;
+            padding: 10px;
+            border-left: 5px solid #0d6efd;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+
+        h3 {
+            font-size: 14px;
+            font-weight: bold;
+            color: #333;
+            margin-top: 20px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 4px;
+        }
+
+        /* Tabela de Metadados (Cabeçalho) */
+        .header-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+        }
+
+        .header-table th,
+        .header-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        .header-table th {
+            background-color: #f9f9f9;
+            width: 150px;
+        }
+
+        /* Tabela de Resultado (Resumo) */
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            background-color: #fdfdfd;
+        }
+
+        .summary-table td {
+            border: 1px solid #eee;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .summary-table .score {
+            font-size: 28px;
+            font-weight: bold;
+            color: #0d6efd;
+        }
+
+        .summary-table .score-label {
+            font-size: 14px;
+            color: #555;
+        }
+
+        /* Bloco de Pergunta */
+        .pergunta-bloco {
+            margin-bottom: 15px;
+            border: 1px solid #eee;
+            padding: 12px;
+            border-radius: 5px;
+            /* Evita que uma pergunta quebre no meio da página */
+            page-break-inside: avoid;
+        }
+
+        .pergunta-texto {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .pergunta-resposta {
+            display: block;
+            font-size: 14px;
+            font-style: italic;
+            color: #0056b3;
+            /* Azul mais escuro para resposta */
+            margin-bottom: 5px;
+        }
+
+        .pergunta-observacao {
+            font-size: 11px;
+            color: #555;
+            background-color: #fbfbfb;
+            border-left: 3px solid #ccc;
+            padding: 8px;
+            margin-top: 8px;
+            white-space: pre-wrap;
+            /* Preserva quebras de linha da observação */
+        }
+
+        .pergunta-score {
+            font-size: 10px;
+            color: #888;
+            text-align: right;
+        }
+
+        /* Seção de Assinaturas */
+        .assinaturas {
+            margin-top: 50px;
+            page-break-inside: avoid;
+        }
+
+        .assinatura-linha {
+            border-top: 1px solid #555;
+            width: 60%;
+            margin: 60px auto 10px auto;
+            text-align: center;
+        }
+
+        .assinatura-nome {
+            text-align: center;
+            font-size: 12px;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        /* Usamos o caminho relativo. 'base_url' no WeasyPrint fará a mágica. */
+        .logo img {
+            max-width: 200px;
+            height: auto;
+        }
+
+        .qr-code {
+            text-align: center;
+            margin-top: 30px;
+            page-break-inside: avoid;
+        }
+
+        .qr-code img {
+            width: 120px;
+            height: 120px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="logo">
+        <img src="/static/img/logo.jpg" alt="Logo QualiGestor">
+    </div>
+
+    <h1>{{ aplicacao.questionario.nome }}</h1>
+
+    <table class="header-table">
+        <tr>
+            <th>Avaliado</th>
+            <td>{{ aplicacao.avaliado.nome }}</td>
+        </tr>
+        <tr>
+            <th>Avaliador</th>
+            <td>{{ aplicacao.aplicador.nome }} ({{ aplicacao.aplicador.email }})</td>
+        </tr>
+        <tr>
+            <th>Início da Aplicação</th>
+            <td>{{ aplicacao.data_inicio.strftime('%d/%m/%Y às %H:%M:%S') }}</td>
+        </tr>
+        <tr>
+            <th>Fim da Aplicação</th>
+            {# LINHA CORRIGIDA #}
+<td>
+    {% if aplicacao.data_fim %}
+        {{ aplicacao.data_fim.strftime('%d/%m/%Y às %H:%M:%S') }}
+    {% else %}
+        <em>Em andamento</em>
+    {% endif %}
+</td>
+        </tr>
+    </table>
+
+    {% if aplicacao.questionario.calcular_nota %}
+    <h2>Resultado da Avaliação</h2>
+    <table class="summary-table">
+        <tr>
+            <td>
+                <div class="score-label">Nota Final</div>
+                <div class="score">{{ "%.2f"|format(aplicacao.nota_final or 0) }}%</div>
+            </td>
+            <td>
+                <div class="score-label">Pontos Obtidos</div>
+                <div class="score">{{ "%.2f"|format(aplicacao.pontos_obtidos or 0) }}</div>
+            </td>
+            <td>
+                <div class="score-label">Pontos Totais</div>
+                <div class="score">{{ "%.2f"|format(aplicacao.pontos_totais or 0) }}</div>
+            </td>
+        </tr>
+    </table>
+    {% endif %}
+
+    <h2>Detalhamento das Respostas</h2>
+
+    {% for topico in topicos %}
+    <h2>Tópico: {{ topico.nome }}</h2>
+
+    {# LINHA CORRETA #}
+    {% for pergunta in topico.perguntas.filter_by(ativo=True).order_by('ordem') %}
+    {% set resposta = respostas_dict.get(pergunta.id) %}
+
+    <div class="pergunta-bloco">
+        <div class="pergunta-texto">{{ pergunta.ordem }}. {{ pergunta.texto }}</div>
+
+        {% if resposta %}
+        <span class="pergunta-resposta">
+            Resposta: {{ resposta.resposta or 'Não respondido' }}
+        </span>
+
+        {% if resposta.observacao %}
+        <div class="pergunta-observacao">
+            <strong>Observação:</strong>
+            <p>{{ resposta.observacao }}</p>
+        </div>
+        {% endif %}
+
+        {% if aplicacao.questionario.calcular_nota and pergunta.peso > 0 %}
+        <div class="pergunta-score">
+            (Pontos: {{ "%.2f"|format(resposta.pontos or 0) }} / {{ "%.2f"|format(pergunta.peso) }})
+        </div>
+        {% endif %}
+
+        {% else %}
+        <span class="pergunta-resposta">
+            <em>Não respondido</em>
+        </span>
+        {% endif %}
+    </div>
+
+    {% else %}
+    <p>Este tópico não possui perguntas ativas.</p>
+    {% endfor %}
+
+    {% endfor %}
+
+    {% if aplicacao.observacoes_finais %}
+    <h2>Observações Finais</h2>
+    <div class="pergunta-observacao" style="background-color: #fff; border-left: none; padding: 0;">
+        <p>{{ aplicacao.observacoes_finais }}</p>
+    </div>
+    {% endif %}
+
+    <div class="assinaturas">
+        <div class="assinatura-linha"></div>
+        <div class="assinatura-nome">{{ aplicacao.aplicador.nome }}<br>(Avaliador)</div>
+
+        <div class="assinatura-linha"></div>
+        <div class="assinatura-nome">Responsável pelo Avaliado<br>({{ aplicacao.avaliado.nome }})</div>
+    </div>
+
+    {% if qr_code_url %}
+    <div class="qr-code">
+        <img src="{{ qr_code_url }}" alt="QR Code de Verificação">
+        <p style="font-size: 10px; color: #777;">Verifique a autenticidade deste relatório</p>
+    </div>
+    {% endif %}
+
+</body>
+
+</html>
