@@ -241,19 +241,57 @@ def create_app() -> Flask:
          print(f"[WARN] Erro ao registrar blueprint Admin: {e}")
 
 
-    # Adicionar um logger básico para debug se não estiver em produção
-    if not app.debug:
-        import logging
-        from logging.handlers import RotatingFileHandler
-        # Exemplo: Log para instance/app.log
-        log_file = instance_dir / 'app.log'
-        file_handler = RotatingFileHandler(str(log_file), maxBytes=10240, backupCount=10)
-        file_handler.setFormatter(logging.Formatter(
-            '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'))
-        file_handler.setLevel(logging.INFO)
-        app.logger.addHandler(file_handler)
-        app.logger.setLevel(logging.INFO)
-        app.logger.info('QualiGestor startup')
+    # -------------------------------------------------------------------------
+    # Configuração de Logging (CORRIGIDO PARA DEBUG E PRODUÇÃO)
+    # -------------------------------------------------------------------------
+    import logging
+    from logging.handlers import RotatingFileHandler
+
+    # Nível de log
+    log_level = logging.DEBUG if app.debug else logging.INFO
+
+    # Formato
+    formatter = logging.Formatter(
+        '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+    )
+
+    # 1. Remover handlers padrão do Flask
+    for handler in app.logger.handlers[:]:
+        app.logger.removeHandler(handler)
+
+    # 2. Configurar o handler correto
+    log_file = instance_dir / 'app.log'
+
+    if app.debug:
+        # MODO DEBUG:
+        # Usamos FileHandler com 'delay=True' para evitar o PermissionError [WinError 32]
+        # no Windows causado pelo reloader do Flask.
+        file_handler = logging.FileHandler(
+            str(log_file), 
+            encoding='utf-8', 
+            delay=True  # Adia a abertura do arquivo até a primeira escrita
+        )
+        app.logger.info(f'QualiGestor startup (MODO DEBUG)')
+        
+    else:
+        # MODO PRODUÇÃO:
+        # Usamos o RotatingFileHandler para controlar o tamanho do log.
+        file_handler = RotatingFileHandler(
+            str(log_file), 
+            maxBytes=1_000_000,  # 1 MB por arquivo
+            backupCount=5,       # Manter 5 arquivos de backup
+            encoding='utf-8'
+        )
+        app.logger.info('QualiGestor startup (MODO PRODUÇÃO)')
+
+    # 3. Aplicar formatação e nível ao handler e ao logger
+    file_handler.setFormatter(formatter)
+    file_handler.setLevel(log_level)
+    
+    app.logger.addHandler(file_handler)
+    app.logger.setLevel(log_level)
+    
+    # -------------------------------------------------------------------------
 
     return app
 

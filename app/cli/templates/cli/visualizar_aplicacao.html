@@ -274,7 +274,8 @@
                 <div class="d-print-block d-none mt-4 text-center">
                     <hr>
                     <small class="text-muted">
-                        Relatório gerado em {{ moment().format('DD/MM/YYYY [às] HH:mm') }} pelo sistema QualiGestor CLIQ
+                        {% set data_relatorio = aplicacao.data_fim or aplicacao.data_inicio %}
+Relatório gerado em {{ data_relatorio.strftime('%d/%m/%Y %H:%M') }} pelo sistema QualiGestor CLIQ
                     </small>
                 </div>
             </main>
