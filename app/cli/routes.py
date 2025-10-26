@@ -20,7 +20,7 @@ from .. import csrf
 # ==================== CORREÇÃO 1: IMPORTS ROBUSTOS ====================
 try:
     from ..models import (
-        db, Usuario, Cliente, Grupo, Avaliado,
+        db,  Usuario, Cliente, Grupo, Avaliado,
         Questionario, Topico, Pergunta, OpcaoPergunta,
         AplicacaoQuestionario, RespostaPergunta, UsuarioAutorizado,
         TipoResposta, StatusQuestionario, StatusAplicacao, 
@@ -2275,6 +2275,37 @@ def finalizar_aplicacao(id):
         current_app.logger.error(f"Erro ao finalizar aplicação {id}: {e}", exc_info=True)
         flash(f"Erro inesperado ao finalizar aplicação: {str(e)}", "danger")
         return redirect(url_for('cli.responder_aplicacao', id=id))
+    
+
+@cli_bp.route('/aplicacao/<int:id>/excluir', methods=['GET', 'POST'])
+@login_required
+def excluir_aplicacao(id):
+    """
+    Exclui uma aplicação de questionário e todas as suas respostas.
+    """
+    # Busca a aplicação pelo ID
+    aplicacao = db.session.get(AplicacaoQuestionario, id)
+    if not aplicacao:
+        flash('Aplicação não encontrada.', 'danger')
+        return redirect(url_for('cli.listar_aplicacoes'))
+    
+    try:
+        # Excluir todas as respostas associadas (se não houver cascade configurado no modelo)
+        RespostaPergunta.query.filter_by(aplicacao_id=id).delete()
+
+        # Excluir a aplicação
+        db.session.delete(aplicacao)
+        db.session.commit()
+
+        flash('Aplicação excluída com sucesso!', 'success')
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erro ao excluir aplicação {id}: {e}", exc_info=True)
+        flash('Erro ao excluir aplicação. Verifique os logs para mais detalhes.', 'danger')
+
+    return redirect(url_for('cli.listar_aplicacoes'))
+
 
 @cli_bp.route('/aplicacao/<int:id>')
 @cli_bp.route('/aplicacao/<int:id>/visualizar')
