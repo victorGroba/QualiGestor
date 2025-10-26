@@ -356,46 +356,67 @@ from sqlalchemy import func, or_
 from flask import request, flash
 from sqlalchemy import func, or_
 
+# Em app/cli/routes.py
+
+# Em app/cli/routes.py
+
 @cli_bp.route('/questionarios', endpoint='listar_questionarios', methods=['GET'])
 @cli_bp.route('/listar-questionarios', methods=['GET'])
 @login_required
 def listar_questionarios():
     """
-    Lista questionários de forma robusta:
-    - Só filtra por cliente/ativo se os campos existirem.
-    - Se o filtro resultar em 0 itens, faz fallback e lista TODOS (com aviso).
-    - Evita quebrar se o model de aplicação tiver nome diferente.
+    Lista questionários com filtros claros: Publicados, Rascunhos, Inativos, Todos.
+    - O Fallback SÓ é ativado se um TERMO DE BUSCA falhar.
     """
     # Query base
     q_base = Questionario.query
 
-    # ---- Filtros opcionais ----
+    # ---- Filtros ----
     q = q_base
+    termo = (request.args.get("q") or "").strip()
+    # ##### ALTERADO: Default para 'publicados' #####
+    status = request.args.get("status", "publicados") 
 
-    # Filtro por cliente (aplica só se existir o campo e o usuário tiver cliente_id)
+    # Filtro por cliente (obrigatório)
     tem_cliente = hasattr(Questionario, "cliente_id") and getattr(current_user, "cliente_id", None)
     if tem_cliente:
         q = q.filter(Questionario.cliente_id == current_user.cliente_id)
 
-    # Filtro de ativos (aplica só se existir a coluna)
-    if hasattr(Questionario, "ativo"):
-        status = request.args.get("status", "ativos")  # ativos | inativos | todos
-        if status == "ativos":
-            q = q.filter(Questionario.ativo.is_(True))
+    # ##### LÓGICA DE FILTRO ATUALIZADA #####
+    if hasattr(Questionario, "ativo") and hasattr(Questionario, "publicado"):
+        if status == "publicados":
+            q = q.filter(Questionario.ativo.is_(True), Questionario.publicado.is_(True))
+        elif status == "rascunhos":
+            q = q.filter(Questionario.ativo.is_(True), Questionario.publicado.is_(False))
         elif status == "inativos":
             q = q.filter(Questionario.ativo.is_(False))
-        # "todos" não filtra
+        # Se status == "todos", não aplica filtro de estado
+        elif status != "todos":
+             # Fallback caso um status inválido seja passado, mostra publicados
+             q = q.filter(Questionario.ativo.is_(True), Questionario.publicado.is_(True))
+             status = "publicados" # Corrige o status para o template
+    elif hasattr(Questionario, "ativo"): 
+         # Fallback se não houver 'publicado' no modelo
+         if status == "inativos":
+              q = q.filter(Questionario.ativo.is_(False))
+         elif status != "todos": # "publicados" e "rascunhos" mostram ativos neste caso
+              q = q.filter(Questionario.ativo.is_(True))
+              if status not in ["publicados", "rascunhos"]: status = "publicados" # Corrige status
+    # ##### FIM DA LÓGICA ATUALIZADA #####
+
+
+    # Guarda a query com filtros base (status + cliente) ANTES de aplicar a busca por texto
+    q_base_filtrada = q
 
     # Busca por texto (?q=...)
-    termo = (request.args.get("q") or "").strip()
     if termo:
         like = f"%{termo}%"
-        filtros = []
-        if hasattr(Questionario, "nome"):      filtros.append(Questionario.nome.ilike(like))
-        if hasattr(Questionario, "titulo"):    filtros.append(Questionario.titulo.ilike(like))
-        if hasattr(Questionario, "descricao"): filtros.append(Questionario.descricao.ilike(like))
-        if filtros:
-            q = q.filter(or_(*filtros))
+        filtros_busca = [] # Renomeado para evitar conflito
+        if hasattr(Questionario, "nome"):      filtros_busca.append(Questionario.nome.ilike(like))
+        if hasattr(Questionario, "titulo"):    filtros_busca.append(Questionario.titulo.ilike(like))
+        if hasattr(Questionario, "descricao"): filtros_busca.append(Questionario.descricao.ilike(like))
+        if filtros_busca:
+            q = q.filter(or_(*filtros_busca))
 
     # Ordenação
     if hasattr(Questionario, "nome"):
@@ -406,32 +427,54 @@ def listar_questionarios():
     # Executa com filtro
     questionarios = q.all()
 
-    # Fallback: se nada foi retornado, lista TUDO (sem filtros) e avisa
+    # --- LÓGICA DE FALLBACK CORRIGIDA ---
     usou_fallback = False
-    if not questionarios:
+    # Só faz fallback SE um termo de busca foi usado E não retornou nada
+    if not questionarios and termo:
         usou_fallback = True
-        q2 = q_base
+        q2 = q_base_filtrada # Usa a query com status/cliente
         if hasattr(Questionario, "nome"):
             q2 = q2.order_by(Questionario.nome.asc())
         elif hasattr(Questionario, "id"):
             q2 = q2.order_by(Questionario.id.desc())
         questionarios = q2.all()
-        flash("Nenhum item com os filtros atuais — exibindo todos para depuração.", "warning")
+        flash(f"Nenhum item encontrado para '{termo}' — exibindo todos os itens do status '{status}'.", "warning")
+    # --- FIM DA LÓGICA DE FALLBACK ---
 
     # Estatísticas (sem quebrar)
     ModelAplic = globals().get('AplicacaoQuestionario') or globals().get('Aplicacao')
     if ModelAplic:
-        counts = dict(
-            db.session.query(ModelAplic.questionario_id, func.count(ModelAplic.id))
-            .group_by(ModelAplic.questionario_id).all()
-        )
-        medias = dict(
-            db.session.query(ModelAplic.questionario_id, func.avg(ModelAplic.nota_final))
-            .group_by(ModelAplic.questionario_id).all()
-        )
-        for item in questionarios:
-            item.total_aplicacoes = counts.get(item.id, 0)
-            item.media_nota = float(medias.get(item.id) or 0.0)
+        try:
+            ids_questionarios_listados = [item.id for item in questionarios]
+            counts = {}
+            medias = {}
+            if ids_questionarios_listados: # Só busca stats se houver questionários na lista
+                counts_query = db.session.query(
+                    ModelAplic.questionario_id, func.count(ModelAplic.id)
+                ).join(Questionario).filter(
+                    Questionario.cliente_id == current_user.cliente_id,
+                    ModelAplic.questionario_id.in_(ids_questionarios_listados) # Filtra pelos IDs listados
+                ).group_by(ModelAplic.questionario_id)
+
+                medias_query = db.session.query(
+                    ModelAplic.questionario_id, func.avg(ModelAplic.nota_final)
+                ).join(Questionario).filter(
+                    Questionario.cliente_id == current_user.cliente_id,
+                    ModelAplic.questionario_id.in_(ids_questionarios_listados) # Filtra pelos IDs listados
+                ).group_by(ModelAplic.questionario_id)
+
+                counts = dict(counts_query.all())
+                medias = dict(medias_query.all())
+
+            for item in questionarios:
+                item.total_aplicacoes = counts.get(item.id, 0)
+                media_val = medias.get(item.id)
+                item.media_nota = float(media_val) if media_val is not None else 0.0
+        except Exception as e:
+            print(f"Erro ao calcular estatísticas de questionários: {e}")
+            for item in questionarios: # Garante atributos mesmo com erro
+                item.total_aplicacoes = 0
+                item.media_nota = 0.0
     else:
         for item in questionarios:
             item.total_aplicacoes = 0
@@ -441,7 +484,7 @@ def listar_questionarios():
         'cli/listar_questionarios.html',
         questionarios=questionarios,
         termo=termo,
-        status=request.args.get("status", "ativos"),
+        status=status, # Passa o status atual para o template
         usou_fallback=usou_fallback,
     )
 
@@ -2072,19 +2115,40 @@ def responder_aplicacao(id):
         return redirect(url_for('cli.listar_aplicacoes'))
 
 
+# Em app/cli/routes.py
+
+# Em app/cli/routes.py
+
 @cli_bp.route('/aplicacao/<int:id>/finalizar', methods=['POST'])
 @login_required
 def finalizar_aplicacao(id):
-    """Finaliza uma aplicação, validando fotos obrigatórias para respostas 'Não'""" # <-- Descrição atualizada
+    """
+    Finaliza uma aplicação:
+    - Valida fotos obrigatórias para respostas 'Não Conforme'.
+    - Valida perguntas obrigatórias não respondidas.
+    - Calcula a nota final percentual dinamicamente com base na soma dos pesos das perguntas pontuáveis.
+    """
     try:
-        # Usar joinedload para carregar dados relacionados eficientemente
+        # ===== CORREÇÃO APLICADA AQUI =====
+        # Removemos joinedload para topicos e perguntas que conflitam com lazy='dynamic'
         aplicacao = AplicacaoQuestionario.query.options(
-            db.joinedload(AplicacaoQuestionario.questionario),
-            db.joinedload(AplicacaoQuestionario.avaliado),
-            db.joinedload(AplicacaoQuestionario.respostas).joinedload(RespostaPergunta.pergunta) # Carrega respostas e suas perguntas
+            db.joinedload(AplicacaoQuestionario.questionario), # Carrega SÓ o questionário
+            db.joinedload(AplicacaoQuestionario.avaliado)
         ).get_or_404(id)
+        # ==================================
 
-        # Verificar permissões
+        # Carrega as respostas separadamente, respeitando o lazy='dynamic'
+        respostas_list = list(aplicacao.respostas) # Ou aplicacao.respostas.all()
+        respostas_dict = {r.pergunta_id: r for r in respostas_list} # Mapa para acesso rápido
+
+        # Carrega os tópicos ativos DO questionário (respeitando lazy='dynamic')
+        # Precisamos deles para validações e cálculo do máximo
+        topicos_q_ativos = aplicacao.questionario.topicos.filter_by(ativo=True).all()
+        # Prepara um dicionário para carregar perguntas DEPOIS, se necessário
+        perguntas_por_topico_id = {}
+
+
+        # Verificar permissões (como antes)
         if aplicacao.avaliado.cliente_id != current_user.cliente_id:
             flash("Aplicação não encontrada.", "error")
             return redirect(url_for('cli.listar_aplicacoes'))
@@ -2093,105 +2157,111 @@ def finalizar_aplicacao(id):
             flash("Esta aplicação já foi finalizada ou cancelada.", "warning")
             return redirect(url_for('cli.visualizar_aplicacao', id=id))
 
-        # --- INÍCIO DA VALIDAÇÃO DE FOTOS OBRIGATÓRIAS ---
+        # --- VALIDAÇÃO DE FOTOS OBRIGATÓRIAS ---
         perguntas_sem_foto_obrigatoria = []
-        respostas_dict = {r.pergunta_id: r for r in aplicacao.respostas} # Mapeia respostas por ID da pergunta
-
-        # Itera sobre todas as perguntas ATIVAS do questionário aplicado
-        # (É mais seguro iterar sobre a estrutura do questionário do que só sobre as respostas dadas)
-        for topico in aplicacao.questionario.topicos.filter_by(ativo=True):
-             for pergunta in topico.perguntas.filter_by(ativo=True):
-                 # Verifica se a pergunta exige foto e se foi respondida
-                 if pergunta.exige_foto_se_nao_conforme and pergunta.id in respostas_dict:
-                     resposta_obj = respostas_dict[pergunta.id]
+        # Itera sobre os tópicos ativos carregados
+        for topico_val in topicos_q_ativos:
+            # Carrega as perguntas ativas DESTE tópico (respeitando lazy='dynamic')
+            perguntas_q_validacao = topico_val.perguntas.filter_by(ativo=True).all()
+            perguntas_por_topico_id[topico_val.id] = perguntas_q_validacao # Armazena para reuso
+            for pergunta_val in perguntas_q_validacao:
+                 # Verifica se a pergunta exige foto E se foi respondida
+                 if pergunta_val.exige_foto_se_nao_conforme and pergunta_val.id in respostas_dict:
+                     resposta_obj = respostas_dict[pergunta_val.id]
                      resposta_texto_lower = (resposta_obj.resposta or "").strip().lower()
-
-                     # Define quais respostas são consideradas "Não Conforme"
-                     # Ajuste esta lista se necessário (ex: 'Não Conforme', 'Reprovado')
                      respostas_nao_conforme = ['não', 'nao', 'no']
-
-                     # Se a resposta foi "Não" E não há foto anexada
                      if resposta_texto_lower in respostas_nao_conforme and not resposta_obj.caminho_foto:
-                         # Adiciona o texto da pergunta à lista de pendências
-                         perguntas_sem_foto_obrigatoria.append(f"'{pergunta.texto}' (Tópico: {topico.nome})")
+                         perguntas_sem_foto_obrigatoria.append(f"'{pergunta_val.texto}' (Tópico: {topico_val.nome})")
 
-        # Se houver perguntas pendentes de foto
+        # Se houver perguntas pendentes de foto, bloqueia a finalização (como antes)
         if perguntas_sem_foto_obrigatoria:
-            count = len(perguntas_sem_foto_obrigatoria)
-            flash(f"Não foi possível finalizar. {count} pergunta(s) respondida(s) como 'Não' exigem uma foto de evidência:", "danger")
-            # Lista as primeiras 5 perguntas com problema para ajudar o usuário
-            for i, texto_pergunta in enumerate(perguntas_sem_foto_obrigatoria):
-                 if i < 5:
-                     flash(f"- {texto_pergunta}", "warning")
-                 elif i == 5:
-                      flash("...", "warning")
-                      break # Limita a exibição
-            print(f"DEBUG: Finalização bloqueada para aplicação {id}. Fotos faltantes: {perguntas_sem_foto_obrigatoria}")
-            # Redireciona de volta para a tela de resposta
-            return redirect(url_for('cli.responder_aplicacao', id=id))
+             count = len(perguntas_sem_foto_obrigatoria)
+             flash(f"Não foi possível finalizar. {count} pergunta(s) respondida(s) como 'Não' exigem uma foto de evidência:", "danger")
+             for i, texto_pergunta in enumerate(perguntas_sem_foto_obrigatoria[:5]): flash(f"- {texto_pergunta}", "warning")
+             if count > 5: flash("...", "warning")
+             current_app.logger.warning(f"Finalização aplicação {id} bloqueada. Fotos faltantes: {perguntas_sem_foto_obrigatoria}")
+             return redirect(url_for('cli.responder_aplicacao', id=id))
         # --- FIM DA VALIDAÇÃO DE FOTOS OBRIGATÓRIAS ---
 
+        # --- VALIDAÇÃO DE PERGUNTAS OBRIGATÓRIAS ---
+        if 'RespostaPergunta' in globals():
+            perguntas_obrigatorias_ids = set()
+            # Itera sobre os tópicos e perguntas já carregados/armazenados
+            for topico_obr in topicos_q_ativos:
+                 # Usa as perguntas já carregadas se disponíveis
+                 perguntas_do_topico = perguntas_por_topico_id.get(topico_obr.id)
+                 if perguntas_do_topico is None: # Carrega se ainda não carregou
+                      perguntas_do_topico = topico_obr.perguntas.filter_by(ativo=True).all()
+                      perguntas_por_topico_id[topico_obr.id] = perguntas_do_topico
 
-        # Verificar perguntas obrigatórias (código original) - pode ser combinado com o loop acima se preferir
-        if 'RespostaPergunta' in globals(): # Verifica se o model existe
-            perguntas_obrigatorias_ids = {
-                p.id for t in aplicacao.questionario.topicos.filter_by(ativo=True)
-                for p in t.perguntas.filter_by(ativo=True, obrigatoria=True)
-            }
+                 for p_obr in perguntas_do_topico:
+                      if p_obr.obrigatoria: # ativo=True já foi filtrado
+                           perguntas_obrigatorias_ids.add(p_obr.id)
+
             respostas_dadas_ids = set(respostas_dict.keys())
-            perguntas_faltando = perguntas_obrigatorias_ids - respostas_dadas_ids
+            perguntas_faltando_ids = perguntas_obrigatorias_ids - respostas_dadas_ids
 
-            if perguntas_faltando:
-                 # Busca os textos das perguntas faltantes para exibir
-                 textos_faltando = [p.texto for p in Pergunta.query.filter(Pergunta.id.in_(list(perguntas_faltando))).limit(5).all()]
-                 flash(f"Existem {len(perguntas_faltando)} pergunta(s) obrigatória(s) sem resposta.", "warning")
-                 for texto_pf in textos_faltando:
-                     flash(f"- {texto_pf}", "secondary")
-                 if len(perguntas_faltando) > 5:
-                     flash("...", "secondary")
+            if perguntas_faltando_ids:
+                 # ... (código flash e redirect como antes) ...
+                 perguntas_faltantes_obj = Pergunta.query.filter(Pergunta.id.in_(list(perguntas_faltando_ids))).limit(5).all()
+                 textos_faltando = [p.texto for p in perguntas_faltantes_obj]
+                 flash(f"Existem {len(perguntas_faltando_ids)} pergunta(s) obrigatória(s) sem resposta.", "warning")
+                 for texto_pf in textos_faltando: flash(f"- {texto_pf}", "secondary")
+                 if len(perguntas_faltando_ids) > 5: flash("...", "secondary")
+                 current_app.logger.warning(f"Finalização aplicação {id} bloqueada. Perguntas obrigatórias faltando: {perguntas_faltando_ids}")
                  return redirect(url_for('cli.responder_aplicacao', id=id))
+        # --- FIM DA VALIDAÇÃO DE PERGUNTAS OBRIGATÓRIAS ---
 
-        # Calcular nota final se configurado (código original)
+
+        # --- CÁLCULO DE NOTA FINAL (LÓGICA DINÂMICA) ---
         if aplicacao.questionario.calcular_nota:
-            total_pontos_possiveis = 0
-            pontos_obtidos_calc = 0.0
+            pontos_obtidos_bruto = 0.0
+            pontuacao_maxima_possivel = 0.0
 
-            # Recalcula pontos baseado nas respostas e pesos das perguntas
-            for resposta in aplicacao.respostas:
-                 # A pergunta já foi carregada via joinedload
-                 pergunta = resposta.pergunta
-                 if pergunta and pergunta.ativo and pergunta.topico.ativo:
-                      peso = pergunta.peso or 1
-                      total_pontos_possiveis += peso # Adiciona o peso da pergunta aos pontos possíveis
-                      
-                      # Verifica se a resposta tem pontos calculados
-                      if resposta.pontos is not None:
-                           pontos_obtidos_calc += resposta.pontos # Usa os pontos já calculados ao salvar a resposta
-                      # Adicionar lógica alternativa aqui se 'resposta.pontos' não for confiável
-                      # Ex: buscar a OpcaoPergunta pelo texto da resposta e usar op.valor * peso
+            # 1. Calcula a pontuação máxima possível
+            # Itera sobre os tópicos e perguntas já carregados/armazenados
+            for topico_q in topicos_q_ativos:
+                # Usa as perguntas já carregadas se disponíveis
+                perguntas_do_topico_calc = perguntas_por_topico_id.get(topico_q.id)
+                if perguntas_do_topico_calc is None: # Carrega se ainda não carregou
+                    perguntas_do_topico_calc = topico_q.perguntas.filter_by(ativo=True).all()
+                    # Não precisa armazenar aqui, já que é a última iteração
 
-            aplicacao.pontos_obtidos = pontos_obtidos_calc
-            aplicacao.pontos_totais = total_pontos_possiveis # Salva o total de pontos possível
+                for pergunta_q in perguntas_do_topico_calc:
+                    if (pergunta_q.peso or 0) > 0: # ativo=True já foi filtrado
+                        pontuacao_maxima_possivel += (pergunta_q.peso or 1) * 1.0
 
-            if total_pontos_possiveis > 0:
-                # Usa modo_configuracao e base_calculo do questionário
-                base = aplicacao.questionario.base_calculo or 100
-                if aplicacao.questionario.modo_configuracao == 'percentual':
-                     aplicacao.nota_final = (pontos_obtidos_calc / total_pontos_possiveis) * base # Calcula como % da base
-                else: # modo 'pontos'
-                    aplicacao.nota_final = pontos_obtidos_calc # Nota final é a soma dos pontos
+            # 2. Soma os pontos obtidos nas respostas DADAS
+            # Usa a lista 'respostas_list' carregada no início
+            for resposta in respostas_list:
+                 if resposta.pontos is not None:
+                     # Carrega a pergunta associada à resposta para verificar status
+                     # (Necessário porque não fizemos joinedload profundo das respostas)
+                     pergunta_resposta = Pergunta.query.get(resposta.pergunta_id)
+                     if pergunta_resposta and pergunta_resposta.ativo and pergunta_resposta.topico.ativo:
+                          pontos_obtidos_bruto += resposta.pontos
 
+            # Armazena os valores calculados
+            aplicacao.pontos_obtidos = pontos_obtidos_bruto
+            aplicacao.pontos_totais = pontuacao_maxima_possivel
+
+            # 3. Calcula a nota final percentual (como antes)
+            if pontuacao_maxima_possivel > 0:
+                nota_percentual = (pontos_obtidos_bruto / pontuacao_maxima_possivel) * 100
+                aplicacao.nota_final = min(nota_percentual, 100.0)
                 casas_dec = aplicacao.questionario.casas_decimais
                 if casas_dec is not None and casas_dec >= 0:
                      aplicacao.nota_final = round(aplicacao.nota_final, casas_dec)
             else:
-                 aplicacao.nota_final = 0 # Evita divisão por zero se não houver perguntas pontuáveis
+                 aplicacao.nota_final = 0.0
 
+            current_app.logger.info(f"Cálculo de nota para aplicação {id}: Obtidos={pontos_obtidos_bruto}, Máximo={pontuacao_maxima_possivel}, Final={aplicacao.nota_final}%")
+        # --- FIM DO CÁLCULO DE NOTA ---
 
-        # Finalizar aplicação (código original)
+        # Finalizar aplicação (como antes)
         aplicacao.data_fim = datetime.now()
         aplicacao.status = StatusAplicacao.FINALIZADA
-        aplicacao.observacoes_finais = request.form.get('observacoes_finais', '')
+        aplicacao.observacoes_finais = request.form.get('observacoes_finais', aplicacao.observacoes_finais or '')
 
         db.session.commit()
 
@@ -2202,9 +2272,8 @@ def finalizar_aplicacao(id):
 
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Erro ao finalizar aplicação {id}: {e}", exc_info=True) # Log com traceback
-        flash(f"Erro ao finalizar aplicação: {str(e)}", "danger")
-        # Tenta redirecionar de volta para a resposta, se possível
+        current_app.logger.error(f"Erro ao finalizar aplicação {id}: {e}", exc_info=True)
+        flash(f"Erro inesperado ao finalizar aplicação: {str(e)}", "danger")
         return redirect(url_for('cli.responder_aplicacao', id=id))
 
 @cli_bp.route('/aplicacao/<int:id>')

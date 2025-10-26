@@ -19,7 +19,6 @@
   </nav>
 
   <div class="container mt-4">
-    <!-- Breadcrumb -->
     <nav aria-label="breadcrumb">
       <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="{{ url_for('cli.index') }}">Dashboard</a></li>
@@ -30,7 +29,6 @@
       </ol>
     </nav>
 
-    <!-- Cabeçalho -->
     <div class="row mb-4">
       <div class="col-md-8">
         <h2><i class="fas fa-list"></i> Gerenciar Tópicos</h2>
@@ -43,7 +41,6 @@
       </div>
     </div>
 
-    <!-- Alertas -->
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
     {% for category, message in messages %}
@@ -56,7 +53,6 @@
     {% endif %}
     {% endwith %}
 
-    <!-- Lista de Tópicos -->
     {% if topicos %}
     <div class="card">
       <div class="card-header">
@@ -97,6 +93,10 @@
                     </a>
                     <form method="POST" action="{{ url_for('cli.remover_topico', topico_id=topico.id) }}"
                       style="display: inline;" onsubmit="return confirm('Tem certeza que deseja remover este tópico?')">
+                      
+                      {# Adicionado token CSRF aqui também para segurança #}
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
                       <button type="submit" class="btn btn-danger btn-sm" title="Remover">
                         <i class="fas fa-trash"></i>
                       </button>
@@ -121,7 +121,6 @@
     </div>
     {% endif %}
 
-    <!-- Botões de Navegação -->
     <div class="row mt-4">
       <div class="col-md-6">
         <a href="{{ url_for('cli.visualizar_questionario', id=questionario.id) }}" class="btn btn-secondary">
@@ -130,12 +129,25 @@
       </div>
       <div class="col-md-6 text-end">
         {% if topicos %}
-        <form method="POST" action="/cli/questionario/{{ questionario.id }}/publicar" style="display: inline;">
-          <button type="submit" class="btn btn-success"
-            onclick="return confirm('Tem certeza que deseja publicar este questionário?')">
-            <i class="fas fa-rocket"></i> Publicar Questionário
-          </button>
-        </form>
+          {# Verificação se o questionário ainda não está publicado #}
+          {% if questionario and not questionario.publicado %} 
+            <form method="POST" action="{{ url_for('cli.publicar_questionario', id=questionario.id) }}" style="display: inline;"> 
+              
+              {# ===== LINHA CORRIGIDA/ADICIONADA ===== #}
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> 
+              {# ===================================== #}
+
+              <button type="submit" class="btn btn-success"
+                onclick="return confirm('Tem certeza que deseja publicar este questionário? Ele ficará disponível para aplicações.')">
+                <i class="fas fa-rocket"></i> Publicar Questionário
+              </button>
+            </form>
+          {% else %}
+            {# Opcional: Mostrar um botão desabilitado ou mensagem se já estiver publicado #}
+            <button class="btn btn-outline-success" disabled>
+                <i class="fas fa-check-circle"></i> Já Publicado
+            </button>
+          {% endif %}
         {% endif %}
       </div>
     </div>

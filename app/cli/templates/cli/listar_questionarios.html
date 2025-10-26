@@ -8,6 +8,7 @@
             <i class="fas fa-list-alt text-primary me-2"></i>
             Questionários
         </h1>
+        {# Mantém o link para novo questionário #}
         {% if has_endpoint('cli.novo_questionario') %}
         <a href="{{ url_for_safe('cli.novo_questionario') }}" class="btn btn-primary">
             <i class="fas fa-plus"></i> Novo Questionário
@@ -32,12 +33,13 @@
                         </div>
                     </div>
                     <div class="col-md-4">
+                        {# ===== DROPDOWN ATUALIZADO ===== #}
                         <select name="status" class="form-select">
-                            <option value="ativos" {% if status=='ativos' %}selected{% endif %}>Somente Ativos</option>
-                            <option value="inativos" {% if status=='inativos' %}selected{% endif %}>Somente Inativos
-                            </option>
-                            <option value="todos" {% if status=='todos' %}selected{% endif %}>Todos</option>
+                            <option value="publicados" {% if status=='publicados' %}selected{% endif %}>Somente Publicados</option>
+                            <option value="rascunhos" {% if status=='rascunhos' %}selected{% endif %}>Somente Rascunhos</option>
+                            
                         </select>
+                        {# ================================ #}
                     </div>
                     <div class="col-md-2">
                         <button type="submit" class="btn btn-outline-primary w-100">Filtrar</button>
@@ -60,29 +62,37 @@
                     <tbody>
                         {% if questionarios and questionarios|length %}
                         {% for q in questionarios %}
-                        {% set nome = q.nome or q.titulo %}
+                        {# Define variáveis auxiliares para nome, versão e data #}
+                        {% set nome = q.nome or q.titulo or 'Sem Nome' %}
                         {% set versao = q.versao or '1.0' %}
-                        {% set pub = q.publicado if q.publicado is not none else q.ativo %}
                         {% set dt = q.criado_em or q.data_criacao or q.created_at %}
                         <tr>
                             <td>{{ q.id }}</td>
                             <td>{{ nome }}</td>
                             <td>{{ versao }}</td>
                             <td>
-                                <span class="badge bg-{{ 'success' if pub else 'warning' }}">
-                                    {{ 'Publicado' if pub else 'Rascunho' }}
-                                </span>
+                                {# ===== LÓGICA DO BADGE ATUALIZADA ===== #}
+                                {% if q.ativo %}
+                                    {% if q.publicado %}
+                                        <span class="badge bg-success">Publicado</span>
+                                    {% else %}
+                                        <span class="badge bg-warning text-dark">Rascunho</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="badge bg-secondary">Inativo</span>
+                                {% endif %}
+                                {# ====================================== #}
                             </td>
                             <td>{{ dt.strftime('%d/%m/%Y') if dt else '-' }}</td>
                             <td class="text-end">
-
                                 <div class="btn-group" role="group">
-
+                                    {# Botão Editar Estrutura (Tópicos/Perguntas) - Visível para todos os estados #}
                                     <a href="{{ url_for_safe('cli.gerenciar_topicos', id=q.id) }}"
                                         class="btn btn-sm btn-primary" title="Editar Estrutura (Tópicos/Perguntas)">
                                         <i class="fas fa-edit"></i>
                                     </a>
 
+                                    {# Botão Duplicar - Visível para todos os estados #}
                                     <form action="{{ url_for_safe('cli.duplicar_questionario', id=q.id) }}"
                                         method="POST" class="d-inline"
                                         onsubmit="return confirm('Tem certeza que deseja duplicar este questionário?');">
@@ -92,6 +102,8 @@
                                         </button>
                                     </form>
 
+                                    {# Botão Remover (Desativar) - Visível apenas se o questionário estiver ATIVO #}
+                                    {% if q.ativo %}
                                     <form action="{{ url_for_safe('cli.desativar_questionario', id=q.id) }}"
                                         method="POST" class="d-inline"
                                         onsubmit="return confirm('Tem certeza que deseja desativar (remover) este questionário?');">
@@ -100,6 +112,12 @@
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </form>
+                                    {% else %}
+                                    {# Opcional: Mostrar botão desabilitado ou nada se já estiver inativo #}
+                                     <button class="btn btn-sm btn-outline-secondary" disabled title="Já Inativo">
+                                         <i class="fas fa-trash"></i>
+                                     </button>
+                                    {% endif %}
                                 </div>
                             </td>
                         </tr>
@@ -109,7 +127,7 @@
                             <td colspan="6" class="text-center text-muted py-4">
                                 <i class="fas fa-inbox fa-2x mb-2"></i><br>
                                 Nenhum questionário encontrado com os filtros atuais.
-                                {% if usou_fallback %}<br><small>(Nem mesmo no fallback)</small>{% endif %}
+                                {% if usou_fallback %}<br><small>(Termo de busca '{{ termo }}' não encontrado)</small>{% endif %}
                             </td>
                         </tr>
                         {% endif %}
