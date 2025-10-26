@@ -299,7 +299,7 @@ class Pergunta(db.Model):
     
     # Relacionamentos
     # Certifique-se que OpcaoPergunta e RespostaPergunta estão definidas ANTES ou DEPOIS desta classe
-    opcoes = db.relationship('OpcaoPergunta', backref='pergunta', lazy='dynamic', cascade='all, delete-orphan')
+    opcoes = db.relationship('OpcaoPergunta', backref='pergunta', lazy='select', cascade='all, delete-orphan')
     respostas = db.relationship('RespostaPergunta', backref='pergunta', lazy='dynamic')
 
 class OpcaoPergunta(db.Model):

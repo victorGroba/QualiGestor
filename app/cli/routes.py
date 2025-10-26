@@ -12,7 +12,10 @@ from werkzeug.utils import secure_filename
 from sqlalchemy import func, extract, and_, or_, desc
 from sqlalchemy.orm import joinedload
 
+
 from flask import request, make_response
+
+from .. import csrf
 
 # ==================== CORREÇÃO 1: IMPORTS ROBUSTOS ====================
 try:
@@ -1087,10 +1090,12 @@ def gerenciar_perguntas(topico_id):
         flash(f"Erro ao carregar perguntas: {str(e)}", "danger")
         return redirect(url_for('cli.listar_questionarios'))
 
+# Em app/cli/routes.py
+
 @cli_bp.route('/topico/<int:topico_id>/pergunta/nova', methods=['GET', 'POST'])
 @login_required
 def nova_pergunta(topico_id):
-    """Criar nova pergunta - CORRIGIDA e ATUALIZADA"""
+    """Criar nova pergunta - CORRIGIDA e ATUALIZADA (v2 - auto-opções SIM_NAO_NA)""" # <-- Nome atualizado
     print(f"DEBUG nova_pergunta: método={request.method}, topico_id={topico_id}")
     
     try:
@@ -1130,10 +1135,18 @@ def nova_pergunta(topico_id):
 
                 # --- CONVERSÃO STRING PARA ENUM ---
                 try:
+                    # Tenta buscar pelo NOME do enum ('SIM_NAO_NA')
                     tipo_enum = TipoResposta[tipo_str]
                 except KeyError:
-                    flash(f"Tipo de resposta inválido: '{tipo_str}'. Usando SIM_NAO_NA como padrão.", "warning")
-                    tipo_enum = TipoResposta.SIM_NAO_NA # Default seguro
+                    # Se falhar, tenta buscar pelo VALOR ('Sim/Não/N.A.') - menos ideal, mas robusto
+                    tipo_enum = None
+                    for item in TipoResposta:
+                        if item.value == tipo_str:
+                             tipo_enum = item
+                             break
+                    if tipo_enum is None:
+                        flash(f"Tipo de resposta inválido: '{tipo_str}'. Usando SIM_NAO_NA como padrão.", "warning")
+                        tipo_enum = TipoResposta.SIM_NAO_NA # Default seguro
                 # ------------------------------------
                 
                 nova_pergunta_obj = Pergunta(
@@ -1152,10 +1165,11 @@ def nova_pergunta(topico_id):
                 db.session.flush() # Para obter o ID da pergunta para as opções
                 print(f"DEBUG: Pergunta criada com ID: {nova_pergunta_obj.id}")
                 
-                # Adicionar opções se for múltipla escolha ou escala
-                # (Garante que tipo_enum existe antes de comparar)
+                # --- LÓGICA DE OPÇÕES CORRIGIDA ---
+                
+                # Adicionar opções se for múltipla escolha ou escala (baseado no form)
                 if tipo_enum in [TipoResposta.MULTIPLA_ESCOLHA, TipoResposta.ESCALA_NUMERICA] and 'OpcaoPergunta' in globals():
-                    print("DEBUG: Processando opções da pergunta")
+                    print("DEBUG: Processando opções da pergunta múltipla/escala via form")
                     opcoes_texto = request.form.getlist('opcao_texto[]')
                     opcoes_valor = request.form.getlist('opcao_valor[]')
                     
@@ -1163,7 +1177,6 @@ def nova_pergunta(topico_id):
                         texto_opcao_strip = texto_opcao.strip()
                         if texto_opcao_strip: # Ignora opções vazias
                             try:
-                                # Tenta converter valor para float, default para 0 se falhar ou vazio
                                 valor_opcao_str = opcoes_valor[i] if i < len(opcoes_valor) else '0'
                                 valor_float = float(valor_opcao_str) if valor_opcao_str else 0.0
                             except (ValueError, IndexError):
@@ -1174,10 +1187,31 @@ def nova_pergunta(topico_id):
                                 valor=valor_float,
                                 ordem=i + 1,
                                 pergunta_id=nova_pergunta_obj.id,
-                                ativo=True # Definindo ativo=True para novas opções
+                                ativo=True # <<< Garante ativo=True
                             )
                             db.session.add(opcao)
-                            print(f"DEBUG: Opção adicionada: '{texto_opcao_strip}' = {valor_float}")
+                            print(f"DEBUG: Opção adicionada (form): '{texto_opcao_strip}' = {valor_float}")
+
+                # Criar opções padrão automaticamente para SIM_NAO_NA
+                elif tipo_enum == TipoResposta.SIM_NAO_NA and 'OpcaoPergunta' in globals():
+                    print("DEBUG: Criando opções padrão para SIM_NAO_NA")
+                    opcoes_padrao = [
+                        {"texto": "Sim", "valor": 1.0, "ordem": 1},
+                        {"texto": "Não", "valor": 0.0, "ordem": 2},
+                        {"texto": "N.A.", "valor": 0.0, "ordem": 3} # Ajuste o valor se N.A. tiver pontuação diferente
+                    ]
+                    for op_data in opcoes_padrao:
+                        opcao = OpcaoPergunta(
+                            texto=op_data["texto"],
+                            valor=op_data["valor"],
+                            ordem=op_data["ordem"],
+                            pergunta_id=nova_pergunta_obj.id,
+                            ativo=True # <<< Garante ativo=True
+                        )
+                        db.session.add(opcao)
+                        print(f"DEBUG: Opção padrão adicionada: '{op_data['texto']}'")
+                
+                # --- FIM DA LÓGICA DE OPÇÕES CORRIGIDA ---
                 
                 db.session.commit()
                 log_acao(f"Criou pergunta: {texto[:50]}...", None, "Pergunta", nova_pergunta_obj.id)
@@ -1193,7 +1227,7 @@ def nova_pergunta(topico_id):
                 db.session.rollback()
                 flash(f"Erro ao criar pergunta: {str(e)}", "danger")
                 # Passa os dados do formulário de volta para preencher os campos
-                return render_template_safe('cli/nova_pergunta.html', topico=topico, form_data=request.form) 
+                return render_template_safe('cli/nova_pergunta.html', topico=topico, form_data=request.form)
         
         # GET - Mostrar formulário
         print("DEBUG: Renderizando template nova_pergunta.html para GET")
@@ -1206,10 +1240,12 @@ def nova_pergunta(topico_id):
         flash(f"Erro ao carregar formulário: {str(e)}", "danger")
         # Tenta redirecionar para gerenciar_topicos se topico_id estiver disponível
         redirect_url = url_for('cli.listar_questionarios')
-        if 'topico_id' in locals() and topico_id:
+        # Correção: O redirect deve ser para gerenciar_topicos usando 'id' do questionário
+        if 'topico' in locals() and hasattr(topico, 'questionario_id'):
              try:
-                 redirect_url = url_for('cli.gerenciar_topicos', id=topico_id)
-             except:
+                 redirect_url = url_for('cli.gerenciar_topicos', id=topico.questionario_id)
+             except Exception as redirect_err:
+                 print(f"DEBUG: Erro ao gerar URL para gerenciar_topicos: {redirect_err}")
                  pass # Mantém o redirect para listar_questionarios
         return redirect(redirect_url)
 
@@ -1304,18 +1340,24 @@ def test_publish(id):
 
 
 
+# Em app/cli/routes.py
+
+# Em app/cli/routes.py
+
+# Em app/cli/routes.py
+
 @cli_bp.route('/pergunta/<int:pergunta_id>/editar', methods=['GET', 'POST'])
 @login_required
 def editar_pergunta(pergunta_id):
-    """Editar pergunta existente - ATUALIZADA"""
+    """Editar pergunta existente - ATUALIZADA (v3 - auto-opções SIM_NAO_NA)""" # <-- Nome atualizado
     try:
-        # Usar eager loading para carregar opções junto com a pergunta, se necessário
-        pergunta = Pergunta.query.options(db.joinedload(Pergunta.opcoes)).get_or_404(pergunta_id)
-        
+        # Removido o eager loading que causava erro com lazy='dynamic'
+        pergunta = Pergunta.query.get_or_404(pergunta_id)
+
         if pergunta.topico.questionario.cliente_id != current_user.cliente_id:
             flash("Pergunta não encontrada.", "error")
             return redirect(url_for('cli.listar_questionarios'))
-        
+
         if request.method == 'POST':
             try:
                 pergunta.texto = request.form.get('texto', '').strip()
@@ -1323,86 +1365,206 @@ def editar_pergunta(pergunta_id):
                 pergunta.obrigatoria = request.form.get('obrigatoria') == 'on'
                 pergunta.permite_observacao = request.form.get('permite_observacao') == 'on'
                 pergunta.peso = int(request.form.get('peso', 1))
-                
-                # --- LINHA ADICIONADA ---
                 pergunta.exige_foto_se_nao_conforme = request.form.get('exige_foto_se_nao_conforme') == 'on'
-                # ------------------------
 
-                # --- CONVERSÃO STRING PARA ENUM ---
-                tipo_enum_antigo = pergunta.tipo # Guarda o tipo antigo caso a conversão falhe
+                # --- CONVERSÃO STRING PARA ENUM ROBUSTA ---
+                tipo_enum_antigo = pergunta.tipo # Guarda o tipo antigo
+                tipo_enum_novo = None
                 try:
+                    # Tenta buscar pelo NOME do enum ('SIM_NAO_NA')
                     tipo_enum_novo = TipoResposta[tipo_str]
-                    pergunta.tipo = tipo_enum_novo # Atualiza o tipo com o Enum
                 except KeyError:
-                    flash(f"Tipo de resposta inválido recebido: '{tipo_str}'. Mantendo tipo anterior.", "warning")
-                    tipo_enum_novo = tipo_enum_antigo # Reverte para o tipo antigo se inválido
-                # ------------------------------------
+                    # Se falhar, tenta buscar pelo VALOR ('Sim/Não/N.A.')
+                    for item in TipoResposta:
+                        if item.value == tipo_str:
+                             tipo_enum_novo = item
+                             break
                 
-                # Atualizar opções se necessário
-                # (Garante que tipo_enum_novo existe antes de comparar)
-                if tipo_enum_novo in [TipoResposta.MULTIPLA_ESCOLHA, TipoResposta.ESCALA_NUMERICA] and 'OpcaoPergunta' in globals():
-                    # Remover opções existentes (mais seguro fazer update/delete individualmente, mas delete all é mais simples aqui)
-                    OpcaoPergunta.query.filter_by(pergunta_id=pergunta_id).delete()
-                    db.session.flush() # Aplica o delete antes de adicionar novas
+                if tipo_enum_novo is None:
+                     flash(f"Tipo de resposta inválido recebido: '{tipo_str}'. Mantendo tipo anterior.", "warning")
+                     tipo_enum_novo = tipo_enum_antigo # Reverte se inválido
+                else:
+                    pergunta.tipo = tipo_enum_novo # Atualiza o tipo se válido
+                # ------------------------------------
+
+                # --- LÓGICA DE OPÇÕES CORRIGIDA ---
+
+                # Tipos que usam opções (seja do form ou padrão)
+                tipos_com_opcoes = [TipoResposta.MULTIPLA_ESCOLHA, TipoResposta.ESCALA_NUMERICA, TipoResposta.SIM_NAO_NA]
+
+                # 1. Limpar opções antigas se o tipo mudou PARA um tipo SEM opções
+                if tipo_enum_antigo in tipos_com_opcoes and tipo_enum_novo not in tipos_com_opcoes:
+                    print(f"DEBUG: Removendo opções porque tipo mudou de {tipo_enum_antigo.name} para {tipo_enum_novo.name}")
+                    # Como 'pergunta.opcoes' é dynamic, precisamos iterar para deletar
+                    opcoes_a_remover = list(pergunta.opcoes) # Carrega e converte para lista
+                    if opcoes_a_remover:
+                        for op_antiga in opcoes_a_remover:
+                            db.session.delete(op_antiga)
+                        db.session.flush() # Aplica deletes antes de continuar
+
+                # 2. TRATAMENTO ESPECIAL PARA SIM_NAO_NA (criar/ativar opções padrão)
+                elif tipo_enum_novo == TipoResposta.SIM_NAO_NA and 'OpcaoPergunta' in globals():
+                    print("DEBUG: Garantindo opções padrão ATIVAS para SIM_NAO_NA")
+                    opcoes_padrao_texto = {"Sim", "Não", "N.A."}
+                    # Carrega opções atuais do banco (lazy load ao acessar .opcoes)
+                    opcoes_existentes = {op.texto: op for op in pergunta.opcoes}
+
+                    # Define as opções que DEVEM existir e estar ATIVAS
+                    opcoes_target = [
+                        {"texto": "Sim", "valor": 1.0, "ordem": 1},
+                        {"texto": "Não", "valor": 0.0, "ordem": 2},
+                        {"texto": "N.A.", "valor": 0.0, "ordem": 3} # Ajuste valor se necessário
+                    ]
+
+                    # Garante que as opções padrão existam e estejam ativas
+                    for op_data in opcoes_target:
+                        texto_target = op_data["texto"]
+                        if texto_target in opcoes_existentes:
+                            # Opção existe, garante que está ativa
+                            op_existente = opcoes_existentes[texto_target]
+                            if not op_existente.ativo:
+                                op_existente.ativo = True
+                                print(f"DEBUG: Opção padrão '{texto_target}' ATIVADA.")
+                            # Opcional: Atualizar valor e ordem se desejar forçar o padrão
+                            op_existente.valor = op_data["valor"]
+                            op_existente.ordem = op_data["ordem"]
+                        else:
+                            # Opção padrão não existe, cria como ativa
+                            nova_opcao = OpcaoPergunta(
+                                texto=op_data["texto"],
+                                valor=op_data["valor"],
+                                ordem=op_data["ordem"],
+                                pergunta_id=pergunta.id,
+                                ativo=True # <<< Cria como ativa
+                            )
+                            db.session.add(nova_opcao)
+                            print(f"DEBUG: Opção padrão '{texto_target}' criada e ativada.")
+
+                    # Remove opções que não sejam as padrão (se existirem por algum erro)
+                    ids_para_remover = []
+                    for texto_existente, op_existente in opcoes_existentes.items():
+                        if texto_existente not in opcoes_padrao_texto:
+                            ids_para_remover.append(op_existente.id)
+                            print(f"DEBUG: Marcando opção não padrão '{texto_existente}' para remoção.")
                     
-                    # Adicionar novas opções
+                    if ids_para_remover:
+                         # Deleta fora do loop de iteração
+                         OpcaoPergunta.query.filter(OpcaoPergunta.id.in_(ids_para_remover)).delete(synchronize_session=False)
+                         print(f"DEBUG: Opções não padrão removidas: {ids_para_remover}")
+
+
+                # 3. Atualizar opções se for Múltipla Escolha ou Escala (baseado no form)
+                elif tipo_enum_novo in [TipoResposta.MULTIPLA_ESCOLHA, TipoResposta.ESCALA_NUMERICA] and 'OpcaoPergunta' in globals():
+                    print(f"DEBUG: Processando opções para {tipo_enum_novo.name} via form")
+                    opcoes_id_existentes = [int(oid) for oid in request.form.getlist('opcao_id[]') if oid.isdigit()]
                     opcoes_texto = request.form.getlist('opcao_texto[]')
                     opcoes_valor = request.form.getlist('opcao_valor[]')
-                    
-                    print(f"DEBUG editar_pergunta - Novas opções: Textos={opcoes_texto}, Valores={opcoes_valor}")
 
+                    print(f"DEBUG editar_pergunta - Opções Recebidas Form: IDs={opcoes_id_existentes}, Textos={opcoes_texto}, Valores={opcoes_valor}")
+
+                    # Carrega opções atuais do banco
+                    opcoes_atuais = {op.id: op for op in pergunta.opcoes}
+                    ids_processados_no_form = set()
+
+                    # Atualiza/Adiciona opções do formulário
                     for i, texto_opcao in enumerate(opcoes_texto):
                         texto_opcao_strip = texto_opcao.strip()
-                        if texto_opcao_strip: # Ignora opções vazias
-                            try:
-                                valor_opcao_str = opcoes_valor[i] if i < len(opcoes_valor) else '0'
-                                valor_float = float(valor_opcao_str) if valor_opcao_str else 0.0
-                            except (ValueError, IndexError):
-                                valor_float = 0.0
+                        if not texto_opcao_strip:
+                            continue # Ignora linhas vazias
 
+                        opcao_id = opcoes_id_existentes[i] if i < len(opcoes_id_existentes) else None
+                        
+                        # Marca ID como processado SE ele veio do form
+                        if opcao_id:
+                            ids_processados_no_form.add(opcao_id) 
+
+                        try:
+                            valor_opcao_str = opcoes_valor[i] if i < len(opcoes_valor) else '0'
+                            valor_float = float(valor_opcao_str) if valor_opcao_str else 0.0
+                        except (ValueError, IndexError):
+                            valor_float = 0.0
+
+                        if opcao_id and opcao_id in opcoes_atuais:
+                            # Atualiza opção existente
+                            opcao = opcoes_atuais[opcao_id]
+                            opcao.texto = texto_opcao_strip
+                            opcao.valor = valor_float
+                            opcao.ordem = i + 1
+                            opcao.ativo = True # <<< Garante que fique ativa ao editar
+                            print(f"DEBUG: Opção ID {opcao_id} atualizada e ativada.")
+                        else:
+                            # Adiciona nova opção (ID era None ou não encontrado)
                             nova_opcao = OpcaoPergunta(
                                 texto=texto_opcao_strip,
                                 valor=valor_float,
                                 ordem=i + 1,
                                 pergunta_id=pergunta.id,
-                                ativo=True
+                                ativo=True # <<< Cria como ativa
                             )
                             db.session.add(nova_opcao)
-                            print(f"DEBUG: Opção '{texto_opcao_strip}' = {valor_float} adicionada/atualizada.")
-                else:
-                     # Se o tipo mudou para um que NÃO usa opções, remove as antigas
-                     if tipo_enum_antigo in [TipoResposta.MULTIPLA_ESCOLHA, TipoResposta.ESCALA_NUMERICA]:
-                          OpcaoPergunta.query.filter_by(pergunta_id=pergunta_id).delete()
-                          print(f"DEBUG: Opções removidas pois o tipo mudou para {tipo_enum_novo.name}")
+                            print(f"DEBUG: Nova opção '{texto_opcao_strip}' adicionada e ativada.")
 
-                
+                    # Remove opções que estavam no banco mas NÃO vieram no formulário atualizado
+                    ids_no_banco = set(opcoes_atuais.keys())
+                    ids_para_remover = ids_no_banco - ids_processados_no_form
+                    
+                    if ids_para_remover:
+                         # Deleta de uma vez só
+                         OpcaoPergunta.query.filter(OpcaoPergunta.id.in_(ids_para_remover)).delete(synchronize_session=False)
+                         print(f"DEBUG: Opções removidas (não presentes no form): {ids_para_remover}")
+
+                # --- FIM DA LÓGICA DE OPÇÕES CORRIGIDA ---
+
                 db.session.commit()
                 log_acao(f"Editou pergunta: {pergunta.texto[:50]}...", None, "Pergunta", pergunta_id)
-                
+
                 flash("Pergunta atualizada com sucesso!", "success")
                 return redirect(url_for('cli.gerenciar_perguntas', topico_id=pergunta.topico_id))
-                
+
             except Exception as e:
-                print(f"DEBUG: Erro ao atualizar pergunta: {e}")
+                print(f"DEBUG: Erro ao atualizar pergunta POST: {e}")
                 import traceback
                 traceback.print_exc()
                 db.session.rollback()
                 flash(f"Erro ao atualizar pergunta: {str(e)}", "danger")
                 # Re-renderiza o formulário com os dados atuais (antes do erro)
-                return render_template_safe('cli/editar_pergunta.html', pergunta=pergunta)
-        
+                # Carrega opções (lazy load) e ordena para passar ao template
+                opcoes_ordenadas = []
+                try:
+                     opcoes_ordenadas = sorted(list(pergunta.opcoes), key=lambda o: o.ordem)
+                except Exception as load_err:
+                     print(f"DEBUG: Erro ao carregar opções no except: {load_err}")
+
+                return render_template_safe('cli/editar_pergunta.html', pergunta=pergunta, opcoes=opcoes_ordenadas)
+
         # GET - Mostrar formulário
-        print(f"DEBUG editar_pergunta GET: Carregando pergunta ID {pergunta_id} com tipo {pergunta.tipo.name if pergunta.tipo else 'N/A'}")
-        # Garante que as opções sejam carregadas para o template
-        opcoes_ordenadas = sorted(pergunta.opcoes, key=lambda o: o.ordem) if hasattr(pergunta, 'opcoes') else []
-        return render_template_safe('cli/editar_pergunta.html', pergunta=pergunta, opcoes=opcoes_ordenadas) 
+        print(f"DEBUG editar_pergunta GET: Carregando pergunta ID {pergunta_id} com tipo {pergunta.tipo.name if hasattr(pergunta.tipo, 'name') else pergunta.tipo}")
+        # Carrega as opções (lazy load) e ordena para o template
+        opcoes_ordenadas = []
+        try:
+            # Acessar pergunta.opcoes dispara o lazy load (agora 'select')
+            opcoes_ordenadas = sorted(list(pergunta.opcoes), key=lambda o: o.ordem)
+        except Exception as load_err:
+            print(f"DEBUG: Erro ao carregar/ordenar opções no GET: {load_err}")
+            flash(f"Aviso: Não foi possível carregar as opções da pergunta. {load_err}", "warning")
+
+        return render_template_safe('cli/editar_pergunta.html', pergunta=pergunta, opcoes=opcoes_ordenadas)
 
     except Exception as e:
-        print(f"DEBUG: Erro geral em editar_pergunta: {e}")
+        print(f"DEBUG: Erro geral em editar_pergunta GET: {e}")
         import traceback
         traceback.print_exc()
         flash(f"Erro ao carregar pergunta para edição: {str(e)}", "danger")
-        return redirect(url_for('cli.listar_questionarios'))
+        # Tenta obter o topico_id para redirecionar melhor
+        redirect_url = url_for('cli.listar_questionarios')
+        try:
+            # Tenta carregar a pergunta novamente para obter o topico_id
+            pergunta_fallback = Pergunta.query.get(pergunta_id)
+            if pergunta_fallback and pergunta_fallback.topico_id:
+                 redirect_url = url_for('cli.gerenciar_perguntas', topico_id=pergunta_fallback.topico_id)
+        except:
+             pass # Mantém o redirect para listar_questionarios
+        return redirect(redirect_url)
 
 @cli_bp.route('/pergunta/<int:pergunta_id>/remover', methods=['POST'])
 @login_required
@@ -1826,10 +1988,12 @@ def nova_aplicacao():
         flash(f"Erro ao carregar formulário: {str(e)}", "danger")
         return redirect(url_for('cli.listar_aplicacoes'))
 
+# Em app/cli/routes.py
+
 @cli_bp.route('/aplicacao/<int:id>/responder')
 @login_required
 def responder_aplicacao(id):
-    """Interface para responder aplicação - ATUALIZADA"""
+    """Interface para responder aplicação - ATUALIZADA E CORRIGIDA (v2)"""
     try:
         aplicacao = AplicacaoQuestionario.query.get_or_404(id)
 
@@ -1842,117 +2006,205 @@ def responder_aplicacao(id):
             return redirect(url_for('cli.visualizar_aplicacao', id=id))
         # --------------------------------------------------------
 
-        # --- MODIFICAÇÃO: Carregar perguntas junto com tópicos e respostas existentes ---
-        topicos = Topico.query.options(
-            joinedload(Topico.perguntas).joinedload(Pergunta.opcoes), # Carrega perguntas e suas opções
-            joinedload(Topico.perguntas).joinedload(Pergunta.respostas).load_only(
-                RespostaPergunta.id, RespostaPergunta.resposta, RespostaPergunta.observacao, RespostaPergunta.caminho_foto, RespostaPergunta.pergunta_id
-            ) # Carrega apenas campos necessários das respostas associadas
-        ).filter(
+        # --- CORREÇÃO: Carregamento em etapas para evitar erro do lazy='dynamic' ---
+
+        # 1. Carregar tópicos ativos do questionário
+        topicos = Topico.query.filter(
             Topico.questionario_id == aplicacao.questionario_id,
             Topico.ativo == True
         ).order_by(Topico.ordem).all()
 
-        # Criar um dicionário de respostas existentes para acesso rápido no template
-        # Isso processa as respostas que foram carregadas com as perguntas
-        respostas_map = {}
-        for topico in topicos:
-            for pergunta in topico.perguntas:
-                 if pergunta.ativo: # Considera apenas perguntas ativas
-                    # A relação 'respostas' em Pergunta pode ter várias respostas (de outras aplicações)
-                    # Precisamos encontrar a resposta específica para ESTA aplicação
-                    resposta_atual = next((r for r in pergunta.respostas if r.aplicacao_id == aplicacao.id), None)
-                    if resposta_atual:
-                        respostas_map[pergunta.id] = resposta_atual
+        if not topicos:
+             flash("Este questionário não possui tópicos ativos.", "warning")
+             # Permite finalizar mesmo se não houver tópicos/perguntas
+             return render_template_safe(
+                'cli/responder_aplicacao.html',
+                aplicacao=aplicacao,
+                topicos=[],
+                perguntas_por_topico={},
+                respostas_existentes={}
+            )
+
+        topico_ids = [t.id for t in topicos]
+
+        # 2. Carregar todas as perguntas ativas para esses tópicos
+        #    --- ESTA É A LINHA CORRIGIDA ---
+        #    Removido o .options(joinedload(Pergunta.opcoes)) para evitar o erro
+        perguntas_ativas = Pergunta.query.filter(
+            Pergunta.topico_id.in_(topico_ids),
+            Pergunta.ativo == True
+        ).order_by(Pergunta.ordem).all()
+        
+        perguntas_ativas_ids = [p.id for p in perguntas_ativas]
+
+        # 3. Carregar todas as respostas existentes para ESTA aplicação
+        respostas_lista = []
+        if perguntas_ativas_ids: # Só busca respostas se houver perguntas
+            respostas_lista = RespostaPergunta.query.filter(
+                RespostaPergunta.aplicacao_id == aplicacao.id,
+                RespostaPergunta.pergunta_id.in_(perguntas_ativas_ids)
+            ).all()
+        
+        # 4. Organizar perguntas por tópico (para o template)
+        perguntas_por_topico = {}
+        for p in perguntas_ativas:
+            if p.topico_id not in perguntas_por_topico:
+                perguntas_por_topico[p.topico_id] = []
+            perguntas_por_topico[p.topico_id].append(p)
+        
+        # 5. Organizar respostas por ID da pergunta (para o template)
+        respostas_map = {r.pergunta_id: r for r in respostas_lista}
         # --------------------------------------------------------------------------
 
-        # Log para debug
         current_app.logger.debug(f"Renderizando responder_aplicacao para ID {id}. Respostas encontradas: {len(respostas_map)}")
 
         return render_template_safe(
             'cli/responder_aplicacao.html',
             aplicacao=aplicacao,
-            topicos=topicos, # Passa a lista de tópicos (que agora contém perguntas->opções)
-            respostas_existentes=respostas_map # Passa o mapa de respostas desta aplicação
+            topicos=topicos, # Passa a lista de tópicos
+            perguntas_por_topico=perguntas_por_topico, # <--- DICIONÁRIO CORRETO
+            respostas_existentes=respostas_map # Passa o mapa de respostas
         )
     except Exception as e:
+        # Este log de erro é o que você está vendo no console
         current_app.logger.error(f"Erro ao carregar aplicação {id} para responder: {e}", exc_info=True)
         flash(f"Erro ao carregar aplicação para responder: {str(e)}", "danger")
         return redirect(url_for('cli.listar_aplicacoes'))
 
 
-
 @cli_bp.route('/aplicacao/<int:id>/finalizar', methods=['POST'])
 @login_required
 def finalizar_aplicacao(id):
-    """Finaliza uma aplicação"""
+    """Finaliza uma aplicação, validando fotos obrigatórias para respostas 'Não'""" # <-- Descrição atualizada
     try:
-        aplicacao = AplicacaoQuestionario.query.get_or_404(id)
-        
+        # Usar joinedload para carregar dados relacionados eficientemente
+        aplicacao = AplicacaoQuestionario.query.options(
+            db.joinedload(AplicacaoQuestionario.questionario),
+            db.joinedload(AplicacaoQuestionario.avaliado),
+            db.joinedload(AplicacaoQuestionario.respostas).joinedload(RespostaPergunta.pergunta) # Carrega respostas e suas perguntas
+        ).get_or_404(id)
+
         # Verificar permissões
         if aplicacao.avaliado.cliente_id != current_user.cliente_id:
             flash("Aplicação não encontrada.", "error")
             return redirect(url_for('cli.listar_aplicacoes'))
-        
+
         if aplicacao.status != StatusAplicacao.EM_ANDAMENTO:
-            flash("Esta aplicação já foi finalizada.", "warning")
+            flash("Esta aplicação já foi finalizada ou cancelada.", "warning")
             return redirect(url_for('cli.visualizar_aplicacao', id=id))
-        
-        # Verificar perguntas obrigatórias se disponível
-        if 'RespostaPergunta' in globals():
-            perguntas_obrigatorias = db.session.query(Pergunta.id).join(Topico).filter(
-                Topico.questionario_id == aplicacao.questionario_id,
-                Pergunta.obrigatoria == True,
-                Pergunta.ativo == True,
-                Topico.ativo == True
-            ).all()
-            
-            respostas_dadas = db.session.query(RespostaPergunta.pergunta_id).filter_by(
-                aplicacao_id=id
-            ).all()
-            
-            perguntas_obrig_ids = [p.id for p in perguntas_obrigatorias]
-            respostas_ids = [r.pergunta_id for r in respostas_dadas]
-            
-            perguntas_faltando = set(perguntas_obrig_ids) - set(respostas_ids)
-            
+
+        # --- INÍCIO DA VALIDAÇÃO DE FOTOS OBRIGATÓRIAS ---
+        perguntas_sem_foto_obrigatoria = []
+        respostas_dict = {r.pergunta_id: r for r in aplicacao.respostas} # Mapeia respostas por ID da pergunta
+
+        # Itera sobre todas as perguntas ATIVAS do questionário aplicado
+        # (É mais seguro iterar sobre a estrutura do questionário do que só sobre as respostas dadas)
+        for topico in aplicacao.questionario.topicos.filter_by(ativo=True):
+             for pergunta in topico.perguntas.filter_by(ativo=True):
+                 # Verifica se a pergunta exige foto e se foi respondida
+                 if pergunta.exige_foto_se_nao_conforme and pergunta.id in respostas_dict:
+                     resposta_obj = respostas_dict[pergunta.id]
+                     resposta_texto_lower = (resposta_obj.resposta or "").strip().lower()
+
+                     # Define quais respostas são consideradas "Não Conforme"
+                     # Ajuste esta lista se necessário (ex: 'Não Conforme', 'Reprovado')
+                     respostas_nao_conforme = ['não', 'nao', 'no']
+
+                     # Se a resposta foi "Não" E não há foto anexada
+                     if resposta_texto_lower in respostas_nao_conforme and not resposta_obj.caminho_foto:
+                         # Adiciona o texto da pergunta à lista de pendências
+                         perguntas_sem_foto_obrigatoria.append(f"'{pergunta.texto}' (Tópico: {topico.nome})")
+
+        # Se houver perguntas pendentes de foto
+        if perguntas_sem_foto_obrigatoria:
+            count = len(perguntas_sem_foto_obrigatoria)
+            flash(f"Não foi possível finalizar. {count} pergunta(s) respondida(s) como 'Não' exigem uma foto de evidência:", "danger")
+            # Lista as primeiras 5 perguntas com problema para ajudar o usuário
+            for i, texto_pergunta in enumerate(perguntas_sem_foto_obrigatoria):
+                 if i < 5:
+                     flash(f"- {texto_pergunta}", "warning")
+                 elif i == 5:
+                      flash("...", "warning")
+                      break # Limita a exibição
+            print(f"DEBUG: Finalização bloqueada para aplicação {id}. Fotos faltantes: {perguntas_sem_foto_obrigatoria}")
+            # Redireciona de volta para a tela de resposta
+            return redirect(url_for('cli.responder_aplicacao', id=id))
+        # --- FIM DA VALIDAÇÃO DE FOTOS OBRIGATÓRIAS ---
+
+
+        # Verificar perguntas obrigatórias (código original) - pode ser combinado com o loop acima se preferir
+        if 'RespostaPergunta' in globals(): # Verifica se o model existe
+            perguntas_obrigatorias_ids = {
+                p.id for t in aplicacao.questionario.topicos.filter_by(ativo=True)
+                for p in t.perguntas.filter_by(ativo=True, obrigatoria=True)
+            }
+            respostas_dadas_ids = set(respostas_dict.keys())
+            perguntas_faltando = perguntas_obrigatorias_ids - respostas_dadas_ids
+
             if perguntas_faltando:
-                flash(f"Existem {len(perguntas_faltando)} pergunta(s) obrigatória(s) sem resposta.", "warning")
-                return redirect(url_for('cli.responder_aplicacao', id=id))
-        
-        # Calcular nota final se configurado
-        if aplicacao.questionario.calcular_nota and hasattr(aplicacao, 'respostas'):
-            total_pontos = 0
-            pontos_obtidos = 0
-            
+                 # Busca os textos das perguntas faltantes para exibir
+                 textos_faltando = [p.texto for p in Pergunta.query.filter(Pergunta.id.in_(list(perguntas_faltando))).limit(5).all()]
+                 flash(f"Existem {len(perguntas_faltando)} pergunta(s) obrigatória(s) sem resposta.", "warning")
+                 for texto_pf in textos_faltando:
+                     flash(f"- {texto_pf}", "secondary")
+                 if len(perguntas_faltando) > 5:
+                     flash("...", "secondary")
+                 return redirect(url_for('cli.responder_aplicacao', id=id))
+
+        # Calcular nota final se configurado (código original)
+        if aplicacao.questionario.calcular_nota:
+            total_pontos_possiveis = 0
+            pontos_obtidos_calc = 0.0
+
+            # Recalcula pontos baseado nas respostas e pesos das perguntas
             for resposta in aplicacao.respostas:
-                if hasattr(resposta, 'pontos') and resposta.pontos is not None:
-                    pontos_obtidos += resposta.pontos
-                    total_pontos += resposta.pergunta.peso
-            
-            if total_pontos > 0:
+                 # A pergunta já foi carregada via joinedload
+                 pergunta = resposta.pergunta
+                 if pergunta and pergunta.ativo and pergunta.topico.ativo:
+                      peso = pergunta.peso or 1
+                      total_pontos_possiveis += peso # Adiciona o peso da pergunta aos pontos possíveis
+                      
+                      # Verifica se a resposta tem pontos calculados
+                      if resposta.pontos is not None:
+                           pontos_obtidos_calc += resposta.pontos # Usa os pontos já calculados ao salvar a resposta
+                      # Adicionar lógica alternativa aqui se 'resposta.pontos' não for confiável
+                      # Ex: buscar a OpcaoPergunta pelo texto da resposta e usar op.valor * peso
+
+            aplicacao.pontos_obtidos = pontos_obtidos_calc
+            aplicacao.pontos_totais = total_pontos_possiveis # Salva o total de pontos possível
+
+            if total_pontos_possiveis > 0:
+                # Usa modo_configuracao e base_calculo do questionário
+                base = aplicacao.questionario.base_calculo or 100
                 if aplicacao.questionario.modo_configuracao == 'percentual':
-                    aplicacao.nota_final = (pontos_obtidos / total_pontos) * 100
-                else:  # pontos
-                    aplicacao.nota_final = pontos_obtidos
-                    
-                aplicacao.nota_final = round(aplicacao.nota_final, aplicacao.questionario.casas_decimais)
-        
-        # Finalizar aplicação
+                     aplicacao.nota_final = (pontos_obtidos_calc / total_pontos_possiveis) * base # Calcula como % da base
+                else: # modo 'pontos'
+                    aplicacao.nota_final = pontos_obtidos_calc # Nota final é a soma dos pontos
+
+                casas_dec = aplicacao.questionario.casas_decimais
+                if casas_dec is not None and casas_dec >= 0:
+                     aplicacao.nota_final = round(aplicacao.nota_final, casas_dec)
+            else:
+                 aplicacao.nota_final = 0 # Evita divisão por zero se não houver perguntas pontuáveis
+
+
+        # Finalizar aplicação (código original)
         aplicacao.data_fim = datetime.now()
         aplicacao.status = StatusAplicacao.FINALIZADA
         aplicacao.observacoes_finais = request.form.get('observacoes_finais', '')
-        
+
         db.session.commit()
-        
-        log_acao(f"Finalizou aplicação: {aplicacao.questionario.nome}", None, "AplicacaoQuestionario", id)
+
+        log_acao(f"Finalizou aplicação: {aplicacao.questionario.nome}", {"nota": aplicacao.nota_final}, "AplicacaoQuestionario", id)
         flash("Aplicação finalizada com sucesso!", "success")
-        
+
         return redirect(url_for('cli.visualizar_aplicacao', id=id))
-        
+
     except Exception as e:
         db.session.rollback()
+        current_app.logger.error(f"Erro ao finalizar aplicação {id}: {e}", exc_info=True) # Log com traceback
         flash(f"Erro ao finalizar aplicação: {str(e)}", "danger")
+        # Tenta redirecionar de volta para a resposta, se possível
         return redirect(url_for('cli.responder_aplicacao', id=id))
 
 @cli_bp.route('/aplicacao/<int:id>')

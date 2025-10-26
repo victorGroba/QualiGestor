@@ -38,6 +38,7 @@
 
     {# Loop pelos Tópicos #}
     {% for topico in topicos %}
+    {% set topico_loop = loop %} {# <--- CORREÇÃO 1: Variável do loop pai salva #}
     {# Verifica se o tópico tem perguntas ativas associadas antes de renderizar #}
     {% set perguntas_ativas_do_topico = perguntas_por_topico.get(topico.id, []) %}
     {% if perguntas_ativas_do_topico %}
@@ -58,7 +59,8 @@
             <div class="mb-4 pb-3 border-bottom js-pergunta" id="{{ pergunta_block_id }}" data-pergunta-id="{{ p.id }}">
                 {# Label da Pergunta #}
                 <label class="form-label d-block fw-bold mb-2">
-                    {{ loop.parent.loop.index }}.{{ loop.index }}. {{ p.texto | safe }} {# Numeração Tópico.Pergunta #}
+                    {# <--- CORREÇÃO 2: Usando a variável salva 'topico_loop' #}
+                    {{ topico_loop.index }}.{{ loop.index }}. {{ p.texto | safe }} {# Numeração Tópico.Pergunta #}
                     {# Badges informativos #}
                     {% if p.obrigatoria %}<span class="badge bg-warning text-dark ms-2 small">Obrigatória</span>{% endif %}
                     {% if p.peso and p.peso != 1 %}<span class="badge bg-secondary ms-2 small">Peso {{ p.peso }}</span>{% endif %}
