@@ -10,10 +10,11 @@ from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
 # from weasyprint import HTML  # COMENTAR SE DER ERRO
 from sqlalchemy import func, extract, and_, or_, desc
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, subqueryload
 
 
 from flask import request, make_response
+from collections import defaultdict
 
 from .. import csrf
 
@@ -2463,35 +2464,30 @@ def gerar_relatorio_aplicacao(id):
             joinedload(AplicacaoQuestionario.avaliado)
         ).get_or_404(id)
 
-        # Buscar o usuário (avaliador) explicitamente
-        avaliador = Usuario.query.get(aplicacao.avaliador_id) # <-- Use avaliador_id aqui
+        # Buscar o usuário (aplicador) explicitamente
+        avaliador = Usuario.query.get(aplicacao.aplicador_id) 
         if not avaliador:
-             # Tratar caso o usuário não seja encontrado, embora não deva acontecer
-             # devido à restrição de chave estrangeira.
-             flash("Erro: Avaliador não encontrado.", "danger")
-             return redirect(url_for('cli.listar_aplicacoes'))
+            flash("Erro: Avaliador não encontrado.", "danger")
+            return redirect(url_for('cli.listar_aplicacoes'))
 
-
-        # Verificar permissões (Ajuste conforme sua lógica de permissão)
+        # Verificar permissões
         if aplicacao.avaliado.cliente_id != current_user.cliente_id and not current_user.has_role('Admin'):
-             flash("Você não tem permissão para ver esta aplicação.", "error")
-             return redirect(url_for('cli.listar_aplicacoes'))
+            flash("Você não tem permissão para ver esta aplicação.", "error")
+            return redirect(url_for('cli.listar_aplicacoes'))
 
         # --- CÁLCULO DE PONTUAÇÕES E ORGANIZAÇÃO DOS DADOS ---
 
         # 1. Buscar tópicos ativos do questionário aplicado
+        # CORREÇÃO FINAL: Removido o .options() para evitar o conflito
+        # com lazy='dynamic'. Vai funcionar, embora menos otimizado.
         topicos_ativos = Topico.query.filter_by(
             questionario_id=aplicacao.questionario_id,
             ativo=True
-        ).order_by(Topico.ordem).options(
-            # Pré-carrega as perguntas ativas para cada tópico
-            joinedload(Topico.perguntas).joinedload(Pergunta.respostas_possiveis)
-        ).all()
+        ).order_by(Topico.ordem).all()
 
         # 2. Buscar todas as respostas da aplicação e colocar num dict para acesso rápido
-        respostas_da_aplicacao = RespostaAplicacao.query.filter_by(aplicacao_id=id).options(
-            joinedload(RespostaAplicacao.resposta), # Carrega a RespostaPossivel associada
-            joinedload(RespostaAplicacao.pergunta)  # Carrega a Pergunta associada
+        respostas_da_aplicacao = RespostaPergunta.query.filter_by(aplicacao_id=id).options(
+            joinedload(RespostaPergunta.pergunta)  # Carrega a Pergunta associada
         ).all()
         respostas_dict = {r.pergunta_id: r for r in respostas_da_aplicacao}
 
@@ -2506,7 +2502,7 @@ def gerar_relatorio_aplicacao(id):
             pontos_obtidos_topico = 0.0
             pontos_maximos_topico = 0.0
 
-            # Filtra apenas as perguntas ativas já carregadas
+            # (O SQLAlchemy fará uma consulta por tópico aqui, o que é OK)
             perguntas_ativas_do_topico = [p for p in topico.perguntas if p.ativo]
 
             for pergunta in perguntas_ativas_do_topico:
@@ -2518,16 +2514,12 @@ def gerar_relatorio_aplicacao(id):
                 # Verificar se há resposta para esta pergunta
                 resposta_obj = respostas_dict.get(pergunta.id)
                 if resposta_obj:
-                     # Adiciona a resposta à lista do tópico correspondente
-                     respostas_por_topico[topico].append(resposta_obj)
+                    # Adiciona a resposta à lista do tópico correspondente
+                    respostas_por_topico[topico].append(resposta_obj)
 
-                     # Soma os pontos obtidos
-                     if resposta_obj.pontos is not None:
-                         pontos_obtidos_topico += float(resposta_obj.pontos)
-                # else: # Opcional: Adicionar perguntas não respondidas se necessário
-                #     # Criar um objeto 'vazio' ou marcador para perguntas sem resposta
-                #     pass
-
+                    # Soma os pontos obtidos
+                    if resposta_obj.pontos is not None:
+                        pontos_obtidos_topico += float(resposta_obj.pontos)
 
             # Armazenar scores do tópico
             percentual_topico = (pontos_obtidos_topico / pontos_maximos_topico * 100.0) if pontos_maximos_topico > 0 else 0.0
@@ -2546,21 +2538,19 @@ def gerar_relatorio_aplicacao(id):
 
         # --- FIM DO CÁLCULO ---
 
-        # Gerar QR Code (seu código existente)
         qr_code_url = None
-        # ... (seu código para gerar QR Code, se ainda for necessário no PDF) ...
-        # Se não for usar QR Code no PDF, pode remover esta parte.
+        # ... (seu código para gerar QR Code) ...
 
         # Renderizar template HTML com TODAS as variáveis necessárias
         html_content = render_template_safe(
             'cli/relatorio_aplicacao.html',
             aplicacao=aplicacao,
-            avaliador=avaliador, # Passa o objeto do usuário avaliador
-            respostas_por_topico=respostas_por_topico, # Dicionário {topico_obj: [resposta_obj, ...]}
-            scores_por_topico=scores_por_topico,       # Dicionário {topico_id: {'score_obtido': x, 'score_maximo': y, 'score_percent': z}}
-            nota_final=nota_final,                 # Nota final calculada
+            avaliador=avaliador,
+            respostas_por_topico=respostas_por_topico,
+            scores_por_topico=scores_por_topico,
+            nota_final=nota_final,
             data_geracao=datetime.now(),
-            qr_code_url=qr_code_url # Passa None se não gerar QR Code
+            qr_code_url=qr_code_url
         )
 
         # Gerar PDF usando função segura

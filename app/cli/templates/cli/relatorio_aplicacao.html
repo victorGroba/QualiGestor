@@ -1,454 +1,478 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Relatório - {{ aplicacao.questionario.titulo }}</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Relatório - {{ aplicacao.questionario.nome }}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
 
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    :root {
+      --primary-blue: #004E7C;
+      --secondary-blue: #0073AA;
+      --light-bg: #F5F6FA;
+      --border-color: #D9E2EC;
+      --text-dark: #1a1a1a;
+      --text-light: #555;
+      --success-green: #27AE60;
+      --danger-red: #E74C3C;
+      --neutral-gray: #7a7a7a;
+      --warning-yellow: #FFC107;
+    }
 
-        :root {
-            --primary-blue: #004E7C;
-            --light-blue: #5BA4CF;
-            --accent-blue: #0066A1;
-            --text-dark: #1a1a1a;
-            --text-medium: #4a5568;
-            --border-color: #e2e8f0;
-            --bg-light: #f8fafc;
-        }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+      color-adjust: exact;
+    }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-print-color-adjust: exact;
-            /* Força impressão de backgrounds no WeasyPrint/Chrome */
-            print-color-adjust: exact;
-        }
+    html, body {
+      font-family: 'Roboto', sans-serif;
+      background: white;
+      color: var(--text-dark);
+      line-height: 1.4;
+      font-size: 12px;
+      height: 100%;
+    }
 
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: #ffffff;
-            /* Fundo branco para PDF */
-            line-height: 1.6;
-            color: var(--text-dark);
-        }
+    @page {
+      size: A4;
+      margin: 0;
+      padding: 0;
+      @bottom-center {
+        content: element(footer);
+      }
+    }
 
-        /* Regra de página para WeasyPrint */
-        @page {
-            size: A4;
-            margin: 1.5cm 1cm;
-            /* Margens da página */
+    /* ---- HEADER ---- */
+    .header {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 20px;
+      background: linear-gradient(135deg, var(--primary-blue) 0%, var(--secondary-blue) 100%);
+      color: white;
+      padding: 12px 1.2cm;
+      margin: 0;
+      border-bottom: 4px solid var(--warning-yellow);
+      width: 100%;
+      box-sizing: border-box;
+    }
 
-            @bottom-right {
-                content: "Página " counter(page) " de " counter(pages);
-                font-family: 'Inter', sans-serif;
-                font-size: 10px;
-                color: #777;
-            }
-        }
+    main {
+      padding: 1.2cm 1.2cm 0 1.2cm;
+    }
 
-        .checklist-container {
-            width: 100%;
-            margin: 0 auto;
-            background: white;
-            border-radius: 16px;
-            overflow: hidden;
-            border: 1px solid var(--border-color);
-        }
+    .header-logo {
+      height: 50px;
+      filter: brightness(0) invert(1);
+    }
 
-        .report-logo {
-            padding: 20px 40px;
-            text-align: left;
-            /* Alinha a logo à esquerda */
-            border-bottom: 1px solid var(--border-color);
-            background-color: #f8f9fa;
-            /* Um fundo leve para a seção da logo */
-        }
+    .header-title {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
 
-        .report-logo img {
-            height: 60px;
-            /* Ajuste a altura conforme necessário */
-            width: auto;
-        }
+    .header-title h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: white;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      line-height: 1.1;
+    }
 
+    .header-title p {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.9);
+      font-weight: 500;
+    }
 
-        .header {
-            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--accent-blue) 50%, var(--light-blue) 100%);
-            color: white;
-            padding: 40px;
-            text-align: center;
-            position: relative;
-        }
+    .header-date {
+      text-align: right;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.95);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      white-space: nowrap;
+    }
 
-        .header::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(45deg, rgba(255, 255, 255, 0.05) 25%, transparent 25%, transparent 75%, rgba(255, 255, 255, 0.05) 75%, rgba(255, 255, 255, 0.05)),
-                linear-gradient(45deg, rgba(255, 255, 255, 0.05) 25%, transparent 25%, transparent 75%, rgba(255, 255, 255, 0.05) 75%, rgba(255, 255, 255, 0.05));
-            background-size: 20px 20px;
-            background-position: 0 0, 10px 10px;
-            opacity: 0.3;
-        }
+    .header-date .label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      opacity: 0.85;
+    }
 
-        .header h1 {
-            font-size: 24px;
-            font-weight: 700;
-            margin: 0;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            position: relative;
-            z-index: 1;
-        }
+    .header-date .value {
+      font-weight: 700;
+      font-size: 13px;
+      color: white;
+    }
 
-        .checkmark-icon {
-            width: 70px;
-            height: 70px;
-            background: white;
-            border-radius: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 25px auto 0;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-            position: relative;
-            z-index: 1;
-        }
+    /* ---- INFO GRID COMPACTO ---- */
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 6px;
+      margin-bottom: 12px;
+    }
 
-        .checkmark-icon svg {
-            width: 40px;
-            height: 40px;
-            fill: var(--light-blue);
-        }
+    .info-item {
+      background: var(--primary-blue);
+      color: white;
+      padding: 6px 8px;
+      border-radius: 3px;
+      font-size: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
 
-        .metadata-section {
-            padding: 30px 40px;
-            background: linear-gradient(to bottom, #f8fafc, white);
-            border-bottom: 1px solid var(--border-color);
-        }
+    .info-item strong {
+      display: block;
+      font-weight: 700;
+      font-size: 9px;
+      opacity: 0.9;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
 
-        .metadata-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-        }
+    .info-item span {
+      font-weight: 600;
+      font-size: 11px;
+    }
 
-        .metadata-item {
-            display: flex;
-            margin-bottom: 12px;
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-            border: 1px solid var(--border-color);
-        }
+    /* ---- TÍTULO RESULTADOS ---- */
+    .results-title {
+      text-align: center;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--primary-blue);
+      border-bottom: 2px solid var(--primary-blue);
+      margin: 12px 0;
+      padding-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
 
-        .metadata-label {
-            background: linear-gradient(135deg, var(--primary-blue), var(--accent-blue));
-            color: white;
-            padding: 10px 15px;
-            font-weight: 600;
-            font-size: 11px;
-            min-width: 120px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            display: flex;
-            align-items: center;
-        }
+    /* ---- TÓPICOS ---- */
+    .topic {
+      margin-bottom: 8px;
+      border-radius: 4px;
+      overflow: hidden;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      page-break-inside: avoid;
+    }
 
-        .metadata-value {
-            padding: 10px 15px;
-            color: var(--text-dark);
-            flex: 1;
-            background: white;
-            font-weight: 500;
-            font-size: 13px;
-            display: flex;
-            align-items: center;
-        }
+    .topic-header {
+      background: linear-gradient(90deg, var(--primary-blue), var(--secondary-blue));
+      color: white;
+      padding: 6px 10px;
+      font-weight: 700;
+      font-size: 11px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      letter-spacing: 0.3px;
+    }
 
-        .results-section {
-            padding: 40px;
-        }
+    .topic-title {
+      flex: 1;
+    }
 
-        .results-title {
-            text-align: center;
-            font-size: 24px;
-            font-weight: 700;
-            color: var(--primary-blue);
-            margin-bottom: 30px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            position: relative;
-            padding-bottom: 15px;
-        }
+    .topic-score {
+      background: rgba(255, 255, 255, 0.25);
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 700;
+      min-width: 40px;
+      text-align: center;
+    }
 
-        .results-title::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 80px;
-            height: 4px;
-            background: linear-gradient(90deg, var(--light-blue), var(--primary-blue));
-            border-radius: 2px;
-        }
+    /* ---- PERGUNTAS COMPACTAS ---- */
+    .question {
+      border-bottom: 1px solid var(--border-color);
+      padding: 6px 10px;
+      background: #fff;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+      page-break-inside: avoid;
+      font-size: 11px;
+    }
 
-        .question-block {
-            margin-bottom: 25px;
-            padding: 20px;
-            background: white;
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            page-break-inside: avoid;
-        }
+    .question:last-child {
+      border-bottom: none;
+    }
 
-        .question-block:last-child {
-            margin-bottom: 0;
-        }
+    .question-text {
+      flex: 1;
+      line-height: 1.35;
+      color: var(--text-dark);
+    }
 
-        .question-number {
-            background: linear-gradient(135deg, var(--light-blue), var(--primary-blue));
-            color: white;
-            padding: 8px 16px;
-            display: inline-block;
-            font-weight: 700;
-            margin-bottom: 12px;
-            border-radius: 8px;
-            font-size: 14px;
-        }
+    .question-number {
+      font-weight: 700;
+      color: var(--primary-blue);
+      white-space: nowrap;
+      margin-right: 4px;
+    }
 
-        .question-title {
-            color: var(--primary-blue);
-            font-weight: 600;
-            font-size: 14px;
-            margin-bottom: 16px;
-            line-height: 1.5;
-        }
+    .answer {
+      border-radius: 12px;
+      padding: 3px 10px;
+      font-size: 10px;
+      font-weight: 700;
+      color: #fff;
+      background: var(--secondary-blue);
+      min-width: 35px;
+      text-align: center;
+      white-space: nowrap;
+      flex-shrink: 0;
+      text-transform: uppercase;
+      letter-spacing: 0.2px;
+    }
 
-        .question-text {
-            color: var(--text-medium);
-            font-size: 13px;
-            line-height: 1.6;
-            margin-bottom: 10px;
-        }
+    .answer.nao {
+      background: var(--danger-red);
+    }
 
-        .sub-question {
-            padding: 15px;
-            margin-bottom: 12px;
-            background: var(--bg-light);
-            border-radius: 8px;
-            border-left: 3px solid var(--light-blue);
-            page-break-inside: avoid;
-        }
+    .answer.na {
+      background: var(--neutral-gray);
+    }
 
-        .sub-question:last-child {
-            margin-bottom: 0;
-        }
+    .answer.parcial {
+      background: var(--warning-yellow);
+      color: #333;
+    }
 
-        .observation {
-            font-style: italic;
-            color: #64748b;
-            font-size: 12px;
-            padding: 8px 15px;
-            margin-top: 8px;
-            background: #fff8e1;
-            border-radius: 6px;
-            border-left: 3px solid #ffc107;
-        }
+    /* ---- OBSERVAÇÕES COMPACTAS ---- */
+    .observation {
+      font-size: 10px;
+      color: #664D00;
+      background: #FFFBEA;
+      border-left: 2px solid var(--warning-yellow);
+      padding: 3px 6px;
+      margin: 3px 10px 0;
+      border-radius: 2px;
+      line-height: 1.3;
+      font-style: italic;
+    }
 
-        .answer-photo {
-            margin-top: 10px;
-            text-align: center;
-            /* Centraliza a imagem e o texto */
-            page-break-inside: avoid;
-        }
+    /* ---- FOTOS/IMAGENS ---- */
+    .photo-container {
+      margin: 8px 10px;
+      padding: 8px;
+      background: var(--light-bg);
+      border: 1px dashed var(--border-color);
+      border-radius: 4px;
+      text-align: center;
+      page-break-inside: avoid;
+    }
 
-        .answer-photo img {
-            max-width: 80%;
-            /* Ajusta a largura máxima da imagem */
-            max-height: 300px;
-            /* Limita a altura da imagem */
-            height: auto;
-            border-radius: 8px;
-            border: 1px solid var(--border-color);
-            margin-bottom: 5px;
-            /* Espaço entre imagem e texto */
-        }
+    .photo-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-light);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
 
-        .photo-caption {
-            font-size: 11px;
-            color: var(--text-medium);
-            font-style: italic;
-        }
+    .photo-image {
+      max-width: 100%;
+      max-height: 120px;
+      border-radius: 3px;
+      border: 1px solid var(--border-color);
+    }
 
-        .answer-section {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 12px;
-        }
+    /* ---- RODAPÉ FIXO ---- */
+    .footer {
+      position: running(footer);
+      background: linear-gradient(90deg, var(--primary-blue), var(--secondary-blue));
+      color: white;
+      padding: 8px 1.2cm;
+      font-size: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 4px solid var(--warning-yellow);
+      width: 100%;
+      height: 28px;
+      margin-bottom: 0;
+    }
 
-        .answer {
-            background: linear-gradient(135deg, #e6f4ff, #f0f9ff);
-            padding: 8px 20px;
-            border-radius: 8px;
-            font-weight: 600;
-            color: var(--primary-blue);
-            border: 2px solid var(--light-blue);
-            font-size: 13px;
-            text-align: center;
-            min-width: 80px;
-            /* Garante uma largura mínima */
-        }
+    .footer-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-size: 11px;
+    }
 
-        .answer.nao {
-            background: linear-gradient(135deg, #fff0f0, #fff8f8);
-            color: #c0392b;
-            border-color: #e74c3c;
-        }
+    .footer-logo {
+      height: 14px;
+      filter: brightness(0) invert(1);
+    }
 
-        .answer.na {
-            background: linear-gradient(135deg, #f0f0f0, #fafafa);
-            color: #777;
-            border-color: #ccc;
-        }
+    .footer-center {
+      flex: 1;
+      text-align: center;
+      font-size: 9px;
+      color: rgba(255,255,255,0.95);
+      font-weight: 500;
+    }
 
-        .footer {
-            /* O rodapé agora é controlado pelo @page, esta seção pode ser removida ou simplificada */
-            /* Se precisar de um último elemento visual, pode manter */
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid var(--border-color);
-            text-align: center;
-            font-size: 10px;
-            color: #999;
-            page-break-before: auto;
-            /* Tenta não iniciar uma página só para o footer */
-        }
+    .footer-right {
+      text-align: right;
+      font-weight: 700;
+      color: white;
+      font-size: 11px;
+    }
 
-        /* Oculta o número de página estático, pois o @page cuidará disso */
-        .page-number {
-            display: none;
-        }
-    </style>
+    /* ---- IMPRESSÃO ---- */
+    @media print {
+      body {
+        margin: 0;
+        padding: 0;
+        height: auto;
+      }
+
+      main {
+        padding: 1.5cm 1.2cm 0 1.2cm;
+      }
+
+      .footer {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100vw;
+        height: 28px;
+        margin: 0;
+        padding: 8px 1.2cm;
+      }
+
+      .topic {
+        page-break-inside: avoid;
+      }
+
+      .question {
+        page-break-inside: avoid;
+      }
+
+      .photo-container {
+        page-break-inside: avoid;
+      }
+    }
+  </style>
 </head>
 
 <body>
-    <div class="checklist-container">
-        <div class="report-logo">
-            <img src="/static/img/logo.jpg" alt="QualiGestor Logo">
-        </div>
-
-        <div class="header">
-            <h1>
-                {{ aplicacao.questionario.titulo }}<br>
-                Relatório de Monitoramento {{ aplicacao.data_inicio.strftime('%Y') }}
-            </h1>
-            <div class="checkmark-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
-                </svg>
-            </div>
-        </div>
-
-        <div class="metadata-section">
-            <div class="metadata-row">
-                <div>
-                    <div class="metadata-item">
-                        <div class="metadata-label">Data</div>
-                        <div class="metadata-value">{{ aplicacao.data_inicio.strftime('%d/%m/%Y %H:%M') }}</div>
-                    </div>
-                    <div class="metadata-item">
-                        <div class="metadata-label">Avaliador</div>
-                        <div class="metadata-value">{{ avaliador.nome if avaliador else 'N/A' }}</div>
-                    </div>
-                    <div class="metadata-item">
-                        <div class="metadata-label">Avaliado</div>
-                        <div class="metadata-value">{{ aplicacao.avaliado.nome }}</div>
-                    </div>
-                </div>
-                <div>
-                    <div class="metadata-item">
-                        <div class="metadata-label">Início</div>
-                        <div class="metadata-value">{{ aplicacao.data_inicio.strftime('%d/%m/%Y %H:%M') }}</div>
-                    </div>
-                    <div class="metadata-item">
-                        <div class="metadata-label">Fim</div>
-                        <div class="metadata-value">
-                            {% if aplicacao.data_fim %}
-                            {{ aplicacao.data_fim.strftime('%d/%m/%Y %H:%M') }}
-                            {% else %}
-                            Em andamento
-                            {% endif %}
-                        </div>
-                    </div>
-                    <div class="metadata-item">
-                        <div class="metadata-label">Nota</div>
-                        <div class="metadata-value">{{ nota_final | round(2) }}%</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="results-section">
-            <h2 class="results-title">Resultados Detalhados</h2>
-
-            {% for topico, respostas in respostas_por_topico.items() %}
-            {% set score_info = scores_por_topico[topico.id] %}
-            <div class="question-block">
-                <div class="question-number">{{ topico.numero }}</div>
-                <div class="question-title">
-                    {{ topico.nome }}
-                    ({{ score_info.score_obtido | round(2) }} / {{ score_info.score_maximo | round(2) }} -> {{
-                    score_info.score_percent | round(2) }} %)
-                </div>
-
-                {% for resposta in respostas %}
-                <div class="sub-question">
-                    <div class="question-text">
-                        {{ resposta.pergunta.numero }} - {{ resposta.pergunta.texto_pergunta }}
-                    </div>
-
-                    {% if resposta.observacao %}
-                    <div class="observation">Observação: {{ resposta.observacao }}</div>
-                    {% endif %}
-
-                    {% if resposta.caminho_foto %}
-                    <div class="answer-photo">
-                        <img src="{{ url_for('static', filename='uploads/' + resposta.caminho_foto.split('/')[-1]) }}"
-                            alt="Foto da resposta">
-                        <div class="photo-caption">Evidência fotográfica</div>
-                    </div>
-                    {% endif %}
-
-                    <div class="answer-section">
-                        <div></div> {% set resposta_val = resposta.resposta.value %}
-                        <div class="answer 
-                            {% if resposta_val == 'Não' %}nao{% endif %}
-                            {% if resposta_val == 'N/A' %}na{% endif %}
-                        ">
-                            {{ resposta_val }}
-                        </div>
-                    </div>
-                </div>
-                {% endfor %}
-
-            </div>
-            {% endfor %}
-
-        </div>
-
-        <div class="footer">
-            Relatório gerado pelo QualiGestor em {{ data_geracao.strftime('%d/%m/%Y %H:%M') }}
-        </div>
+  <!-- HEADER -->
+  <div class="header">
+    <img src="/static/img/logo.jpg" alt="Logo" class="header-logo">
+    <div class="header-title">
+      <h1>{{ aplicacao.questionario.nome }}</h1>
+      <p>Relatório de Monitoramento {{ aplicacao.data_inicio.strftime('%Y') }}</p>
     </div>
-</body>
+    <div class="header-date">
+      <div class="label">Gerado em:</div>
+      <div class="value">{{ aplicacao.data_inicio.strftime('%d/%m/%Y %H:%M') }}</div>
+    </div>
+  </div>
 
+  <main>
+    <!-- INFO GRID COMPACTO -->
+    <div class="info-grid">
+      <div class="info-item">
+        <strong>Data</strong>
+        <span>{{ aplicacao.data_inicio.strftime('%d/%m/%Y') }}</span>
+      </div>
+      <div class="info-item">
+        <strong>Início</strong>
+        <span>{{ aplicacao.data_inicio.strftime('%H:%M') }}</span>
+      </div>
+      <div class="info-item">
+        <strong>Fim</strong>
+        <span>{% if aplicacao.data_fim %}{{ aplicacao.data_fim.strftime('%H:%M') }}{% else %}—{% endif %}</span>
+      </div>
+      <div class="info-item">
+        <strong>Avaliador</strong>
+        <span>{{ avaliador.nome if avaliador else 'N/A' }}</span>
+      </div>
+      <div class="info-item">
+        <strong>Avaliado</strong>
+        <span>{{ aplicacao.avaliado.nome }}</span>
+      </div>
+      <div class="info-item">
+        <strong>Nota</strong>
+        <span>{{ nota_final | round(2) }}%</span>
+      </div>
+    </div>
+
+    <!-- RESULTADOS -->
+    <h2 class="results-title">RESULTADOS</h2>
+
+    <!-- TÓPICOS E PERGUNTAS -->
+    {% for topico, respostas in respostas_por_topico.items() %}
+    {% set score_info = scores_por_topico[topico.id] %}
+    <div class="topic">
+      <div class="topic-header">
+        <div class="topic-title">{{ topico.ordem }}. {{ topico.nome }}</div>
+        <div class="topic-score">{{ score_info.score_percent | round(2) }}%</div>
+      </div>
+
+      {% for resposta in respostas %}
+      <div class="question">
+        <div class="question-text">
+          <span class="question-number">{{ resposta.pergunta.ordem }}.</span>
+          {{ resposta.pergunta.texto }}
+        </div>
+        <div class="answer 
+          {% if resposta.resposta == 'Não' %}nao{% elif resposta.resposta == 'N/A' %}na{% elif resposta.resposta == 'Parcial' %}parcial{% endif %}">
+          {{ resposta.resposta }}
+        </div>
+      </div>
+
+      {% if resposta.observacao %}
+      <div class="observation">{{ resposta.observacao }}</div>
+      {% endif %}
+
+      <!-- FOTOS/IMAGENS -->
+      {% if resposta.foto_url %}
+      <div class="photo-container">
+        <div class="photo-label">📷 Evidência Fotográfica</div>
+        <img src="{{ resposta.foto_url }}" alt="Foto - Pergunta {{ resposta.pergunta.ordem }}" class="photo-image">
+      </div>
+      {% endif %}
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </main>
+
+  <!-- RODAPÉ FIXO -->
+  <div class="footer">
+    <div class="footer-left">
+      <img src="/static/img/logo.jpg" alt="Logo" class="footer-logo">
+      <span>QUALIGESTOR</span>
+    </div>
+    <div class="footer-center">
+      Documentário gerado por Qualigestor® | Material Confidencial | Versão 1.0
+    </div>
+    <div class="footer-right">
+      {{ data_geracao.strftime('%d/%m/%Y %H:%M') }}
+    </div>
+  </div>
+</body>
 </html>

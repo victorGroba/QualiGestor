@@ -2,7 +2,7 @@
 2025-10-26 15:58:30,099 INFO: QualiGestor startup [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\__init__.py:256]
 2025-10-26 15:58:46,641 INFO: --- Rota /salvar-resposta chamada para app ID: 14 --- [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2670]
 2025-10-26 15:58:46,643 INFO: [Salvar Resposta 14] Dados recebidos: Pergunta ID=8, Resposta='Sim', Observacao='' [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2688]
-2025-10-26 15:58:46,645 INFO: [Salvar Resposta 14] Pergunta encontrada: ID=8, Texto='Portas encontram-se em bom estado de conservação (...', Tipo=TipoResposta.MULTIPLA_ESCOLHA [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2699]
+2025-10-26 15:58:46,645 INFO: [Salvar Resposta 14] Pergunta encontrada: ID=8, Texto='Portas encontram-se em bom estado de conservaï¿½ï¿½o (...', Tipo=TipoResposta.MULTIPLA_ESCOLHA [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2699]
 2025-10-26 15:58:46,645 INFO: [Salvar Resposta 14] Tipo normalizado: MULTIPLA_ESCOLHA [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2705]
 2025-10-26 15:58:46,648 INFO: [Salvar Resposta 14] Criando nova entrada RespostaPergunta. [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2713]
 2025-10-26 15:58:46,648 INFO: [Salvar Resposta 14] Buscando OpcaoPergunta para pergunta_id=8 e texto='Sim' [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2728]
@@ -14,18 +14,18 @@
 2025-10-26 15:58:46,758 INFO: --- Rota /salvar-resposta finalizada para app ID: 14 --- [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2782]
 2025-10-26 15:58:48,884 INFO: --- Rota /salvar-resposta chamada para app ID: 14 --- [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2670]
 2025-10-26 15:58:48,886 INFO: [Salvar Resposta 14] Dados recebidos: Pergunta ID=9, Resposta='', Observacao='' [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2688]
-2025-10-26 15:58:48,886 INFO: [Salvar Resposta 14] Pergunta encontrada: ID=9, Texto='Teto, forro e paredes de cor clara, de fácil limpe...', Tipo=TipoResposta.SIM_NAO_NA [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2699]
+2025-10-26 15:58:48,886 INFO: [Salvar Resposta 14] Pergunta encontrada: ID=9, Texto='Teto, forro e paredes de cor clara, de fï¿½cil limpe...', Tipo=TipoResposta.SIM_NAO_NA [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2699]
 2025-10-26 15:58:48,886 INFO: [Salvar Resposta 14] Tipo normalizado: SIM_NAO_NA [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2705]
 2025-10-26 15:58:48,887 INFO: [Salvar Resposta 14] Criando nova entrada RespostaPergunta. [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2713]
 2025-10-26 15:58:48,887 INFO: [Salvar Resposta 14] Buscando OpcaoPergunta para pergunta_id=9 e texto='' [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2728]
-2025-10-26 15:58:48,888 WARNING: [Salvar Resposta 14] Nenhuma OpcaoPergunta encontrada para pergunta_id=9 com texto=''. Pontos serão 0. [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2743]
+2025-10-26 15:58:48,888 WARNING: [Salvar Resposta 14] Nenhuma OpcaoPergunta encontrada para pergunta_id=9 com texto=''. Pontos serï¿½o 0. [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2743]
 2025-10-26 15:58:48,888 INFO: [Salvar Resposta 14] Preparando para salvar no DB: Resposta='', Obs='', Pontos=0 [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2762]
 2025-10-26 15:58:48,890 INFO: [Salvar Resposta 14] Flush bem-sucedido. ID da Resposta (novo ou existente): 56 [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2766]
 2025-10-26 15:58:48,986 INFO: [Salvar Resposta 14] Commit bem-sucedido! [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2768]
 2025-10-26 15:58:48,988 INFO: --- Rota /salvar-resposta finalizada para app ID: 14 --- [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2782]
 2025-10-26 15:58:59,212 INFO: --- Rota /salvar-resposta chamada para app ID: 20 --- [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2670]
 2025-10-26 15:58:59,214 INFO: [Salvar Resposta 20] Dados recebidos: Pergunta ID=34, Resposta='Sim', Observacao='' [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2688]
-2025-10-26 15:58:59,215 INFO: [Salvar Resposta 20] Pergunta encontrada: ID=34, Texto='É flamenguista?...', Tipo=TipoResposta.SIM_NAO_NA [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2699]
+2025-10-26 15:58:59,215 INFO: [Salvar Resposta 20] Pergunta encontrada: ID=34, Texto='ï¿½ flamenguista?...', Tipo=TipoResposta.SIM_NAO_NA [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2699]
 2025-10-26 15:58:59,215 INFO: [Salvar Resposta 20] Tipo normalizado: SIM_NAO_NA [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2705]
 2025-10-26 15:58:59,217 INFO: [Salvar Resposta 20] Criando nova entrada RespostaPergunta. [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2713]
 2025-10-26 15:58:59,217 INFO: [Salvar Resposta 20] Buscando OpcaoPergunta para pergunta_id=34 e texto='Sim' [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2728]
@@ -48,14 +48,14 @@
 2025-10-26 15:59:00,089 INFO: [Salvar Resposta 20] Commit bem-sucedido! [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2768]
 2025-10-26 15:59:00,090 INFO: --- Rota /salvar-resposta finalizada para app ID: 20 --- [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2782]
 2025-10-26 15:59:01,217 INFO: --- Rota /salvar-resposta chamada para app ID: 20 --- [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2670]
-2025-10-26 15:59:01,218 INFO: [Salvar Resposta 20] Dados recebidos: Pergunta ID=36, Resposta='Não', Observacao='' [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2688]
-2025-10-26 15:59:01,219 INFO: [Salvar Resposta 20] Pergunta encontrada: ID=36, Texto='É trabalhador?...', Tipo=TipoResposta.SIM_NAO_NA [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2699]
+2025-10-26 15:59:01,218 INFO: [Salvar Resposta 20] Dados recebidos: Pergunta ID=36, Resposta='Nï¿½o', Observacao='' [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2688]
+2025-10-26 15:59:01,219 INFO: [Salvar Resposta 20] Pergunta encontrada: ID=36, Texto='ï¿½ trabalhador?...', Tipo=TipoResposta.SIM_NAO_NA [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2699]
 2025-10-26 15:59:01,219 INFO: [Salvar Resposta 20] Tipo normalizado: SIM_NAO_NA [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2705]
 2025-10-26 15:59:01,220 INFO: [Salvar Resposta 20] Criando nova entrada RespostaPergunta. [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2713]
-2025-10-26 15:59:01,220 INFO: [Salvar Resposta 20] Buscando OpcaoPergunta para pergunta_id=36 e texto='Não' [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2728]
-2025-10-26 15:59:01,221 INFO: [Salvar Resposta 20] OpcaoPergunta encontrada: ID=24, Valor=0.0, Texto='Não' [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2734]
+2025-10-26 15:59:01,220 INFO: [Salvar Resposta 20] Buscando OpcaoPergunta para pergunta_id=36 e texto='Nï¿½o' [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2728]
+2025-10-26 15:59:01,221 INFO: [Salvar Resposta 20] OpcaoPergunta encontrada: ID=24, Valor=0.0, Texto='Nï¿½o' [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2734]
 2025-10-26 15:59:01,221 INFO: [Salvar Resposta 20] Pontos calculados: 0.0 (valor) * 1 (peso) = 0.0 [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2738]
-2025-10-26 15:59:01,221 INFO: [Salvar Resposta 20] Preparando para salvar no DB: Resposta='Não', Obs='', Pontos=0.0 [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2762]
+2025-10-26 15:59:01,221 INFO: [Salvar Resposta 20] Preparando para salvar no DB: Resposta='Nï¿½o', Obs='', Pontos=0.0 [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2762]
 2025-10-26 15:59:01,314 INFO: [Salvar Resposta 20] Commit bem-sucedido! [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2768]
 2025-10-26 16:10:22,916 INFO: --- Rota /salvar-resposta chamada para app ID: 21 --- [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2670]
 2025-10-26 16:10:22,918 INFO: [Salvar Resposta 21] Dados recebidos: Pergunta ID=34, Resposta='Sim', Observacao='' [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2688]
@@ -197,3 +197,738 @@ Traceback (most recent call last):
     avaliador = Usuario.query.get(aplicacao.avaliador_id) # <-- Use avaliador_id aqui
                                   ^^^^^^^^^^^^^^^^^^^^^^
 AttributeError: 'AplicacaoQuestionario' object has no attribute 'avaliador_id'. Did you mean: 'avaliado_id'?
+2025-10-27 07:25:51,331 ERROR: Erro DETALHADO em gerar_relatorio_aplicacao (ID: 21): type object 'Pergunta' has no attribute 'respostas_possiveis' [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2571]
+Traceback (most recent call last):
+  File "F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py", line 2488, in gerar_relatorio_aplicacao
+    joinedload(Topico.perguntas).joinedload(Pergunta.respostas_possiveis)
+                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: type object 'Pergunta' has no attribute 'respostas_possiveis'
+2025-10-27 07:27:47,445 ERROR: Erro DETALHADO em gerar_relatorio_aplicacao (ID: 21): 'Topico.perguntas' does not support object population - eager loading cannot be applied. [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2571]
+Traceback (most recent call last):
+  File "F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py", line 2489, in gerar_relatorio_aplicacao
+    ).all()
+      ~~~^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2704, in all
+    return self._iter().all()  # type: ignore
+           ~~~~~~~~~~^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2857, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+                                                  ~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+        params,
+        ^^^^^^^
+        execution_options={"_sa_orm_load_options": self.load_options},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2365, in execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2251, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<4 lines>...
+        conn,
+        ^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 309, in orm_execute_statement
+    return cls.orm_setup_cursor_result(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        session,
+        ^^^^^^^^
+    ...<4 lines>...
+        result,
+        ^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 616, in orm_setup_cursor_result
+    return loading.instances(result, querycontext)
+           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 132, in instances
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 224, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 114, in instances
+    query_entity.row_processor(context, cursor)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 2786, in row_processor
+    _instance = loading._instance_processor(
+        self,
+    ...<7 lines>...
+        polymorphic_discriminator=self._polymorphic_discriminator,
+    )
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 958, in _instance_processor
+    prop.create_row_processor(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        context, query_entity, path, mapper, result, adapter, populators
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\interfaces.py", line 1093, in create_row_processor
+    strat.create_row_processor(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        context,
+        ^^^^^^^^
+    ...<6 lines>...
+        populators,
+        ^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\strategies.py", line 2808, in create_row_processor
+    raise sa_exc.InvalidRequestError(
+    ...<2 lines>...
+    )
+sqlalchemy.exc.InvalidRequestError: 'Topico.perguntas' does not support object population - eager loading cannot be applied.
+2025-10-27 07:30:31,183 ERROR: Erro DETALHADO em gerar_relatorio_aplicacao (ID: 21): 'Topico.perguntas' does not support object population - eager loading cannot be applied. [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2571]
+Traceback (most recent call last):
+  File "F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py", line 2489, in gerar_relatorio_aplicacao
+    ).all()
+      ~~~^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2704, in all
+    return self._iter().all()  # type: ignore
+           ~~~~~~~~~~^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2857, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+                                                  ~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+        params,
+        ^^^^^^^
+        execution_options={"_sa_orm_load_options": self.load_options},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2365, in execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2251, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<4 lines>...
+        conn,
+        ^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 309, in orm_execute_statement
+    return cls.orm_setup_cursor_result(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        session,
+        ^^^^^^^^
+    ...<4 lines>...
+        result,
+        ^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 616, in orm_setup_cursor_result
+    return loading.instances(result, querycontext)
+           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 132, in instances
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 224, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 114, in instances
+    query_entity.row_processor(context, cursor)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 2786, in row_processor
+    _instance = loading._instance_processor(
+        self,
+    ...<7 lines>...
+        polymorphic_discriminator=self._polymorphic_discriminator,
+    )
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 958, in _instance_processor
+    prop.create_row_processor(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        context, query_entity, path, mapper, result, adapter, populators
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\interfaces.py", line 1093, in create_row_processor
+    strat.create_row_processor(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        context,
+        ^^^^^^^^
+    ...<6 lines>...
+        populators,
+        ^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\strategies.py", line 2011, in create_row_processor
+    raise sa_exc.InvalidRequestError(
+    ...<2 lines>...
+    )
+sqlalchemy.exc.InvalidRequestError: 'Topico.perguntas' does not support object population - eager loading cannot be applied.
+2025-10-27 07:39:52,028 ERROR: Erro detalhado em gerar_relatorio_aplicacao (ID: 21): 'Topico.perguntas' does not support object population - eager loading cannot be applied. [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2578]
+Traceback (most recent call last):
+  File "F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py", line 2492, in gerar_relatorio_aplicacao
+    .all()
+     ~~~^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2704, in all
+    return self._iter().all()  # type: ignore
+           ~~~~~~~~~~^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2857, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+                                                  ~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+        params,
+        ^^^^^^^
+        execution_options={"_sa_orm_load_options": self.load_options},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2365, in execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2251, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<4 lines>...
+        conn,
+        ^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 309, in orm_execute_statement
+    return cls.orm_setup_cursor_result(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        session,
+        ^^^^^^^^
+    ...<4 lines>...
+        result,
+        ^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 616, in orm_setup_cursor_result
+    return loading.instances(result, querycontext)
+           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 132, in instances
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 224, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 114, in instances
+    query_entity.row_processor(context, cursor)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 2786, in row_processor
+    _instance = loading._instance_processor(
+        self,
+    ...<7 lines>...
+        polymorphic_discriminator=self._polymorphic_discriminator,
+    )
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 958, in _instance_processor
+    prop.create_row_processor(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        context, query_entity, path, mapper, result, adapter, populators
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\interfaces.py", line 1093, in create_row_processor
+    strat.create_row_processor(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        context,
+        ^^^^^^^^
+    ...<6 lines>...
+        populators,
+        ^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\strategies.py", line 2011, in create_row_processor
+    raise sa_exc.InvalidRequestError(
+    ...<2 lines>...
+    )
+sqlalchemy.exc.InvalidRequestError: 'Topico.perguntas' does not support object population - eager loading cannot be applied.
+2025-10-27 07:40:23,816 ERROR: Erro DETALhado em gerar_relatorio_aplicacao (ID: 21): 'Topico.perguntas' does not support object population - eager loading cannot be applied. [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2567]
+Traceback (most recent call last):
+  File "F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py", line 2487, in gerar_relatorio_aplicacao
+    ).all()
+      ~~~^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2704, in all
+    return self._iter().all()  # type: ignore
+           ~~~~~~~~~~^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2857, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+                                                  ~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+        params,
+        ^^^^^^^
+        execution_options={"_sa_orm_load_options": self.load_options},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2365, in execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2251, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<4 lines>...
+        conn,
+        ^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 309, in orm_execute_statement
+    return cls.orm_setup_cursor_result(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        session,
+        ^^^^^^^^
+    ...<4 lines>...
+        result,
+        ^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 616, in orm_setup_cursor_result
+    return loading.instances(result, querycontext)
+           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 132, in instances
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 224, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 114, in instances
+    query_entity.row_processor(context, cursor)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 2786, in row_processor
+    _instance = loading._instance_processor(
+        self,
+    ...<7 lines>...
+        polymorphic_discriminator=self._polymorphic_discriminator,
+    )
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 958, in _instance_processor
+    prop.create_row_processor(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        context, query_entity, path, mapper, result, adapter, populators
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\interfaces.py", line 1093, in create_row_processor
+    strat.create_row_processor(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        context,
+        ^^^^^^^^
+    ...<6 lines>...
+        populators,
+        ^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\strategies.py", line 2011, in create_row_processor
+    raise sa_exc.InvalidRequestError(
+    ...<2 lines>...
+    )
+sqlalchemy.exc.InvalidRequestError: 'Topico.perguntas' does not support object population - eager loading cannot be applied.
+2025-10-27 07:40:54,061 ERROR: Erro DETALhado em gerar_relatorio_aplicacao (ID: 22): 'Topico.perguntas' does not support object population - eager loading cannot be applied. [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2567]
+Traceback (most recent call last):
+  File "F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py", line 2487, in gerar_relatorio_aplicacao
+    ).all()
+      ~~~^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2704, in all
+    return self._iter().all()  # type: ignore
+           ~~~~~~~~~~^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2857, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+                                                  ~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+        params,
+        ^^^^^^^
+        execution_options={"_sa_orm_load_options": self.load_options},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2365, in execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2251, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<4 lines>...
+        conn,
+        ^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 309, in orm_execute_statement
+    return cls.orm_setup_cursor_result(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        session,
+        ^^^^^^^^
+    ...<4 lines>...
+        result,
+        ^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 616, in orm_setup_cursor_result
+    return loading.instances(result, querycontext)
+           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 132, in instances
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 224, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 114, in instances
+    query_entity.row_processor(context, cursor)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 2786, in row_processor
+    _instance = loading._instance_processor(
+        self,
+    ...<7 lines>...
+        polymorphic_discriminator=self._polymorphic_discriminator,
+    )
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 958, in _instance_processor
+    prop.create_row_processor(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        context, query_entity, path, mapper, result, adapter, populators
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\interfaces.py", line 1093, in create_row_processor
+    strat.create_row_processor(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        context,
+        ^^^^^^^^
+    ...<6 lines>...
+        populators,
+        ^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\strategies.py", line 2011, in create_row_processor
+    raise sa_exc.InvalidRequestError(
+    ...<2 lines>...
+    )
+sqlalchemy.exc.InvalidRequestError: 'Topico.perguntas' does not support object population - eager loading cannot be applied.
+2025-10-27 07:44:33,414 ERROR: Erro DETALHADO em gerar_relatorio_aplicacao (ID: 21): 'Topico.perguntas' does not support object population - eager loading cannot be applied. [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2563]
+Traceback (most recent call last):
+  File "F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py", line 2487, in gerar_relatorio_aplicacao
+    ).all()
+      ~~~^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2704, in all
+    return self._iter().all()  # type: ignore
+           ~~~~~~~~~~^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2857, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+                                                  ~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+        params,
+        ^^^^^^^
+        execution_options={"_sa_orm_load_options": self.load_options},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2365, in execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2251, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<4 lines>...
+        conn,
+        ^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 309, in orm_execute_statement
+    return cls.orm_setup_cursor_result(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        session,
+        ^^^^^^^^
+    ...<4 lines>...
+        result,
+        ^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 616, in orm_setup_cursor_result
+    return loading.instances(result, querycontext)
+           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 132, in instances
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 224, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 114, in instances
+    query_entity.row_processor(context, cursor)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 2786, in row_processor
+    _instance = loading._instance_processor(
+        self,
+    ...<7 lines>...
+        polymorphic_discriminator=self._polymorphic_discriminator,
+    )
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 958, in _instance_processor
+    prop.create_row_processor(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        context, query_entity, path, mapper, result, adapter, populators
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\interfaces.py", line 1093, in create_row_processor
+    strat.create_row_processor(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        context,
+        ^^^^^^^^
+    ...<6 lines>...
+        populators,
+        ^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\strategies.py", line 2011, in create_row_processor
+    raise sa_exc.InvalidRequestError(
+    ...<2 lines>...
+    )
+sqlalchemy.exc.InvalidRequestError: 'Topico.perguntas' does not support object population - eager loading cannot be applied.
+2025-10-27 07:44:38,691 ERROR: Erro DETALHADO em gerar_relatorio_aplicacao (ID: 22): 'Topico.perguntas' does not support object population - eager loading cannot be applied. [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2563]
+Traceback (most recent call last):
+  File "F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py", line 2487, in gerar_relatorio_aplicacao
+    ).all()
+      ~~~^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2704, in all
+    return self._iter().all()  # type: ignore
+           ~~~~~~~~~~^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2857, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+                                                  ~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+        params,
+        ^^^^^^^
+        execution_options={"_sa_orm_load_options": self.load_options},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2365, in execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2251, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<4 lines>...
+        conn,
+        ^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 309, in orm_execute_statement
+    return cls.orm_setup_cursor_result(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        session,
+        ^^^^^^^^
+    ...<4 lines>...
+        result,
+        ^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 616, in orm_setup_cursor_result
+    return loading.instances(result, querycontext)
+           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 132, in instances
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 224, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 114, in instances
+    query_entity.row_processor(context, cursor)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 2786, in row_processor
+    _instance = loading._instance_processor(
+        self,
+    ...<7 lines>...
+        polymorphic_discriminator=self._polymorphic_discriminator,
+    )
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 958, in _instance_processor
+    prop.create_row_processor(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        context, query_entity, path, mapper, result, adapter, populators
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\interfaces.py", line 1093, in create_row_processor
+    strat.create_row_processor(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        context,
+        ^^^^^^^^
+    ...<6 lines>...
+        populators,
+        ^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\strategies.py", line 2011, in create_row_processor
+    raise sa_exc.InvalidRequestError(
+    ...<2 lines>...
+    )
+sqlalchemy.exc.InvalidRequestError: 'Topico.perguntas' does not support object population - eager loading cannot be applied.
+
+
+
+
+
+
+2025-10-27 07:44:49,746 ERROR: Erro DETALHADO em gerar_relatorio_aplicacao (ID: 21): 'Topico.perguntas' does not support object population - eager loading cannot be applied. [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2563]
+Traceback (most recent call last):
+  File "F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py", line 2487, in gerar_relatorio_aplicacao
+    ).all()
+      ~~~^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2704, in all
+    return self._iter().all()  # type: ignore
+           ~~~~~~~~~~^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2857, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+                                                  ~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+        params,
+        ^^^^^^^
+        execution_options={"_sa_orm_load_options": self.load_options},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2365, in execute
+    return self._execute_internal(
+           ~~~~~~~~~~~~~~~~~~~~~~^
+        statement,
+        ^^^^^^^^^^
+    ...<4 lines>...
+        _add_event=_add_event,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2251, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<4 lines>...
+        conn,
+        ^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 309, in orm_execute_statement
+    return cls.orm_setup_cursor_result(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        session,
+        ^^^^^^^^
+    ...<4 lines>...
+        result,
+        ^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 616, in orm_setup_cursor_result
+    return loading.instances(result, querycontext)
+           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 132, in instances
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 224, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 114, in instances
+    query_entity.row_processor(context, cursor)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 2786, in row_processor
+    _instance = loading._instance_processor(
+        self,
+    ...<7 lines>...
+        polymorphic_discriminator=self._polymorphic_discriminator,
+    )
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\loading.py", line 958, in _instance_processor
+    prop.create_row_processor(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        context, query_entity, path, mapper, result, adapter, populators
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\interfaces.py", line 1093, in create_row_processor
+    strat.create_row_processor(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        context,
+        ^^^^^^^^
+    ...<6 lines>...
+        populators,
+        ^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Dev\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\strategies.py", line 2011, in create_row_processor
+    raise sa_exc.InvalidRequestError(
+    ...<2 lines>...
+    )
+sqlalchemy.exc.InvalidRequestError: 'Topico.perguntas' does not support object population - eager loading cannot be applied.
+2025-10-27 07:46:19,322 ERROR: Erro DETALHADO em gerar_relatorio_aplicacao (ID: 21): name 'defaultdict' is not defined [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2560]
+Traceback (most recent call last):
+  File "F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py", line 2495, in gerar_relatorio_aplicacao
+    respostas_por_topico = defaultdict(list)
+                           ^^^^^^^^^^^
+NameError: name 'defaultdict' is not defined
+
+
+
+
+2025-10-27 07:46:43,690 ERROR: Erro DETALHADO em gerar_relatorio_aplicacao (ID: 21): name 'defaultdict' is not defined [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2560]
+Traceback (most recent call last):
+  File "F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py", line 2495, in gerar_relatorio_aplicacao
+    respostas_por_topico = defaultdict(list)
+                           ^^^^^^^^^^^
+NameError: name 'defaultdict' is not defined
+
+
+
