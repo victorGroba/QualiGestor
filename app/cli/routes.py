@@ -2222,6 +2222,18 @@ def responder_aplicacao(id):
 
 # Em app/cli/routes.py
 
+# Em app/cli/routes.py
+
+# ... (mantenha o resto do arquivo como está) ...
+
+# Em app/cli/routes.py
+
+# ... (mantenha o resto do arquivo como está) ...
+
+# Em app/cli/routes.py
+
+# ... (outras rotas) ...
+
 @cli_bp.route('/aplicacao/<int:id>/finalizar', methods=['POST'])
 @login_required
 def finalizar_aplicacao(id):
@@ -2328,25 +2340,64 @@ def finalizar_aplicacao(id):
                 perguntas_do_topico_calc = perguntas_por_topico_id.get(topico_q.id)
                 if perguntas_do_topico_calc is None: # Carrega se ainda não carregou
                     perguntas_do_topico_calc = topico_q.perguntas.filter_by(ativo=True).all()
-                    # Não precisa armazenar aqui, já que é a última iteração
-
+                    
                 for pergunta_q in perguntas_do_topico_calc:
-                    if (pergunta_q.peso or 0) > 0: # ativo=True já foi filtrado
-                        pontuacao_maxima_possivel += (pergunta_q.peso or 1) * 1.0
+                    peso_pergunta_float = (pergunta_q.peso or 0) * 1.0
+                    
+                    # Pular perguntas sem peso
+                    if peso_pergunta_float == 0:
+                        continue
+
+                    # --- INÍCIO DA LÓGICA ALTERADA (v3 - FINALIZAR) ---
+                    # 1. Verificar se a pergunta é do tipo SIM_NAO (lógica robusta)
+                    is_tipo_sim_nao = False
+                    try:
+                        # Replicando a lógica exata de 'salvar_resposta' para identificar o tipo
+                        if hasattr(pergunta_q.tipo, 'name'): 
+                            tipo_str = pergunta_q.tipo.name.upper()
+                        elif hasattr(pergunta_q.tipo, 'value'): 
+                            tipo_str = str(pergunta_q.tipo.value).upper().replace(" ", "_").replace("/", "_")
+                        else: 
+                            tipo_str = str(pergunta_q.tipo or "").upper().replace(" ", "_").replace("/", "_")
+                        
+                        # Lista de tipos válidos (baseado no pontuacao.py e salvar_resposta)
+                        tipos_sim_nao_validos = ['SIM_NAO_NA', 'SIM_NAO', 'SIM_NÃO']
+                        
+                        if tipo_str in tipos_sim_nao_validos:
+                            is_tipo_sim_nao = True
+                            
+                    except Exception as e_tipo:
+                        current_app.logger.warning(f"Erro ao verificar tipo da pergunta {pergunta_q.id} na finalização: {e_tipo}")
+                        pass # Deixa is_tipo_sim_nao como False
+                        
+                    # 2. Se for tipo SIM_NAO, verificar a resposta
+                    if is_tipo_sim_nao:
+                        # Usar o dict de respostas carregado no início da função
+                        resposta_obj = respostas_dict.get(pergunta_q.id)
+                        
+                        # 3. Se a resposta for 'N.A.' (ou variações), pular esta pergunta
+                        # Verificando N.A., N/A e NA (maiúsculas/minúsculas)
+                        if resposta_obj and (resposta_obj.resposta or "").strip().upper() in ["N.A.", "N/A", "NA"]:
+                            current_app.logger.info(f"FINALIZAR: Pergunta {pergunta_q.id} marcada como N.A., pulando do cálculo máximo.")
+                            continue # Não adiciona ao pontuacao_maxima_possivel
+                    
+                    # --- FIM DA LÓGICA ALTERADA (v3 - FINALIZAR) ---
+                    
+                    # 4. Se não for N.A. (ou não for tipo SIM_NAO), adicionar ao máximo
+                    pontuacao_maxima_possivel += peso_pergunta_float
 
             # 2. Soma os pontos obtidos nas respostas DADAS
             # Usa a lista 'respostas_list' carregada no início
             for resposta in respostas_list:
                  if resposta.pontos is not None:
                      # Carrega a pergunta associada à resposta para verificar status
-                     # (Necessário porque não fizemos joinedload profundo das respostas)
                      pergunta_resposta = Pergunta.query.get(resposta.pergunta_id)
-                     if pergunta_resposta and pergunta_resposta.ativo and pergunta_resposta.topico.ativo:
+                     if pergunta_resposta and pergunta_resposta.ativo and (pergunta_resposta.topico and pergunta_resposta.topico.ativo):
                           pontos_obtidos_bruto += resposta.pontos
 
             # Armazena os valores calculados
-            aplicacao.pontos_obtidos = pontos_obtidos_bruto
-            aplicacao.pontos_totais = pontuacao_maxima_possivel
+            aplicacao.pontos_obtidos = round(pontos_obtidos_bruto, 2)
+            aplicacao.pontos_totais = round(pontuacao_maxima_possivel, 2)
 
             # 3. Calcula a nota final percentual (como antes)
             if pontuacao_maxima_possivel > 0:
@@ -2356,9 +2407,9 @@ def finalizar_aplicacao(id):
                 if casas_dec is not None and casas_dec >= 0:
                      aplicacao.nota_final = round(aplicacao.nota_final, casas_dec)
             else:
-                 aplicacao.nota_final = 0.0
+                 aplicacao.nota_final = 0.0 # Nota 0 se nenhuma pergunta pontuável for aplicável
 
-            current_app.logger.info(f"Cálculo de nota para aplicação {id}: Obtidos={pontos_obtidos_bruto}, Máximo={pontuacao_maxima_possivel}, Final={aplicacao.nota_final}%")
+            current_app.logger.info(f"Cálculo de nota V3 (FINALIZAR) para aplicação {id}: Obtidos={pontos_obtidos_bruto}, Máximo={pontuacao_maxima_possivel}, Final={aplicacao.nota_final}%")
         # --- FIM DO CÁLCULO DE NOTA ---
 
         # Finalizar aplicação (como antes)
@@ -2378,6 +2429,8 @@ def finalizar_aplicacao(id):
         current_app.logger.error(f"Erro ao finalizar aplicação {id}: {e}", exc_info=True)
         flash(f"Erro inesperado ao finalizar aplicação: {str(e)}", "danger")
         return redirect(url_for('cli.responder_aplicacao', id=id))
+
+# ... (outras rotas) ...
     
 
 @cli_bp.route('/aplicacao/<int:id>/excluir', methods=['GET', 'POST'])
@@ -2453,6 +2506,10 @@ def visualizar_aplicacao(id):
 
 # Em app/cli/routes.py
 
+# Em app/cli/routes.py
+
+# ... (outras rotas) ...
+
 @cli_bp.route('/aplicacao/<int:id>/relatorio')
 @login_required
 def gerar_relatorio_aplicacao(id):
@@ -2478,8 +2535,6 @@ def gerar_relatorio_aplicacao(id):
         # --- CÁLCULO DE PONTUAÇÕES E ORGANIZAÇÃO DOS DADOS ---
 
         # 1. Buscar tópicos ativos do questionário aplicado
-        # CORREÇÃO FINAL: Removido o .options() para evitar o conflito
-        # com lazy='dynamic'. Vai funcionar, embora menos otimizado.
         topicos_ativos = Topico.query.filter_by(
             questionario_id=aplicacao.questionario_id,
             ativo=True
@@ -2505,27 +2560,80 @@ def gerar_relatorio_aplicacao(id):
             # (O SQLAlchemy fará uma consulta por tópico aqui, o que é OK)
             perguntas_ativas_do_topico = [p for p in topico.perguntas if p.ativo]
 
+            # --- INÍCIO DA LÓGICA ALTERADA (v3 - PDF) ---
             for pergunta in perguntas_ativas_do_topico:
                 # O "peso" da pergunta é o máximo de pontos
                 peso_pergunta = float(pergunta.peso) if pergunta.peso is not None else 0.0
-                if peso_pergunta > 0:
-                    pontos_maximos_topico += peso_pergunta
 
-                # Verificar se há resposta para esta pergunta
-                resposta_obj = respostas_dict.get(pergunta.id)
+                # 1. Pular perguntas sem peso
+                if peso_pergunta == 0:
+                    # Mesmo sem peso, precisamos adicionar a resposta à lista se ela existir
+                    resposta_obj_sem_peso = respostas_dict.get(pergunta.id)
+                    if resposta_obj_sem_peso:
+                        respostas_por_topico[topico].append(resposta_obj_sem_peso)
+                    continue # Pula para a próxima pergunta
+
+                # 2. Verificar se a pergunta é do tipo SIM_NAO (lógica robusta)
+                is_tipo_sim_nao = False
+                try:
+                    if hasattr(pergunta.tipo, 'name'): 
+                        tipo_str = pergunta.tipo.name.upper()
+                    elif hasattr(pergunta.tipo, 'value'): 
+                        tipo_str = str(pergunta.tipo.value).upper().replace(" ", "_").replace("/", "_")
+                    else: 
+                        tipo_str = str(pergunta.tipo or "").upper().replace(" ", "_").replace("/", "_")
+                    
+                    tipos_sim_nao_validos = ['SIM_NAO_NA', 'SIM_NAO', 'SIM_NÃO']
+                    
+                    if tipo_str in tipos_sim_nao_validos:
+                        is_tipo_sim_nao = True
+                except Exception as e_tipo_pdf:
+                    current_app.logger.warning(f"Erro ao verificar tipo da pergunta {pergunta.id} no PDF: {e_tipo_pdf}")
+
+                # 3. Se for tipo SIM_NAO, verificar a resposta
+                resposta_obj = respostas_dict.get(pergunta.id) # Pega a resposta
+                
+                if is_tipo_sim_nao and resposta_obj:
+                    # 4. Se a resposta for 'N.A.' (ou variações), pular esta pergunta
+                    if (resposta_obj.resposta or "").strip().upper() in ["N.A.", "N/A", "NA"]:
+                        current_app.logger.info(f"PDF: Pergunta {pergunta.id} marcada como N.A., pulando do cálculo máximo do tópico.")
+                        # Mesmo pulando, ainda adicionamos à lista para que apareça no PDF
+                        respostas_por_topico[topico].append(resposta_obj)
+                        continue # Não adiciona ao pontos_maximos_topico
+                
+                # 5. Se não for N.A. (ou não for tipo SIM_NAO), adicionar ao máximo
+                pontos_maximos_topico += peso_pergunta
+
+                # 6. Processar resposta (se existir)
                 if resposta_obj:
                     # Adiciona a resposta à lista do tópico correspondente
-                    respostas_por_topico[topico].append(resposta_obj)
+                    # (Não precisamos adicionar de novo se já foi adicionado no 'if peso_pergunta == 0' ou 'if is_tipo_sim_nao')
+                    # Para simplificar, vamos remover a adição de resposta dos blocos 'continue' e adicionar SÓ AQUI
+                    
+                    # (Remova o 'respostas_por_topico[topico].append(resposta_obj)' de dentro dos 'if's acima
+                    # e mantenha apenas este bloco aqui em baixo)
+                    
+                    # Esta verificação é melhor:
+                    if pergunta.id not in [r.pergunta_id for r in respostas_por_topico[topico]]:
+                         respostas_por_topico[topico].append(resposta_obj)
 
                     # Soma os pontos obtidos
                     if resposta_obj.pontos is not None:
                         pontos_obtidos_topico += float(resposta_obj.pontos)
+                
+            # --- FIM DA LÓGICA ALTERADA (v3 - PDF) ---
 
             # Armazenar scores do tópico
             percentual_topico = (pontos_obtidos_topico / pontos_maximos_topico * 100.0) if pontos_maximos_topico > 0 else 0.0
+            
+            # Arredondar o percentual do tópico (provavelmente o que faltava)
+            casas_dec = aplicacao.questionario.casas_decimais
+            if casas_dec is not None and casas_dec >= 0:
+                 percentual_topico = round(percentual_topico, casas_dec)
+            
             scores_por_topico[topico.id] = {
-                'score_obtido': pontos_obtidos_topico,
-                'score_maximo': pontos_maximos_topico,
+                'score_obtido': round(pontos_obtidos_topico, 2),
+                'score_maximo': round(pontos_maximos_topico, 2),
                 'score_percent': percentual_topico
             }
 
@@ -2533,8 +2641,20 @@ def gerar_relatorio_aplicacao(id):
             pontos_totais_obtidos += pontos_obtidos_topico
             pontos_totais_maximos += pontos_maximos_topico
 
-        # 5. Calcular nota final percentual
-        nota_final = (pontos_totais_obtidos / pontos_totais_maximos * 100.0) if pontos_totais_maximos > 0 else 0.0
+        # 5. Calcular nota final percentual (baseada na nota da aplicação, que já foi corrigida)
+        nota_final = aplicacao.nota_final if aplicacao.nota_final is not None else 0.0
+        
+        # Se a aplicação ainda não foi finalizada, recalcula a nota final com a lógica correta
+        if aplicacao.status == StatusAplicacao.EM_ANDAMENTO:
+             if pontos_totais_maximos > 0:
+                 nota_final_calc = (pontos_totais_obtidos / pontos_totais_maximos * 100.0)
+                 casas_dec = aplicacao.questionario.casas_decimais
+                 if casas_dec is not None and casas_dec >= 0:
+                      nota_final = round(nota_final_calc, casas_dec)
+                 else:
+                      nota_final = nota_final_calc
+             else:
+                 nota_final = 0.0
 
         # --- FIM DO CÁLCULO ---
 
@@ -2565,6 +2685,8 @@ def gerar_relatorio_aplicacao(id):
             return redirect(url_for('cli.visualizar_aplicacao', id=id))
         except:
             return redirect(url_for('cli.listar_aplicacoes'))
+
+# ... (resto do seu arquivo routes.py) ...
 
 # ===================== RELATÓRIOS E ANÁLISES =====================
 
