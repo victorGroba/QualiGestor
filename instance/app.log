@@ -131,3 +131,69 @@
 2025-10-26 17:02:56,365 INFO: [Salvar Resposta 22] Commit bem-sucedido! [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2901]
 2025-10-26 17:02:56,365 INFO: --- Rota /salvar-resposta finalizada para app ID: 22 --- [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2915]
 2025-10-26 17:02:58,630 WARNING: Finalização aplicação 22 bloqueada. Fotos faltantes: ["'É flamenguista?' (Tópico: Time)"] [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2284]
+2025-10-27 07:09:04,659 ERROR: Erro DETALHADO em gerar_relatorio_aplicacao (ID: 21): 'AplicacaoQuestionario' object has no attribute 'usuario_id' [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2571]
+Traceback (most recent call last):
+  File "F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py", line 2467, in gerar_relatorio_aplicacao
+    avaliador = Usuario.query.get(aplicacao.usuario_id)
+                                  ^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'AplicacaoQuestionario' object has no attribute 'usuario_id'
+2025-10-27 07:09:07,012 ERROR: Erro DETALHADO em gerar_relatorio_aplicacao (ID: 21): 'AplicacaoQuestionario' object has no attribute 'usuario_id' [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2571]
+Traceback (most recent call last):
+  File "F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py", line 2467, in gerar_relatorio_aplicacao
+    avaliador = Usuario.query.get(aplicacao.usuario_id)
+                                  ^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'AplicacaoQuestionario' object has no attribute 'usuario_id'
+2025-10-27 07:09:13,665 ERROR: Erro DETALHADO em gerar_relatorio_aplicacao (ID: 21): 'AplicacaoQuestionario' object has no attribute 'usuario_id' [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2571]
+Traceback (most recent call last):
+  File "F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py", line 2467, in gerar_relatorio_aplicacao
+    avaliador = Usuario.query.get(aplicacao.usuario_id)
+                                  ^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'AplicacaoQuestionario' object has no attribute 'usuario_id'
+2025-10-27 07:09:16,888 ERROR: Erro DETALHADO em gerar_relatorio_aplicacao (ID: 21): 'AplicacaoQuestionario' object has no attribute 'usuario_id' [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2571]
+Traceback (most recent call last):
+  File "F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py", line 2467, in gerar_relatorio_aplicacao
+    avaliador = Usuario.query.get(aplicacao.usuario_id)
+                                  ^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'AplicacaoQuestionario' object has no attribute 'usuario_id'
+2025-10-27 07:09:39,013 ERROR: Erro DETALHADO em gerar_relatorio_aplicacao (ID: 21): 'AplicacaoQuestionario' object has no attribute 'usuario_id' [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2571]
+Traceback (most recent call last):
+  File "F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py", line 2467, in gerar_relatorio_aplicacao
+    avaliador = Usuario.query.get(aplicacao.usuario_id)
+                                  ^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'AplicacaoQuestionario' object has no attribute 'usuario_id'
+2025-10-27 07:09:55,753 ERROR: Erro DETALHADO em gerar_relatorio_aplicacao (ID: 21): 'AplicacaoQuestionario' object has no attribute 'usuario_id' [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2571]
+Traceback (most recent call last):
+  File "F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py", line 2467, in gerar_relatorio_aplicacao
+    avaliador = Usuario.query.get(aplicacao.usuario_id)
+                                  ^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'AplicacaoQuestionario' object has no attribute 'usuario_id'
+2025-10-27 07:10:09,580 ERROR: Erro DETALHADO em gerar_relatorio_aplicacao (ID: 21): 'AplicacaoQuestionario' object has no attribute 'usuario_id' [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2571]
+Traceback (most recent call last):
+  File "F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py", line 2467, in gerar_relatorio_aplicacao
+    avaliador = Usuario.query.get(aplicacao.usuario_id)
+                                  ^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'AplicacaoQuestionario' object has no attribute 'usuario_id'
+2025-10-27 07:15:24,719 ERROR: Erro DETALHADO em gerar_relatorio_aplicacao (ID: 21): 'AplicacaoQuestionario' object has no attribute 'usuario_id' [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2571]
+Traceback (most recent call last):
+  File "F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py", line 2467, in gerar_relatorio_aplicacao
+    avaliador = Usuario.query.get(aplicacao.usuario_id)
+                                  ^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'AplicacaoQuestionario' object has no attribute 'usuario_id'
+2025-10-27 07:16:47,863 ERROR: Erro DETALHADO em gerar_relatorio_aplicacao (ID: 21): 'AplicacaoQuestionario' object has no attribute 'usuario_id' [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2571]
+Traceback (most recent call last):
+  File "F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py", line 2467, in gerar_relatorio_aplicacao
+    avaliador = Usuario.query.get(aplicacao.usuario_id)
+                                  ^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'AplicacaoQuestionario' object has no attribute 'usuario_id'
+2025-10-27 07:18:57,379 ERROR: Erro DETALHADO em gerar_relatorio_aplicacao (ID: 21): 'AplicacaoQuestionario' object has no attribute 'avaliador_id' [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2571]
+Traceback (most recent call last):
+  File "F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py", line 2467, in gerar_relatorio_aplicacao
+    avaliador = Usuario.query.get(aplicacao.avaliador_id) # <-- Use avaliador_id aqui
+                                  ^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'AplicacaoQuestionario' object has no attribute 'avaliador_id'. Did you mean: 'avaliado_id'?
+2025-10-27 07:19:20,186 ERROR: Erro DETALHADO em gerar_relatorio_aplicacao (ID: 21): 'AplicacaoQuestionario' object has no attribute 'avaliador_id' [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2571]
+Traceback (most recent call last):
+  File "F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py", line 2467, in gerar_relatorio_aplicacao
+    avaliador = Usuario.query.get(aplicacao.avaliador_id) # <-- Use avaliador_id aqui
+                                  ^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'AplicacaoQuestionario' object has no attribute 'avaliador_id'. Did you mean: 'avaliado_id'?

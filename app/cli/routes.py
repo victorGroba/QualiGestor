@@ -2455,85 +2455,126 @@ def visualizar_aplicacao(id):
 @cli_bp.route('/aplicacao/<int:id>/relatorio')
 @login_required
 def gerar_relatorio_aplicacao(id):
-    """Gera relatório em PDF da aplicação (VERSÃO MELHORADA COM CÁLCULO POR TÓPICO)"""
+    """Gera relatório em PDF da aplicação com cálculo por tópico e estrutura para template"""
     try:
-        aplicacao = AplicacaoQuestionario.query.get_or_404(id)
-        
-        # Verificar permissões
-        if aplicacao.avaliado.cliente_id != current_user.cliente_id:
-            flash("Aplicação não encontrada.", "error")
-            return redirect(url_for('cli.listar_aplicacoes'))
-        
-        # --- INÍCIO DA MELHORIA: CÁLCULO POR TÓPICO ---
-        
-        # 1. Buscar tópicos ativos
-        topicos = Topico.query.filter_by(
+        # Carrega a aplicação com relacionamentos úteis pré-carregados
+        aplicacao = AplicacaoQuestionario.query.options(
+            joinedload(AplicacaoQuestionario.questionario),
+            joinedload(AplicacaoQuestionario.avaliado)
+        ).get_or_404(id)
+
+        # Buscar o usuário (avaliador) explicitamente
+        avaliador = Usuario.query.get(aplicacao.avaliador_id) # <-- Use avaliador_id aqui
+        if not avaliador:
+             # Tratar caso o usuário não seja encontrado, embora não deva acontecer
+             # devido à restrição de chave estrangeira.
+             flash("Erro: Avaliador não encontrado.", "danger")
+             return redirect(url_for('cli.listar_aplicacoes'))
+
+
+        # Verificar permissões (Ajuste conforme sua lógica de permissão)
+        if aplicacao.avaliado.cliente_id != current_user.cliente_id and not current_user.has_role('Admin'):
+             flash("Você não tem permissão para ver esta aplicação.", "error")
+             return redirect(url_for('cli.listar_aplicacoes'))
+
+        # --- CÁLCULO DE PONTUAÇÕES E ORGANIZAÇÃO DOS DADOS ---
+
+        # 1. Buscar tópicos ativos do questionário aplicado
+        topicos_ativos = Topico.query.filter_by(
             questionario_id=aplicacao.questionario_id,
             ativo=True
-        ).order_by(Topico.ordem).all()
-        
-        # 2. Buscar todas as respostas da aplicação e colocar num dict
-        respostas_dict = {r.pergunta_id: r for r in aplicacao.respostas}
-        
-        # 3. Processar tópicos para calcular notas individuais
-        for topico in topicos:
-            topico.pontos_obtidos = 0.0
-            topico.pontos_maximos = 0.0
-            
-            # Carregar perguntas ativas para este tópico
-            perguntas_do_topico = topico.perguntas.filter_by(ativo=True).all()
-            
-            for pergunta in perguntas_do_topico:
+        ).order_by(Topico.ordem).options(
+            # Pré-carrega as perguntas ativas para cada tópico
+            joinedload(Topico.perguntas).joinedload(Pergunta.respostas_possiveis)
+        ).all()
+
+        # 2. Buscar todas as respostas da aplicação e colocar num dict para acesso rápido
+        respostas_da_aplicacao = RespostaAplicacao.query.filter_by(aplicacao_id=id).options(
+            joinedload(RespostaAplicacao.resposta), # Carrega a RespostaPossivel associada
+            joinedload(RespostaAplicacao.pergunta)  # Carrega a Pergunta associada
+        ).all()
+        respostas_dict = {r.pergunta_id: r for r in respostas_da_aplicacao}
+
+        # 3. Estruturas para passar ao template
+        scores_por_topico = {}
+        respostas_por_topico = defaultdict(list)
+        pontos_totais_obtidos = 0.0
+        pontos_totais_maximos = 0.0
+
+        # 4. Processar tópicos para calcular notas e agrupar respostas
+        for topico in topicos_ativos:
+            pontos_obtidos_topico = 0.0
+            pontos_maximos_topico = 0.0
+
+            # Filtra apenas as perguntas ativas já carregadas
+            perguntas_ativas_do_topico = [p for p in topico.perguntas if p.ativo]
+
+            for pergunta in perguntas_ativas_do_topico:
                 # O "peso" da pergunta é o máximo de pontos
-                if pergunta.peso is not None and pergunta.peso > 0:
-                    topico.pontos_maximos += float(pergunta.peso)
-                
+                peso_pergunta = float(pergunta.peso) if pergunta.peso is not None else 0.0
+                if peso_pergunta > 0:
+                    pontos_maximos_topico += peso_pergunta
+
                 # Verificar se há resposta para esta pergunta
-                resposta = respostas_dict.get(pergunta.id)
-                if resposta and resposta.pontos is not None:
-                    topico.pontos_obtidos += float(resposta.pontos)
-            
-            # Calcular percentual do tópico
-            if topico.pontos_maximos > 0:
-                topico.percentual = (topico.pontos_obtidos / topico.pontos_maximos) * 100.0
-            else:
-                topico.percentual = 0.0
-        
-        # --- FIM DA MELHORIA ---
+                resposta_obj = respostas_dict.get(pergunta.id)
+                if resposta_obj:
+                     # Adiciona a resposta à lista do tópico correspondente
+                     respostas_por_topico[topico].append(resposta_obj)
+
+                     # Soma os pontos obtidos
+                     if resposta_obj.pontos is not None:
+                         pontos_obtidos_topico += float(resposta_obj.pontos)
+                # else: # Opcional: Adicionar perguntas não respondidas se necessário
+                #     # Criar um objeto 'vazio' ou marcador para perguntas sem resposta
+                #     pass
+
+
+            # Armazenar scores do tópico
+            percentual_topico = (pontos_obtidos_topico / pontos_maximos_topico * 100.0) if pontos_maximos_topico > 0 else 0.0
+            scores_por_topico[topico.id] = {
+                'score_obtido': pontos_obtidos_topico,
+                'score_maximo': pontos_maximos_topico,
+                'score_percent': percentual_topico
+            }
+
+            # Acumular totais
+            pontos_totais_obtidos += pontos_obtidos_topico
+            pontos_totais_maximos += pontos_maximos_topico
+
+        # 5. Calcular nota final percentual
+        nota_final = (pontos_totais_obtidos / pontos_totais_maximos * 100.0) if pontos_totais_maximos > 0 else 0.0
+
+        # --- FIM DO CÁLCULO ---
 
         # Gerar QR Code (seu código existente)
         qr_code_url = None
-        if hasattr(current_app, 'config') and current_app.config.get('SITE_URL'):
-            try:
-                qr_url = f"{current_app.config['SITE_URL']}/aplicacao/{id}"
-                qr = qrcode.QRCode(version=1, box_size=10, border=5)
-                qr.add_data(qr_url)
-                qr.make(fit=True)
-                
-                img = qr.make_image(fill_color="black", back_color="white")
-                buffer = BytesIO()
-                img.save(buffer, format='PNG')
-                qr_code_url = f"data:image/png;base64,{base64.b64encode(buffer.getvalue()).decode()}"
-            except Exception as e_qr:
-                current_app.logger.error(f"Erro ao gerar QR Code: {e_qr}")
-        
-        # Renderizar template HTML
-        html_content = render_template_safe('cli/relatorio_aplicacao.html',
-                                     aplicacao=aplicacao,
-                                     topicos=topicos,  # Agora os tópicos contêm .pontos_obtidos, .pontos_maximos, etc.
-                                     respostas_dict=respostas_dict,
-                                     qr_code_url=qr_code_url,
-                                     data_geracao=datetime.now())
-        
+        # ... (seu código para gerar QR Code, se ainda for necessário no PDF) ...
+        # Se não for usar QR Code no PDF, pode remover esta parte.
+
+        # Renderizar template HTML com TODAS as variáveis necessárias
+        html_content = render_template_safe(
+            'cli/relatorio_aplicacao.html',
+            aplicacao=aplicacao,
+            avaliador=avaliador, # Passa o objeto do usuário avaliador
+            respostas_por_topico=respostas_por_topico, # Dicionário {topico_obj: [resposta_obj, ...]}
+            scores_por_topico=scores_por_topico,       # Dicionário {topico_id: {'score_obtido': x, 'score_maximo': y, 'score_percent': z}}
+            nota_final=nota_final,                 # Nota final calculada
+            data_geracao=datetime.now(),
+            qr_code_url=qr_code_url # Passa None se não gerar QR Code
+        )
+
         # Gerar PDF usando função segura
-        filename = f"aplicacao_{id}_{aplicacao.questionario.nome.replace(' ', '_')}.pdf"
+        filename = f"relatorio_{aplicacao.avaliado.nome.replace(' ', '_')}_{aplicacao.data_inicio.strftime('%Y%m%d')}.pdf"
         return gerar_pdf_seguro(html_content, filename)
-        
+
     except Exception as e:
-        # Adiciona log detalhado do erro
-        current_app.logger.error(f"Erro DETALHADO em gerar_relatorio_aplicacao: {e}", exc_info=True)
-        flash(f"Erro ao gerar relatório: {str(e)}", "danger")
-        return redirect(url_for('cli.visualizar_aplicacao', id=id))
+        current_app.logger.error(f"Erro DETALHADO em gerar_relatorio_aplicacao (ID: {id}): {e}", exc_info=True)
+        flash(f"Erro ao gerar relatório: Ocorreu um problema inesperado.", "danger")
+        # Tenta redirecionar para a visualização da aplicação, se falhar vai para a lista
+        try:
+            return redirect(url_for('cli.visualizar_aplicacao', id=id))
+        except:
+            return redirect(url_for('cli.listar_aplicacoes'))
 
 # ===================== RELATÓRIOS E ANÁLISES =====================
 

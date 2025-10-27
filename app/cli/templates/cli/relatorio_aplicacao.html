@@ -1,314 +1,454 @@
 <!DOCTYPE html>
-<html lang="pt_BR">
+<html lang="pt-BR">
 
 <head>
     <meta charset="UTF-8">
-    <title>Relatório de Aplicação - {{ aplicacao.questionario.nome }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatório - {{ aplicacao.questionario.titulo }}</title>
+
     <style>
-        /* CSS para o WeasyPrint formatar o PDF */
-        @page {
-            size: A4;
-            margin: 2cm;
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-            /* Adiciona cabeçalho e rodapé em CADA página */
-            @bottom-center {
-                content: "Página " counter(page) " de " counter(pages);
-                font-family: Arial, sans-serif;
-                font-size: 10px;
-                color: #666;
-            }
+        :root {
+            --primary-blue: #004E7C;
+            --light-blue: #5BA4CF;
+            --accent-blue: #0066A1;
+            --text-dark: #1a1a1a;
+            --text-medium: #4a5568;
+            --border-color: #e2e8f0;
+            --bg-light: #f8fafc;
+        }
 
-            @top-right {
-                content: "QualiGestor - Relatório de Aplicação";
-                font-family: Arial, sans-serif;
-                font-size: 10px;
-                color: #666;
-            }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-print-color-adjust: exact;
+            /* Força impressão de backgrounds no WeasyPrint/Chrome */
+            print-color-adjust: exact;
         }
 
         body {
-            font-family: Arial, sans-serif;
-            font-size: 12px;
-            color: #333;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #ffffff;
+            /* Fundo branco para PDF */
+            line-height: 1.6;
+            color: var(--text-dark);
         }
 
-        h1 {
-            font-size: 24px;
-            color: #0d6efd;
-            /* Azul do Bootstrap */
-            text-align: center;
-            border-bottom: 2px solid #0d6efd;
-            padding-bottom: 10px;
+        /* Regra de página para WeasyPrint */
+        @page {
+            size: A4;
+            margin: 1.5cm 1cm;
+            /* Margens da página */
+
+            @bottom-right {
+                content: "Página " counter(page) " de " counter(pages);
+                font-family: 'Inter', sans-serif;
+                font-size: 10px;
+                color: #777;
+            }
         }
 
-        h2 {
-            font-size: 18px;
-            color: #444;
-            background-color: #f4f4f4;
-            padding: 10px;
-            border-left: 5px solid #0d6efd;
-            margin-top: 30px;
-            margin-bottom: 15px;
-        }
-
-        h3 {
-            font-size: 14px;
-            font-weight: bold;
-            color: #333;
-            margin-top: 20px;
-            margin-bottom: 8px;
-            border-bottom: 1px solid #ccc;
-            padding-bottom: 4px;
-        }
-
-        /* Tabela de Metadados (Cabeçalho) */
-        .header-table {
+        .checklist-container {
             width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-            border: 1px solid #ddd;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
         }
 
-        .header-table th,
-        .header-table td {
-            border: 1px solid #ddd;
-            padding: 8px;
+        .report-logo {
+            padding: 20px 40px;
             text-align: left;
-            vertical-align: top;
+            /* Alinha a logo à esquerda */
+            border-bottom: 1px solid var(--border-color);
+            background-color: #f8f9fa;
+            /* Um fundo leve para a seção da logo */
         }
 
-        .header-table th {
-            background-color: #f9f9f9;
-            width: 150px;
+        .report-logo img {
+            height: 60px;
+            /* Ajuste a altura conforme necessário */
+            width: auto;
         }
 
-        /* Tabela de Resultado (Resumo) */
-        .summary-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-            background-color: #fdfdfd;
-        }
 
-        .summary-table td {
-            border: 1px solid #eee;
-            padding: 12px;
+        .header {
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--accent-blue) 50%, var(--light-blue) 100%);
+            color: white;
+            padding: 40px;
             text-align: center;
+            position: relative;
         }
 
-        .summary-table .score {
-            font-size: 28px;
-            font-weight: bold;
-            color: #0d6efd;
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, rgba(255, 255, 255, 0.05) 25%, transparent 25%, transparent 75%, rgba(255, 255, 255, 0.05) 75%, rgba(255, 255, 255, 0.05)),
+                linear-gradient(45deg, rgba(255, 255, 255, 0.05) 25%, transparent 25%, transparent 75%, rgba(255, 255, 255, 0.05) 75%, rgba(255, 255, 255, 0.05));
+            background-size: 20px 20px;
+            background-position: 0 0, 10px 10px;
+            opacity: 0.3;
         }
 
-        .summary-table .score-label {
-            font-size: 14px;
-            color: #555;
+        .header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            position: relative;
+            z-index: 1;
         }
 
-        /* Bloco de Pergunta */
-        .pergunta-bloco {
-            margin-bottom: 15px;
-            border: 1px solid #eee;
-            padding: 12px;
-            border-radius: 5px;
-            /* Evita que uma pergunta quebre no meio da página */
-            page-break-inside: avoid;
+        .checkmark-icon {
+            width: 70px;
+            height: 70px;
+            background: white;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 25px auto 0;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            position: relative;
+            z-index: 1;
         }
 
-        .pergunta-texto {
-            font-weight: bold;
-            margin-bottom: 5px;
+        .checkmark-icon svg {
+            width: 40px;
+            height: 40px;
+            fill: var(--light-blue);
         }
 
-        .pergunta-resposta {
-            display: block;
-            font-size: 14px;
-            font-style: italic;
-            color: #0056b3;
-            /* Azul mais escuro para resposta */
-            margin-bottom: 5px;
+        .metadata-section {
+            padding: 30px 40px;
+            background: linear-gradient(to bottom, #f8fafc, white);
+            border-bottom: 1px solid var(--border-color);
         }
 
-        .pergunta-observacao {
+        .metadata-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .metadata-item {
+            display: flex;
+            margin-bottom: 12px;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            border: 1px solid var(--border-color);
+        }
+
+        .metadata-label {
+            background: linear-gradient(135deg, var(--primary-blue), var(--accent-blue));
+            color: white;
+            padding: 10px 15px;
+            font-weight: 600;
             font-size: 11px;
-            color: #555;
-            background-color: #fbfbfb;
-            border-left: 3px solid #ccc;
-            padding: 8px;
-            margin-top: 8px;
-            white-space: pre-wrap;
-            /* Preserva quebras de linha da observação */
+            min-width: 120px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
         }
 
-        .pergunta-score {
-            font-size: 10px;
-            color: #888;
-            text-align: right;
+        .metadata-value {
+            padding: 10px 15px;
+            color: var(--text-dark);
+            flex: 1;
+            background: white;
+            font-weight: 500;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
         }
 
-        /* Seção de Assinaturas */
-        .assinaturas {
-            margin-top: 50px;
+        .results-section {
+            padding: 40px;
+        }
+
+        .results-title {
+            text-align: center;
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary-blue);
+            margin-bottom: 30px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            padding-bottom: 15px;
+        }
+
+        .results-title::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 4px;
+            background: linear-gradient(90deg, var(--light-blue), var(--primary-blue));
+            border-radius: 2px;
+        }
+
+        .question-block {
+            margin-bottom: 25px;
+            padding: 20px;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
             page-break-inside: avoid;
         }
 
-        .assinatura-linha {
-            border-top: 1px solid #555;
-            width: 60%;
-            margin: 60px auto 10px auto;
-            text-align: center;
+        .question-block:last-child {
+            margin-bottom: 0;
         }
 
-        .assinatura-nome {
-            text-align: center;
+        .question-number {
+            background: linear-gradient(135deg, var(--light-blue), var(--primary-blue));
+            color: white;
+            padding: 8px 16px;
+            display: inline-block;
+            font-weight: 700;
+            margin-bottom: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .question-title {
+            color: var(--primary-blue);
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 16px;
+            line-height: 1.5;
+        }
+
+        .question-text {
+            color: var(--text-medium);
+            font-size: 13px;
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+
+        .sub-question {
+            padding: 15px;
+            margin-bottom: 12px;
+            background: var(--bg-light);
+            border-radius: 8px;
+            border-left: 3px solid var(--light-blue);
+            page-break-inside: avoid;
+        }
+
+        .sub-question:last-child {
+            margin-bottom: 0;
+        }
+
+        .observation {
+            font-style: italic;
+            color: #64748b;
             font-size: 12px;
+            padding: 8px 15px;
+            margin-top: 8px;
+            background: #fff8e1;
+            border-radius: 6px;
+            border-left: 3px solid #ffc107;
         }
 
-        .logo {
+        .answer-photo {
+            margin-top: 10px;
             text-align: center;
-            margin-bottom: 20px;
-        }
-
-        /* Usamos o caminho relativo. 'base_url' no WeasyPrint fará a mágica. */
-        .logo img {
-            max-width: 200px;
-            height: auto;
-        }
-
-        .qr-code {
-            text-align: center;
-            margin-top: 30px;
+            /* Centraliza a imagem e o texto */
             page-break-inside: avoid;
         }
 
-        .qr-code img {
-            width: 120px;
-            height: 120px;
+        .answer-photo img {
+            max-width: 80%;
+            /* Ajusta a largura máxima da imagem */
+            max-height: 300px;
+            /* Limita a altura da imagem */
+            height: auto;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 5px;
+            /* Espaço entre imagem e texto */
+        }
+
+        .photo-caption {
+            font-size: 11px;
+            color: var(--text-medium);
+            font-style: italic;
+        }
+
+        .answer-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 12px;
+        }
+
+        .answer {
+            background: linear-gradient(135deg, #e6f4ff, #f0f9ff);
+            padding: 8px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            color: var(--primary-blue);
+            border: 2px solid var(--light-blue);
+            font-size: 13px;
+            text-align: center;
+            min-width: 80px;
+            /* Garante uma largura mínima */
+        }
+
+        .answer.nao {
+            background: linear-gradient(135deg, #fff0f0, #fff8f8);
+            color: #c0392b;
+            border-color: #e74c3c;
+        }
+
+        .answer.na {
+            background: linear-gradient(135deg, #f0f0f0, #fafafa);
+            color: #777;
+            border-color: #ccc;
+        }
+
+        .footer {
+            /* O rodapé agora é controlado pelo @page, esta seção pode ser removida ou simplificada */
+            /* Se precisar de um último elemento visual, pode manter */
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+            text-align: center;
+            font-size: 10px;
+            color: #999;
+            page-break-before: auto;
+            /* Tenta não iniciar uma página só para o footer */
+        }
+
+        /* Oculta o número de página estático, pois o @page cuidará disso */
+        .page-number {
+            display: none;
         }
     </style>
 </head>
 
 <body>
-
-    <div class="logo">
-        <img src="/static/img/logo.jpg" alt="Logo QualiGestor">
-    </div>
-
-    <h1>{{ aplicacao.questionario.nome }}</h1>
-
-    <table class="header-table">
-        <tr>
-            <th>Avaliado</th>
-            <td>{{ aplicacao.avaliado.nome }}</td>
-        </tr>
-        <tr>
-            <th>Avaliador</th>
-            <td>{{ aplicacao.aplicador.nome }} ({{ aplicacao.aplicador.email }})</td>
-        </tr>
-        <tr>
-            <th>Início da Aplicação</th>
-            <td>{{ aplicacao.data_inicio.strftime('%d/%m/%Y às %H:%M:%S') }}</td>
-        </tr>
-        <tr>
-            <th>Fim da Aplicação</th>
-            {# LINHA CORRIGIDA #}
-<td>
-    {% if aplicacao.data_fim %}
-        {{ aplicacao.data_fim.strftime('%d/%m/%Y às %H:%M:%S') }}
-    {% else %}
-        <em>Em andamento</em>
-    {% endif %}
-</td>
-        </tr>
-    </table>
-
-    {% if aplicacao.questionario.calcular_nota %}
-    <h2>Resultado da Avaliação</h2>
-    <table class="summary-table">
-        <tr>
-            <td>
-                <div class="score-label">Nota Final</div>
-                <div class="score">{{ "%.2f"|format(aplicacao.nota_final or 0) }}%</div>
-            </td>
-            <td>
-                <div class="score-label">Pontos Obtidos</div>
-                <div class="score">{{ "%.2f"|format(aplicacao.pontos_obtidos or 0) }}</div>
-            </td>
-            <td>
-                <div class="score-label">Pontos Totais</div>
-                <div class="score">{{ "%.2f"|format(aplicacao.pontos_totais or 0) }}</div>
-            </td>
-        </tr>
-    </table>
-    {% endif %}
-
-    <h2>Detalhamento das Respostas</h2>
-
-    {% for topico in topicos %}
-    <h2>Tópico: {{ topico.nome }}</h2>
-
-    {# LINHA CORRETA #}
-    {% for pergunta in topico.perguntas.filter_by(ativo=True).order_by('ordem') %}
-    {% set resposta = respostas_dict.get(pergunta.id) %}
-
-    <div class="pergunta-bloco">
-        <div class="pergunta-texto">{{ pergunta.ordem }}. {{ pergunta.texto }}</div>
-
-        {% if resposta %}
-        <span class="pergunta-resposta">
-            Resposta: {{ resposta.resposta or 'Não respondido' }}
-        </span>
-
-        {% if resposta.observacao %}
-        <div class="pergunta-observacao">
-            <strong>Observação:</strong>
-            <p>{{ resposta.observacao }}</p>
+    <div class="checklist-container">
+        <div class="report-logo">
+            <img src="/static/img/logo.jpg" alt="QualiGestor Logo">
         </div>
-        {% endif %}
 
-        {% if aplicacao.questionario.calcular_nota and pergunta.peso > 0 %}
-        <div class="pergunta-score">
-            (Pontos: {{ "%.2f"|format(resposta.pontos or 0) }} / {{ "%.2f"|format(pergunta.peso) }})
+        <div class="header">
+            <h1>
+                {{ aplicacao.questionario.titulo }}<br>
+                Relatório de Monitoramento {{ aplicacao.data_inicio.strftime('%Y') }}
+            </h1>
+            <div class="checkmark-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
+                </svg>
+            </div>
         </div>
-        {% endif %}
 
-        {% else %}
-        <span class="pergunta-resposta">
-            <em>Não respondido</em>
-        </span>
-        {% endif %}
+        <div class="metadata-section">
+            <div class="metadata-row">
+                <div>
+                    <div class="metadata-item">
+                        <div class="metadata-label">Data</div>
+                        <div class="metadata-value">{{ aplicacao.data_inicio.strftime('%d/%m/%Y %H:%M') }}</div>
+                    </div>
+                    <div class="metadata-item">
+                        <div class="metadata-label">Avaliador</div>
+                        <div class="metadata-value">{{ avaliador.nome if avaliador else 'N/A' }}</div>
+                    </div>
+                    <div class="metadata-item">
+                        <div class="metadata-label">Avaliado</div>
+                        <div class="metadata-value">{{ aplicacao.avaliado.nome }}</div>
+                    </div>
+                </div>
+                <div>
+                    <div class="metadata-item">
+                        <div class="metadata-label">Início</div>
+                        <div class="metadata-value">{{ aplicacao.data_inicio.strftime('%d/%m/%Y %H:%M') }}</div>
+                    </div>
+                    <div class="metadata-item">
+                        <div class="metadata-label">Fim</div>
+                        <div class="metadata-value">
+                            {% if aplicacao.data_fim %}
+                            {{ aplicacao.data_fim.strftime('%d/%m/%Y %H:%M') }}
+                            {% else %}
+                            Em andamento
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="metadata-item">
+                        <div class="metadata-label">Nota</div>
+                        <div class="metadata-value">{{ nota_final | round(2) }}%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="results-section">
+            <h2 class="results-title">Resultados Detalhados</h2>
+
+            {% for topico, respostas in respostas_por_topico.items() %}
+            {% set score_info = scores_por_topico[topico.id] %}
+            <div class="question-block">
+                <div class="question-number">{{ topico.numero }}</div>
+                <div class="question-title">
+                    {{ topico.nome }}
+                    ({{ score_info.score_obtido | round(2) }} / {{ score_info.score_maximo | round(2) }} -> {{
+                    score_info.score_percent | round(2) }} %)
+                </div>
+
+                {% for resposta in respostas %}
+                <div class="sub-question">
+                    <div class="question-text">
+                        {{ resposta.pergunta.numero }} - {{ resposta.pergunta.texto_pergunta }}
+                    </div>
+
+                    {% if resposta.observacao %}
+                    <div class="observation">Observação: {{ resposta.observacao }}</div>
+                    {% endif %}
+
+                    {% if resposta.caminho_foto %}
+                    <div class="answer-photo">
+                        <img src="{{ url_for('static', filename='uploads/' + resposta.caminho_foto.split('/')[-1]) }}"
+                            alt="Foto da resposta">
+                        <div class="photo-caption">Evidência fotográfica</div>
+                    </div>
+                    {% endif %}
+
+                    <div class="answer-section">
+                        <div></div> {% set resposta_val = resposta.resposta.value %}
+                        <div class="answer 
+                            {% if resposta_val == 'Não' %}nao{% endif %}
+                            {% if resposta_val == 'N/A' %}na{% endif %}
+                        ">
+                            {{ resposta_val }}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+
+            </div>
+            {% endfor %}
+
+        </div>
+
+        <div class="footer">
+            Relatório gerado pelo QualiGestor em {{ data_geracao.strftime('%d/%m/%Y %H:%M') }}
+        </div>
     </div>
-
-    {% else %}
-    <p>Este tópico não possui perguntas ativas.</p>
-    {% endfor %}
-
-    {% endfor %}
-
-    {% if aplicacao.observacoes_finais %}
-    <h2>Observações Finais</h2>
-    <div class="pergunta-observacao" style="background-color: #fff; border-left: none; padding: 0;">
-        <p>{{ aplicacao.observacoes_finais }}</p>
-    </div>
-    {% endif %}
-
-    <div class="assinaturas">
-        <div class="assinatura-linha"></div>
-        <div class="assinatura-nome">{{ aplicacao.aplicador.nome }}<br>(Avaliador)</div>
-
-        <div class="assinatura-linha"></div>
-        <div class="assinatura-nome">Responsável pelo Avaliado<br>({{ aplicacao.avaliado.nome }})</div>
-    </div>
-
-    {% if qr_code_url %}
-    <div class="qr-code">
-        <img src="{{ qr_code_url }}" alt="QR Code de Verificação">
-        <p style="font-size: 10px; color: #777;">Verifique a autenticidade deste relatório</p>
-    </div>
-    {% endif %}
-
 </body>
 
 </html>
