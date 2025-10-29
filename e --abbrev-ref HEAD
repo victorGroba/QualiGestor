@@ -1,0 +1,275 @@
+[33mcommit ca29c3ed23dbb00f9b6cd55e3c277b0bce7116cd[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: victorGroba <victorgroba2@gmail.com>
+Date:   Wed Oct 29 10:42:35 2025 -0300
+
+    implementado funcao que anexa imagens quando for nao conforme
+
+[33mcommit 4b9df06d870af9bc9e1d139c4b0ad96d05a3f588[m
+Author: victorGroba <victorgroba2@gmail.com>
+Date:   Mon Oct 27 20:24:54 2025 -0300
+
+    logica da pontuação solucionada
+
+[33mcommit 7ab964dadcb69b1512b9f0f447f648b5c24b4448[m
+Author: victorGroba <victorgroba2@gmail.com>
+Date:   Mon Oct 27 08:52:31 2025 -0300
+
+    pdf criado com sucesso
+
+[33mcommit 75ed15cf20e989462e41a24fa36aeebba8c50305[m
+Author: victorGroba <victorgroba2@gmail.com>
+Date:   Mon Oct 27 07:20:14 2025 -0300
+
+    finalizando implementação do layout de impressao do questionário
+
+[33mcommit 3153ca4c61648e7c66d242ec843288335e0dce36[m
+Author: victorGroba <victorgroba2@gmail.com>
+Date:   Sun Oct 26 20:06:16 2025 -0300
+
+    alterando o modelo do pdf gerado
+
+[33mcommit f970e5fa98893fdbb4389f33924a116f202164e0[m
+Author: victorGroba <victorgroba2@gmail.com>
+Date:   Sun Oct 26 16:33:54 2025 -0300
+
+    funcionalidade de excluir aplicação resolvida
+
+[33mcommit 0ca70976b6746c0c5010251d509b1270bb11961e[m
+Author: victorGroba <victorgroba2@gmail.com>
+Date:   Sun Oct 26 16:19:18 2025 -0300
+
+    logica de pontuação funcionando e aplicação de questionario tambem
+
+[33mcommit 3557e1086aa2e263d674b873893468c10be9e8a6[m
+Author: victorGroba <victorgroba2@gmail.com>
+Date:   Sun Oct 26 16:03:17 2025 -0300
+
+    erro de resposta do formulario corrigido
+
+[33mcommit 9fecaac1bc141fcc829528e8e17016d559c29d24[m
+Author: victorGroba <victorgroba2@gmail.com>
+Date:   Sun Oct 26 01:25:41 2025 -0300
+
+    implementada logica de pntuação igual ao do paripassu
+
+[33mcommit a0e50a806188c7ae2ab07fe55bc85ca57809161b[m
+Author: victorGroba <victorgroba2@gmail.com>
+Date:   Sun Oct 26 00:05:57 2025 -0300
+
+    estou solucionando agora a questao de apagar topicos e perguntas, porem um erro que ja tinha corrigido voltou, a listagem de questionarios ja excluidos
+
+[33mcommit 25255b2f9585b6b759177d9b3f90a36e8bb49a53[m
+Author: victorGroba <victorgroba2@gmail.com>
+Date:   Sat Oct 25 14:00:16 2025 -0300
+
+    tratar erro do routes.py do modulo cli
+
+[33mcommit 80317a70a7c1ef0d08966d16ffd17c69595f1235[m
+Author: victorGroba <victorgroba2@gmail.com>
+Date:   Sat Oct 25 12:59:34 2025 -0300
+
+    Armazenamento de Fotos (Backend) completo
+
+[33mcommit 230955da80bcd0f594eb80cdbe5ec1df0494ebee[m
+Author: victorGroba <victorgroba2@gmail.com>
+Date:   Sat Oct 25 11:09:16 2025 -0300
+
+    Iniciando implementação de funcionalidades do PDF Paripassu
+
+[33mcommit 68e27da00614e9358a49cc224e2cb93f228b1548[m
+Author: victorGroba <victorgroba2@gmail.com>
+Date:   Sat Oct 25 10:43:57 2025 -0300
+
+    25/10 listar questioanrios e editar topicos e perguntas funcionando
+
+[33mcommit 307311a2ddbcb01b398f3b37e08e78e762fe0ba9[m
+Author: victorGroba <victorgroba2@gmail.com>
+Date:   Sat Oct 25 03:01:05 2025 -0300
+
+    25/10
+
+[33mcommit 1eebdae17d80321ab0adce9d218779a7eda7d78b[m
+Author: victorGroba <victorgroba2@gmail.com>
+Date:   Wed Oct 22 09:26:36 2025 -0300
+
+    22 de outubroo retomando os trabalhos
+
+[33mcommit c9f05517e79f1d3302c0759730b19da11f023f1e[m
+Author: victorGroba <victorgroba2@gmail.com>
+Date:   Thu Oct 2 11:55:55 2025 -0300
+
+    proxima resolução em /nova-aplicacao
+
+[33mcommit b1e453b5423ed9ec42d6307050c83ad76bb56c12[m
+Author: victorGroba <victorgroba2@gmail.com>
+Date:   Wed Oct 1 11:15:00 2025 -0300
+
+    01-10 10:47 - commit de segurança, estou mexendo no routes.py do cli para solucionar o listar avaliados
+
+[33mcommit d92e7fe86076a15142706b7dd3c0f318217a3653[m
+Author: victorGroba <victorgroba2@gmail.com>
+Date:   Mon Sep 29 22:51:36 2025 -0300
+
+    29 de setembro retomada
+
+[33mcommit 15d19a7a3cb2e06777d82618386265181ca38dd2[m
+Author: victorGroba <victorgroba2@gmail.com>
+Date:   Sat Sep 13 19:52:13 2025 -0300
+
+    perguntas funcionando
+
+[33mcommit 2aaa143d8cf8fda483792a1e88144f353f90ab47[m
+Author: victorGroba <victorgroba2@gmail.com>
+Date:   Sat Sep 13 18:44:53 2025 -0300
+
+    testando cliq
+
+[33mcommit 32c99656a5782f8c64b3296b38be37522d684c5a[m
+Author: victorGroba <victorgroba2@gmail.com>
+Date:   Sat Sep 13 11:20:57 2025 -0300
+
+    13-09
+
+[33mcommit ba170630e174169a54f54d1a4e4ddad068234391[m
+Author: victorGroba <victorgroba2@gmail.com>
+Date:   Fri Sep 12 13:00:18 2025 -0300
+
+    sexta 12 - 09
+
+[33mcommit e5263d0742200cda4b64298eae4ffe39fdd7a639[m
+Author: victorGroba <victorgroba2@gmail.com>
+Date:   Wed Sep 10 19:35:26 2025 -0300
+
+    10/09 saindo do lab
+
+[33mcommit 9abd289ea800351613bdde39e23acb2112244d6d[m
+Author: victorGroba <victorgroba2@gmail.com>
+Date:   Wed Sep 10 16:54:29 2025 -0300
+
+    sisteema quebrado
+
+[33mcommit e483a88a53ec7b7f1db89988592e1eebca2a6712[m
+Author: victorGroba <victorgroba2@gmail.com>
+Date:   Sat Sep 6 19:06:36 2025 -0300
+
+    celin da bumbum
+
+[33mcommit 349211f5f2f98709d62d0438a7df7edb4e7aa0d1[m
+Author: Marcelo Gomes <marcelogsantos.dev@gmail.com>
+Date:   Wed Jun 25 22:59:23 2025 -0300
+
+    atualização 26/06/25
+
+[33mcommit ffbc81e1c9c397c09cc65da2cb1bb1ba36cce4ab[m
+Author: Marcelo Gomes <marcelogsantos.dev@gmail.com>
+Date:   Wed Jun 25 14:42:27 2025 -0300
+
+    front end cliq atualizado 25/06
+
+[33mcommit 3068224c72a56e2a056413912bdedba30ef25992[m
+Author: Marcelo Gomes <marcelogsantos.dev@gmail.com>
+Date:   Wed Jun 25 14:41:00 2025 -0300
+
+    front end atualizado cliq 25/06
+
+[33mcommit fcab82a024095b0c8728a8b72c9f02fd2edb03b5[m
+Author: Marcelo Gomes <marcelogsantos.dev@gmail.com>
+Date:   Wed Jun 25 13:45:23 2025 -0300
+
+    mudanças visuais cliq 25/06
+
+[33mcommit a7f153e45c7537c74d23d64bc078e2b4432b116d[m
+Author: Marcelo Gomes <marcelogsantos.dev@gmail.com>
+Date:   Sun Jun 22 11:40:28 2025 -0300
+
+    inclusão panorama 22/06
+
+[33mcommit 4c3a0738f943bd24407369e8990a396fb7e2b1fb[m
+Author: José Victor <victorgroba2@gmail.com>
+Date:   Wed Jun 18 16:21:34 2025 -0300
+
+    18-06
+
+[33mcommit e56ce34ac24142b744aa0f285486c4aa5b667c15[m
+Author: victorGroba <victorgroba2@gmail.com>
+Date:   Tue Jun 10 09:40:48 2025 -0300
+
+    10-06 terminando modulo cliq
+
+[33mcommit 8eaa24c201bd956daedcccc30d1736fac0433333[m
+Author: victorGroba <122131103+victorGroba@users.noreply.github.com>
+Date:   Tue May 20 22:44:07 2025 -0300
+
+    Update README.md
+
+[33mcommit 4814d64727251525736f4125633c73ffb32f4718[m
+Author: victorGroba <122131103+victorGroba@users.noreply.github.com>
+Date:   Tue May 20 22:42:28 2025 -0300
+
+    Update README.md
+
+[33mcommit c4a8910623edb999f8cd9062e4d8872add6604ef[m
+Author: victorGroba <122131103+victorGroba@users.noreply.github.com>
+Date:   Tue May 20 22:41:42 2025 -0300
+
+    Update README.md
+
+[33mcommit e8c4bf22b77069522d98629e981fcd6f82e93b9e[m
+Author: victorGroba <122131103+victorGroba@users.noreply.github.com>
+Date:   Tue May 20 22:38:29 2025 -0300
+
+    Update README.md
+
+[33mcommit 18418d3d1cd08a317cf0ab99b104097bc3c7d346[m
+Author: victorGroba <122131103+victorGroba@users.noreply.github.com>
+Date:   Tue May 20 22:32:37 2025 -0300
+
+    Update README.md
+
+[33mcommit 2def1b56c1d129d83edb21ec6edd6017712acc97[m
+Author: victorGroba <122131103+victorGroba@users.noreply.github.com>
+Date:   Tue May 20 22:26:51 2025 -0300
+
+    Update README.md
+
+[33mcommit 9dd07759a46bfd12a1ad6efab7dad8c149aff6f7[m
+Author: victorGroba <122131103+victorGroba@users.noreply.github.com>
+Date:   Tue May 20 22:19:30 2025 -0300
+
+    Update README.md
+
+[33mcommit 05148dd753913fafc955cb9c95eb5e6171b2c4e9[m
+Author: victorGroba <122131103+victorGroba@users.noreply.github.com>
+Date:   Tue May 20 22:17:35 2025 -0300
+
+    Update README.md
+
+[33mcommit 508619e6a359be3dd4c6a4cb8b15fd2c701f7b8c[m
+Author: victorGroba <122131103+victorGroba@users.noreply.github.com>
+Date:   Tue May 20 22:10:58 2025 -0300
+
+    Update README.md
+
+[33mcommit 393d53ac1727957199ef0abf231b91bb4ea393fe[m
+Author: victorGroba <victorgroba2@gmail.com>
+Date:   Tue May 20 22:10:05 2025 -0300
+
+    screenshots para o reademe
+
+[33mcommit 7455c1f9a297876544920ef45dfda18f69118fbd[m
+Author: victorGroba <122131103+victorGroba@users.noreply.github.com>
+Date:   Tue May 20 21:59:51 2025 -0300
+
+    Create README.md
+
+[33mcommit d2ae0642ae8ac65860b8e19992d7906dc43da585[m
+Author: victorGroba <victorgroba2@gmail.com>
+Date:   Tue May 20 21:58:53 2025 -0300
+
+    versao 1.4.0.beta 20/05/2025
+
+[33mcommit e2bc1bccb536865c08dd141d47948afeb1a641bc[m
+Author: victorGroba <victorgroba2@gmail.com>
+Date:   Mon May 19 18:08:04 2025 -0300
+
+    versao 1.3.1.2
