@@ -3,9 +3,10 @@ import json
 import os
 import base64
 import qrcode
+import uuid
 from io import BytesIO
 from datetime import datetime, timedelta
-from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, current_app, jsonify, make_response, Response
+from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, current_app, jsonify, make_response, Response, send_from_directory, abort
 from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
 # from weasyprint import HTML  # COMENTAR SE DER ERRO
@@ -2510,10 +2511,14 @@ def visualizar_aplicacao(id):
 
 # ... (outras rotas) ...
 
+# Em app/cli/routes.py
+
+# Em app/cli/routes.py
+
 @cli_bp.route('/aplicacao/<int:id>/relatorio')
 @login_required
 def gerar_relatorio_aplicacao(id):
-    """Gera relatório em PDF da aplicação com cálculo por tópico e estrutura para template"""
+    """Gera relatório em PDF da aplicação com cálculo por tópico e galeria de fotos por tópico"""
     try:
         # Carrega a aplicação com relacionamentos úteis pré-carregados
         aplicacao = AplicacaoQuestionario.query.options(
@@ -2527,106 +2532,105 @@ def gerar_relatorio_aplicacao(id):
             flash("Erro: Avaliador não encontrado.", "danger")
             return redirect(url_for('cli.listar_aplicacoes'))
 
-        # Verificar permissões
-        if aplicacao.avaliado.cliente_id != current_user.cliente_id and not current_user.has_role('Admin'):
+        # --- CORREÇÃO DE PERMISSÃO ---
+        # Substituído 'current_user.has_role('Admin')' por 'verificar_permissao_admin()'
+        # que já existe no seu routes.py
+        if aplicacao.avaliado.cliente_id != current_user.cliente_id and not verificar_permissao_admin():
             flash("Você não tem permissão para ver esta aplicação.", "error")
             return redirect(url_for('cli.listar_aplicacoes'))
+        # --- FIM DA CORREÇÃO ---
 
         # --- CÁLCULO DE PONTUAÇÕES E ORGANIZAÇÃO DOS DADOS ---
 
-        # 1. Buscar tópicos ativos do questionário aplicado
+        # 1. Buscar tópicos ativos (na ordem correta)
         topicos_ativos = Topico.query.filter_by(
             questionario_id=aplicacao.questionario_id,
             ativo=True
         ).order_by(Topico.ordem).all()
 
-        # 2. Buscar todas as respostas da aplicação e colocar num dict para acesso rápido
+        # 2. Buscar todas as respostas da aplicação
         respostas_da_aplicacao = RespostaPergunta.query.filter_by(aplicacao_id=id).options(
-            joinedload(RespostaPergunta.pergunta)  # Carrega a Pergunta associada
+            joinedload(RespostaPergunta.pergunta)
         ).all()
         respostas_dict = {r.pergunta_id: r for r in respostas_da_aplicacao}
 
         # 3. Estruturas para passar ao template
         scores_por_topico = {}
         respostas_por_topico = defaultdict(list)
+        fotos_por_topico = defaultdict(list)     # <-- Dicionário SÓ para fotos
         pontos_totais_obtidos = 0.0
         pontos_totais_maximos = 0.0
-
-        # 4. Processar tópicos para calcular notas e agrupar respostas
+        
+        # --- MUDANÇA: Pegar o caminho absoluto da pasta de uploads UMA VEZ ---
+        # (Usando a configuração que definimos no app/__init__.py)
+        upload_folder_path = current_app.config.get('UPLOAD_FOLDER')
+        if not upload_folder_path:
+            current_app.logger.error("UPLOAD_FOLDER não está configurado! As fotos não aparecerão no PDF.")
+        
+        # 4. Processar tópicos
         for topico in topicos_ativos:
             pontos_obtidos_topico = 0.0
             pontos_maximos_topico = 0.0
-
-            # (O SQLAlchemy fará uma consulta por tópico aqui, o que é OK)
             perguntas_ativas_do_topico = [p for p in topico.perguntas if p.ativo]
 
-            # --- INÍCIO DA LÓGICA ALTERADA (v3 - PDF) ---
             for pergunta in perguntas_ativas_do_topico:
-                # O "peso" da pergunta é o máximo de pontos
                 peso_pergunta = float(pergunta.peso) if pergunta.peso is not None else 0.0
+                resposta_obj = respostas_dict.get(pergunta.id)
 
-                # 1. Pular perguntas sem peso
+                # --- MUDANÇA: Coloca a resposta na lista principal PRIMEIRO ---
+                if resposta_obj:
+                    # Adiciona a resposta à lista principal (para exibir no corpo)
+                    if pergunta.id not in [r.pergunta_id for r in respostas_por_topico[topico]]:
+                        respostas_por_topico[topico].append(resposta_obj)
+                
+                    # --- MUDANÇA: Lógica de fotos ---
+                    # Verifica se tem foto E se o UPLOAD_FOLDER está configurado
+                    if resposta_obj.caminho_foto and upload_folder_path:
+                        # Criar o caminho absoluto para a foto
+                        caminho_completo = os.path.join(upload_folder_path, resposta_obj.caminho_foto)
+                        
+                        # Converte o caminho (ex: C:\...) para o padrão file:/// (ex: file:///C:/...)
+                        caminho_url_formatado = caminho_completo.replace(os.sep, "/")
+                        caminho_url = f'file:///{caminho_url_formatado}'
+                        
+                        # Adiciona um dicionário com a resposta E o caminho formatado
+                        fotos_por_topico[topico].append({
+                            'resposta': resposta_obj,
+                            'caminho_url': caminho_url 
+                        })
+                    # --- FIM DA LÓGICA DE FOTOS ---
+
+                # --- Lógica de Pontuação (como no seu código) ---
                 if peso_pergunta == 0:
-                    # Mesmo sem peso, precisamos adicionar a resposta à lista se ela existir
-                    resposta_obj_sem_peso = respostas_dict.get(pergunta.id)
-                    if resposta_obj_sem_peso:
-                        respostas_por_topico[topico].append(resposta_obj_sem_peso)
-                    continue # Pula para a próxima pergunta
+                    continue # Já adicionamos a resposta, pulamos o score
 
-                # 2. Verificar se a pergunta é do tipo SIM_NAO (lógica robusta)
                 is_tipo_sim_nao = False
                 try:
-                    if hasattr(pergunta.tipo, 'name'): 
-                        tipo_str = pergunta.tipo.name.upper()
-                    elif hasattr(pergunta.tipo, 'value'): 
-                        tipo_str = str(pergunta.tipo.value).upper().replace(" ", "_").replace("/", "_")
-                    else: 
-                        tipo_str = str(pergunta.tipo or "").upper().replace(" ", "_").replace("/", "_")
-                    
-                    tipos_sim_nao_validos = ['SIM_NAO_NA', 'SIM_NAO', 'SIM_NÃO']
-                    
-                    if tipo_str in tipos_sim_nao_validos:
+                    if hasattr(pergunta.tipo, 'name'): tipo_str = pergunta.tipo.name.upper()
+                    else: tipo_str = str(pergunta.tipo or "").upper().replace(" ", "_")
+                    if tipo_str in ['SIM_NAO_NA', 'SIM_NAO', 'SIM_NÃO']:
                         is_tipo_sim_nao = True
-                except Exception as e_tipo_pdf:
-                    current_app.logger.warning(f"Erro ao verificar tipo da pergunta {pergunta.id} no PDF: {e_tipo_pdf}")
+                except Exception:
+                    pass
 
-                # 3. Se for tipo SIM_NAO, verificar a resposta
-                resposta_obj = respostas_dict.get(pergunta.id) # Pega a resposta
-                
+                is_na = False
                 if is_tipo_sim_nao and resposta_obj:
-                    # 4. Se a resposta for 'N.A.' (ou variações), pular esta pergunta
                     if (resposta_obj.resposta or "").strip().upper() in ["N.A.", "N/A", "NA"]:
-                        current_app.logger.info(f"PDF: Pergunta {pergunta.id} marcada como N.A., pulando do cálculo máximo do tópico.")
-                        # Mesmo pulando, ainda adicionamos à lista para que apareça no PDF
-                        respostas_por_topico[topico].append(resposta_obj)
-                        continue # Não adiciona ao pontos_maximos_topico
+                        is_na = True
                 
-                # 5. Se não for N.A. (ou não for tipo SIM_NAO), adicionar ao máximo
+                if is_na:
+                    continue # Pula N.A. da pontuação
+
                 pontos_maximos_topico += peso_pergunta
 
-                # 6. Processar resposta (se existir)
-                if resposta_obj:
-                    # Adiciona a resposta à lista do tópico correspondente
-                    # (Não precisamos adicionar de novo se já foi adicionado no 'if peso_pergunta == 0' ou 'if is_tipo_sim_nao')
-                    # Para simplificar, vamos remover a adição de resposta dos blocos 'continue' e adicionar SÓ AQUI
-                    
-                    # (Remova o 'respostas_por_topico[topico].append(resposta_obj)' de dentro dos 'if's acima
-                    # e mantenha apenas este bloco aqui em baixo)
-                    
-                    # Esta verificação é melhor:
-                    if pergunta.id not in [r.pergunta_id for r in respostas_por_topico[topico]]:
-                         respostas_por_topico[topico].append(resposta_obj)
-
-                    # Soma os pontos obtidos
+                if resposta_obj and not is_na:
                     if resposta_obj.pontos is not None:
                         pontos_obtidos_topico += float(resposta_obj.pontos)
-                
-            # --- FIM DA LÓGICA ALTERADA (v3 - PDF) ---
+            
+            # --- Fim do loop de perguntas ---
 
             # Armazenar scores do tópico
             percentual_topico = (pontos_obtidos_topico / pontos_maximos_topico * 100.0) if pontos_maximos_topico > 0 else 0.0
-            
-            # Arredondar o percentual do tópico (provavelmente o que faltava)
             casas_dec = aplicacao.questionario.casas_decimais
             if casas_dec is not None and casas_dec >= 0:
                  percentual_topico = round(percentual_topico, casas_dec)
@@ -2636,15 +2640,11 @@ def gerar_relatorio_aplicacao(id):
                 'score_maximo': round(pontos_maximos_topico, 2),
                 'score_percent': percentual_topico
             }
-
-            # Acumular totais
             pontos_totais_obtidos += pontos_obtidos_topico
             pontos_totais_maximos += pontos_maximos_topico
 
-        # 5. Calcular nota final percentual (baseada na nota da aplicação, que já foi corrigida)
+        # 5. Calcular nota final (como antes)
         nota_final = aplicacao.nota_final if aplicacao.nota_final is not None else 0.0
-        
-        # Se a aplicação ainda não foi finalizada, recalcula a nota final com a lógica correta
         if aplicacao.status == StatusAplicacao.EM_ANDAMENTO:
              if pontos_totais_maximos > 0:
                  nota_final_calc = (pontos_totais_obtidos / pontos_totais_maximos * 100.0)
@@ -2656,31 +2656,31 @@ def gerar_relatorio_aplicacao(id):
              else:
                  nota_final = 0.0
 
-        # --- FIM DO CÁLCULO ---
+        qr_code_url = None # ... (seu código de QR) ...
 
-        qr_code_url = None
-        # ... (seu código para gerar QR Code) ...
-
-        # Renderizar template HTML com TODAS as variáveis necessárias
+        # Renderizar template HTML com as variáveis ATUALIZADAS
         html_content = render_template_safe(
             'cli/relatorio_aplicacao.html',
             aplicacao=aplicacao,
             avaliador=avaliador,
+            topicos_ativos=topicos_ativos,              # <--- MUDANÇA: Passa os tópicos ordenados
             respostas_por_topico=respostas_por_topico,
+            fotos_por_topico=fotos_por_topico,         # <--- MUDANÇA: Agora é um dict de listas de dicts
             scores_por_topico=scores_por_topico,
             nota_final=nota_final,
             data_geracao=datetime.now(),
             qr_code_url=qr_code_url
+            # 'upload_folder_path' não é mais necessário aqui
         )
 
-        # Gerar PDF usando função segura
         filename = f"relatorio_{aplicacao.avaliado.nome.replace(' ', '_')}_{aplicacao.data_inicio.strftime('%Y%m%d')}.pdf"
         return gerar_pdf_seguro(html_content, filename)
 
     except Exception as e:
         current_app.logger.error(f"Erro DETALHADO em gerar_relatorio_aplicacao (ID: {id}): {e}", exc_info=True)
-        flash(f"Erro ao gerar relatório: Ocorreu um problema inesperado.", "danger")
-        # Tenta redirecionar para a visualização da aplicação, se falhar vai para a lista
+        import traceback
+        traceback.print_exc() # Adiciona isso para debug no console
+        flash(f"Erro ao gerar relatório: {str(e)}", "danger")
         try:
             return redirect(url_for('cli.visualizar_aplicacao', id=id))
         except:
@@ -3979,6 +3979,9 @@ def placeholder_sobre():
 
 # ===================== HANDLER DE ERROS PARA ROTAS NÃO ENCONTRADAS =====================
 
+# ... (aqui termina a rota anterior do seu arquivo) ...
+
+
 @cli_bp.errorhandler(404)
 def pagina_nao_encontrada(e):
     """Handler para páginas não encontradas"""
@@ -4102,6 +4105,24 @@ except Exception:
 
 # ... (Final da sua última rota existente ou função de configuração/verificação) ...
 
+
+# ====================================================================
+#  BLOCO DE CÓDIGO CORRIGIDO PARA UPLOAD DE FOTOS
+# ====================================================================
+
+# ===================== FUNÇÃO AUXILIAR PARA FOTOS =====================
+#
+# vvv ESTA É A FUNÇÃO QUE ESTAVA FALTANDO E CAUSANDO O ERRO vvv
+#
+def allowed_file(filename, allowed_extensions):
+    """Verifica se o nome do arquivo tem uma extensão permitida."""
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in allowed_extensions
+# ====================================================================
+# ^^^ ESTA É A FUNÇÃO QUE ESTAVA FALTANDO E CAUSANDO O ERRO ^^^
+# ====================================================================
+
+
 # ===================== NOVAS ROTAS PARA UPLOAD DE FOTO =====================
 
 @cli_bp.route('/resposta/<int:resposta_id>/upload-foto', methods=['POST'])
@@ -4121,7 +4142,7 @@ def upload_foto_resposta(resposta_id):
              current_app.logger.warning(f"Aplicação não encontrada para resposta {resposta_id}")
              return jsonify({'erro': 'Aplicação associada não encontrada'}), 404
 
-        # Verifica se a aplicação ainda está em andamento (opcional, mas recomendado)
+        # Verifica se a aplicação ainda está em andamento
         if aplicacao.status != StatusAplicacao.EM_ANDAMENTO:
             current_app.logger.warning(f"Tentativa de upload para aplicação finalizada (ID: {aplicacao.id})")
             return jsonify({'erro': 'Não é possível anexar fotos a uma aplicação finalizada'}), 400
@@ -4148,9 +4169,11 @@ def upload_foto_resposta(resposta_id):
 
         # Verifica a extensão do arquivo
         allowed_extensions = current_app.config.get('ALLOWED_EXTENSIONS', {'png', 'jpg', 'jpeg'}) # Default seguro
+        
+        # ***** LINHA CORRIGIDA (AGORA allowed_file existe) *****
         if foto and allowed_file(foto.filename, allowed_extensions):
 
-            # Gera um nome de arquivo seguro e único
+            # Gera um nome de arquivo seguro e único (usa 'secure_filename' e 'uuid' importados)
             original_filename = secure_filename(foto.filename)
             extension = original_filename.rsplit('.', 1)[1].lower()
             unique_filename = f"resposta_{resposta.id}_{uuid.uuid4().hex[:12]}.{extension}"
@@ -4192,7 +4215,6 @@ def upload_foto_resposta(resposta_id):
 
             # Gera URL para a foto (se a rota 'get_foto_resposta' existir)
             foto_url = None
-            # Tenta encontrar a função has_endpoint (pode estar global ou no contexto)
             _has_endpoint_func = globals().get('has_endpoint') or current_app.jinja_env.globals.get('has_endpoint')
             _url_for_func = globals().get('url_for_safe') or current_app.jinja_env.globals.get('url_for_safe') or url_for
             if callable(_has_endpoint_func) and callable(_url_for_func):
@@ -4218,9 +4240,8 @@ def upload_foto_resposta(resposta_id):
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Erro inesperado no upload da foto para resposta {resposta_id}: {e}", exc_info=True)
-        # Import traceback aqui para evitar import global desnecessário
         import traceback
-        traceback.print_exc() # Imprime traceback completo no log do servidor
+        traceback.print_exc()
         return jsonify({'erro': f'Erro interno do servidor'}), 500
 
 
@@ -4233,7 +4254,7 @@ def get_foto_resposta(filename):
     upload_folder = current_app.config.get('UPLOAD_FOLDER')
     if not upload_folder:
         current_app.logger.error("Configuração UPLOAD_FOLDER não definida ao tentar servir foto.")
-        abort(500)
+        abort(500) # <- 'abort' agora está importado
 
     # --- VALIDAÇÃO DE PERMISSÃO ---
     try:
@@ -4244,15 +4265,16 @@ def get_foto_resposta(filename):
              if resposta_id_str.isdigit():
                  resposta_id = int(resposta_id_str)
                  resposta = RespostaPergunta.query.get(resposta_id)
-                 # Verifica se a resposta existe e se o nome do arquivo no BD bate
+                 
                  if resposta and resposta.caminho_foto == filename:
                      aplicacao = AplicacaoQuestionario.query.get(resposta.aplicacao_id)
                      if aplicacao:
                          avaliado = Avaliado.query.get(aplicacao.avaliado_id)
-                         # Verifica se o cliente do avaliado é o mesmo do usuário logado
+                         
                          if avaliado and avaliado.cliente_id == current_user.cliente_id:
                               # Permissão OK, serve o arquivo
                               current_app.logger.debug(f"Servindo foto '{filename}' para usuário {current_user.id}")
+                              # vvv 'send_from_directory' agora está importado vvv
                               return send_from_directory(upload_folder, filename, as_attachment=False)
                          else:
                               current_app.logger.warning(f"Permissão negada (cliente diferente) para foto '{filename}'. User: {current_user.id}, Avaliado_Cliente: {avaliado.cliente_id if avaliado else 'N/A'}.")
@@ -4274,6 +4296,13 @@ def get_foto_resposta(filename):
          current_app.logger.error(f"Erro ao servir foto '{filename}': {e}", exc_info=True)
          abort(500)
 # ====================================================================
+#  FIM DO BLOCO DE CÓDIGO CORRIGIDO
+# ====================================================================
+    
+
+
+
+
 
 
 

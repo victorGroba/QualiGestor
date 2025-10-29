@@ -37,161 +37,200 @@
                     </div>
                     <div class="card-body">
                         {% if perguntas_por_topico[topico.id] %}
+                        
                         {% for pergunta in perguntas_por_topico[topico.id] %}
-                        <div class="mb-4 p-3 border rounded">
+                        
+                        <div class="mb-4 p-3 border rounded"> 
+                            
                             <label class="form-label fw-bold">
                                 {{ topico.ordem }}.{{ pergunta.ordem }} - {{ pergunta.texto }}
                                 {% if pergunta.obrigatoria %}
                                 <span class="text-danger">*</span>
                                 {% endif %}
                             </label>
+                            
+                            {% set resposta_salva = respostas_existentes.get(pergunta.id) %}
 
-                            ...
-                        </div>
-
-                        {% set resposta_salva = respostas_existentes.get(pergunta.id) %}
-
-                        {% if pergunta.tipo.name == 'SIM_NAO_NA' %}
-                        <div class_id="resposta-container-{{ pergunta.id }}">
-                            {% for opcao in pergunta.opcoes|sort(attribute='ordem') %}
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="resposta-{{ pergunta.id }}"
-                                    id="opcao-{{ opcao.id }}" value="{{ opcao.texto }}"
-                                    data-pergunta-id="{{ pergunta.id }}" onchange="salvarResposta(this)" {% if
-                                    resposta_salva and resposta_salva.resposta==opcao.texto %}checked{% endif %}>
-                                <label class="form-check-label" for="opcao-{{ opcao.id }}">
-                                    {{ opcao.texto }}
-                                </label>
+                            {% if pergunta.tipo.name == 'SIM_NAO_NA' %}
+                            <div id="resposta-container-{{ pergunta.id }}"> 
+                                {% for opcao in pergunta.opcoes|sort(attribute='ordem') %}
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="resposta-{{ pergunta.id }}"
+                                        id="opcao-{{ opcao.id }}" value="{{ opcao.texto }}"
+                                        data-pergunta-id="{{ pergunta.id }}" onchange="salvarResposta(this)" {% if
+                                        resposta_salva and resposta_salva.resposta==opcao.texto %}checked{% endif %}>
+                                    <label class="form-check-label" for="opcao-{{ opcao.id }}">
+                                        {{ opcao.texto }}
+                                    </label>
+                                </div>
+                                {% endfor %}
                             </div>
-                            {% endfor %}
-                        </div>
 
-                        {% elif pergunta.tipo.name == 'MULTIPLA_ESCOLHA' %}
-                        <select class="form-select" name="resposta-{{ pergunta.id }}"
-                            data-pergunta-id="{{ pergunta.id }}" onchange="salvarResposta(this)">
-                            <option value="">Selecione...</option>
-                            {% for opcao in pergunta.opcoes|sort(attribute='ordem') %}
-                            <option value="{{ opcao.texto }}" {% if resposta_salva and
-                                resposta_salva.resposta==opcao.texto %}selected{% endif %}>
-                                {{ opcao.texto }}
-                            </option>
-                            {% endfor %}
-                        </select>
+                            {% elif pergunta.tipo.name == 'MULTIPLA_ESCOLHA' %}
+                            <select class="form-select" name="resposta-{{ pergunta.id }}"
+                                data-pergunta-id="{{ pergunta.id }}" onchange="salvarResposta(this)">
+                                <option value="">Selecione...</option>
+                                {% for opcao in pergunta.opcoes|sort(attribute='ordem') %}
+                                <option value="{{ opcao.texto }}" {% if resposta_salva and
+                                    resposta_salva.resposta==opcao.texto %}selected{% endif %}>
+                                    {{ opcao.texto }}
+                                </option>
+                                {% endfor %}
+                            </select>
 
-                        {% elif pergunta.tipo.name == 'NOTA' or pergunta.tipo.name == 'ESCALA_NUMERICA' %}
-                        <input type="number" class="form-control" name="resposta-{{ pergunta.id }}"
-                            data-pergunta-id="{{ pergunta.id }}"
-                            value="{{ resposta_salva.resposta if resposta_salva else '' }}"
-                            onblur="salvarResposta(this)">
+                            {% elif pergunta.tipo.name == 'NOTA' or pergunta.tipo.name == 'ESCALA_NUMERICA' %}
+                            <input type="number" class="form-control" name="resposta-{{ pergunta.id }}"
+                                data-pergunta-id="{{ pergunta.id }}"
+                                value="{{ resposta_salva.resposta if resposta_salva else '' }}"
+                                onblur="salvarResposta(this)">
 
-                        {% elif pergunta.tipo.name == 'TEXTO_CURTO' %}
-                        <input type="text" class="form-control" name="resposta-{{ pergunta.id }}"
-                            data-pergunta-id="{{ pergunta.id }}"
-                            value="{{ resposta_salva.resposta if resposta_salva else '' }}"
-                            onblur="salvarResposta(this)">
+                            {% elif pergunta.tipo.name == 'TEXTO_CURTO' %}
+                            <input type="text" class="form-control" name="resposta-{{ pergunta.id }}"
+                                data-pergunta-id="{{ pergunta.id }}"
+                                value="{{ resposta_salva.resposta if resposta_salva else '' }}"
+                                onblur="salvarResposta(this)">
 
-                        {% elif pergunta.tipo.name == 'TEXTO_LONGO' %}
-                        <textarea class="form-control" rows="3" name="resposta-{{ pergunta.id }}"
-                            data-pergunta-id="{{ pergunta.id }}"
-                            onblur="salvarResposta(this)">{{ resposta_salva.resposta if resposta_salva else '' }}</textarea>
+                            {% elif pergunta.tipo.name == 'TEXTO_LONGO' %}
+                            <textarea class="form-control" rows="3" name="resposta-{{ pergunta.id }}"
+                                data-pergunta-id="{{ pergunta.id }}"
+                                onblur="salvarResposta(this)">{{ resposta_salva.resposta if resposta_salva else '' }}</textarea>
 
+                            {% else %}
+                            <p class="text-danger small">Tipo de pergunta não suportado: {{ pergunta.tipo.name }}</p>
+                            {% endif %}
+                            {% if pergunta.permite_observacao %}
+                            <div class="mt-2">
+                                <label for="obs-{{ pergunta.id }}" class="form-label small text-muted">Observação:</label>
+                                <textarea class="form-control form-control-sm" id="obs-{{ pergunta.id }}"
+                                    name="observacao-{{ pergunta.id }}" data-pergunta-id="{{ pergunta.id }}"
+                                    onblur="salvarResposta(this, true)"
+                                    rows="2">{{ resposta_salva.observacao if resposta_salva else '' }}</textarea>
+                            </div>
+                            {% endif %}
+                            <div id="feedback-{{ pergunta.id }}" class="form-text small mt-1"></div>
+
+                            {% set exige_foto = pergunta.exige_foto_se_nao_conforme %}
+                            {% set resposta_nao_conforme = (resposta_salva and resposta_salva.resposta|lower in ['não', 'nao']) %}
+
+                            <div class="mt-2" 
+                                 id="foto-container-{{ pergunta.id }}" 
+                                 
+                                 {# Oculta o campo de upload se a pergunta não exigir foto OU se a resposta NÃO for 'Não' #}
+                                 {% if not (exige_foto and resposta_nao_conforme) %}style="display: none;"{% endif %}>
+                                
+                                <label for="foto-{{ pergunta.id }}" class="form-label small fw-bold text-danger">
+                                    <i class="fas fa-camera me-1"></i> Anexar foto de evidência (obrigatório):
+                                </label>
+                                
+                                <input class="form-control form-control-sm" 
+                                       type="file" 
+                                       id="foto-{{ pergunta.id }}" 
+                                       name="foto-{{ pergunta.id }}" 
+                                       accept="image/*"
+                                       
+                                       {# Passamos o ID da resposta (se já existir) para o JS #}
+                                       data-resposta-id="{{ resposta_salva.id if resposta_salva else '' }}"
+                                       
+                                       {# Ocultamos o 'exige_foto' para o JS ler #}
+                                       data-exige-foto="{{ 'true' if exige_foto else 'false' }}"
+                                       
+                                       {# Chama a nova função JS ao selecionar um arquivo #}
+                                       onchange="handleFotoUpload(this)">
+                                
+                                <div id="feedback-foto-{{ pergunta.id }}" class="form-text small mt-1"></div>
+
+                                {% if resposta_salva and resposta_salva.caminho_foto %}
+                                <div class="mt-2">
+                                    <img src="{{ url_for('cli.get_foto_resposta', filename=resposta_salva.caminho_foto) }}" 
+                                         alt="Foto de Evidência" 
+                                         class="img-thumbnail" 
+                                         style="max-height: 150px;">
+                                </div>
+                                {% endif %}
+                            </div>
+                            </div> {% endfor %}
                         {% else %}
-                        <p class="text-danger small">Tipo de pergunta não suportado: {{ pergunta.tipo.name }}</p>
+                        <p class="text-muted">Nenhuma pergunta encontrada neste tópico.</p>
                         {% endif %}
-
-                        {% if pergunta.permite_observacao %}
-                        <div class="mt-2">
-                            <label for="obs-{{ pergunta.id }}" class="form-label small text-muted">Observação:</label>
-                            <textarea class="form-control form-control-sm" id="obs-{{ pergunta.id }}"
-                                name="observacao-{{ pergunta.id }}" data-pergunta-id="{{ pergunta.id }}"
-                                onblur="salvarResposta(this, true)"
-                                rows="2">{{ resposta_salva.observacao if resposta_salva else '' }}</textarea>
-                        </div>
-                        {% endif %}
-
-                        <div id="feedback-{{ pergunta.id }}" class="form-text small mt-1"></div>
-
                     </div>
-                    {% endfor %}
-                    {% else %}
-                    <p class="text-muted">Nenhuma pergunta encontrada neste tópico.</p>
-                    {% endif %}
                 </div>
-        </div>
-        {% endfor %}
+                {% endfor %}
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-comment-alt me-2"></i>Observações Finais</h5>
+                    </div>
+                    <div class="card-body">
+                        <textarea class="form-control" name="observacoes_finais" rows="4"
+                            placeholder="Digite aqui qualquer observação geral sobre a aplicação...">{{ aplicacao.observacoes_finais or '' }}</textarea>
+                    </div>
+                </div>
 
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-comment-alt me-2"></i>Observações Finais</h5>
-            </div>
-            <div class="card-body">
-                <textarea class="form-control" name="observacoes_finais" rows="4"
-                    placeholder="Digite aqui qualquer observação geral sobre a aplicação...">{{ aplicacao.observacoes_finais or '' }}</textarea>
-            </div>
+                <div class="text-end mb-5">
+                    <a href="{{ url_for('cli.listar_aplicacoes') }}" class="btn btn-secondary">
+                        <i class="fas fa-times me-2"></i>Cancelar
+                    </a>
+                    <button type-="submit" class="btn btn-primary">
+                        <i class="fas fa-check-circle me-2"></i>Finalizar Aplicação
+                    </button>
+                </div>
+            </form>
         </div>
-
-        <div class="text-end mb-5">
-            <a href="{{ url_for('cli.listar_aplicacoes') }}" class="btn btn-secondary">
-                <i class="fas fa-times me-2"></i>Cancelar
-            </a>
-            <button type-="submit" class="btn btn-primary">
-                <i class="fas fa-check-circle me-2"></i>Finalizar Aplicação
-            </button>
-        </div>
-        </form>
     </div>
-</div>
 </div>
 {% endblock %}
 
 
 {% block extra_js %}
 <script>
-    // Função Mágica: Salva a resposta via AJAX
+    // Função: Salva a resposta de TEXTO/RADIO/SELECT via AJAX
     async function salvarResposta(inputElement, isObservacao = false) {
-
         let perguntaId, respostaValue, observacaoValue;
-
-        // Pega o ID da pergunta
         perguntaId = inputElement.dataset.perguntaId;
 
-        // Pega os elementos corretos
-        let respostaInput, observacaoInput;
+        // 1. Pega os elementos
+        let respostaInput, observacaoInput, fotoContainer;
+        fotoContainer = document.getElementById(`foto-container-${perguntaId}`);
+        const fotoInputElement = document.getElementById(`foto-${perguntaId}`);
+        const exigeFoto = fotoInputElement ? fotoInputElement.dataset.exigeFoto === 'true' : false;
 
         if (isObservacao) {
-            // Se o trigger foi o campo OBS, o input da resposta é o outro
             observacaoInput = inputElement;
-            // Tenta encontrar o input de resposta (pode ser radio, select ou text)
             respostaInput = document.querySelector(`[name="resposta-${perguntaId}"]:checked`) ||
                 document.querySelector(`[name="resposta-${perguntaId}"]`);
         } else {
-            // Se o trigger foi o campo RESPOSTA, o input da obs é o outro
             respostaInput = inputElement;
             observacaoInput = document.querySelector(`[name="observacao-${perguntaId}"]`);
         }
 
-        // Pega os valores
+        // 2. Pega os valores
         respostaValue = respostaInput ? respostaInput.value : '';
         observacaoValue = observacaoInput ? observacaoInput.value : '';
 
-        // ===================== CORREÇÃO AQUI =====================
-        // Adicionadas crases (`) para `feedback-${perguntaId}`
-        const feedbackEl = document.getElementById(`feedback-${perguntaId}`);
-        // =========================================================
+        // 3. (NOVO!) Mostra/Oculta o campo de FOTO baseado na resposta
+        if (exigeFoto && fotoContainer) {
+            // Mostra se a resposta for 'não' (case-insensitive)
+            if (respostaValue.trim().toLowerCase() === 'não' || respostaValue.trim().toLowerCase() === 'nao') {
+                fotoContainer.style.display = 'block';
+            } else {
+                fotoContainer.style.display = 'none';
+            }
+        }
 
+        const feedbackEl = document.getElementById(`feedback-${perguntaId}`);
         if (feedbackEl) {
             feedbackEl.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Salvando...';
             feedbackEl.className = 'form-text small text-muted';
         } else {
-            // Se não encontrar o feedbackEl, loga um erro no console mas continua
             console.warn(`Elemento de feedback 'feedback-${perguntaId}' não encontrado.`);
         }
 
         try {
+            // 4. Envia os dados de TEXTO/OBS para a rota 'salvar_resposta'
             const response = await fetch("{{ url_for('cli.salvar_resposta', id=aplicacao.id) }}", {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}' // Boa prática adicionar o CSRF
                 },
                 body: JSON.stringify({
                     pergunta_id: parseInt(perguntaId),
@@ -207,6 +246,13 @@
                     feedbackEl.innerHTML = '<i class="fas fa-check me-1"></i>Salvo com sucesso!';
                     feedbackEl.className = 'form-text small text-success';
                 }
+                
+                // 5. (NOVO!) Atualiza o input de foto com o ID da resposta retornado
+                // Isso é CRUCIAL para que o upload da foto saiba qual resposta_id usar
+                if (fotoInputElement && data.resposta_id) {
+                    fotoInputElement.dataset.respostaId = data.resposta_id;
+                    console.log(`Resposta ID ${data.resposta_id} associada ao campo de foto.`);
+                }
             } else {
                 throw new Error(data.erro || 'Erro desconhecido');
             }
@@ -216,6 +262,71 @@
             if (feedbackEl) {
                 feedbackEl.innerHTML = `<i class="fas fa-exclamation-triangle me-1"></i>Falha ao salvar: ${error.message}`;
                 feedbackEl.className = 'form-text small text-danger';
+            }
+        }
+    }
+
+    // ====================================================================
+    // (NOVO!) Função para UPLOAD DA FOTO (separada)
+    // ====================================================================
+    async function handleFotoUpload(fileInput) {
+        const respostaId = fileInput.dataset.respostaId;
+        const perguntaId = fileInput.name.replace('foto-', ''); // Pega o ID da pergunta
+        const feedbackFotoEl = document.getElementById(`feedback-foto-${perguntaId}`);
+
+        // Validação 1: O ID da resposta DEVE existir (ter sido salvo pelo 'salvarResposta')
+        if (!respostaId) {
+            alert('A resposta (Sim/Não/N.A.) deve ser salva antes de anexar uma foto. A resposta "Não" já foi selecionada?');
+            fileInput.value = ''; // Limpa o campo
+            if (feedbackFotoEl) feedbackFotoEl.innerHTML = '<span class="text-danger">Salve a resposta "Não" primeiro.</span>';
+            return;
+        }
+
+        // Validação 2: Verifica se um arquivo foi selecionado
+        const file = fileInput.files[0];
+        if (!file) {
+            if (feedbackFotoEl) feedbackFotoEl.innerHTML = '';
+            return;
+        }
+
+        if (feedbackFotoEl) {
+            feedbackFotoEl.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Enviando foto...';
+            feedbackFotoEl.className = 'form-text small text-muted';
+        }
+
+        // 3. Monta o FormData
+        const formData = new FormData();
+        formData.append('foto', file); // O nome 'foto' deve bater com request.files['foto'] no backend
+
+        try {
+            // 4. Envia a FOTO para a rota 'upload_foto_resposta'
+            const response = await fetch(`/cli/resposta/${respostaId}/upload-foto`, { // URL direta para sua rota
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token() }}' // CSRF é necessário para POST
+                },
+                body: formData // Envia como FormData, não JSON
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.sucesso) {
+                if (feedbackFotoEl) {
+                    feedbackFotoEl.innerHTML = `<i class="fas fa-check me-1"></i>Foto enviada com sucesso! (${data.filename})`;
+                    feedbackFotoEl.className = 'form-text small text-success';
+                }
+                // Recarrega a página para mostrar a miniatura da imagem (opção simples)
+                // É melhor recarregar para garantir que o "src" da imagem (se já houver uma) seja atualizado.
+                location.reload(); 
+            } else {
+                throw new Error(data.erro || 'Erro desconhecido no upload');
+            }
+
+        } catch (error) {
+            console.error('Erro ao enviar foto:', error);
+            if (feedbackFotoEl) {
+                feedbackFotoEl.innerHTML = `<i class="fas fa-exclamation-triangle me-1"></i>Falha no envio da foto: ${error.message}`;
+                feedbackFotoEl.className = 'form-text small text-danger';
             }
         }
     }

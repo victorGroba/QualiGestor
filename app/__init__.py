@@ -69,12 +69,13 @@ def create_app() -> Flask:
     # -------------------------------------------------------------------------
     # Caminhos do projeto
     # -------------------------------------------------------------------------
-    base_dir = Path(__file__).resolve().parent            # .../QualiGestor/app
-    root_dir = base_dir.parent                            # .../QualiGestor
+    base_dir = Path(__file__).resolve().parent      # .../QualiGestor/app
+    root_dir = base_dir.parent                      # .../QualiGestor
     instance_dir = root_dir / "instance"
     instance_dir.mkdir(parents=True, exist_ok=True)
 
     # --- ADIÇÃO: Configuração da pasta de upload ---
+    # (Esta é a sua definição, que é ótima e específica)
     UPLOAD_FOLDER = instance_dir / "uploads" / "fotos_respostas"
     UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True) # Garante que a pasta exista
     app.config['UPLOAD_FOLDER'] = str(UPLOAD_FOLDER) # Armazena como string no config
@@ -84,6 +85,11 @@ def create_app() -> Flask:
     # Banco em instance/banco.db
     db_path = instance_dir / "banco.db"
     app.config["SQLALCHEMY_DATABASE_URI"] = _sqlite_uri(db_path)
+
+    # --- CORREÇÃO: REMOVIDAS AS LINHAS DUPLICADAS ABAIXO ---
+    # app.config['UPLOAD_FOLDER'] = os.path.join(app.instance_path, 'uploads')
+    # os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    # --- FIM DA CORREÇÃO ---
 
     # -------------------------------------------------------------------------
     # Versão do sistema (lida a partir de version.txt na raiz)
@@ -114,7 +120,7 @@ def create_app() -> Flask:
     except Exception:
         @app.context_processor
         def inject_custom_functions():
-             # Adiciona allowed_file mesmo se outros helpers falharem
+            # Adiciona allowed_file mesmo se outros helpers falharem
             return dict(allowed_file=allowed_file)
 
     # Helpers de navegação globais
@@ -129,7 +135,7 @@ def create_app() -> Flask:
 
     def url_for_safe(endpoint: str, **values) -> str:
         """
-        Tenta gerar a URL do endpoint; se falhar, cai no índice do CLI ou '/'.
+        Tenta gerar la URL do endpoint; se falhar, cai no índice do CLI ou '/'.
         """
         try:
             return url_for(endpoint, **values)
@@ -227,7 +233,7 @@ def create_app() -> Flask:
     from .panorama.routes import panorama_bp
 
     app.register_blueprint(auth_bp)
-    app.register_blueprint(main_bp)                 # '/' e '/painel'
+    app.register_blueprint(main_bp)          # '/' e '/painel'
     app.register_blueprint(cli_bp, url_prefix="/cli")
     app.register_blueprint(panorama_bp, url_prefix="/panorama")
 
