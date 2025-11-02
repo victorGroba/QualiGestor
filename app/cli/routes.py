@@ -12,6 +12,8 @@ from werkzeug.utils import secure_filename
 # from weasyprint import HTML  # COMENTAR SE DER ERRO
 from sqlalchemy import func, extract, and_, or_, desc
 from sqlalchemy.orm import joinedload, subqueryload
+from pathlib import Path
+import urllib.parse
 
 
 from flask import request, make_response
@@ -2533,12 +2535,35 @@ def gerar_relatorio_aplicacao(id):
             return redirect(url_for('cli.listar_aplicacoes'))
 
         # --- CORREÇÃO DE PERMISSÃO ---
-        # Substituído 'current_user.has_role('Admin')' por 'verificar_permissao_admin()'
-        # que já existe no seu routes.py
         if aplicacao.avaliado.cliente_id != current_user.cliente_id and not verificar_permissao_admin():
             flash("Você não tem permissão para ver esta aplicação.", "error")
             return redirect(url_for('cli.listar_aplicacoes'))
         # --- FIM DA CORREÇÃO ---
+
+
+        # ★★★ NOVO BLOCO PARA CARREGAR A LOGO ★★★
+        logo_pdf_uri = None
+        try:
+            # current_app.static_folder aponta para a pasta 'app/static' absoluta
+            # O caminho que você informou foi: F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\static\img\logo_pdf.png
+            logo_path = Path(current_app.static_folder) / 'img' / 'logo_pdf.png'
+            
+            if logo_path.exists():
+                logo_pdf_uri = logo_path.as_uri() # Converte para 'file:///F:/ARQUIVOS%20QUALIGESTOR/...'
+                current_app.logger.debug(f"Logo do PDF carregada: {logo_pdf_uri}")
+            else:
+                current_app.logger.warning(f"Logo do PDF não encontrada em: {logo_path}")
+                # Tenta carregar a logo antiga como fallback
+                logo_path_antiga = Path(current_app.static_folder) / 'img' / 'logo.jpg'
+                if logo_path_antiga.exists():
+                    logo_pdf_uri = logo_path_antiga.as_uri()
+                    current_app.logger.warning(f"Usando logo.jpg como fallback: {logo_pdf_uri}")
+                else:
+                    current_app.logger.error(f"Nenhuma logo (logo_pdf.png ou logo.jpg) encontrada.")
+        except Exception as e_logo:
+            current_app.logger.error(f"Erro ao carregar URI da logo do PDF: {e_logo}")
+        # ★★★ FIM DO BLOCO DA LOGO ★★★
+
 
         # --- CÁLCULO DE PONTUAÇÕES E ORGANIZAÇÃO DOS DADOS ---
 
@@ -2562,9 +2587,8 @@ def gerar_relatorio_aplicacao(id):
         pontos_totais_maximos = 0.0
         
         # --- MUDANÇA: Pegar o caminho absoluto da pasta de uploads UMA VEZ ---
-        # (Usando a configuração que definimos no app/__init__.py)
-        upload_folder_path = current_app.config.get('UPLOAD_FOLDER')
-        if not upload_folder_path:
+        upload_folder_path_str = current_app.config.get('UPLOAD_FOLDER')
+        if not upload_folder_path_str:
             current_app.logger.error("UPLOAD_FOLDER não está configurado! As fotos não aparecerão no PDF.")
         
         # 4. Processar tópicos
@@ -2577,32 +2601,33 @@ def gerar_relatorio_aplicacao(id):
                 peso_pergunta = float(pergunta.peso) if pergunta.peso is not None else 0.0
                 resposta_obj = respostas_dict.get(pergunta.id)
 
-                # --- MUDANÇA: Coloca a resposta na lista principal PRIMEIRO ---
                 if resposta_obj:
                     # Adiciona a resposta à lista principal (para exibir no corpo)
                     if pergunta.id not in [r.pergunta_id for r in respostas_por_topico[topico]]:
                         respostas_por_topico[topico].append(resposta_obj)
                 
-                    # --- MUDANÇA: Lógica de fotos ---
-                    # Verifica se tem foto E se o UPLOAD_FOLDER está configurado
-                    if resposta_obj.caminho_foto and upload_folder_path:
-                        # Criar o caminho absoluto para a foto
-                        caminho_completo = os.path.join(upload_folder_path, resposta_obj.caminho_foto)
-                        
-                        # Converte o caminho (ex: C:\...) para o padrão file:/// (ex: file:///C:/...)
-                        caminho_url_formatado = caminho_completo.replace(os.sep, "/")
-                        caminho_url = f'file:///{caminho_url_formatado}'
-                        
-                        # Adiciona um dicionário com a resposta E o caminho formatado
-                        fotos_por_topico[topico].append({
-                            'resposta': resposta_obj,
-                            'caminho_url': caminho_url 
-                        })
-                    # --- FIM DA LÓGICA DE FOTOS ---
+                    # --- ★★★ CORREÇÃO DA FOTO PDF (CAMINHO) ★★★ ---
+                    if resposta_obj.caminho_foto and upload_folder_path_str:
+                        try:
+                            # 1. Recria o caminho absoluto como um objeto Path
+                            caminho_completo_path = Path(upload_folder_path_str) / resposta_obj.caminho_foto
+                            
+                            # 2. Converte o objeto Path para uma URI (ex: file:///F:/.../QualiGestor%20-%20Copia/...)
+                            caminho_url = caminho_completo_path.as_uri()
+                            
+                            fotos_por_topico[topico].append({
+                                'resposta': resposta_obj,
+                                'caminho_url': caminho_url 
+                            })
+                            current_app.logger.debug(f"Foto URI gerada para PDF: {caminho_url}")
+
+                        except Exception as e_path:
+                             current_app.logger.error(f"Erro ao criar URI da foto '{resposta_obj.caminho_foto}': {e_path}")
+                    # --- ★★★ FIM DA CORREÇÃO DA FOTO (CAMINHO) ★★★ ---
 
                 # --- Lógica de Pontuação (como no seu código) ---
                 if peso_pergunta == 0:
-                    continue # Já adicionamos a resposta, pulamos o score
+                    continue 
 
                 is_tipo_sim_nao = False
                 try:
@@ -2619,7 +2644,7 @@ def gerar_relatorio_aplicacao(id):
                         is_na = True
                 
                 if is_na:
-                    continue # Pula N.A. da pontuação
+                    continue 
 
                 pontos_maximos_topico += peso_pergunta
 
@@ -2640,7 +2665,7 @@ def gerar_relatorio_aplicacao(id):
                 'score_maximo': round(pontos_maximos_topico, 2),
                 'score_percent': percentual_topico
             }
-            pontos_totais_obtidos += pontos_obtidos_topico
+            pontos_totais_obtidos += pontos_totais_obtidos
             pontos_totais_maximos += pontos_maximos_topico
 
         # 5. Calcular nota final (como antes)
@@ -2663,14 +2688,14 @@ def gerar_relatorio_aplicacao(id):
             'cli/relatorio_aplicacao.html',
             aplicacao=aplicacao,
             avaliador=avaliador,
-            topicos_ativos=topicos_ativos,              # <--- MUDANÇA: Passa os tópicos ordenados
+            topicos_ativos=topicos_ativos,
             respostas_por_topico=respostas_por_topico,
-            fotos_por_topico=fotos_por_topico,         # <--- MUDANÇA: Agora é um dict de listas de dicts
+            fotos_por_topico=fotos_por_topico,
             scores_por_topico=scores_por_topico,
             nota_final=nota_final,
             data_geracao=datetime.now(),
-            qr_code_url=qr_code_url
-            # 'upload_folder_path' não é mais necessário aqui
+            qr_code_url=qr_code_url,
+            logo_pdf_uri=logo_pdf_uri  # <-- ★★★ PASSA A NOVA VARIÁVEL PARA O HTML ★★★
         )
 
         filename = f"relatorio_{aplicacao.avaliado.nome.replace(' ', '_')}_{aplicacao.data_inicio.strftime('%Y%m%d')}.pdf"

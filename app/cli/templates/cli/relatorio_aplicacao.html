@@ -169,10 +169,7 @@
       border-radius: 4px;
       overflow: hidden;
       box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-      /* vvv CORREÇÃO DO "VÃO" vvv
-        A regra 'page-break-inside: avoid;' foi REMOVIDA daqui.
-        Isso permite que o tópico quebre entre páginas se for muito longo.
-      */
+      /* (Corretamente removido o page-break-inside: avoid daqui) */
     }
 
     .topic-header {
@@ -258,6 +255,32 @@
       background: var(--warning-yellow);
       color: #333;
     }
+    
+    /* ★★★ NOVO BLOCO DE ASSINATURA ★★★ */
+    .signature-block {
+        border-bottom: 1px solid var(--border-color);
+        padding: 6px 10px;
+        background: #fff;
+        page-break-inside: avoid;
+    }
+    .signature-block .question-text {
+        padding: 0;
+        margin-bottom: 5px;
+    }
+    .signature-image {
+        border: 1px solid var(--border-color);
+        background: #fafafa;
+        padding: 5px;
+        width: 300px;
+        height: 150px;
+    }
+    .signature-image img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+    /* ★★★ FIM DO NOVO BLOCO ★★★ */
+
 
     /* ---- OBSERVAÇÕES COMPACTAS ---- */
     .observation {
@@ -278,6 +301,8 @@
         padding: 10px;
         background: var(--light-bg);
         border-top: 1px solid var(--border-color);
+        /* ★★★ CORREÇÃO DE QUEBRA DE PÁGINA ★★★ */
+        page-break-inside: avoid; /* Impede que a galeria quebre no meio */
     }
     .photo-gallery-title {
         font-size: 11px;
@@ -293,7 +318,7 @@
         display: inline-block;
         width: 48%;
         margin: 1%;
-        text-align: center;
+        text-align: left; /* ★ Alterado para left para alinhar o texto */
         border: 1px solid var(--border-color);
         padding: 5px;
         box-sizing: border-box;
@@ -307,13 +332,23 @@
         height: auto;
         margin-bottom: 5px;
         border: 1px solid var(--border-color);
+        display: block; /* Garante que a imagem ocupe o bloco */
+        margin-left: auto;
+        margin-right: auto;
     }
     .photo-gallery-label {
         font-size: 10px;
         font-weight: 700;
         margin: 0;
         color: var(--primary-blue);
+        line-height: 1.3; /* ★ Adicionado para melhor legibilidade */
+        word-wrap: break-word; /* ★ Adicionado para quebrar texto da pergunta */
     }
+    
+    /* ★★★ REMOÇÃO DOS ESTILOS ANTIGOS/CONFLITANTES ★★★ */
+    /* As classes .galeria-pdf e .foto-pdf foram removidas daqui */
+    /* pois agora usamos .photo-gallery-container e .photo-gallery-item */
+
 
     /* ---- RODAPÉ FIXO ---- */
     .footer {
@@ -370,7 +405,9 @@
 
 <body>
   <div class="header">
-    <img src="/static/img/logo.jpg" alt="Logo" class="header-logo">
+    {% if logo_pdf_uri %}
+    <img src="{{ logo_pdf_uri }}" alt="Logo" class="header-logo">
+{% endif %}
     <div class="header-title">
       <h1>{{ aplicacao.questionario.nome }}</h1>
       <p>Relatório de Monitoramento {{ aplicacao.data_inicio.strftime('%Y') }}</p>
@@ -423,24 +460,41 @@
 
         {% if respostas %}
           {% for resposta in respostas|sort(attribute='pergunta.ordem') %}
-          <div class="question">
-            <div class="question-text">
-              <span class="question-number">{{ topico.ordem }}.{{ resposta.pergunta.ordem }}</span>
-              {{ resposta.pergunta.texto }}
+            
+            {% if resposta.pergunta.tipo.name == 'ASSINATURA' %}
+            <div class="signature-block">
+                <div class="question-text">
+                    <span class="question-number">{{ topico.ordem }}.{{ resposta.pergunta.ordem }}</span>
+                    {{ resposta.pergunta.texto }}
+                </div>
+                <div class="signature-image">
+                    {% if resposta.resposta and 'data:image' in resposta.resposta %}
+                        <img src="{{ resposta.resposta | safe }}" alt="Assinatura">
+                    {% else %}
+                        <span style="color: #999; font-style: italic;">(Assinatura não preenchida)</span>
+                    {% endif %}
+                </div>
             </div>
-            <div class="answer 
-              {% if resposta.resposta|lower in ['não', 'nao'] %}nao
-              {% elif resposta.resposta|lower in ['n.a.', 'n/a', 'na'] %}nao-aplicavel
-              {% elif resposta.resposta == 'Parcial' %}parcial
-              {% endif %}">
-              {{ resposta.resposta or '(Vazio)' }}
+            
+            {% else %}
+            <div class="question">
+              <div class="question-text">
+                <span class="question-number">{{ topico.ordem }}.{{ resposta.pergunta.ordem }}</span>
+                {{ resposta.pergunta.texto }}
+              </div>
+              <div class="answer 
+                {% if resposta.resposta|lower in ['não', 'nao'] %}nao
+                {% elif resposta.resposta|lower in ['n.a.', 'n/a', 'na'] %}nao-aplicavel
+                {% elif resposta.resposta == 'Parcial' %}parcial
+                {% endif %}">
+                {{ resposta.resposta or '(Vazio)' }}
+              </div>
             </div>
-          </div>
-
-          {% if resposta.observacao %}
-          <div class="observation">{{ resposta.observacao }}</div>
-          {% endif %}
-          
+            {% endif %}
+            {% if resposta.observacao %}
+            <div class="observation">{{ resposta.observacao }}</div>
+            {% endif %}
+            
           {% endfor %}
         {% else %}
           <div class="question">
@@ -449,6 +503,7 @@
             </div>
           </div>
         {% endif %}
+        
         {% set fotos_deste_topico = fotos_por_topico.get(topico) %}
         {% if fotos_deste_topico %}
         <div class="photo-gallery-container">
@@ -456,8 +511,9 @@
           
           {% for foto_info in fotos_deste_topico|sort(attribute='resposta.pergunta.ordem') %}
           <div class="photo-gallery-item">
+              
               <div class="photo-gallery-label">
-                Item {{ topico.ordem }}.{{ foto_info.resposta.pergunta.ordem }}
+                {{ topico.ordem }}.{{ foto_info.resposta.pergunta.ordem }} - {{ foto_info.resposta.pergunta.texto }}
               </div>
               
               <img src="{{ foto_info.caminho_url }}" alt="Evidência Item {{ topico.ordem }}.{{ foto_info.resposta.pergunta.ordem }}">
@@ -471,16 +527,18 @@
           {% endfor %}
         </div>
         {% endif %}
-        </div> {% endfor %}
-    </main>
+      </div> {% endfor %}
+  </main>
 
   <div class="footer">
     <div class="footer-left">
-      <img src="/static/img/logo.jpg" alt="Logo" class="footer-logo">
+      {% if logo_pdf_uri %}
+    <img src="{{ logo_pdf_uri }}" alt="Logo" class="footer-logo">
+{% endif %}
       <span>QUALIGESTOR</span>
     </div>
     <div class="footer-center">
-      Documentário gerado por Qualigestor® | Material Confidencial | Versão 1.0
+      Relatório gerado por Qualigestor® | Material Confidencial | Versão 1.0
     </div>
     <div class="footer-right">
       {{ data_geracao.strftime('%d/%m/%Y %H:%M') }}

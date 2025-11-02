@@ -4300,3 +4300,7 @@ NameError: name 'allowed_file' is not defined
 2025-10-29 10:25:12,002 INFO: [Salvar Resposta 32] Commit bem-sucedido! [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:3093]
 2025-10-29 10:25:12,003 INFO: --- Rota /salvar-resposta finalizada para app ID: 32 --- [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:3107]
 2025-10-29 10:25:14,875 INFO: Cálculo de nota V3 (FINALIZAR) para aplicação 32: Obtidos=29.0, Máximo=30.0, Final=96.67% [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2413]
+2025-11-02 11:07:54,143 WARNING: Logo do PDF não encontrada em: F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\static\img\logo_pdf.png [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2555]
+2025-11-02 11:07:54,170 WARNING: Usando logo.jpg como fallback: file:///F:/ARQUIVOS%20QUALIGESTOR/QualiGestor%20-%20Copia/app/static/img/logo.jpg [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2560]
+2025-11-02 11:08:18,889 WARNING: Logo do PDF não encontrada em: F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\static\img\logo_pdf.png [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2555]
+2025-11-02 11:08:18,890 WARNING: Usando logo.jpg como fallback: file:///F:/ARQUIVOS%20QUALIGESTOR/QualiGestor%20-%20Copia/app/static/img/logo.jpg [in F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\cli\routes.py:2560]
