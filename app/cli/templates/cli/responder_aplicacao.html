@@ -40,7 +40,9 @@
                         
                         {% for pergunta in perguntas_por_topico[topico.id] %}
                         
-                        <div class="mb-4 p-3 border rounded"> 
+                        <div class="mb-4 p-3 border rounded pergunta-container" 
+                             data-pergunta-id="{{ pergunta.id }}"
+                             {% if pergunta.obrigatoria %}data-obrigatoria="true"{% endif %}> 
                             
                             <label class="form-label fw-bold">
                                 {{ topico.ordem }}.{{ pergunta.ordem }} - {{ pergunta.texto }}
@@ -95,9 +97,33 @@
                                 data-pergunta-id="{{ pergunta.id }}"
                                 onblur="salvarResposta(this)">{{ resposta_salva.resposta if resposta_salva else '' }}</textarea>
 
+                            {% elif pergunta.tipo.name == 'ASSINATURA' %}
+                            <div class="signature-pad-container" style="position: relative; height: 250px; width: 100%;">
+                                <canvas id="signature-pad-{{ pergunta.id }}" 
+                                        class="border" 
+                                        style="width: 100%; height: 100%;"></canvas>
+                                <input type="hidden" 
+                                       name="resposta-{{ pergunta.id }}" 
+                                       id="resposta-input-{{ pergunta.id }}"
+                                       data-pergunta-id="{{ pergunta.id }}"
+                                       value="{{ resposta_salva.resposta if resposta_salva else '' }}">
+                                <button type="button" 
+                                        class="btn btn-sm btn-outline-secondary clear-signature-btn" 
+                                        data-pergunta-id="{{ pergunta.id }}"
+                                        style="position: absolute; top: 10px; right: 10px;">
+                                    <i class="fas fa-eraser me-1"></i> Limpar
+                                </button>
+                            </div>
+                            {% if resposta_salva and resposta_salva.resposta %}
+                            <div class="mt-2" id="preview-assinatura-{{ pergunta.id }}">
+                                <small class="text-muted">Assinatura Salva:</small><br>
+                                <img src="{{ resposta_salva.resposta }}" alt="Assinatura" class="img-thumbnail" style="max-height: 100px;">
+                            </div>
+                            {% endif %}
                             {% else %}
                             <p class="text-danger small">Tipo de pergunta não suportado: {{ pergunta.tipo.name }}</p>
                             {% endif %}
+                            
                             {% if pergunta.permite_observacao %}
                             <div class="mt-2">
                                 <label for="obs-{{ pergunta.id }}" class="form-label small text-muted">Observação:</label>
@@ -108,37 +134,23 @@
                             </div>
                             {% endif %}
                             <div id="feedback-{{ pergunta.id }}" class="form-text small mt-1"></div>
-
                             {% set exige_foto = pergunta.exige_foto_se_nao_conforme %}
                             {% set resposta_nao_conforme = (resposta_salva and resposta_salva.resposta|lower in ['não', 'nao']) %}
-
                             <div class="mt-2" 
                                  id="foto-container-{{ pergunta.id }}" 
-                                 
-                                 {# Oculta o campo de upload se a pergunta não exigir foto OU se a resposta NÃO for 'Não' #}
                                  {% if not (exige_foto and resposta_nao_conforme) %}style="display: none;"{% endif %}>
-                                
                                 <label for="foto-{{ pergunta.id }}" class="form-label small fw-bold text-danger">
                                     <i class="fas fa-camera me-1"></i> Anexar foto de evidência (obrigatório):
                                 </label>
-                                
                                 <input class="form-control form-control-sm" 
                                        type="file" 
                                        id="foto-{{ pergunta.id }}" 
                                        name="foto-{{ pergunta.id }}" 
                                        accept="image/*"
-                                       
-                                       {# Passamos o ID da resposta (se já existir) para o JS #}
                                        data-resposta-id="{{ resposta_salva.id if resposta_salva else '' }}"
-                                       
-                                       {# Ocultamos o 'exige_foto' para o JS ler #}
                                        data-exige-foto="{{ 'true' if exige_foto else 'false' }}"
-                                       
-                                       {# Chama a nova função JS ao selecionar um arquivo #}
                                        onchange="handleFotoUpload(this)">
-                                
                                 <div id="feedback-foto-{{ pergunta.id }}" class="form-text small mt-1"></div>
-
                                 {% if resposta_salva and resposta_salva.caminho_foto %}
                                 <div class="mt-2">
                                     <img src="{{ url_for('cli.get_foto_resposta', filename=resposta_salva.caminho_foto) }}" 
@@ -155,6 +167,7 @@
                     </div>
                 </div>
                 {% endfor %}
+                
                 <div class="card mb-4">
                     <div class="card-header">
                         <h5 class="mb-0"><i class="fas fa-comment-alt me-2"></i>Observações Finais</h5>
@@ -165,11 +178,18 @@
                     </div>
                 </div>
 
+                <div class="alert alert-danger d-none" role="alert" id="alerta-validacao">
+                    <h5 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Erros Encontrados</h5>
+                    <p id="alerta-validacao-mensagem">Existem perguntas obrigatórias sem resposta. Por favor, revise os itens marcados.</p>
+                    <hr>
+                    <ul id="alerta-validacao-lista" class="mb-0">
+                        </ul>
+                </div>
                 <div class="text-end mb-5">
                     <a href="{{ url_for('cli.listar_aplicacoes') }}" class="btn btn-secondary">
                         <i class="fas fa-times me-2"></i>Cancelar
                     </a>
-                    <button type-="submit" class="btn btn-primary">
+                    <button type="submit" class="btn btn-primary">
                         <i class="fas fa-check-circle me-2"></i>Finalizar Aplicação
                     </button>
                 </div>
@@ -183,6 +203,7 @@
 {% block extra_js %}
 <script>
     // Função: Salva a resposta de TEXTO/RADIO/SELECT via AJAX
+    // (Esta função está correta, sem mudanças)
     async function salvarResposta(inputElement, isObservacao = false) {
         let perguntaId, respostaValue, observacaoValue;
         perguntaId = inputElement.dataset.perguntaId;
@@ -206,9 +227,8 @@
         respostaValue = respostaInput ? respostaInput.value : '';
         observacaoValue = observacaoInput ? observacaoInput.value : '';
 
-        // 3. (NOVO!) Mostra/Oculta o campo de FOTO baseado na resposta
+        // 3. Mostra/Oculta o campo de FOTO baseado na resposta
         if (exigeFoto && fotoContainer) {
-            // Mostra se a resposta for 'não' (case-insensitive)
             if (respostaValue.trim().toLowerCase() === 'não' || respostaValue.trim().toLowerCase() === 'nao') {
                 fotoContainer.style.display = 'block';
             } else {
@@ -223,18 +243,25 @@
         } else {
             console.warn(`Elemento de feedback 'feedback-${perguntaId}' não encontrado.`);
         }
+        
+        if (respostaValue.trim() !== '') {
+            const container = inputElement.closest('.pergunta-container');
+            if(container) {
+                container.classList.remove('border-danger', 'bg-light');
+            }
+        }
 
         try {
-            // 4. Envia os dados de TEXTO/OBS para a rota 'salvar_resposta'
+            // 4. Envia os dados de TEXTO/OBS/ASSINATURA(Base64) para a rota 'salvar_resposta'
             const response = await fetch("{{ url_for('cli.salvar_resposta', id=aplicacao.id) }}", {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token() }}' // Boa prática adicionar o CSRF
+                    'X-CSRFToken': '{{ csrf_token() }}'
                 },
                 body: JSON.stringify({
                     pergunta_id: parseInt(perguntaId),
-                    resposta: respostaValue,
+                    resposta: respostaValue, // Para assinatura, isso enviará o Base64
                     observacao: observacaoValue
                 })
             });
@@ -247,8 +274,6 @@
                     feedbackEl.className = 'form-text small text-success';
                 }
                 
-                // 5. (NOVO!) Atualiza o input de foto com o ID da resposta retornado
-                // Isso é CRUCIAL para que o upload da foto saiba qual resposta_id usar
                 if (fotoInputElement && data.resposta_id) {
                     fotoInputElement.dataset.respostaId = data.resposta_id;
                     console.log(`Resposta ID ${data.resposta_id} associada ao campo de foto.`);
@@ -267,22 +292,21 @@
     }
 
     // ====================================================================
-    // (NOVO!) Função para UPLOAD DA FOTO (separada)
+    // Função para UPLOAD DA FOTO
+    // (Esta função está correta, sem mudanças)
     // ====================================================================
     async function handleFotoUpload(fileInput) {
         const respostaId = fileInput.dataset.respostaId;
-        const perguntaId = fileInput.name.replace('foto-', ''); // Pega o ID da pergunta
+        const perguntaId = fileInput.name.replace('foto-', '');
         const feedbackFotoEl = document.getElementById(`feedback-foto-${perguntaId}`);
 
-        // Validação 1: O ID da resposta DEVE existir (ter sido salvo pelo 'salvarResposta')
         if (!respostaId) {
             alert('A resposta (Sim/Não/N.A.) deve ser salva antes de anexar uma foto. A resposta "Não" já foi selecionada?');
-            fileInput.value = ''; // Limpa o campo
+            fileInput.value = '';
             if (feedbackFotoEl) feedbackFotoEl.innerHTML = '<span class="text-danger">Salve a resposta "Não" primeiro.</span>';
             return;
         }
 
-        // Validação 2: Verifica se um arquivo foi selecionado
         const file = fileInput.files[0];
         if (!file) {
             if (feedbackFotoEl) feedbackFotoEl.innerHTML = '';
@@ -294,18 +318,16 @@
             feedbackFotoEl.className = 'form-text small text-muted';
         }
 
-        // 3. Monta o FormData
         const formData = new FormData();
-        formData.append('foto', file); // O nome 'foto' deve bater com request.files['foto'] no backend
+        formData.append('foto', file);
 
         try {
-            // 4. Envia a FOTO para a rota 'upload_foto_resposta'
-            const response = await fetch(`/cli/resposta/${respostaId}/upload-foto`, { // URL direta para sua rota
+            const response = await fetch(`/cli/resposta/${respostaId}/upload-foto`, {
                 method: 'POST',
                 headers: {
-                    'X-CSRFToken': '{{ csrf_token() }}' // CSRF é necessário para POST
+                    'X-CSRFToken': '{{ csrf_token() }}'
                 },
-                body: formData // Envia como FormData, não JSON
+                body: formData
             });
 
             const data = await response.json();
@@ -315,8 +337,6 @@
                     feedbackFotoEl.innerHTML = `<i class="fas fa-check me-1"></i>Foto enviada com sucesso! (${data.filename})`;
                     feedbackFotoEl.className = 'form-text small text-success';
                 }
-                // Recarrega a página para mostrar a miniatura da imagem (opção simples)
-                // É melhor recarregar para garantir que o "src" da imagem (se já houver uma) seja atualizado.
                 location.reload(); 
             } else {
                 throw new Error(data.erro || 'Erro desconhecido no upload');
@@ -331,12 +351,233 @@
         }
     }
 
-    // Confirmação antes de finalizar (para garantir que o usuário não clique sem querer)
+    // ====================================================================
+    // (MODIFICADO!) LÓGICA PARA MÚLTIPLAS ASSINATURAS (v4)
+    // ====================================================================
+    
+    // Armazena todos os pads inicializados (ex: { 'signature-pad-10': padObject, ... })
+    const signaturePads = {};
+
+    // Função para redimensionar TODOS os canvases de assinatura
+    function resizeAllSignaturePads() {
+        document.querySelectorAll('.signature-pad-container canvas').forEach(canvas => {
+            try {
+                const pad = signaturePads[canvas.id];
+                const ratio =  Math.max(window.devicePixelRatio || 1, 1);
+                
+                let data = null;
+                if (pad && !pad.isEmpty()) {
+                    // Salva a assinatura atual (se houver)
+                    data = pad.toDataURL();
+                }
+
+                canvas.width = canvas.offsetWidth * ratio;
+                canvas.height = canvas.offsetHeight * ratio;
+                canvas.getContext("2d").scale(ratio, ratio);
+
+                if (pad) {
+                    // Se tinha dados, restaura. Senão, limpa.
+                    if (data) {
+                        pad.fromDataURL(data);
+                    } else {
+                        // Se não tinha dados, verifica se o input hidden tem
+                        const perguntaId = pad.perguntaId;
+                        const hiddenInput = document.getElementById(`resposta-input-${perguntaId}`);
+                        if (hiddenInput && hiddenInput.value) {
+                            pad.fromDataURL(hiddenInput.value);
+                        } else {
+                            pad.clear();
+                        }
+                    }
+                }
+            } catch(e) {
+                console.error("Erro ao redimensionar canvas:", e, canvas);
+            }
+        });
+    }
+
+    // Inicializa todos os pads na página
+    function initializeSignaturePads() {
+        document.querySelectorAll('.signature-pad-container canvas').forEach(canvas => {
+            const perguntaId = canvas.id.replace('signature-pad-', '');
+            const pad = new SignaturePad(canvas, {
+                backgroundColor: 'rgb(255, 255, 255)'
+            });
+
+            // Guarda a referência ao pad
+            pad.perguntaId = perguntaId; // Adiciona uma propriedade para referência
+            signaturePads[canvas.id] = pad;
+
+            // Pega o input hidden correspondente
+            const hiddenInput = document.getElementById(`resposta-input-${perguntaId}`);
+
+            // Se houver valor salvo (Base64), carrega no pad
+            if (hiddenInput && hiddenInput.value) {
+                try {
+                    pad.fromDataURL(hiddenInput.value);
+                } catch(e) {
+                    console.warn("Não foi possível carregar a assinatura salva:", e);
+                    hiddenInput.value = ''; // Limpa se for inválida
+                }
+            }
+
+            // ==================================================================
+            //               ★ ★ ★ CORREÇÃO (SALVAR ASSINATURA) ★ ★ ★
+            //      Substituído '.onEnd' (v2) por '.addEventListener' (v4)
+            // ==================================================================
+            pad.addEventListener("endStroke", () => {
+                console.log(`Assinatura (Pergunta ${perguntaId}) atualizada.`);
+                if (pad.isEmpty()) {
+                    hiddenInput.value = '';
+                } else {
+                    const data = pad.toDataURL('image/png');
+                    hiddenInput.value = data;
+                }
+                // Chama a função de salvar existente, passando o input hidden
+                salvarResposta(hiddenInput, false); 
+            });
+            // ==================================================================
+        });
+
+        // Configura os botões de limpar
+        document.querySelectorAll('.clear-signature-btn').forEach(button => {
+            // Remove listener antigo para evitar duplicação (boa prática)
+            button.replaceWith(button.cloneNode(true));
+            button = document.querySelector(`[data-pergunta-id="${button.dataset.perguntaId}"].clear-signature-btn`);
+
+            button.addEventListener('click', function() {
+                const perguntaId = this.dataset.perguntaId;
+                const pad = signaturePads[`signature-pad-${perguntaId}`];
+                const hiddenInput = document.getElementById(`resposta-input-${perguntaId}`);
+                if (pad) {
+                    pad.clear();
+                }
+                if (hiddenInput) {
+                    hiddenInput.value = '';
+                    // Salva a resposta "vazia"
+                    salvarResposta(hiddenInput, false);
+                }
+                
+                // Remove a imagem de preview, se houver
+                const preview = document.getElementById(`preview-assinatura-${perguntaId}`);
+                if (preview) {
+                    preview.style.display = 'none';
+                }
+            });
+        });
+    }
+
+    // --- INICIALIZAÇÃO ---
+    document.addEventListener('DOMContentLoaded', () => {
+        initializeSignaturePads();
+        
+        // Redimensiona ao carregar e ao mudar o tamanho da janela
+        window.addEventListener("resize", resizeAllSignaturePads);
+        resizeAllSignaturePads(); // Chama uma vez para definir o tamanho inicial
+    });
+
+
+    // ====================================================================
+    // (NOVO!) Função de Validação
+    // (Esta função está correta, sem mudanças)
+    // ====================================================================
+    function validarFormulario() {
+        let pendentes = [];
+        
+        // 1. Limpa erros antigos
+        document.querySelectorAll('.pergunta-container.border-danger').forEach(el => {
+            el.classList.remove('border-danger', 'bg-light');
+        });
+
+        // 2. Itera por todas as perguntas marcadas como obrigatórias
+        document.querySelectorAll('.pergunta-container[data-obrigatoria="true"]').forEach(container => {
+            const perguntaId = container.dataset.perguntaId;
+            let isRespondida = false;
+
+            // Tenta encontrar por nome (radio, select, text, textarea)
+            const inputPorNome = container.querySelector(`[name="resposta-${perguntaId}"]`);
+            // Tenta encontrar por ID (hidden input da assinatura)
+            const inputPorId = container.querySelector(`#resposta-input-${perguntaId}`);
+
+            if (inputPorNome) {
+                if (inputPorNome.type === 'radio') {
+                    isRespondida = container.querySelector(`[name="resposta-${perguntaId}"]:checked`) !== null;
+                } else {
+                    // (text, select, textarea, number)
+                    isRespondida = inputPorNome.value.trim() !== '';
+                }
+            } else if (inputPorId) {
+                // (assinatura)
+                isRespondida = inputPorId.value.trim() !== '';
+            }
+
+            // 3. Se não respondida, marca e adiciona à lista
+            if (!isRespondida) {
+                container.classList.add('border-danger', 'bg-light');
+                const label = container.querySelector('.form-label').innerText.trim();
+                // Remove o "*" da label para ficar mais limpo na lista
+                pendentes.push(label.replace('*', '').trim()); 
+            }
+        });
+
+        // 4. Retorna o status e a lista de pendentes
+        return {
+            valido: pendentes.length === 0,
+            pendentes: pendentes
+        };
+    }
+
+
+    // ====================================================================
+    // (MODIFICADO!) Listener de 'submit' do formulário
+    // (Esta função está correta, sem mudanças)
+    // ====================================================================
     document.getElementById('form-finalizar').addEventListener('submit', function (event) {
-        if (!confirm('Tem certeza que deseja finalizar esta aplicação? Você não poderá editá-la depois.')) {
-            event.preventDefault();
+        
+        // Previne o envio padrão para podermos validar primeiro
+        event.preventDefault(); 
+
+        const alerta = document.getElementById('alerta-validacao');
+        const listaAlerta = document.getElementById('alerta-validacao-lista');
+        
+        // 1. Chama a função de validação
+        const { valido, pendentes } = validarFormulario();
+
+        if (valido) {
+            // 2. Se for válido, esconde o alerta (caso esteja visível)
+            alerta.classList.add('d-none');
+            listaAlerta.innerHTML = '';
+            
+            // 3. Mostra a confirmação padrão
+            if (confirm('Tem certeza que deseja finalizar esta aplicação? Você não poderá editá-la depois.')) {
+                // 4. Se o usuário confirmar, envia o formulário
+                this.submit(); // 'this' é o <form>
+            }
+        } else {
+            // 5. Se for inválido, mostra o alerta
+            document.getElementById('alerta-validacao-mensagem').textContent = 
+                `Existem ${pendentes.length} pergunta(s) obrigatória(s) sem resposta. Por favor, revise os itens marcados:`;
+
+            // Limpa a lista antiga e preenche com a nova
+            listaAlerta.innerHTML = '';
+            pendentes.forEach(texto => {
+                const li = document.createElement('li');
+                // Pega só o texto da pergunta (remove a numeração "1.1 - ")
+                li.textContent = texto.split(' - ').slice(1).join(' - ') || texto; 
+                listaAlerta.appendChild(li);
+            });
+            
+            alerta.classList.remove('d-none');
+            
+            // 6. Rola a tela para o primeiro erro ou para o alerta
+            const primeiroErro = document.querySelector('.pergunta-container.border-danger');
+            if (primeiroErro) {
+                primeiroErro.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else {
+                alerta.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
         }
     });
 
 </script>
-{% endblock %}
+{% endblock %} 

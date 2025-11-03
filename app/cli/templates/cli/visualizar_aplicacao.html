@@ -24,6 +24,23 @@
         .status-badge {
             font-size: 0.9rem;
         }
+        /* ================== */
+        /* CSS ADICIONADO  */
+        /* ================== */
+        .signature-image-view {
+            border: 1px solid #dee2e6;
+            background: #fdfdfd;
+            padding: 5px;
+            max-width: 300px;
+            height: 150px;
+        }
+        .signature-image-view img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        /* ================== */
+
         @media print {
             .no-print {
                 display: none !important;
@@ -38,7 +55,6 @@
 <body>
     <div class="container-fluid">
         <div class="row">
-            <!-- Main content -->
             <main class="col-md-12 px-md-4">
                 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom no-print">
                     <h1 class="h2">
@@ -59,7 +75,6 @@
                     </div>
                 </div>
                 
-                <!-- Breadcrumb -->
                 <nav aria-label="breadcrumb" class="no-print">
                     <ol class="breadcrumb">
                         <li class="breadcrumb-item"><a href="{{ url_for('cli.index') }}">Dashboard</a></li>
@@ -68,7 +83,6 @@
                     </ol>
                 </nav>
 
-                <!-- Cabeçalho da aplicação -->
                 <div class="card resultado-card mb-4">
                     <div class="card-body">
                         <div class="row">
@@ -102,7 +116,6 @@
                     </div>
                 </div>
 
-                <!-- Informações da aplicação -->
                 <div class="row mb-4">
                     <div class="col-md-6">
                         <div class="card">
@@ -169,7 +182,6 @@
                     </div>
                 </div>
 
-                <!-- Respostas por tópico -->
                 <div class="card">
                     <div class="card-header">
                         <h5><i class="fas fa-list-check me-1"></i>Respostas por Tópico</h5>
@@ -200,12 +212,23 @@
                                     <div class="col-md-4">
                                         {% set resposta = respostas_dict.get(pergunta.id) %}
                                         {% if resposta %}
-                                        <div class="text-end">
-                                            <span class="badge bg-primary">{{ resposta.resposta or 'Sem resposta' }}</span>
-                                            {% if resposta.observacao %}
-                                            <br><small class="text-muted">Obs: {{ resposta.observacao }}</small>
-                                            {% endif %}
-                                        </div>
+                                        
+                                        {% if pergunta.tipo and pergunta.tipo.name == 'ASSINATURA' %}
+                                            <div class="signature-image-view float-end">
+                                                {% if resposta.resposta and 'data:image' in resposta.resposta %}
+                                                    <img src="{{ resposta.resposta | safe }}" alt="Assinatura">
+                                                {% else %}
+                                                    <span style="color: #999; font-style: italic; padding: 5px;">(Assinatura não preenchida)</span>
+                                                {% endif %}
+                                            </div>
+                                        {% else %}
+                                            <div class="text-end">
+                                                <span class="badge bg-primary">{{ resposta.resposta or 'Sem resposta' }}</span>
+                                                {% if resposta.observacao %}
+                                                <br><small class="text-muted">Obs: {{ resposta.observacao }}</small>
+                                                {% endif %}
+                                            </div>
+                                        {% endif %}
                                         {% else %}
                                         <div class="text-end">
                                             <span class="badge bg-secondary">Não respondida</span>
@@ -231,7 +254,6 @@
                     </div>
                 </div>
 
-                <!-- Ações -->
                 <div class="mt-4 no-print">
                     <div class="d-flex gap-2 flex-wrap">
                         <a href="{{ url_for('cli.listar_aplicacoes') }}" class="btn btn-secondary">
@@ -270,7 +292,6 @@
                     </div>
                 </div>
 
-                <!-- Rodapé da impressão -->
                 <div class="d-print-block d-none mt-4 text-center">
                     <hr>
                     <small class="text-muted">
@@ -284,6 +305,7 @@ Relatório gerado em {{ data_relatorio.strftime('%d/%m/%Y %H:%M') }} pelo sistem
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // ... (Funções JS - Sem Mudanças) ...
         function compartilharResultado() {
             if (navigator.share) {
                 navigator.share({

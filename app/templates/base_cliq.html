@@ -18,6 +18,7 @@
       font-family: 'Poppins', sans-serif;
       margin: 0;
       background-color: #f8fafc;
+      overflow-y: scroll;
     }
 
     .header-topbar {
@@ -39,22 +40,26 @@
       height: 85px;
     }
 
+    /* ==== CSS DESKTOP (PADRÃO) ==== */
     .sidebar {
       position: fixed;
-      top: 100px;
+      top: 100px; 
       bottom: 0;
       left: 0;
-      width: 70px;
+      width: 70px; 
       background-color: #fff;
       border-right: 1px solid #ddd;
-      overflow: hidden;
+      overflow-x: hidden; 
+      overflow-y: auto;
       z-index: 1040;
-      transition: width 0.4s ease;
       padding-top: 12px;
+      transition: width 0.3s ease-in-out; 
+      transform: translateX(0); 
     }
 
+    /* ==== LARGURA AUMENTADA PARA 300px ==== */
     .sidebar:hover {
-      width: 240px;
+      width: 300px; 
     }
 
     .sidebar .nav-link,
@@ -62,81 +67,208 @@
       display: flex;
       align-items: center;
       gap: 12px;
-      padding: 12px 16px;
+      padding: 12px 24px; 
       color: #555;
       text-decoration: none;
       font-weight: 500;
-      transition: background 0.2s, color 0.2s;
-      border-radius: 6px;
-      margin: 4px 8px;
+      transition: all 0.2s ease-in-out;
+      border-radius: 0;
+      margin: 4px 0;
       background-color: transparent;
       font-size: 15px;
+      white-space: nowrap; 
     }
 
     .sidebar .nav-link:hover,
     .sidebar .accordion-button:hover {
-      background-color: #f1f1f1;
+      background-color: transparent;
       color: #0d6efd;
+      font-weight: 600; 
+      transform: translateX(4px);
     }
 
     .sidebar .accordion-button:not(.collapsed) {
-      background-color: #f1f1f1;
+      background-color: transparent;
       color: #0d6efd;
+      font-weight: 600;
     }
 
     .sidebar .accordion-body {
-      padding-left: 32px;
+      padding: 0; 
+    }
+    
+    .sidebar .accordion-body .nav-link {
+      font-size: 14px; 
+      padding: 10px 24px 10px 56px; 
+      white-space: nowrap; 
     }
 
+    /* Texto escondido por padrão no desktop */
     .sidebar .nav-link span,
     .sidebar .accordion-button span {
-      display: none;
+      opacity: 0; 
+      visibility: hidden; 
+      transition: opacity 0.2s ease-in-out;
+      white-space: nowrap; 
     }
 
+    /* Texto aparece no desktop :hover */
     .sidebar:hover .nav-link span,
     .sidebar:hover .accordion-button span {
-      display: inline;
+      opacity: 1;
+      visibility: visible;
+      transition-delay: 0.1s; 
     }
-
+    
+    /* Seta escondida por padrão no desktop */
     .sidebar .accordion-button::after {
       display: none;
     }
 
+    /* Seta aparece no desktop :hover */
     .sidebar:hover .accordion-button::after {
       display: inline-block;
     }
 
+
     .main-content {
-      margin-left: 70px;
+      margin-left: 70px; 
       padding-top: 116px;
-      transition: margin-left 0.4s ease;
+      transition: margin-left 0.3s ease-in-out;
     }
 
-    .sidebar:hover~.main-content {
-      margin-left: 240px;
+    /* ==== MARGEM AUMENTADA PARA 300px ==== */
+    .sidebar:hover ~ .main-content {
+      margin-left: 300px; 
+    }
+    
+    
+    #sidebarToggle {
+      position: fixed;
+      top: 25px;
+      left: 15px;
+      z-index: 1050; 
+      background-color: #ffffff;
+      border: none;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
     }
 
+    #sidebarToggle:hover {
+      background-color: #f8f9fa;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+      transform: translateY(-2px);
+    }
+
+    #sidebarToggle:focus {
+      outline: none;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12), 0 0 0 3px rgba(13, 110, 253, 0.25);
+    }
+
+    #sidebarToggle i {
+      transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
+      position: absolute;
+    }
+
+    #sidebarToggle .icon-close {
+      opacity: 0;
+      transform: scale(0.8) rotate(-90deg);
+    }
+
+    #sidebarToggle.is-active .icon-open {
+      opacity: 0;
+      transform: scale(0.8) rotate(90deg);
+    }
+
+    #sidebarToggle.is-active .icon-close {
+      opacity: 1;
+      transform: scale(1) rotate(0deg);
+    }
+
+
+    /* ==== CSS MOBILE (Sobrescreve o Desktop) ==== */
     @media (max-width: 768px) {
+      .header-topbar {
+        padding-left: 70px; 
+      }
+      
+      /* Cancela o hover do desktop */
+      .sidebar:hover {
+         width: 300px !important;
+      }
+      .sidebar:hover ~ .main-content {
+        margin-left: 0 !important;
+      }
+      
+      .main-content {
+        margin-left: 0 !important;
+      }
+      
       .sidebar {
-        width: 240px;
-        transform: translateX(-100%);
+        width: 300px !important; 
+        min-width: 300px !important;
+        transform: translateX(calc(-100% - 15px)); 
+        z-index: 1040;
+        top: 100px; 
+        left: 15px; 
+        bottom: auto; 
+        max-height: calc(100vh - 120px); 
+        border-right: none; 
+        padding-top: 12px; 
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1); 
+        border-radius: 12px; 
+        transition: transform 0.3s ease-in-out; 
       }
 
       .sidebar.show {
         transform: translateX(0);
       }
-
-      .main-content,
-      .sidebar:hover~.main-content {
-        margin-left: 0;
+      
+      /* Força o texto e setas a aparecerem no mobile */
+      .sidebar .nav-link span,
+      .sidebar .accordion-button span {
+        opacity: 1;
+        visibility: visible;
+        transition-delay: 0s; 
+      }
+      
+      .sidebar .accordion-button::after {
+        display: inline-block;
       }
     }
+    /* ==== FIM CSS MOBILE ==== */
+
 
     .sidebar .nav-link:focus,
     .sidebar .accordion-button:focus {
       outline: none;
       box-shadow: none;
     }
+
+    .sidebar-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 1030;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+    }
+
+    .sidebar.show~.sidebar-overlay {
+      opacity: 1;
+      visibility: visible;
+    }
+
   </style>
 
   {% block head %}{% endblock %}
@@ -163,11 +295,17 @@
 
 
 <body>
+
+  <button class="btn d-md-none" type="button" id="sidebarToggle"> 
+    <i class="fas fa-bars fs-5 icon-open"></i>
+    <i class="fas fa-times fs-5 icon-close"></i>
+  </button>
   <header class="header-topbar">
     <div class="d-flex align-items-center gap-3">
       <a href="{{ url_for('cli.index') }}" class="logo-header">
         <img src="{{ url_for('static', filename='img/logo.jpg') }}" alt="QualiGestor">
       </a>
+      
       <p class="text-end text-muted small mb-0">Tipo de usuário: {{ session.get('tipo') }}</p>
     </div>
     <div class="text-end text-muted small">Versão {{ versao }}</div>
@@ -183,7 +321,7 @@
           </button>
         </h2>
         <div id="collapseAplicacoes" class="accordion-collapse collapse" data-bs-parent="#accordionSidebar">
-          <div class="accordion-body py-0 px-4">
+          <div class="accordion-body"> 
             <a class="nav-link" href="{{ url_for('cli.listar_aplicacoes') }}">Listar aplicações</a>
             <a class="nav-link" href="{{ url_for('cli.nova_aplicacao') }}">Nova aplicação</a>
             <a class="nav-link" href="#">Configurações de listagem</a>
@@ -199,9 +337,10 @@
           </button>
         </h2>
         <div id="collapseQuestionarios" class="accordion-collapse collapse" data-bs-parent="#accordionSidebar">
-          <div class="accordion-body py-0 px-4">
+          <div class="accordion-body">
             <a class="nav-link" href="{{ url_for('cli.listar_questionarios') }}">Listar questionários</a>
-            <a class="nav-link" href="{{ url_for('cli.novo_questionario') }}">Novo questionário</a>         </div>
+            <a class="nav-link" href="{{ url_for('cli.novo_questionario') }}">Novo questionário</a>
+          </div>
         </div>
       </div>
 
@@ -212,7 +351,7 @@
           </button>
         </h2>
         <div id="collapseGrupos" class="accordion-collapse collapse" data-bs-parent="#accordionSidebar">
-          <div class="accordion-body py-0 px-4">
+          <div class="accordion-body">
             <a class="nav-link" href="{{ url_for('cli.listar_grupos') }}">Listar grupos</a>
             <a class="nav-link" href="{{ url_for('cli.novo_grupo') }}">Novo grupo</a>
           </div>
@@ -226,7 +365,7 @@
           </button>
         </h2>
         <div id="collapseAvaliados" class="accordion-collapse collapse" data-bs-parent="#accordionSidebar">
-          <div class="accordion-body py-0 px-4">
+          <div class="accordion-body">
             <a class="nav-link" href="{{ url_for('cli.listar_avaliados') }}">Listar avaliados</a>
             <a class="nav-link" href="{{ url_for('cli.novo_avaliado') }}">Novo avaliado</a>
           </div>
@@ -240,7 +379,7 @@
           </button>
         </h2>
         <div id="collapseUsuarios" class="accordion-collapse collapse" data-bs-parent="#accordionSidebar">
-          <div class="accordion-body py-0 px-4">
+          <div class="accordion-body">
             <a class="nav-link" href="{{ url_for('auth.listar_usuarios') }}">Listar usuários</a>
           </div>
         </div>
@@ -252,6 +391,7 @@
     </div>
   </div>
 
+  <div class="sidebar-overlay d-md-none" id="sidebarOverlay"></div>
   <main class="main-content">
     {% block content %}
 <script>
@@ -329,19 +469,66 @@
     let closeTimeout;
 
     sidebar.addEventListener('mouseleave', () => {
-      closeTimeout = setTimeout(() => {
-        const openItems = sidebar.querySelectorAll('.accordion-collapse.show');
-        openItems.forEach(item => {
-          bootstrap.Collapse.getOrCreateInstance(item).hide();
-        });
-      }, 300);
+      // Verifica se não estamos no mobile
+      if (window.innerWidth > 768) { 
+        closeTimeout = setTimeout(() => {
+          const openItems = sidebar.querySelectorAll('.accordion-collapse.show');
+          openItems.forEach(item => {
+            bootstrap.Collapse.getOrCreateInstance(item).hide();
+          });
+        }, 300);
+      }
     });
 
     sidebar.addEventListener('mouseenter', () => {
-      clearTimeout(closeTimeout);
+      if (window.innerWidth > 768) {
+        clearTimeout(closeTimeout);
+      }
+    });
+  </script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const sidebar = document.getElementById('sidebar');
+      const sidebarToggle = document.getElementById('sidebarToggle');
+      const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+      function closeSidebar() {
+        if (sidebar && sidebar.classList.contains('show')) {
+          sidebar.classList.remove('show');
+          sidebarToggle.classList.remove('is-active'); 
+        }
+      }
+
+      function toggleSidebar() {
+        if (sidebar) {
+          sidebar.classList.toggle('show');
+          sidebarToggle.classList.toggle('is-active'); 
+        }
+      }
+
+      if (sidebarToggle) {
+        sidebarToggle.addEventListener('click', toggleSidebar);
+      }
+      
+      if (sidebarOverlay) {
+        sidebarOverlay.addEventListener('click', closeSidebar);
+      }
+
+      if (sidebar) {
+        sidebar.addEventListener('click', (e) => {
+          if ( (e.target.matches('a.nav-link') || e.target.closest('a.nav-link')) && 
+               !e.target.matches('.accordion-button') && 
+               !e.target.closest('.accordion-button') ) 
+          {
+            closeSidebar();
+          }
+        });
+      }
     });
   </script>
 
+  <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+  
   {% block extra_js %}{% endblock %}
   </body>
 
