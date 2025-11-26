@@ -165,9 +165,15 @@ class Usuario(db.Model, UserMixin):
     ativo = db.Column(db.Boolean, default=True)
     ultimo_acesso = db.Column(db.DateTime)
     
-    # Chaves estrangeiras
+    # Chaves estrangeiras - HIERARQUIA SISUB
+    # SDAB (Nível Nacional - Vê tudo do cliente)
     cliente_id = db.Column(db.Integer, db.ForeignKey('cliente.id'), nullable=False)
+    
+    # GAP (Nível Regional - Vê todas as OMs do grupo)
     grupo_id = db.Column(db.Integer, db.ForeignKey('grupo.id'))
+    
+    # RANCHO/OM (Nível Operacional - Vê apenas esta unidade)
+    avaliado_id = db.Column(db.Integer, db.ForeignKey('avaliado.id'))
     
     # Timestamps
     criado_em = db.Column(db.DateTime, default=datetime.utcnow)
@@ -177,6 +183,19 @@ class Usuario(db.Model, UserMixin):
     aplicacoes_realizadas = db.relationship('AplicacaoQuestionario', backref='aplicador', lazy='dynamic')
     notificacoes = db.relationship('Notificacao', backref='usuario', lazy='dynamic')
     logs = db.relationship('LogAuditoria', backref='usuario', lazy='dynamic')
+    
+    # Relacionamento para acessar os dados do rancho diretamente (ex: usuario.avaliado.nome)
+    avaliado = db.relationship('Avaliado', backref='usuarios_vinculados', foreign_keys=[avaliado_id])
+
+    def check_password(self, password):
+        """Verifica se a senha está correta"""
+        from werkzeug.security import check_password_hash
+        return check_password_hash(self.senha_hash, password)
+    
+    def set_password(self, password):
+        """Define nova senha"""
+        from werkzeug.security import generate_password_hash
+        self.senha_hash = generate_password_hash(password)
 
     def check_password(self, password):
         """Verifica se a senha está correta"""

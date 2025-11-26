@@ -1,0 +1,57 @@
+{% extends "base_cliq.html" %}
+
+{% block content %}
+<div class="container-fluid p-4">
+    <h2 class="mb-4">Dashboard de Não Conformidades (Pareto)</h2>
+    
+    <div class="card shadow">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Análise de Incidência por Tópico</h6>
+        </div>
+        <div class="card-body">
+            <div style="height: 400px; width: 100%;">
+                <canvas id="paretoChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    fetch("{{ url_for('cli.api_pareto_nao_conformidades') }}")
+        .then(r => r.json())
+        .then(data => {
+            new Chart(document.getElementById('paretoChart'), {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [
+                        {
+                            label: 'Acumulado (%)',
+                            data: data.percentual,
+                            type: 'line',
+                            borderColor: 'red',
+                            yAxisID: 'y1'
+                        },
+                        {
+                            label: 'Ocorrências',
+                            data: data.data,
+                            backgroundColor: '#36b9cc',
+                            yAxisID: 'y'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, position: 'left' },
+                        y1: { beginAtZero: true, position: 'right', max: 100 }
+                    }
+                }
+            });
+        });
+});
+</script>
+{% endblock %}

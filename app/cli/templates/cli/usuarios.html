@@ -4,268 +4,229 @@
 
 {% block head %}
 <style>
+    /* CSS Específico para corrigir os Cards dentro do CLIQ */
+    
     .user-card {
+        background: #fff;
+        border: none;
+        border-radius: 12px;
         transition: all 0.3s ease;
-        border-left: 4px solid transparent;
+        border-left: 5px solid transparent; /* Borda colorida lateral */
+        height: 100%; /* Força altura igual para todos */
     }
+
     .user-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        border-left-color: #007bff;
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1) !important;
     }
+
+    /* Cores baseadas no tipo de usuário */
+    .border-admin { border-left-color: #dc3545; } /* Vermelho */
+    .border-gestor { border-left-color: #0dcaf0; } /* Azul */
+    .border-usuario { border-left-color: #198754; } /* Verde */
+
     .user-avatar {
-        width: 50px;
-        height: 50px;
-        background: linear-gradient(135deg, #007bff, #0056b3);
+        width: 55px;
+        height: 55px;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
         color: white;
-        font-weight: bold;
-        font-size: 1.2rem;
+        font-weight: 600;
+        font-size: 1.3rem;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.15);
     }
-    .status-badge {
-        font-size: 0.75rem;
+
+    .bg-gradient-admin { background: linear-gradient(135deg, #dc3545, #a71d2a); }
+    .bg-gradient-gestor { background: linear-gradient(135deg, #0dcaf0, #0aa2c0); }
+    .bg-gradient-usuario { background: linear-gradient(135deg, #198754, #146c43); }
+
+    /* Corrige o alinhamento do Grid */
+    .card-grid {
+        display: flex;
+        flex-wrap: wrap;
+    }
+    
+    /* Estilo do input de busca */
+    .search-input {
+        border-radius: 20px 0 0 20px;
+        border: 1px solid #dee2e6;
+        border-right: none;
+    }
+    .search-icon {
+        border-radius: 0 20px 20px 0;
+        background: white;
+        border: 1px solid #dee2e6;
+        border-left: none;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+<div class="container-fluid p-4">
+    
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
         <div>
-            <h1 class="h3 mb-0">
-                <i class="fas fa-users text-primary me-2"></i>
-                Gestão de Usuários
+            <h1 class="h3 mb-1 text-gray-800 fw-bold">
+                <i class="fas fa-users text-primary me-2"></i>Gestão de Usuários
             </h1>
-            <p class="text-muted mb-0">Gerencie usuários e permissões do sistema</p>
+            <p class="text-muted mb-0">Controle de acesso e hierarquia (SDAB, GAP, Ranchos)</p>
         </div>
-        <a href="{{ url_for('cli.novo_usuario') }}" class="btn btn-primary">
-            <i class="fas fa-plus"></i> Novo Usuário
+        <a href="{{ url_for('cli.novo_usuario') }}" class="btn btn-primary shadow-sm px-4 py-2 rounded-pill">
+            <i class="fas fa-user-plus me-2"></i>Novo Usuário
         </a>
     </div>
 
-    <!-- Estatísticas -->
-    <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card bg-primary text-white">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-grow-1">
-                            <div class="small text-white-50">Total de Usuários</div>
-                            <div class="h4 mb-0">{{ stats.total }}</div>
-                        </div>
-                        <div class="text-white-50">
-                            <i class="fas fa-users fa-2x"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-md-3">
-            <div class="card bg-success text-white">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-grow-1">
-                            <div class="small text-white-50">Usuários Ativos</div>
-                            <div class="h4 mb-0">{{ stats.ativos }}</div>
-                        </div>
-                        <div class="text-white-50">
-                            <i class="fas fa-user-check fa-2x"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-md-3">
-            <div class="card bg-info text-white">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-grow-1">
-                            <div class="small text-white-50">Auditores</div>
-                            <div class="h4 mb-0">{{ stats.auditores }}</div>
-                        </div>
-                        <div class="text-white-50">
-                            <i class="fas fa-clipboard-check fa-2x"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-md-3">
-            <div class="card bg-warning text-white">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-grow-1">
-                            <div class="small text-white-50">Gestores</div>
-                            <div class="h4 mb-0">{{ stats.gestores }}</div>
-                        </div>
-                        <div class="text-white-50">
-                            <i class="fas fa-user-tie fa-2x"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Filtros -->
-    <div class="card mb-4">
-        <div class="card-body">
-            <div class="row">
+    <div class="card border-0 shadow-sm mb-4 rounded-3">
+        <div class="card-body p-3">
+            <div class="row g-3 align-items-center">
                 <div class="col-md-4">
-                    <input type="text" class="form-control" placeholder="Buscar usuários..." 
-                           id="filtroNome" onkeyup="filtrarUsuarios()">
+                    <div class="input-group">
+                        <input type="text" class="form-control search-input" placeholder="Buscar por nome, e-mail..." id="filtroNome" onkeyup="filtrarUsuarios()">
+                        <span class="input-group-text search-icon text-muted"><i class="fas fa-search"></i></span>
+                    </div>
                 </div>
                 <div class="col-md-3">
-                    <select class="form-select" id="filtroTipo" onchange="filtrarUsuarios()">
-                        <option value="">Todos os tipos</option>
-                        <option value="SUPER_ADMIN">Super Admin</option>
-                        <option value="ADMIN_CLIENTE">Admin Cliente</option>
-                        <option value="GESTOR">Gestor</option>
-                        <option value="AUDITOR">Auditor</option>
+                    <select class="form-select rounded-pill border-light bg-light" id="filtroTipo" onchange="filtrarUsuarios()">
+                        <option value="">Todos os Perfis</option>
+                        <option value="ADMIN">SDAB (Nacional)</option>
+                        <option value="GESTOR">GAP (Regional)</option>
+                        <option value="USUARIO">Rancho (Operacional)</option>
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <select class="form-select" id="filtroStatus" onchange="filtrarUsuarios()">
-                        <option value="">Todos os status</option>
-                        <option value="ativo">Ativos</option>
-                        <option value="inativo">Inativos</option>
+                    <select class="form-select rounded-pill border-light bg-light" id="filtroStatus" onchange="filtrarUsuarios()">
+                        <option value="">Todos os Status</option>
+                        <option value="ativo">Ativo</option>
+                        <option value="inativo">Inativo</option>
                     </select>
                 </div>
-                <div class="col-md-2">
-                    <button class="btn btn-outline-secondary w-100" onclick="limparFiltros()">
-                        <i class="fas fa-times"></i> Limpar
+                <div class="col-md-2 text-end">
+                    <button class="btn btn-link text-decoration-none text-muted" onclick="limparFiltros()">
+                        <i class="fas fa-sync-alt me-1"></i> Limpar
                     </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Lista de Usuários -->
-    <div class="row" id="listaUsuarios">
+    <div class="row g-4 card-grid" id="listaUsuarios">
         {% for usuario in usuarios %}
-        <div class="col-md-6 col-lg-4 mb-3 usuario-card" 
-             data-nome="{{ usuario.nome.lower() }}" 
-             data-tipo="{{ usuario.tipo.value }}" 
+        
+        {% set tipo_cod = usuario.tipo.name %}
+        {% if tipo_cod == 'SUPER_ADMIN' %}{% set tipo_cod = 'ADMIN' %}{% endif %}
+        
+        <div class="col-md-6 col-lg-4 d-flex align-items-stretch usuario-card-wrapper" 
+             data-nome="{{ usuario.nome.lower() }} {{ usuario.email.lower() }}" 
+             data-tipo="{{ tipo_cod }}"
              data-status="{% if usuario.ativo %}ativo{% else %}inativo{% endif %}">
-            <div class="card user-card h-100">
-                <div class="card-body">
-                    <div class="d-flex align-items-start">
-                        <div class="user-avatar me-3">
+            
+            <div class="user-card w-100 shadow-sm {% if tipo_cod == 'ADMIN' %}border-admin{% elif tipo_cod == 'GESTOR' %}border-gestor{% else %}border-usuario{% endif %}">
+                <div class="card-body p-4 d-flex flex-column h-100">
+                    
+                    <div class="d-flex align-items-start mb-3">
+                        <div class="user-avatar me-3 flex-shrink-0 {% if tipo_cod == 'ADMIN' %}bg-gradient-admin{% elif tipo_cod == 'GESTOR' %}bg-gradient-gestor{% else %}bg-gradient-usuario{% endif %}">
                             {{ usuario.nome[0].upper() }}
                         </div>
-                        <div class="flex-grow-1">
-                            <h6 class="card-title mb-1">{{ usuario.nome }}</h6>
-                            <div class="text-muted small mb-2">{{ usuario.email }}</div>
-                            
-                            <div class="d-flex align-items-center justify-content-between">
-                                <div>
-                                    <span class="badge bg-secondary status-badge">{{ usuario.tipo.value }}</span>
-                                    {% if usuario.ativo %}
-                                        <span class="badge bg-success status-badge ms-1">Ativo</span>
-                                    {% else %}
-                                        <span class="badge bg-danger status-badge ms-1">Inativo</span>
-                                    {% endif %}
-                                </div>
-                                
-                                <div class="btn-group btn-group-sm">
-                                    <a href="{{ url_for('cli.editar_usuario', usuario_id=usuario.id) }}" 
-                                       class="btn btn-outline-primary btn-sm" title="Editar">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    <button class="btn btn-outline-danger btn-sm" 
-                                            onclick="confirmarExclusao({{ usuario.id }}, '{{ usuario.nome }}')" 
-                                            title="Excluir">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            {% if usuario.ultimo_login %}
-                            <div class="small text-muted mt-2">
-                                <i class="fas fa-clock me-1"></i>
-                                Último acesso: {{ usuario.ultimo_login.strftime('%d/%m/%Y %H:%M') }}
-                            </div>
-                            {% endif %}
+                        
+                        <div class="flex-grow-1 overflow-hidden">
+                            <h5 class="card-title mb-1 fw-bold text-truncate" title="{{ usuario.nome }}">{{ usuario.nome }}</h5>
+                            <div class="text-muted small text-truncate" title="{{ usuario.email }}">{{ usuario.email }}</div>
                         </div>
                     </div>
+
+                    <div class="mb-3">
+                        {% if tipo_cod == 'ADMIN' %}
+                            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger px-2 py-1 rounded-pill">SDAB (Nacional)</span>
+                        {% elif tipo_cod == 'GESTOR' %}
+                            <span class="badge bg-info bg-opacity-10 text-info border border-info px-2 py-1 rounded-pill">GAP (Regional)</span>
+                        {% else %}
+                            <span class="badge bg-success bg-opacity-10 text-success border border-success px-2 py-1 rounded-pill">Rancho (Local)</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="p-2 bg-light rounded mb-4 small">
+                        <i class="fas fa-map-marker-alt text-secondary me-1"></i>
+                        {% if usuario.avaliado %}
+                            <span class="fw-bold text-dark">{{ usuario.avaliado.nome }}</span>
+                        {% elif usuario.grupo %}
+                            <span class="fw-bold text-dark">{{ usuario.grupo.nome }}</span>
+                        {% else %}
+                            <span class="text-muted fst-italic">Acesso Global</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="mt-auto pt-3 border-top d-flex justify-content-between align-items-center">
+                        <div>
+                            {% if usuario.ativo %}
+                                <small class="text-success fw-bold"><i class="fas fa-circle fa-xs me-1"></i> Ativo</small>
+                            {% else %}
+                                <small class="text-secondary fw-bold"><i class="fas fa-circle fa-xs me-1"></i> Inativo</small>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="btn-group">
+                            <a href="#" class="btn btn-sm btn-outline-primary rounded-start" title="Editar (Em breve)">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <button class="btn btn-sm btn-outline-danger rounded-end" onclick="confirmarExclusao('{{ usuario.nome }}')" title="Excluir">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </div>
+                    </div>
+
                 </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-12 text-center py-5">
+            <div class="text-muted opacity-50">
+                <i class="fas fa-users fa-4x mb-3"></i>
+                <h4>Nenhum usuário encontrado</h4>
             </div>
         </div>
         {% endfor %}
     </div>
-    
-    <!-- Mensagem quando não há usuários -->
-    <div class="text-center py-5 d-none" id="nenhumUsuario">
-        <i class="fas fa-users fa-4x text-muted mb-3"></i>
-        <h4 class="text-muted">Nenhum usuário encontrado</h4>
-        <p class="text-muted">Ajuste os filtros ou adicione um novo usuário</p>
-    </div>
-</div>
 
-<!-- Modal de Confirmação -->
-<div class="modal fade" id="modalConfirmacao" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-exclamation-triangle text-warning me-2"></i>
-                    Confirmar Exclusão
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p>Tem certeza que deseja excluir o usuário <strong id="nomeUsuarioExclusao"></strong>?</p>
-                <p class="text-danger small">
-                    <i class="fas fa-info-circle me-1"></i>
-                    Esta ação não pode ser desfeita.
-                </p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-danger" id="btnConfirmarExclusao">
-                    <i class="fas fa-trash"></i> Excluir
-                </button>
-            </div>
+    <div id="nenhumResultado" class="d-none text-center py-5">
+        <div class="text-muted">
+            <i class="fas fa-search fa-3x mb-3 opacity-50"></i>
+            <h5>Nenhum resultado para sua busca</h5>
+            <button class="btn btn-link" onclick="limparFiltros()">Limpar filtros</button>
         </div>
     </div>
+
 </div>
 
 <script>
-let usuarioParaExcluir = null;
-
 function filtrarUsuarios() {
-    const filtroNome = document.getElementById('filtroNome').value.toLowerCase();
-    const filtroTipo = document.getElementById('filtroTipo').value;
-    const filtroStatus = document.getElementById('filtroStatus').value;
+    const nome = document.getElementById('filtroNome').value.toLowerCase();
+    const tipo = document.getElementById('filtroTipo').value;
+    const status = document.getElementById('filtroStatus').value;
     
-    const usuarios = document.querySelectorAll('.usuario-card');
-    let usuariosVisiveis = 0;
-    
-    usuarios.forEach(usuario => {
-        const nome = usuario.dataset.nome;
-        const tipo = usuario.dataset.tipo;
-        const status = usuario.dataset.status;
-        
-        const nomeMatch = !filtroNome || nome.includes(filtroNome);
-        const tipoMatch = !filtroTipo || tipo === filtroTipo;
-        const statusMatch = !filtroStatus || status === filtroStatus;
-        
-        if (nomeMatch && tipoMatch && statusMatch) {
-            usuario.style.display = 'block';
-            usuariosVisiveis++;
+    const cards = document.querySelectorAll('.usuario-card-wrapper');
+    let visiveis = 0;
+
+    cards.forEach(card => {
+        const cardNome = card.dataset.nome;
+        const cardTipo = card.dataset.tipo;
+        const cardStatus = card.dataset.status;
+
+        let mostrar = true;
+        if (nome && !cardNome.includes(nome)) mostrar = false;
+        if (tipo && cardTipo !== tipo) mostrar = false;
+        if (status && cardStatus !== status) mostrar = false;
+
+        if (mostrar) {
+            card.classList.remove('d-none');
+            visiveis++;
         } else {
-            usuario.style.display = 'none';
+            card.classList.add('d-none');
         }
     });
-    
-    // Mostrar/ocultar mensagem de nenhum usuário
-    document.getElementById('nenhumUsuario').classList.toggle('d-none', usuariosVisiveis > 0);
+
+    document.getElementById('nenhumResultado').classList.toggle('d-none', visiveis > 0);
 }
 
 function limparFiltros() {
@@ -275,40 +236,10 @@ function limparFiltros() {
     filtrarUsuarios();
 }
 
-function confirmarExclusao(usuarioId, nomeUsuario) {
-    usuarioParaExcluir = usuarioId;
-    document.getElementById('nomeUsuarioExclusao').textContent = nomeUsuario;
-    
-    const modal = new bootstrap.Modal(document.getElementById('modalConfirmacao'));
-    modal.show();
-}
-
-document.getElementById('btnConfirmarExclusao').addEventListener('click', function() {
-    if (usuarioParaExcluir) {
-        // Aqui seria feita a requisição para excluir o usuário
-        fetch(`/cli/usuario/${usuarioParaExcluir}/excluir`, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        })
-        .then(response => {
-            if (response.ok) {
-                location.reload();
-            } else {
-                alert('Erro ao excluir usuário');
-            }
-        })
-        .catch(error => {
-            console.error('Erro:', error);
-            alert('Erro ao excluir usuário');
-        });
-        
-        const modal = bootstrap.Modal.getInstance(document.getElementById('modalConfirmacao'));
-        modal.hide();
+function confirmarExclusao(nome) {
+    if(confirm('Tem certeza que deseja excluir ' + nome + '?')) {
+        alert('Função de exclusão em desenvolvimento.');
     }
-});
+}
 </script>
 {% endblock %}
-
-<!-- app/templates/cli/usuario_form.html -->

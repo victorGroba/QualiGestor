@@ -4323,6 +4323,70 @@ def get_foto_resposta(filename):
 # ====================================================================
 #  FIM DO BLOCO DE CÓDIGO CORRIGIDO
 # ====================================================================
+
+# --- COLE ISSO NO FINAL DO ARQUIVO app/cli/routes.py ---
+
+@cli_bp.route('/api/relatorios/pareto')
+@login_required
+def api_pareto_nao_conformidades():
+    """
+    API para o Gráfico de Pareto (Requisito 4.1 do Relatório).
+    Retorna a contagem de Não Conformidades por Tópico, filtrada por permissão.
+    """
+    try:
+        # 1. Segurança: Pega apenas os Ranchos que o usuário pode ver
+        avaliados_permitidos = get_avaliados_usuario()
+        ids_avaliados = [a.id for a in avaliados_permitidos]
+
+        if not ids_avaliados:
+            return jsonify({'labels': [], 'data': [], 'percentual': []})
+
+        # 2. Query: Conta erros por tópico em aplicações FINALIZADAS
+        # Importante: Certifique-se que StatusAplicacao está importado
+        resultados = db.session.query(
+            Topico.nome,
+            func.count(RespostaPergunta.id).label('total_erros')
+        ).join(Pergunta, RespostaPergunta.pergunta_id == Pergunta.id) \
+         .join(Topico, Pergunta.topico_id == Topico.id) \
+         .join(AplicacaoQuestionario, RespostaPergunta.aplicacao_id == AplicacaoQuestionario.id) \
+         .filter(
+             AplicacaoQuestionario.avaliado_id.in_(ids_avaliados), # Filtro de Hierarquia
+             RespostaPergunta.nao_conforme == True,                # Apenas Não Conformidades
+             AplicacaoQuestionario.status == StatusAplicacao.FINALIZADA
+         ).group_by(Topico.nome) \
+         .order_by(func.count(RespostaPergunta.id).desc()) \
+         .all()
+
+        # 3. Cálculo do Pareto (80/20)
+        labels = []
+        data_count = []
+        total_geral = sum([r.total_erros for r in resultados])
+        acumulado = 0
+        data_percentual = []
+
+        for r in resultados:
+            labels.append(r.nome)
+            data_count.append(r.total_erros)
+            acumulado += r.total_erros
+            percentual = (acumulado / total_geral * 100) if total_geral > 0 else 0
+            data_percentual.append(round(percentual, 1))
+
+        return jsonify({
+            'labels': labels,
+            'data': data_count,
+            'percentual': data_percentual
+        })
+
+    except Exception as e:
+        print(f"Erro API Pareto: {e}")
+        return jsonify({'error': str(e)}), 500
+
+# ESTA É A ROTA QUE ESTAVA FALTANDO E CAUSOU O ERRO:
+@cli_bp.route('/relatorios/microbiologico')
+@login_required
+def dashboard_microbiologico():
+    """Renderiza a página do Dashboard Microbiológico"""
+    return render_template('cli/dashboard_microbiologico.html')
     
 
 

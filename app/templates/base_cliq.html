@@ -380,7 +380,8 @@
         </h2>
         <div id="collapseUsuarios" class="accordion-collapse collapse" data-bs-parent="#accordionSidebar">
           <div class="accordion-body">
-            <a class="nav-link" href="{{ url_for('auth.listar_usuarios') }}">Listar usuários</a>
+            <a class="nav-link" href="{{ url_for('cli.gerenciar_usuarios') }}">Gerenciar Usuários</a>
+            
           </div>
         </div>
       </div>
@@ -389,6 +390,7 @@
       <a class="nav-link text-danger" href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt"></i> <span>Sair</span></a>
 
     </div>
+    
   </div>
 
   <div class="sidebar-overlay d-md-none" id="sidebarOverlay"></div>
