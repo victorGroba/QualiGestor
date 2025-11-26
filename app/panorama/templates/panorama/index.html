@@ -1,40 +1,251 @@
-{% extends 'base.html' %}
+{% extends "base_panorama.html" %}
 
-{% block title %}Painel Estilo Panorama{% endblock %}
+{% block title %}Panorama Gerencial - SISUB{% endblock %}
 
 {% block head %}
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    .chart-card {
+        transition: transform 0.2s;
+        border: none;
+        border-radius: 12px;
+    }
+    .chart-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 .5rem 1rem rgba(0,0,0,.15)!important;
+    }
+    .kpi-card {
+        border-left: 4px solid;
+        border-radius: 8px;
+    }
+    .loading-spinner {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 300px;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-  <h1 class="mb-3">Olá, {{ current_user.nome }}</h1>
-  <p class="text-muted">Gerencie seus indicadores com <strong>praticidade e eficiência</strong>.</p>
+<div class="container-fluid p-4">
 
-  <div class="row g-3 mt-4">
-    <div class="col-md-4">
-      <a href="{{ url_for('panorama.filtros') }}" class="text-decoration-none">
-        <div class="card shadow-sm h-100">
-          <div class="card-body text-center">
-            <i class="fas fa-sliders fa-2x mb-2 text-primary"></i>
-            <h5 class="card-title mb-0">Painéis</h5>
-            <p class="text-muted small">Acompanhe os seus indicadores</p>
-          </div>
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mb-4 gap-3">
+        <div>
+            <h1 class="h3 mb-0 text-gray-800 fw-bold">
+                <i class="fas fa-chart-pie text-info me-2"></i>Panorama Gerencial
+            </h1>
+            <p class="text-muted mb-0">Indicadores de desempenho e conformidade (SISUB)</p>
         </div>
-      </a>
+        
+        <form class="d-flex gap-2 shadow-sm p-2 bg-white rounded">
+            <input type="date" class="form-control form-control-sm border-0 bg-light" id="dataInicio">
+            <span class="align-self-center text-muted">-</span>
+            <input type="date" class="form-control form-control-sm border-0 bg-light" id="dataFim">
+            <button type="button" class="btn btn-sm btn-info text-white" onclick="carregarDashboard()">
+                <i class="fas fa-filter"></i> Filtrar
+            </button>
+        </form>
     </div>
 
-    <div class="col-md-4">
-      <a href="#" class="text-decoration-none disabled" style="pointer-events: none; opacity: 0.5;">
-        <div class="card shadow-sm h-100">
-          <div class="card-body text-center">
-            <i class="fas fa-file-alt fa-2x mb-2 text-secondary"></i>
-            <h5 class="card-title mb-0">Relatórios</h5>
-            <p class="text-muted small">Em desenvolvimento</p>
-          </div>
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card shadow-sm h-100 kpi-card border-primary">
+                <div class="card-body d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Vistorias Realizadas</div>
+                        <div class="h4 mb-0 font-weight-bold text-gray-800" id="kpiTotalAuditorias">-</div>
+                    </div>
+                    <i class="fas fa-clipboard-list fa-2x text-gray-300 text-primary opacity-25"></i>
+                </div>
+            </div>
         </div>
-      </a>
+
+        <div class="col-md-3">
+            <div class="card shadow-sm h-100 kpi-card border-success">
+                <div class="card-body d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Média Geral Nacional</div>
+                        <div class="h4 mb-0 font-weight-bold text-gray-800" id="kpiMediaGeral">-%</div>
+                    </div>
+                    <i class="fas fa-percent fa-2x text-gray-300 text-success opacity-25"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card shadow-sm h-100 kpi-card border-danger">
+                <div class="card-body d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Ranchos Críticos (< 70%)</div>
+                        <div class="h4 mb-0 font-weight-bold text-gray-800" id="kpiCriticos">-</div>
+                    </div>
+                    <i class="fas fa-exclamation-triangle fa-2x text-gray-300 text-danger opacity-25"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card shadow-sm h-100 kpi-card border-warning">
+                <div class="card-body d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Maior Incidência de Erro</div>
+                        <div class="h6 mb-0 font-weight-bold text-gray-800 text-truncate" style="max-width: 150px;" id="kpiMaiorErro">-</div>
+                    </div>
+                    <i class="fas fa-bug fa-2x text-gray-300 text-warning opacity-25"></i>
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
+
+    <div id="loading" class="loading-spinner d-none">
+        <div class="spinner-border text-info" role="status" style="width: 3rem; height: 3rem;">
+            <span class="visually-hidden">Carregando...</span>
+        </div>
+    </div>
+
+    <div id="container-graficos" class="row g-4">
+        </div>
+
 </div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // Define datas padrão (Mês atual)
+    const hoje = new Date();
+    const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    document.getElementById('dataInicio').valueAsDate = primeiroDia;
+    document.getElementById('dataFim').valueAsDate = hoje;
+
+    // Carrega os dados
+    carregarDashboard();
+});
+
+function carregarDashboard() {
+    const inicio = document.getElementById('dataInicio').value;
+    const fim = document.getElementById('dataFim').value;
+    
+    const container = document.getElementById('container-graficos');
+    const loading = document.getElementById('loading');
+    
+    // Limpa e mostra loading
+    container.innerHTML = '';
+    loading.classList.remove('d-none');
+
+    // 1. Busca dados da API (que criamos no passo anterior)
+    // Nota: Certifique-se de criar a rota 'panorama.api_comparativo_indicadores'
+    const url = `/panorama/api/indicadores/comparativo?inicio=${inicio}&fim=${fim}`;
+
+    fetch(url)
+        .then(response => {
+            if (!response.ok) throw new Error("Erro na API");
+            return response.json();
+        })
+        .then(dados => {
+            loading.classList.add('d-none');
+            
+            // Se não houver dados
+            if (dados.length === 0) {
+                container.innerHTML = `
+                    <div class="col-12 text-center py-5 text-muted">
+                        <i class="fas fa-chart-bar fa-3x mb-3 opacity-25"></i>
+                        <h4>Nenhum dado encontrado para este período.</h4>
+                        <p>Verifique se há vistorias finalizadas.</p>
+                    </div>`;
+                return;
+            }
+
+            // Loop para criar cada gráfico (Dinâmico!)
+            dados.forEach((indicador, index) => {
+                const canvasId = `chart_${index}`;
+                
+                // Cria o HTML do Card
+                const html = `
+                    <div class="col-lg-6">
+                        <div class="card shadow-sm chart-card h-100">
+                            <div class="card-header py-3 bg-white border-bottom-0 d-flex justify-content-between align-items-center">
+                                <h6 class="m-0 font-weight-bold" style="color: ${indicador.cor}">
+                                    <i class="fas fa-chart-bar me-2"></i>${indicador.titulo}
+                                </h6>
+                                <span class="badge bg-light text-dark border">Média: ${calcularMediaArray(indicador.valores)}%</span>
+                            </div>
+                            <div class="card-body">
+                                <div style="height: 300px;">
+                                    <canvas id="${canvasId}"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += html;
+
+                // Renderiza o Gráfico com Chart.js
+                // Pequeno delay para garantir que o canvas existe no DOM
+                setTimeout(() => {
+                    const ctx = document.getElementById(canvasId).getContext('2d');
+                    new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: indicador.labels, // Nomes dos Ranchos
+                            datasets: [{
+                                label: 'Adequação (%)',
+                                data: indicador.valores, // Notas
+                                backgroundColor: indicador.cor,
+                                borderRadius: 4,
+                                barPercentage: 0.6
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    max: 100,
+                                    grid: { borderDash: [2, 4] },
+                                    title: { display: true, text: 'Nota (%)' }
+                                },
+                                x: {
+                                    grid: { display: false }
+                                }
+                            },
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            return context.parsed.y + '% de Adequação';
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }, 50);
+            });
+            
+            // Atualiza KPIs (Simulação - Ideal é vir da API também)
+            atualizarKPIs(dados);
+        })
+        .catch(erro => {
+            loading.classList.add('d-none');
+            console.error(erro);
+            container.innerHTML = `<div class="alert alert-danger col-12">Erro ao carregar dados: ${erro.message}</div>`;
+        });
+}
+
+function calcularMediaArray(arr) {
+    if (!arr || arr.length === 0) return 0;
+    const sum = arr.reduce((a, b) => a + b, 0);
+    return (sum / arr.length).toFixed(1);
+}
+
+function atualizarKPIs(dados) {
+    // Lógica simples para preencher os cards do topo baseada nos dados recebidos
+    // Num cenário real, a API deveria retornar um objeto { kpis: {...}, graficos: [...] }
+    // Aqui vamos deixar placeholder ou calcular médias simples se possível.
+    document.getElementById('kpiTotalAuditorias').innerText = "Calculando..."; // Exemplo
+    // Implementar lógica real depois
+}
+</script>
 {% endblock %}

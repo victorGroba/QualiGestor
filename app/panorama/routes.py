@@ -474,3 +474,50 @@ def gerar_top_nao_conformidades(aplicacoes):
     top_ncs = sorted(nao_conformidades.items(), key=lambda x: x[1], reverse=True)[:10]
 
     return [{'pergunta': pergunta, 'frequencia': freq} for pergunta, freq in top_ncs]
+
+@panorama_bp.route('/api/indicadores/comparativo')
+@login_required
+def api_comparativo_indicadores():
+    """
+    Retorna os dados para montar OS VÁRIOS GRÁFICOS do painel.
+    Estrutura:
+    {
+        "Infraestrutura": { labels: ["Rancho A", "Rancho B"], data: [85, 92] },
+        "Higiene Pessoal": { labels: ["Rancho A", "Rancho B"], data: [100, 98] }
+    }
+    """
+    # 1. Pega todas as categorias ativas (as "Gavetas")
+    categorias = CategoriaIndicador.query.filter_by(
+        cliente_id=current_user.cliente_id, 
+        ativo=True
+    ).order_by(CategoriaIndicador.ordem).all()
+    
+    dados_painel = []
+
+    # 2. Para cada categoria, monta um gráfico
+    for cat in categorias:
+        grafico = {
+            'titulo': cat.nome,
+            'id_grafico': f'grafico_{cat.id}', # ID para o Canvas HTML
+            'cor': cat.cor,
+            'labels': [],
+            'valores': []
+        }
+        
+        # 3. Busca a nota de cada Rancho PARA ESSA CATEGORIA
+        # (Aqui entra aquela lógica matemática de somar pontos / peso total)
+        # ... Query SQL Otimizada ...
+        # Supondo que já calculamos as médias por rancho:
+        
+        ranchos = Avaliado.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).all()
+        
+        for rancho in ranchos:
+            # Pega a média deste rancho nesta categoria específica
+            nota = calcular_nota_categoria(rancho.id, cat.id) # Função auxiliar
+            
+            grafico['labels'].append(rancho.nome)
+            grafico['valores'].append(nota)
+            
+        dados_painel.append(grafico)
+        
+    return jsonify(dados_painel)

@@ -271,24 +271,7 @@ class Questionario(db.Model):
     aplicacoes = db.relationship('AplicacaoQuestionario', backref='questionario', lazy='dynamic')
     usuarios_autorizados = db.relationship('UsuarioAutorizado', backref='questionario', lazy='dynamic', cascade='all, delete-orphan')
 
-class Topico(db.Model):
-    """Tópicos/Categorias de perguntas dentro do questionário"""
-    __tablename__ = "topico"
-    
-    id = db.Column(db.Integer, primary_key=True)
-    nome = db.Column(db.String(200), nullable=False)
-    descricao = db.Column(db.Text)
-    ordem = db.Column(db.Integer, nullable=False, default=0)
-    ativo = db.Column(db.Boolean, default=True)
-    
-    # Chaves estrangeiras
-    questionario_id = db.Column(db.Integer, db.ForeignKey('questionario.id'), nullable=False)
-    
-    # Timestamps
-    criado_em = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # Relacionamentos
-    perguntas = db.relationship('Pergunta', backref='topico', lazy='dynamic', cascade='all, delete-orphan')
+
 
 class Pergunta(db.Model):
     """Perguntas dentro dos tópicos"""
@@ -540,3 +523,29 @@ def criar_admin_padrao():
         db.session.commit()
         return True
     return False
+
+class CategoriaIndicador(db.Model):
+    """
+    As 'Gavetas' do Relatório.
+    Ex: Infraestrutura, Higiene Pessoal, Controle de Pragas.
+    """
+    __tablename__ = "categoria_indicador"
+    
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(100), nullable=False)  # Nome que aparece no título do gráfico
+    ordem = db.Column(db.Integer, default=0)          # Ordem que aparece no painel
+    cor = db.Column(db.String(7), default='#4e73df')  # Cor da barra no gráfico
+    ativo = db.Column(db.Boolean, default=True)
+    
+    # Vínculo com Cliente (para cada cliente poder ter seus próprios indicadores)
+    cliente_id = db.Column(db.Integer, db.ForeignKey('cliente.id'), nullable=False)
+    
+    # Relacionamento inverso
+    topicos = db.relationship('Topico', backref='indicador', lazy='dynamic')
+
+# Atualize a classe Topico existente para ter o vínculo
+class Topico(db.Model):
+    # ... (seus campos atuais: id, nome, questionario_id, etc) ...
+    
+    # O Vínculo Mágico:
+    categoria_indicador_id = db.Column(db.Integer, db.ForeignKey('categoria_indicador.id'), nullable=True)
