@@ -12,5 +12,5 @@ python-dotenv==1.0.0
 qrcode==7.4.2
 Pillow>=10.4,<12
 
-# Se for usar PDF:
-WeasyPrint==60.1
+# CORREÇÃO: Atualizar WeasyPrint para corrigir erro de compatibilidade com pydyf
+WeasyPrint>=62.0

@@ -69,8 +69,9 @@
           <i class="fas fa-tasks text-success"></i> Questionários
         </a>
 
-        <a href="{{ url_for('cli.dashboard_microbiologico') }}" class="btn btn-outline-secondary border-0 bg-light d-flex align-items-center gap-2 px-3">
-          <i class="fas fa-bacterium text-danger"></i> Pareto (Micro)
+        <!-- CORRIGIDO: Apontando para a nova rota no Panorama -->
+        <a href="{{ url_for('panorama.analise_pareto') }}" class="btn btn-outline-secondary border-0 bg-light d-flex align-items-center gap-2 px-3">
+          <i class="fas fa-chart-bar text-danger"></i> Pareto (Micro)
         </a>
 
         <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-danger border-0 ms-auto d-flex align-items-center gap-2 px-3">

@@ -1,23 +1,25 @@
 # app/panorama/routes.py - DASHBOARD FUNCIONAL (corrigido para usar modelos corretos)
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for
 from flask_login import login_required, current_user
-from sqlalchemy import func, extract, and_
+from sqlalchemy import func, extract, and_, desc
 from datetime import datetime, timedelta
 import json
 
 # IMPORTAÇÕES CORRIGIDAS - usando os modelos corretos do models.py
 from ..models import (
     db, AplicacaoQuestionario, Avaliado, Questionario, RespostaPergunta,
-    Pergunta, StatusAplicacao, TipoResposta, Cliente, Grupo
+    Pergunta, StatusAplicacao, TipoResposta, Cliente, Grupo, CategoriaIndicador, Topico
 )
+
 
 panorama_bp = Blueprint('panorama', __name__, template_folder='templates')
 
 @panorama_bp.route('/')
 @login_required
 def index():
-    """Dashboard principal do Panorama"""
-    return render_template('panorama/index.html')
+    """Redireciona para o Dashboard completo"""
+    # MUDANÇA: Joga o usuário direto para a tela com filtros e gráficos detalhados
+    return redirect(url_for('panorama.dashboard'))
 
 @panorama_bp.route('/dashboard')
 @login_required
@@ -479,45 +481,150 @@ def gerar_top_nao_conformidades(aplicacoes):
 @login_required
 def api_comparativo_indicadores():
     """
-    Retorna os dados para montar OS VÁRIOS GRÁFICOS do painel.
-    Estrutura:
-    {
-        "Infraestrutura": { labels: ["Rancho A", "Rancho B"], data: [85, 92] },
-        "Higiene Pessoal": { labels: ["Rancho A", "Rancho B"], data: [100, 98] }
-    }
+    API para o Gráfico de Barras Comparativo (Adequação por Categoria).
     """
-    # 1. Pega todas as categorias ativas (as "Gavetas")
-    categorias = CategoriaIndicador.query.filter_by(
-        cliente_id=current_user.cliente_id, 
-        ativo=True
-    ).order_by(CategoriaIndicador.ordem).all()
-    
-    dados_painel = []
+    try:
+        # 1. Buscar Categorias Ativas
+        categorias = CategoriaIndicador.query.filter_by(
+            cliente_id=current_user.cliente_id, 
+            ativo=True
+        ).order_by(CategoriaIndicador.ordem).all()
+        
+        # 2. Buscar Ranchos (Avaliados) Ativos
+        ranchos = Avaliado.query.filter_by(
+            cliente_id=current_user.cliente_id, 
+            ativo=True
+        ).all()
+        
+        dados_painel = []
 
-    # 2. Para cada categoria, monta um gráfico
-    for cat in categorias:
-        grafico = {
-            'titulo': cat.nome,
-            'id_grafico': f'grafico_{cat.id}', # ID para o Canvas HTML
-            'cor': cat.cor,
-            'labels': [],
-            'valores': []
-        }
-        
-        # 3. Busca a nota de cada Rancho PARA ESSA CATEGORIA
-        # (Aqui entra aquela lógica matemática de somar pontos / peso total)
-        # ... Query SQL Otimizada ...
-        # Supondo que já calculamos as médias por rancho:
-        
-        ranchos = Avaliado.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).all()
-        
-        for rancho in ranchos:
-            # Pega a média deste rancho nesta categoria específica
-            nota = calcular_nota_categoria(rancho.id, cat.id) # Função auxiliar
+        for cat in categorias:
+            grafico = {
+                'titulo': cat.nome,
+                'id_grafico': f'grafico_{cat.id}',
+                'cor': cat.cor,
+                'labels': [],
+                'valores': []
+            }
             
-            grafico['labels'].append(rancho.nome)
-            grafico['valores'].append(nota)
+            for rancho in ranchos:
+                # --- CÁLCULO DA NOTA ---
+                # Busca aplicações finalizadas deste rancho
+                apps = AplicacaoQuestionario.query.filter_by(
+                    avaliado_id=rancho.id,
+                    status=StatusAplicacao.FINALIZADA
+                ).all()
+                
+                total_pontos = 0
+                total_maximo = 0
+                
+                for app in apps:
+                    # Filtra respostas que pertencem a tópicos desta categoria
+                    respostas = RespostaPergunta.query.join(Pergunta).join(Topico).filter(
+                        RespostaPergunta.aplicacao_id == app.id,
+                        Topico.categoria_indicador_id == cat.id
+                    ).all()
+                    
+                    for resp in respostas:
+                        if resp.pontos is not None:
+                            total_pontos += resp.pontos
+                            # Recalcula o máximo da pergunta (peso) para saber o %
+                            peso = resp.pergunta.peso or 0
+                            total_maximo += peso
+
+                percentual = 0
+                if total_maximo > 0:
+                    percentual = round((total_pontos / total_maximo) * 100, 1)
+                
+                grafico['labels'].append(rancho.nome)
+                grafico['valores'].append(percentual)
             
-        dados_painel.append(grafico)
+            dados_painel.append(grafico)
+            
+        return jsonify(dados_painel)
+
+    except Exception as e:
+        print(f"Erro API Comparativo: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@panorama_bp.route('/pareto')
+@login_required
+def analise_pareto():
+    """Renderiza a tela de Análise de Pareto (80/20)"""
+    # Carrega filtros básicos para a tela
+    avaliados = Avaliado.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).all()
+    questionarios = Questionario.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).all()
+    
+    return render_template('panorama/pareto.html', avaliados=avaliados, questionarios=questionarios)
+
+@panorama_bp.route('/api/pareto-data')
+@login_required
+def api_pareto_data():
+    """
+    API que alimenta o Gráfico de Pareto.
+    Retorna: Labels (Tópicos), Dados (Frequência) e Linha (Percentual Acumulado).
+    """
+    try:
+        # 1. Filtros da Requisição
+        data_inicio = request.args.get('data_inicio')
+        data_fim = request.args.get('data_fim')
+        avaliado_id = request.args.get('avaliado_id', type=int)
+        questionario_id = request.args.get('questionario_id', type=int)
+
+        # 2. Query Base: Respostas "Não Conforme" em aplicações FINALIZADAS
+        query = db.session.query(
+            Topico.nome,
+            func.count(RespostaPergunta.id).label('total_erros')
+        ).join(Pergunta, RespostaPergunta.pergunta_id == Pergunta.id) \
+         .join(Topico, Pergunta.topico_id == Topico.id) \
+         .join(AplicacaoQuestionario, RespostaPergunta.aplicacao_id == AplicacaoQuestionario.id) \
+         .join(Avaliado, AplicacaoQuestionario.avaliado_id == Avaliado.id) \
+         .filter(
+             Avaliado.cliente_id == current_user.cliente_id, # Segurança
+             RespostaPergunta.nao_conforme == True,          # O erro
+             AplicacaoQuestionario.status == StatusAplicacao.FINALIZADA
+         )
+
+        # 3. Aplicação dos Filtros Dinâmicos
+        if data_inicio:
+            query = query.filter(AplicacaoQuestionario.data_inicio >= datetime.strptime(data_inicio, '%Y-%m-%d'))
+        if data_fim:
+            # Ajuste para pegar o dia inteiro (até 23:59:59)
+            data_fim_dt = datetime.strptime(data_fim, '%Y-%m-%d') + timedelta(days=1) - timedelta(seconds=1)
+            query = query.filter(AplicacaoQuestionario.data_inicio <= data_fim_dt)
+        if avaliado_id:
+            query = query.filter(AplicacaoQuestionario.avaliado_id == avaliado_id)
+        if questionario_id:
+            query = query.filter(AplicacaoQuestionario.questionario_id == questionario_id)
+
+        # 4. Agrupamento e Ordenação
+        resultados = query.group_by(Topico.nome) \
+                          .order_by(desc('total_erros')) \
+                          .all()
+
+        # 5. Cálculo Matemático do Pareto (Acumulado)
+        labels = []
+        data_count = []
+        data_percentual = []
         
-    return jsonify(dados_painel)
+        total_geral = sum([r.total_erros for r in resultados])
+        acumulado = 0
+
+        for r in resultados:
+            labels.append(r.nome)
+            data_count.append(r.total_erros)
+            
+            acumulado += r.total_erros
+            percentual = (acumulado / total_geral * 100) if total_geral > 0 else 0
+            data_percentual.append(round(percentual, 1))
+
+        return jsonify({
+            'labels': labels,
+            'data': data_count,
+            'percentual': data_percentual,
+            'total_erros': total_geral
+        })
+
+    except Exception as e:
+        print(f"Erro API Pareto: {e}") # Log no terminal
+        return jsonify({'error': str(e)}), 500

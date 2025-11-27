@@ -1162,30 +1162,48 @@ def editar_topico(topico_id):
 @cli_bp.route('/topico/<int:topico_id>/remover', methods=['POST'])
 @login_required
 def remover_topico(topico_id):
-    """Remove um tópico"""
+    """
+    Remove um tópico e faz a exclusão em cascata (inativa) 
+    de todas as perguntas vinculadas a ele.
+    """
     try:
         topico = Topico.query.get_or_404(topico_id)
-        
-        if topico.questionario.cliente_id != current_user.cliente_id:
-            flash("Tópico não encontrado.", "error")
-            return redirect(url_for('cli.listar_questionarios'))
-        
         questionario_id = topico.questionario_id
         
-        # Verificar se tem perguntas
-        total_perguntas = Pergunta.query.filter_by(topico_id=topico_id, ativo=True).count()
-        if total_perguntas > 0:
-            flash("Não é possível remover tópico que contém perguntas.", "warning")
+        # Verificação de segurança
+        if topico.questionario.cliente_id != current_user.cliente_id:
+            flash("Tópico não encontrado ou acesso negado.", "error")
+            return redirect(url_for('cli.listar_questionarios'))
+            
+        # --- MUDANÇA: Cascata de Exclusão (Soft Delete) ---
+        # Busca todas as perguntas ativas deste tópico
+        perguntas = Pergunta.query.filter_by(topico_id=topico_id, ativo=True).all()
+        
+        count_perguntas = 0
+        for p in perguntas:
+            p.ativo = False  # "Apaga" a pergunta
+            count_perguntas += 1
+            
+        # "Apaga" o tópico
+        topico.ativo = False
+        
+        db.session.commit()
+        
+        log_acao(f"Removeu tópico: {topico.nome} e {count_perguntas} perguntas", None, "Topico", topico_id)
+        
+        if count_perguntas > 0:
+            flash(f"Tópico removido. {count_perguntas} perguntas vinculadas foram apagadas também.", "success")
         else:
-            topico.ativo = False
-            db.session.commit()
-            log_acao(f"Removeu tópico: {topico.nome}", None, "Topico", topico_id)
             flash("Tópico removido com sucesso!", "success")
         
     except Exception as e:
         db.session.rollback()
         flash(f"Erro ao remover tópico: {str(e)}", "danger")
-        questionario_id = request.args.get('questionario_id')
+        # Tenta recuperar o ID para redirecionar
+        if 'topico' in locals() and topico:
+             questionario_id = topico.questionario_id
+        else:
+             return redirect(url_for('cli.listar_questionarios'))
     
     return redirect(url_for('cli.gerenciar_topicos', id=questionario_id))
 
@@ -4326,68 +4344,9 @@ def get_foto_resposta(filename):
 
 # --- COLE ISSO NO FINAL DO ARQUIVO app/cli/routes.py ---
 
-@cli_bp.route('/api/relatorios/pareto')
-@login_required
-def api_pareto_nao_conformidades():
-    """
-    API para o Gráfico de Pareto (Requisito 4.1 do Relatório).
-    Retorna a contagem de Não Conformidades por Tópico, filtrada por permissão.
-    """
-    try:
-        # 1. Segurança: Pega apenas os Ranchos que o usuário pode ver
-        avaliados_permitidos = get_avaliados_usuario()
-        ids_avaliados = [a.id for a in avaliados_permitidos]
 
-        if not ids_avaliados:
-            return jsonify({'labels': [], 'data': [], 'percentual': []})
 
-        # 2. Query: Conta erros por tópico em aplicações FINALIZADAS
-        # Importante: Certifique-se que StatusAplicacao está importado
-        resultados = db.session.query(
-            Topico.nome,
-            func.count(RespostaPergunta.id).label('total_erros')
-        ).join(Pergunta, RespostaPergunta.pergunta_id == Pergunta.id) \
-         .join(Topico, Pergunta.topico_id == Topico.id) \
-         .join(AplicacaoQuestionario, RespostaPergunta.aplicacao_id == AplicacaoQuestionario.id) \
-         .filter(
-             AplicacaoQuestionario.avaliado_id.in_(ids_avaliados), # Filtro de Hierarquia
-             RespostaPergunta.nao_conforme == True,                # Apenas Não Conformidades
-             AplicacaoQuestionario.status == StatusAplicacao.FINALIZADA
-         ).group_by(Topico.nome) \
-         .order_by(func.count(RespostaPergunta.id).desc()) \
-         .all()
 
-        # 3. Cálculo do Pareto (80/20)
-        labels = []
-        data_count = []
-        total_geral = sum([r.total_erros for r in resultados])
-        acumulado = 0
-        data_percentual = []
-
-        for r in resultados:
-            labels.append(r.nome)
-            data_count.append(r.total_erros)
-            acumulado += r.total_erros
-            percentual = (acumulado / total_geral * 100) if total_geral > 0 else 0
-            data_percentual.append(round(percentual, 1))
-
-        return jsonify({
-            'labels': labels,
-            'data': data_count,
-            'percentual': data_percentual
-        })
-
-    except Exception as e:
-        print(f"Erro API Pareto: {e}")
-        return jsonify({'error': str(e)}), 500
-
-# ESTA É A ROTA QUE ESTAVA FALTANDO E CAUSOU O ERRO:
-@cli_bp.route('/relatorios/microbiologico')
-@login_required
-def dashboard_microbiologico():
-    """Renderiza a página do Dashboard Microbiológico"""
-    return render_template('cli/dashboard_microbiologico.html')
-    
 
 
 

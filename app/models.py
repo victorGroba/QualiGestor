@@ -271,7 +271,25 @@ class Questionario(db.Model):
     aplicacoes = db.relationship('AplicacaoQuestionario', backref='questionario', lazy='dynamic')
     usuarios_autorizados = db.relationship('UsuarioAutorizado', backref='questionario', lazy='dynamic', cascade='all, delete-orphan')
 
+class Topico(db.Model):
+    """Tópicos dos questionários"""
+    __tablename__ = "topico"
+    
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(200), nullable=False)
+    descricao = db.Column(db.Text)
+    ordem = db.Column(db.Integer, default=1)
+    ativo = db.Column(db.Boolean, default=True)
+    
+    # Chaves estrangeiras
+    questionario_id = db.Column(db.Integer, db.ForeignKey('questionario.id'), nullable=False)
+    
+    # --- NOVO CAMPO: Vínculo com CategoriaIndicador ---
+    categoria_indicador_id = db.Column(db.Integer, db.ForeignKey('categoria_indicador.id'), nullable=True)
+    # --------------------------------------------------
 
+    # Relacionamentos
+    perguntas = db.relationship('Pergunta', backref='topico', lazy='dynamic', cascade='all, delete-orphan')
 
 class Pergunta(db.Model):
     """Perguntas dentro dos tópicos"""
@@ -543,9 +561,3 @@ class CategoriaIndicador(db.Model):
     # Relacionamento inverso
     topicos = db.relationship('Topico', backref='indicador', lazy='dynamic')
 
-# Atualize a classe Topico existente para ter o vínculo
-class Topico(db.Model):
-    # ... (seus campos atuais: id, nome, questionario_id, etc) ...
-    
-    # O Vínculo Mágico:
-    categoria_indicador_id = db.Column(db.Integer, db.ForeignKey('categoria_indicador.id'), nullable=True)
