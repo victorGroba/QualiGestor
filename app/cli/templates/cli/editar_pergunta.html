@@ -1,163 +1,168 @@
-{% extends 'base_cliq.html' %}
-{% block title %}Editar Pergunta - {{ pergunta.topico.nome }}{% endblock %}
+{% extends "base_cliq.html" %}
+
+{% block title %}Editar Pergunta{% endblock %}
 
 {% block content %}
-<div class="container py-4">
-    <nav aria-label="breadcrumb" class="mb-3">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ url_for_safe('cli.index') }}">Dashboard</a></li>
-            <li class="breadcrumb-item"><a href="{{ url_for_safe('cli.listar_questionarios') }}">Questionários</a></li>
-            <li class="breadcrumb-item"><a href="{{ url_for_safe('cli.gerenciar_topicos', id=pergunta.topico.questionario_id) }}">{{ pergunta.topico.questionario.nome }}</a></li>
-            <li class="breadcrumb-item"><a href="{{ url_for_safe('cli.gerenciar_perguntas', topico_id=pergunta.topico_id) }}">{{ pergunta.topico.nome }}</a></li>
-            <li class="breadcrumb-item active" aria-current="page">Editar Pergunta</li>
-        </ol>
-    </nav>
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('cli.index') }}">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('cli.listar_questionarios') }}">Questionários</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('cli.gerenciar_topicos', id=pergunta.topico.questionario.id) }}">Tópicos</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('cli.gerenciar_perguntas', topico_id=pergunta.topico_id) }}">Perguntas</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Editar Pergunta</li>
+                </ol>
+            </nav>
 
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="h3 mb-0"><i class="fas fa-edit text-warning me-2"></i> Editar Pergunta</h2>
-         <a href="{{ url_for_safe('cli.gerenciar_perguntas', topico_id=pergunta.topico_id) }}" class="btn btn-sm btn-outline-secondary">
-             <i class="fas fa-arrow-left me-1"></i> Voltar às Perguntas
-         </a>
-    </div>
-    <p class="text-muted mb-4">Editando pergunta do tópico: <strong>{{ pergunta.topico.nome }}</strong></p>
-
-    {% include 'includes/_flash_messages.html' %} {# Assume que _flash_messages.html existe #}
-
-    <div class="card shadow-sm">
-         <div class="card-header">
-             <h5 class="mb-0"><i class="fas fa-edit me-2"></i> Detalhes da Pergunta</h5>
-        </div>
-        <div class="card-body">
-            <form method="POST" action="{{ url_for('cli.editar_pergunta', pergunta_id=pergunta.id) }}" id="form-pergunta">
-
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                <div class="mb-3">
-                    <label for="texto" class="form-label">Texto da Pergunta <span class="text-danger">*</span></label>
-                    <textarea class="form-control" id="texto" name="texto" rows="3" required>{{ pergunta.texto or '' }}</textarea>
+            <div class="card shadow-sm">
+                <div class="card-header bg-white py-3">
+                    <h4 class="mb-0 text-primary">
+                        <i class="fas fa-edit me-2"></i>Editar Pergunta
+                    </h4>
                 </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('cli.editar_pergunta', pergunta_id=pergunta.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        
+                        <div class="mb-3">
+                            <label for="texto" class="form-label">Texto da Pergunta <span class="text-danger">*</span></label>
+                            <textarea class="form-control" id="texto" name="texto" rows="3" required>{{ pergunta.texto }}</textarea>
+                        </div>
 
-                <div class="mb-3">
-                    <label for="tipo" class="form-label">Tipo de Resposta <span class="text-danger">*</span></label>
-                    <select class="form-select" id="tipo" name="tipo" required onchange="toggleOpcoes()">
-                        {# Tenta pré-selecionar o tipo atual #}
-                        {% set current_type = pergunta.tipo.name if pergunta.tipo else '' %}
-                        <option value="SIM_NAO_NA" {% if current_type == 'SIM_NAO_NA' %}selected{% endif %}>Sim / Não / N.A.</option>
-                        <option value="MULTIPLA_ESCOLHA" {% if current_type == 'MULTIPLA_ESCOLHA' %}selected{% endif %}>Múltipla Escolha</option>
-                        <option value="ESCALA_NUMERICA" {% if current_type == 'ESCALA_NUMERICA' %}selected{% endif %}>Escala Numérica</option>
-                        <option value="NOTA" {% if current_type == 'NOTA' %}selected{% endif %}>Nota</option>
-                        <option value="TEXTO_CURTO" {% if current_type == 'TEXTO_CURTO' %}selected{% endif %}>Texto Curto</option>
-                        <option value="TEXTO_LONGO" {% if current_type == 'TEXTO_LONGO' %}selected{% endif %}>Texto Longo</option>
-                        <option value="FOTO" {% if current_type == 'FOTO' %}selected{% endif %}>Foto</option>
-                        <option value="DATA" {% if current_type == 'DATA' %}selected{% endif %}>Data</option>
-                        <option value="HORA" {% if current_type == 'HORA' %}selected{% endif %}>Hora</option>
-                        <option value="NUMERO" {% if current_type == 'NUMERO' %}selected{% endif %}>Número</option>
-                        <option value="PORCENTAGEM" {% if current_type == 'PORCENTAGEM' %}selected{% endif %}>Porcentagem</option>
-                        <option value="MOEDA" {% if current_type == 'MOEDA' %}selected{% endif %}>Moeda</option>
-                        <option value="ASSINATURA" {% if current_type == 'ASSINATURA' %}selected{% endif %}>Assinatura Digital</option>
-                    </select>
-                </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="tipo" class="form-label">Tipo de Resposta <span class="text-danger">*</span></label>
+                                <select class="form-select" id="tipo" name="tipo" onchange="toggleOpcoes()">
+                                    {% for tipo in ['SIM_NAO_NA', 'MULTIPLA_ESCOLHA', 'ESCALA_NUMERICA', 'NOTA', 'TEXTO_CURTO', 'TEXTO_LONGO', 'FOTO', 'DATA', 'HORA', 'NUMERO', 'PORCENTAGEM', 'MOEDA', 'ASSINATURA'] %}
+                                    <option value="{{ tipo }}" {% if pergunta.tipo.name == tipo or pergunta.tipo.value == tipo %}selected{% endif %}>
+                                        {{ tipo.replace('_', ' ').title() }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="peso" class="form-label">Peso na Nota</label>
+                                <input type="number" class="form-control" id="peso" name="peso" value="{{ pergunta.peso }}" min="0" step="1">
+                                <div class="form-text">Defina 0 para não pontuar.</div>
+                            </div>
+                        </div>
 
-                <div id="opcoes-container" class="mb-3 border p-3 rounded bg-light" style="display: none;">
-                    <h5>Opções de Resposta</h5>
-                    <div id="opcoes-lista">
-                        {# Preenche as opções existentes #}
-                        {% if current_type in ['MULTIPLA_ESCOLHA', 'ESCALA_NUMERICA'] and pergunta.opcoes %}
-                            {% for opcao in pergunta.opcoes.order_by('ordem') %}
-                                <div class="input-group mb-2">
-                                    <input type="text" name="opcao_texto[]" class="form-control form-control-sm" placeholder="Texto da Opção" value="{{ opcao.texto }}" required>
-                                    <input type="number" name="opcao_valor[]" class="form-control form-control-sm" placeholder="Valor (Pontos)" value="{{ opcao.valor if opcao.valor is not none else '' }}" step="any">
-                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="removerOpcao(this)" title="Remover Opção">
-                                        <i class="fas fa-times"></i>
-                                    </button>
+                        <div class="mb-3">
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" id="obrigatoria" name="obrigatoria" {% if pergunta.obrigatoria %}checked{% endif %}>
+                                <label class="form-check-label" for="obrigatoria">Pergunta Obrigatória</label>
+                            </div>
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" id="permite_observacao" name="permite_observacao" {% if pergunta.permite_observacao %}checked{% endif %}>
+                                <label class="form-check-label" for="permite_observacao">Permitir Observações</label>
+                            </div>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="exige_foto_se_nao_conforme" name="exige_foto_se_nao_conforme" {% if pergunta.exige_foto_se_nao_conforme %}checked{% endif %}>
+                                <label class="form-check-label" for="exige_foto_se_nao_conforme">Exigir foto se Não Conforme (apenas Sim/Não)</label>
+                            </div>
+                        </div>
+
+                        <!-- Área de Opções (Múltipla Escolha / Escala) -->
+                        <div id="area-opcoes" class="card mb-3 bg-light" style="display: none;">
+                            <div class="card-body">
+                                <h6 class="card-title">Opções de Resposta</h6>
+                                <p class="small text-muted">Adicione as opções disponíveis para esta pergunta.</p>
+                                
+                                <div id="container-opcoes">
+                                    {# Usa a variável 'opcoes' passada pela rota, se existir #}
+                                    {% set lista_opcoes = opcoes if opcoes is defined else [] %}
+                                    
+                                    {# Fallback: se 'opcoes' não veio, tenta usar pergunta.opcoes (se não for query) #}
+                                    {% if not lista_opcoes and pergunta.opcoes %}
+                                        {# Verifica se pergunta.opcoes é iterável diretamente #}
+                                        {% set lista_opcoes = pergunta.opcoes %}
+                                    {% endif %}
+
+                                    {% for opcao in lista_opcoes %}
+                                    <div class="row mb-2 item-opcao">
+                                        <input type="hidden" name="opcao_id[]" value="{{ opcao.id }}">
+                                        <div class="col-md-7">
+                                            <input type="text" class="form-control" name="opcao_texto[]" placeholder="Texto da opção" value="{{ opcao.texto }}" required>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <input type="number" class="form-control" name="opcao_valor[]" placeholder="Pontos" value="{{ opcao.valor }}" step="0.1">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button type="button" class="btn btn-outline-danger w-100" onclick="removerOpcao(this)">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
                                 </div>
-                            {% endfor %}
-                        {% endif %}
-                    </div>
-                    <button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="adicionarOpcao()">
-                        <i class="fas fa-plus"></i> Adicionar Opção
-                    </button>
-                    <div class="form-text">Para Múltipla Escolha ou Escala, defina as opções e seus valores (pontos).</div>
-                </div>
+                                
+                                <button type="button" class="btn btn-sm btn-success mt-2" onclick="adicionarOpcao()">
+                                    <i class="fas fa-plus me-1"></i> Adicionar Opção
+                                </button>
+                            </div>
+                        </div>
 
-                <div class="mb-3">
-                    <label for="peso" class="form-label">Peso da Pergunta</label>
-                    <input type="number" class="form-control" id="peso" name="peso" value="{{ pergunta.peso | default(1) }}" min="0" step="1">
-                    <div class="form-text">Define a importância desta pergunta no cálculo da nota final.</div>
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{{ url_for('cli.gerenciar_perguntas', topico_id=pergunta.topico_id) }}" class="btn btn-secondary">Cancelar</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i> Salvar Alterações
+                            </button>
+                        </div>
+                    </form>
                 </div>
-
-                <div class="mb-3">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" role="switch" id="obrigatoria" name="obrigatoria" {% if pergunta.obrigatoria %}checked{% endif %}>
-                        <label class="form-check-label" for="obrigatoria">Resposta Obrigatória</label>
-                    </div>
-                </div>
-                 <div class="mb-3">
-                     <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" role="switch" id="permite_observacao" name="permite_observacao" {% if pergunta.permite_observacao %}checked{% endif %}>
-                        <label class="form-check-label" for="permite_observacao">Permitir Observação Adicional</label>
-                    </div>
-                </div>
-
-                <div class="mb-3">
-                     <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" role="switch" id="exige_foto_se_nao_conforme" name="exige_foto_se_nao_conforme" {% if pergunta and pergunta.exige_foto_se_nao_conforme %}checked{% endif %}>
-                        <label class="form-check-label" for="exige_foto_se_nao_conforme">Exigir Foto se Não Conforme</label>
-                        <div class="form-text small text-muted">Marque se uma foto for necessária caso a resposta seja "Não" ou indique não conformidade.</div>
-                    </div>
-                </div>
-                <hr class="my-4">
-
-                <div class="d-flex justify-content-between">
-                     <a href="{{ url_for_safe('cli.gerenciar_perguntas', topico_id=pergunta.topico_id) }}" class="btn btn-outline-secondary">
-                        <i class="fas fa-times me-2"></i> Cancelar
-                    </a>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save me-2"></i> Salvar Alterações
-                    </button>
-                </div>
-            </form>
+            </div>
         </div>
     </div>
 </div>
 
-{# Script JS para gerenciar opções dinamicamente (igual ao de nova_pergunta.html) #}
 <script>
     function toggleOpcoes() {
-        const tipoSelect = document.getElementById('tipo');
-        const opcoesContainer = document.getElementById('opcoes-container');
-        const selectedType = tipoSelect.value;
-
-        if (selectedType === 'MULTIPLA_ESCOLHA' || selectedType === 'ESCALA_NUMERICA') {
-            opcoesContainer.style.display = 'block';
+        const tipo = document.getElementById('tipo').value;
+        const areaOpcoes = document.getElementById('area-opcoes');
+        const tiposComOpcoes = ['MULTIPLA_ESCOLHA', 'ESCALA_NUMERICA'];
+        
+        if (tiposComOpcoes.includes(tipo)) {
+            areaOpcoes.style.display = 'block';
+            // Se não tiver opções, adiciona uma linha vazia
+            const container = document.getElementById('container-opcoes');
+            if (container.children.length === 0) {
+                adicionarOpcao();
+            }
         } else {
-            opcoesContainer.style.display = 'none';
+            areaOpcoes.style.display = 'none';
         }
     }
 
-    function adicionarOpcao(texto = '', valor = '') {
-        const lista = document.getElementById('opcoes-lista');
-        const index = lista.children.length;
-        const div = document.createElement('div');
-        div.className = 'input-group mb-2';
-        div.innerHTML = `
-            <input type="text" name="opcao_texto[]" class="form-control form-control-sm" placeholder="Texto da Opção ${index + 1}" value="${texto}" required>
-            <input type="number" name="opcao_valor[]" class="form-control form-control-sm" placeholder="Valor (Pontos)" value="${valor}" step="any">
-            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removerOpcao(this)" title="Remover Opção">
-                <i class="fas fa-times"></i>
-            </button>
+    function adicionarOpcao() {
+        const container = document.getElementById('container-opcoes');
+        const novaLinha = document.createElement('div');
+        novaLinha.className = 'row mb-2 item-opcao';
+        novaLinha.innerHTML = `
+            <input type="hidden" name="opcao_id[]" value="">
+            <div class="col-md-7">
+                <input type="text" class="form-control" name="opcao_texto[]" placeholder="Texto da opção" required>
+            </div>
+            <div class="col-md-3">
+                <input type="number" class="form-control" name="opcao_valor[]" placeholder="Pontos" value="0" step="0.1">
+            </div>
+            <div class="col-md-2">
+                <button type="button" class="btn btn-outline-danger w-100" onclick="removerOpcao(this)">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
         `;
-        lista.appendChild(div);
+        container.appendChild(novaLinha);
     }
 
-    function removerOpcao(button) {
-        button.closest('.input-group').remove();
-        const lista = document.getElementById('opcoes-lista');
-        Array.from(lista.children).forEach((div, i) => {
-             div.querySelector('input[name="opcao_texto[]"]').placeholder = `Texto da Opção ${i + 1}`;
-        });
+    function removerOpcao(btn) {
+        btn.closest('.item-opcao').remove();
     }
 
-    document.addEventListener('DOMContentLoaded', toggleOpcoes);
+    // Inicializar estado
+    document.addEventListener('DOMContentLoaded', function() {
+        toggleOpcoes();
+    });
 </script>
 {% endblock %}

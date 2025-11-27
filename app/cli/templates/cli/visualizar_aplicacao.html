@@ -198,7 +198,7 @@
                                 {% endif %}
                             </h6>
                             
-                            {% set perguntas_topico = topico.perguntas if topico.perguntas else [] %}
+                            {% set perguntas_topico = topico.perguntas_ativas if topico.perguntas_ativas else [] %}
                             {% if perguntas_topico %}
                             {% for pergunta in perguntas_topico %}
                             <div class="resposta-item">
@@ -269,7 +269,7 @@
                         {% endif %}
                         
                         {% if aplicacao.status == 'finalizada' %}
-                        <a href="{{ url_for('cli.gerar_pdf_aplicacao', id=aplicacao.id) }}" class="btn btn-danger">
+                        <a href="{{ url_for('cli.gerar_relatorio_aplicacao', id=aplicacao.id) }}" class="btn btn-danger">
                             <i class="fas fa-file-pdf me-1"></i>
                             Baixar PDF
                         </a>

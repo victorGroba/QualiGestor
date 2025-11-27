@@ -1,5 +1,7 @@
 # app/__init__.py
 import os
+import logging
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Optional
 from flask import Flask, url_for, request
@@ -23,13 +25,12 @@ db = SQLAlchemy()
 migrate = Migrate()
 login_manager = LoginManager()
 
-# Instância global do CSRF (pode ser None se Flask-WTF não estiver disponível)
+# Instância global do CSRF
 csrf = None
 if CSRFProtect is not None:
     try:
         csrf = CSRFProtect()
     except Exception as e:
-        # Falha ao instanciar CSRFProtect; deixamos csrf = None
         print(f"[WARN] Falha ao instanciar CSRFProtect: {e}")
         csrf = None
 
@@ -39,13 +40,11 @@ load_dotenv()
 
 def _sqlite_uri(db_path: Path) -> str:
     """
-    Monta uma URI SQLite compatível com Windows/macOS/Linux,
-    evitando problemas com barras invertidas e espaços.
+    Monta uma URI SQLite compatível com Windows/macOS/Linux.
     """
     return f"sqlite:///{db_path.as_posix()}"
 
 # --- FUNÇÃO AUXILIAR PARA VERIFICAR EXTENSÕES DE ARQUIVO ---
-# Colocada aqui para fácil acesso, pode ser movida para utils/helpers.py depois
 def allowed_file(filename: str, allowed_extensions: set) -> bool:
     """Verifica se o nome de arquivo tem uma extensão permitida."""
     return '.' in filename and \
@@ -74,31 +73,25 @@ def create_app() -> Flask:
     instance_dir = root_dir / "instance"
     instance_dir.mkdir(parents=True, exist_ok=True)
 
-    # --- ADIÇÃO: Configuração da pasta de upload ---
-    # (Esta é a sua definição, que é ótima e específica)
+    # --- Configuração da pasta de upload ---
     UPLOAD_FOLDER = instance_dir / "uploads" / "fotos_respostas"
-    UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True) # Garante que a pasta exista
-    app.config['UPLOAD_FOLDER'] = str(UPLOAD_FOLDER) # Armazena como string no config
-    app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif', 'webp'} # Tipos permitidos
+    UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True) 
+    app.config['UPLOAD_FOLDER'] = str(UPLOAD_FOLDER) 
+    app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif', 'webp'} 
     # ----------------------------------------------
 
     # Banco em instance/banco.db
     db_path = instance_dir / "banco.db"
     app.config["SQLALCHEMY_DATABASE_URI"] = _sqlite_uri(db_path)
 
-    # --- CORREÇÃO: REMOVIDAS AS LINHAS DUPLICADAS ABAIXO ---
-    # app.config['UPLOAD_FOLDER'] = os.path.join(app.instance_path, 'uploads')
-    # os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-    # --- FIM DA CORREÇÃO ---
-
     # -------------------------------------------------------------------------
-    # Versão do sistema (lida a partir de version.txt na raiz)
+    # Versão do sistema
     # -------------------------------------------------------------------------
     versao_path = root_dir / "version.txt"
     try:
         app.config["VERSAO"] = versao_path.read_text(encoding="utf-8").strip()
     except FileNotFoundError:
-        app.config["VERSAO"] = "1.4.0-beta" # Mantive o seu default
+        app.config["VERSAO"] = "1.4.0-beta"
 
     @app.context_processor
     def inject_version():
@@ -112,21 +105,18 @@ def create_app() -> Flask:
 
         @app.context_processor
         def inject_custom_functions():
-            # Adiciona allowed_file ao contexto dos templates também, se útil
             return dict(
                 opcao_pergunta_por_id=opcao_pergunta_por_id,
-                allowed_file=allowed_file # Permite usar no template se precisar
+                allowed_file=allowed_file
             )
     except Exception:
         @app.context_processor
         def inject_custom_functions():
-            # Adiciona allowed_file mesmo se outros helpers falharem
             return dict(allowed_file=allowed_file)
 
     # Helpers de navegação globais
     def has_endpoint(name: str) -> bool:
         try:
-            # Garante que app.url_map existe antes de iterar
             if app.url_map:
                 return name in {rule.endpoint for rule in app.url_map.iter_rules()}
             return False
@@ -134,14 +124,10 @@ def create_app() -> Flask:
             return False
 
     def url_for_safe(endpoint: str, **values) -> str:
-        """
-        Tenta gerar la URL do endpoint; se falhar, cai no índice do CLI ou '/'.
-        """
         try:
             return url_for(endpoint, **values)
         except Exception:
             try:
-                # Tenta gerar url_for dentro do contexto da app para garantir que url_map está pronto
                 with app.app_context():
                     if has_endpoint('cli.index'):
                         return url_for('cli.index')
@@ -149,7 +135,6 @@ def create_app() -> Flask:
                         return '/'
             except Exception:
                 return '/'
-
 
     @app.context_processor
     def inject_nav_helpers():
@@ -168,8 +153,7 @@ def create_app() -> Flask:
     login_manager.login_message = "Por favor, faça login para acessar esta página."
     login_manager.login_message_category = "info"
 
-
-    # CSRFProtect (se disponível) - iniciando a instância global 'csrf'
+    # CSRFProtect
     if csrf is not None:
         try:
             app.config.setdefault("WTF_CSRF_TIME_LIMIT", None)
@@ -177,15 +161,12 @@ def create_app() -> Flask:
         except Exception as e:
             print(f"[WARN] CSRFProtect não habilitado: {e}")
 
-    # Expor csrf_token() nos templates (só se Flask-WTF estiver disponível)
     @app.context_processor
     def inject_csrf():
         if generate_csrf:
             return {"csrf_token": generate_csrf}
         return {}
 
-    # Cookie de debug CSRF (REMOVER EM PRODUÇÃO)
-    # (Código mantido como no original)
     try:
         if generate_csrf:
             @app.after_request
@@ -204,20 +185,16 @@ def create_app() -> Flask:
                 return response
     except Exception:
         pass
-    # -------------------------------------------------------------------------
 
     # -------------------------------------------------------------------------
     # Models e user loader
     # -------------------------------------------------------------------------
-    # É importante que os modelos sejam importados DEPOIS que 'db' foi inicializado
-    # e ANTES dos blueprints que os usam serem registrados.
     with app.app_context():
-        from . import models # Importa tudo de models.py
+        from . import models
 
     @login_manager.user_loader
     def load_user(user_id: str) -> Optional["models.Usuario"]:
         try:
-            # Acessa Usuario através do módulo importado
             return models.Usuario.query.get(int(user_id))
         except Exception as e:
             app.logger.error(f"Erro ao carregar usuário {user_id}: {e}")
@@ -226,18 +203,16 @@ def create_app() -> Flask:
     # -------------------------------------------------------------------------
     # Blueprints
     # -------------------------------------------------------------------------
-    # Importar DEPOIS da inicialização do app e db
     from .auth.routes import auth_bp
     from .main.routes import main_bp
     from .cli.routes import cli_bp
     from .panorama.routes import panorama_bp
 
     app.register_blueprint(auth_bp)
-    app.register_blueprint(main_bp)          # '/' e '/painel'
+    app.register_blueprint(main_bp)
     app.register_blueprint(cli_bp, url_prefix="/cli")
     app.register_blueprint(panorama_bp, url_prefix="/panorama")
 
-    # Admin opcional
     try:
         from .admin.routes import admin_bp
         app.register_blueprint(admin_bp, url_prefix="/admin")
@@ -246,61 +221,52 @@ def create_app() -> Flask:
     except Exception as e:
          print(f"[WARN] Erro ao registrar blueprint Admin: {e}")
 
-
     # -------------------------------------------------------------------------
-    # Configuração de Logging (CORRIGIDO PARA DEBUG E PRODUÇÃO)
+    # CONFIGURAÇÃO DE LOGGING (BLINDADA PARA WINDOWS)
     # -------------------------------------------------------------------------
-    import logging
-    from logging.handlers import RotatingFileHandler
-
-    # Nível de log
-    log_level = logging.DEBUG if app.debug else logging.INFO
-
-    # Formato
-    formatter = logging.Formatter(
-        '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
-    )
-
-    # 1. Remover handlers padrão do Flask
+    
+    # 1. Limpa handlers antigos para evitar conflitos de arquivo preso
     for handler in app.logger.handlers[:]:
         app.logger.removeHandler(handler)
 
-    # 2. Configurar o handler correto
-    log_file = instance_dir / 'app.log'
-
-    if app.debug:
-        # MODO DEBUG:
-        # Usamos FileHandler com 'delay=True' para evitar o PermissionError [WinError 32]
-        # no Windows causado pelo reloader do Flask.
-        file_handler = logging.FileHandler(
-            str(log_file), 
-            encoding='utf-8', 
-            delay=True  # Adia a abertura do arquivo até a primeira escrita
-        )
-        app.logger.info(f'QualiGestor startup (MODO DEBUG)')
-        
-    else:
-        # MODO PRODUÇÃO:
-        # Usamos o RotatingFileHandler para controlar o tamanho do log.
-        file_handler = RotatingFileHandler(
-            str(log_file), 
-            maxBytes=1_000_000,  # 1 MB por arquivo
-            backupCount=5,       # Manter 5 arquivos de backup
-            encoding='utf-8'
-        )
-        app.logger.info('QualiGestor startup (MODO PRODUÇÃO)')
-
-    # 3. Aplicar formatação e nível ao handler e ao logger
-    file_handler.setFormatter(formatter)
-    file_handler.setLevel(log_level)
+    app.logger.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]')
     
-    app.logger.addHandler(file_handler)
-    app.logger.setLevel(log_level)
+    # 2. SEMPRE adiciona um StreamHandler (Console)
+    # Isso garante que você veja os logs no terminal, mesmo se o arquivo falhar.
+    stream_handler = logging.StreamHandler()
+    stream_handler.setFormatter(formatter)
+    app.logger.addHandler(stream_handler)
+
+    # 3. Tenta configurar o FileHandler de forma segura
+    log_file = instance_dir / 'app.log'
+    
+    # No Windows (nt) ou Debug, usamos FileHandler simples com delay=True.
+    if os.name == 'nt' or app.debug:
+        try:
+            file_handler = logging.FileHandler(str(log_file), encoding='utf-8', delay=True)
+            file_handler.setFormatter(formatter)
+            app.logger.addHandler(file_handler)
+            print("LOG: Logging em arquivo ativado (Modo Windows/Debug)")
+        except Exception as e:
+            # Se falhar (permissão), não quebra o app. Apenas avisa no console.
+            print(f"AVISO CRÍTICO: Não foi possível criar 'app.log'. Logs apenas no console. Erro: {e}")
+            
+    else:
+        # Modo Produção (Linux): Usa rotação de logs
+        try:
+            file_handler = RotatingFileHandler(str(log_file), maxBytes=1_000_000, backupCount=5, encoding='utf-8')
+            file_handler.setFormatter(formatter)
+            app.logger.addHandler(file_handler)
+            print("LOG: Logging rotativo configurado (Modo Produção)")
+        except Exception as e:
+            print(f"AVISO: Falha ao configurar log rotativo: {e}")
+
+    app.logger.info('QualiGestor iniciado com sucesso.')
     
     # -------------------------------------------------------------------------
 
     return app
 
-
-# Exportações do módulo - MANTIDAS IGUAIS
-__all__ = ["db", "create_app", "csrf", "allowed_file"] # Adicionei allowed_file aqui
+# Exportações do módulo
+__all__ = ["db", "create_app", "csrf", "allowed_file"]
