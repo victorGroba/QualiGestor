@@ -2259,185 +2259,128 @@ def responder_aplicacao(id):
 @login_required
 def finalizar_aplicacao(id):
     """
-    Finaliza uma aplicação:
-    - Valida fotos obrigatórias para respostas 'Não Conforme'.
-    - Valida perguntas obrigatórias não respondidas.
-    - Calcula a nota final percentual dinamicamente com base na soma dos pesos das perguntas pontuáveis.
+    Finaliza uma aplicação e GRAVA as não conformidades para o Pareto.
     """
     try:
-        # ===== CARREGAMENTO OTIMIZADO =====
-        # Carrega a aplicação com os relacionamentos necessários
+        # 1. Carregamento Otimizado
         aplicacao = AplicacaoQuestionario.query.options(
             db.joinedload(AplicacaoQuestionario.questionario), 
             db.joinedload(AplicacaoQuestionario.avaliado)
         ).get_or_404(id)
 
-        # Carrega as respostas para acesso rápido em memória
+        # 2. Carrega Respostas em Memória
         respostas_list = list(aplicacao.respostas) 
-        respostas_dict = {r.pergunta_id: r for r in respostas_list} # Mapa ID -> Resposta
+        respostas_dict = {r.pergunta_id: r for r in respostas_list}
         respostas_dadas_ids = set(respostas_dict.keys())
 
-        # ===== CORREÇÃO DEFINITIVA DO PROBLEMA DE STATUS/FANTASMAS =====
-        # Carrega APENAS perguntas ATIVAS através de uma join segura.
-        # Isso garante que perguntas excluídas (ativo=False) sejam ignoradas na validação.
+        # 3. FILTRO ANTI-FANTASMA (Ignora perguntas excluídas)
         perguntas_ativas = Pergunta.query.join(Topico).filter(
             Topico.questionario_id == aplicacao.questionario_id,
-            Topico.ativo == True,   # O tópico deve estar ativo
-            Pergunta.ativo == True  # A pergunta deve estar ativa
+            Topico.ativo.is_(True),
+            Pergunta.ativo.is_(True)
         ).all()
-        # ===============================================================
 
-        # Verificar permissões de segurança
+        # Validações Básicas
         if aplicacao.avaliado.cliente_id != current_user.cliente_id:
             flash("Aplicação não encontrada.", "error")
             return redirect(url_for('cli.listar_aplicacoes'))
 
-        # Verificar se já não está finalizada
         if aplicacao.status != StatusAplicacao.EM_ANDAMENTO:
-            flash("Esta aplicação já foi finalizada ou cancelada.", "warning")
+            flash("Esta aplicação já foi finalizada.", "warning")
             return redirect(url_for('cli.visualizar_aplicacao', id=id))
 
-        # --- 1. VALIDAÇÃO DE FOTOS OBRIGATÓRIAS ---
-        perguntas_sem_foto_obrigatoria = []
-        # Itera APENAS sobre as perguntas ativas
+        # --- 4. MARCAÇÃO DE NÃO CONFORMIDADES (CRUCIAL PARA O PARETO) ---
+        # Este passo estava faltando. Ele diz ao banco o que é um "Erro".
+        perguntas_sem_foto = []
+        respostas_negativas = ['não', 'nao', 'no']
+
         for p in perguntas_ativas:
-            # Verifica se exige foto E se foi respondida
-            if p.exige_foto_se_nao_conforme and p.id in respostas_dict:
+            if p.id in respostas_dict:
                 resp = respostas_dict[p.id]
                 resp_txt = (resp.resposta or "").strip().lower()
                 
-                # Lista de respostas consideradas negativas
-                respostas_nao_conforme = ['não', 'nao', 'no']
-                
-                # Se resposta for negativa e não tiver foto anexada
-                if resp_txt in respostas_nao_conforme and not resp.caminho_foto:
-                    nome_topico = p.topico.nome if p.topico else "Geral"
-                    perguntas_sem_foto_obrigatoria.append(f"'{p.texto}' (Tópico: {nome_topico})")
+                # Lógica: Se a resposta for "Não", marca como Não Conforme no banco
+                if resp_txt in respostas_negativas:
+                    resp.nao_conforme = True  # <--- ISSO ALIMENTA O PARETO
+                    
+                    # Validação de Foto (apenas se exigido)
+                    if p.exige_foto_se_nao_conforme and not resp.caminho_foto:
+                        topico_nome = p.topico.nome if p.topico else "Geral"
+                        perguntas_sem_foto.append(f"'{p.texto}' ({topico_nome})")
+                else:
+                    resp.nao_conforme = False # Garante que "Sim" limpe o erro
 
-        # Se houver pendências de foto, bloqueia e avisa
-        if perguntas_sem_foto_obrigatoria:
-            count = len(perguntas_sem_foto_obrigatoria)
-            flash(f"Não foi possível finalizar. {count} pergunta(s) respondida(s) como 'Não' exigem uma foto de evidência:", "danger")
-            for erro in perguntas_sem_foto_obrigatoria[:5]: flash(f"- {erro}", "warning")
-            if count > 5: flash("...", "warning")
-            current_app.logger.warning(f"Finalização aplicação {id} bloqueada. Fotos faltantes: {perguntas_sem_foto_obrigatoria}")
+        # Bloqueia se faltar foto
+        if perguntas_sem_foto:
+            count = len(perguntas_sem_foto)
+            flash(f"Finalização bloqueada: {count} resposta(s) 'Não' exigem foto de evidência.", "danger")
+            for erro in perguntas_sem_foto[:3]: flash(f"- {erro}", "warning")
             return redirect(url_for('cli.responder_aplicacao', id=id))
 
-        # --- 2. VALIDAÇÃO DE PERGUNTAS OBRIGATÓRIAS ---
-        perguntas_obrigatorias_ids = set()
-        
-        # Coleta IDs das obrigatórias APENAS entre as ativas
-        for p in perguntas_ativas:
-            if p.obrigatoria:
-                perguntas_obrigatorias_ids.add(p.id)
-
-        # Verifica quais obrigatórias não foram respondidas
+        # --- 5. VALIDAÇÃO DE OBRIGATÓRIAS ---
+        perguntas_obrigatorias_ids = {p.id for p in perguntas_ativas if p.obrigatoria}
         perguntas_faltando_ids = perguntas_obrigatorias_ids - respostas_dadas_ids
 
-        # Se houver pendências de resposta, bloqueia e avisa
         if perguntas_faltando_ids:
-            # Busca os textos para exibir no alerta
-            perguntas_faltantes_obj = Pergunta.query.filter(Pergunta.id.in_(list(perguntas_faltando_ids))).limit(5).all()
-            textos_faltando = [p.texto for p in perguntas_faltantes_obj]
-            
-            flash(f"Existem {len(perguntas_faltando_ids)} pergunta(s) obrigatória(s) sem resposta.", "warning")
-            for texto_pf in textos_faltando: flash(f"- {texto_pf}", "secondary")
-            if len(perguntas_faltando_ids) > 5: flash("...", "secondary")
-            
-            current_app.logger.warning(f"Finalização aplicação {id} bloqueada. Perguntas obrigatórias faltando: {perguntas_faltando_ids}")
+            pendencias = [p.texto for p in perguntas_ativas if p.id in perguntas_faltando_ids][:3]
+            flash(f"Faltam {len(perguntas_faltando_ids)} pergunta(s) obrigatória(s).", "warning")
+            for texto in pendencias: flash(f"- {texto}", "secondary")
             return redirect(url_for('cli.responder_aplicacao', id=id))
 
-        # --- 3. CÁLCULO DE NOTA FINAL (SUA LÓGICA V3 MANTIDA) ---
+        # --- 6. CÁLCULO DE NOTA ---
         if aplicacao.questionario.calcular_nota:
-            pontos_obtidos_bruto = 0.0
-            pontuacao_maxima_possivel = 0.0
+            pontos_obtidos = 0.0
+            pontos_maximos = 0.0
 
-            # A. Calcula a pontuação MÁXIMA POSSÍVEL (Iterando sobre perguntas ATIVAS)
-            for pergunta_q in perguntas_ativas:
-                peso_pergunta_float = (pergunta_q.peso or 0) * 1.0
+            for p in perguntas_ativas:
+                peso = float(p.peso or 0)
+                if peso <= 0: continue
+
+                resp = respostas_dict.get(p.id)
                 
-                # Pular perguntas sem peso (ex: perguntas informativas)
-                if peso_pergunta_float == 0:
-                    continue
-
-                # Identificação robusta do tipo (Lógica V3)
-                is_tipo_sim_nao = False
-                try:
-                    tipo_str = ""
-                    if hasattr(pergunta_q.tipo, 'name'): 
-                        tipo_str = pergunta_q.tipo.name.upper()
-                    elif hasattr(pergunta_q.tipo, 'value'): 
-                        tipo_str = str(pergunta_q.tipo.value).upper()
-                    else: 
-                        tipo_str = str(pergunta_q.tipo or "").upper()
-                    
-                    # Normalização para comparação segura
-                    tipo_str = tipo_str.replace(" ", "_").replace("/", "_")
-                    
-                    if tipo_str in ['SIM_NAO_NA', 'SIM_NAO', 'SIM_NÃO']:
-                        is_tipo_sim_nao = True
-                except Exception as e_tipo:
-                    current_app.logger.warning(f"Erro ao verificar tipo da pergunta {pergunta_q.id}: {e_tipo}")
-                    pass
-
-                # Se for tipo SIM_NAO, verificar se a resposta é N.A.
-                if is_tipo_sim_nao:
-                    resposta_obj = respostas_dict.get(pergunta_q.id)
-                    # Se respondeu N.A., esta pergunta NÃO entra na pontuação máxima
-                    if resposta_obj and (resposta_obj.resposta or "").strip().upper() in ["N.A.", "N/A", "NA"]:
-                        current_app.logger.info(f"FINALIZAR: Pergunta {pergunta_q.id} marcada como N.A., pulando do cálculo máximo.")
-                        continue 
+                # Ignora N.A. no cálculo
+                is_na = False
+                tipo_str = str(p.tipo.name if hasattr(p.tipo, 'name') else p.tipo).upper()
+                if 'SIM_NAO' in tipo_str and resp:
+                    if (resp.resposta or "").strip().upper() in ["N.A.", "N/A", "NA"]:
+                        is_na = True
                 
-                # Se não for N.A. e tiver peso, soma ao máximo possível
-                pontuacao_maxima_possivel += peso_pergunta_float
+                if is_na: continue
 
-            # B. Soma os pontos OBTIDOS nas respostas dadas
-            for resposta in respostas_list:
-                if resposta.pontos is not None:
-                    # Verifica se a pergunta da resposta ainda está na lista de ativas
-                    # (Segurança extra contra fantasmas)
-                    pergunta_resposta = Pergunta.query.get(resposta.pergunta_id)
-                    if pergunta_resposta and pergunta_resposta.ativo and (pergunta_resposta.topico and pergunta_resposta.topico.ativo):
-                        pontos_obtidos_bruto += resposta.pontos
+                pontos_maximos += peso
+                if resp and resp.pontos is not None:
+                    pontos_obtidos += float(resp.pontos)
 
-            # Armazena os valores calculados na aplicação
-            aplicacao.pontos_obtidos = round(pontos_obtidos_bruto, 2)
-            aplicacao.pontos_totais = round(pontuacao_maxima_possivel, 2)
+            aplicacao.pontos_obtidos = round(pontos_obtidos, 2)
+            aplicacao.pontos_totais = round(pontos_maximos, 2)
 
-            # C. Calcula a nota final percentual
-            if pontuacao_maxima_possivel > 0:
-                nota_percentual = (pontos_obtidos_bruto / pontuacao_maxima_possivel) * 100
-                aplicacao.nota_final = min(nota_percentual, 100.0)
-                
-                casas_dec = aplicacao.questionario.casas_decimais
-                if casas_dec is not None and casas_dec >= 0:
-                     aplicacao.nota_final = round(aplicacao.nota_final, casas_dec)
+            if pontos_maximos > 0:
+                nota = (pontos_obtidos / pontos_maximos) * 100
+                casas = aplicacao.questionario.casas_decimais
+                aplicacao.nota_final = round(nota, casas if casas is not None else 2)
             else:
-                 aplicacao.nota_final = 0.0 # Nota 0 se nenhuma pergunta pontuável for aplicável
+                aplicacao.nota_final = 0.0
 
-            current_app.logger.info(f"Cálculo de nota V3 (FINALIZAR) para aplicação {id}: Obtidos={pontos_obtidos_bruto}, Máximo={pontuacao_maxima_possivel}, Final={aplicacao.nota_final}%")
-        # --- FIM DO CÁLCULO DE NOTA ---
-
-        # --- 4. FINALIZAÇÃO E PERSISTÊNCIA ---
+        # --- 7. EFETIVAÇÃO ---
         aplicacao.data_fim = datetime.now()
         aplicacao.status = StatusAplicacao.FINALIZADA
-        aplicacao.observacoes_finais = request.form.get('observacoes_finais', aplicacao.observacoes_finais or '')
+        aplicacao.observacoes_finais = request.form.get('observacoes_finais', '')
 
-        # Garante que a sessão saiba que este objeto foi modificado
         db.session.add(aplicacao)
-        db.session.commit()
+        db.session.commit() # Salva o status DA APLICAÇÃO e o status DAS RESPOSTAS
 
-        log_acao(f"Finalizou aplicação: {aplicacao.questionario.nome}", {"nota": aplicacao.nota_final}, "AplicacaoQuestionario", id)
-        flash("Aplicação finalizada com sucesso!", "success")
-
+        log_acao(f"Finalizou: {aplicacao.questionario.nome}", 
+                 {"nota": aplicacao.nota_final, "app_id": id}, 
+                 "AplicacaoQuestionario", id)
+        
+        flash("Aplicação finalizada com sucesso! Dados computados para relatórios.", "success")
         return redirect(url_for('cli.visualizar_aplicacao', id=id))
 
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Erro ao finalizar aplicação {id}: {e}", exc_info=True)
-        flash(f"Erro inesperado ao finalizar aplicação: {str(e)}", "danger")
+        current_app.logger.error(f"Erro finalizar app {id}: {e}", exc_info=True)
+        flash(f"Erro ao finalizar: {str(e)}", "danger")
         return redirect(url_for('cli.responder_aplicacao', id=id))
-    
 
 @cli_bp.route('/aplicacao/<int:id>/excluir', methods=['GET', 'POST'])
 @login_required
@@ -4353,12 +4296,37 @@ def get_foto_resposta(filename):
     except Exception as e:
          current_app.logger.error(f"Erro ao servir foto '{filename}': {e}", exc_info=True)
          abort(500)
-# ====================================================================
-#  FIM DO BLOCO DE CÓDIGO CORRIGIDO
-# ====================================================================
 
-# --- COLE ISSO NO FINAL DO ARQUIVO app/cli/routes.py ---
-
+@cli_bp.route('/aplicacao/<int:id>/reabrir', methods=['POST'])
+@login_required
+@csrf.exempt  # <--- ADICIONE ISSO PARA CORRIGIR O ERRO 400
+def reabrir_aplicacao(id):
+    """
+    Reabre uma aplicação finalizada para permitir edições.
+    Retorna JSON para ser consumido pelo fetch do JavaScript.
+    """
+    try:
+        aplicacao = AplicacaoQuestionario.query.get_or_404(id)
+        
+        # Verificação de segurança
+        if aplicacao.avaliado.cliente_id != current_user.cliente_id:
+            return jsonify({'sucesso': False, 'erro': 'Acesso negado.'}), 403
+            
+        # Reverte o status para EM_ANDAMENTO
+        aplicacao.status = StatusAplicacao.EM_ANDAMENTO
+        aplicacao.data_fim = None # Limpa a data de finalização para recalcular o tempo depois
+        
+        db.session.commit()
+        
+        log_acao(f"Reabriu aplicação: {aplicacao.questionario.nome}", None, "AplicacaoQuestionario", id)
+        
+        return jsonify({'sucesso': True})
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erro ao reabrir aplicação {id}: {e}", exc_info=True)
+        return jsonify({'sucesso': False, 'erro': str(e)}), 500
+    
 
 
 

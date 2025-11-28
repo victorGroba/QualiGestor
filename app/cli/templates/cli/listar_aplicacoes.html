@@ -52,13 +52,13 @@
                         {% for app in aplicacoes %}
                         <tr>
                             <td>
-                                <small>{{ app.usuario.nome if app.usuario else 'N/A' }}</small>
+                                <small>{{ app.aplicador.nome if app.aplicador else (app.usuario.nome if app.usuario else 'N/A') }}</small>
                             </td>
                     
                             <td>
                                 {{ app.questionario.nome if app.questionario else 'N/A' }}
                                 <br>
-                                <small class="text-muted">ID da Aplicação: {{ app.id }}</small>
+                                <small class="text-muted">ID: {{ app.id }}</small>
                             </td>
                     
                             <td>
@@ -79,41 +79,50 @@
                             </td>
                             
                             <td>
-                                {% if app.status == 'finalizada' %}
+                                {% if app.status.name == 'FINALIZADA' or app.status.value == 'finalizada' %}
                                     <span class="badge bg-success">Finalizada</span>
+                                    {% if app.data_fim %}
                                     <br>
                                     <small class="text-muted">{{ app.data_fim.strftime('%d/%m/%y') }}</small>
+                                    {% endif %}
+                                {% elif app.status.name == 'CANCELADA' or app.status.value == 'cancelada' %}
+                                    <span class="badge bg-danger">Cancelada</span>
                                 {% else %}
-                                    <span class="badge bg-warning">Em Andamento</span>
+                                    <span class="badge bg-warning text-dark">Em Andamento</span>
                                     <br>
                                     <small class="text-muted">{{ app.data_inicio.strftime('%d/%m/%y') }}</small>
                                 {% endif %}
                             </td>
                     
                             <td class="text-end">
-                                <div class="btn-group" role="group" aria-label="Ações da Aplicação">
+                                <div class="btn-group" role="group" aria-label="Ações">
                                     
-                                    <a href="{{ url_for('cli.visualizar_aplicacao', id=app.id) }}" class="btn btn-sm btn-outline-info" title="Visualizar Online">
+                                    <a href="{{ url_for('cli.visualizar_aplicacao', id=app.id) }}" class="btn btn-sm btn-outline-info" title="Visualizar">
                                         <i class="fas fa-eye"></i>
                                     </a>
                                     
-                                    <a href="{{ url_for('cli.gerar_relatorio_aplicacao', id=app.id) }}" class="btn btn-sm btn-outline-danger" title="Baixar PDF">
+                                    {% if app.status.name == 'FINALIZADA' or app.status.value == 'finalizada' %}
+                                    <a href="{{ url_for('cli.gerar_relatorio_aplicacao', id=app.id) }}" class="btn btn-sm btn-outline-danger" title="PDF">
                                         <i class="fas fa-file-pdf"></i>
                                     </a>
+                                    {% endif %}
                                     
                                     <a href="{{ url_for('cli.excluir_aplicacao', id=app.id) }}" 
                                        class="btn btn-sm btn-outline-danger" 
                                        title="Excluir"
-                                       onclick="return confirm('Tem certeza que deseja excluir esta aplicação? Esta ação não pode ser desfeita.');">
+                                       onclick="return confirm('Tem certeza que deseja excluir esta aplicação? Todas as respostas serão perdidas.');">
                                         <i class="fas fa-trash"></i>
                                     </a>
 
-                                    </div>
+                                </div>
                             </td>
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="6" class="text-center">Nenhuma aplicação encontrada.</td>
+                            <td colspan="6" class="text-center py-4 text-muted">
+                                <i class="fas fa-inbox fa-2x mb-3 d-block"></i>
+                                Nenhuma aplicação encontrada.
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>

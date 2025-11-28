@@ -93,19 +93,24 @@
                             </div>
                             <div class="col-md-4 text-end">
                                 <div class="mb-2">
-                                    {% if aplicacao.status == 'finalizada' %}
+                                    {% if aplicacao.status.name == 'FINALIZADA' or aplicacao.status.value == 'finalizada' %}
                                     <span class="badge bg-success status-badge">
                                         <i class="fas fa-check me-1"></i>
                                         Finalizada
                                     </span>
+                                    {% elif aplicacao.status.name == 'CANCELADA' or aplicacao.status.value == 'cancelada' %}
+                                    <span class="badge bg-danger status-badge">
+                                        <i class="fas fa-times me-1"></i>
+                                        Cancelada
+                                    </span>
                                     {% else %}
-                                    <span class="badge bg-warning status-badge">
+                                    <span class="badge bg-warning text-dark status-badge">
                                         <i class="fas fa-clock me-1"></i>
                                         Em Andamento
                                     </span>
                                     {% endif %}
                                 </div>
-                                {% if aplicacao.nota_final %}
+                                {% if aplicacao.nota_final is not none %}
                                 <div class="nota-destaque text-primary">
                                     {{ aplicacao.nota_final }}%
                                 </div>
@@ -198,7 +203,8 @@
                                 {% endif %}
                             </h6>
                             
-                            {% set perguntas_topico = topico.perguntas_ativas if topico.perguntas_ativas else [] %}
+                            {% set perguntas_topico = topico.perguntas_ativas if topico.perguntas_ativas is defined else topico.perguntas %}
+                            
                             {% if perguntas_topico %}
                             {% for pergunta in perguntas_topico %}
                             <div class="resposta-item">
@@ -213,26 +219,26 @@
                                         {% set resposta = respostas_dict.get(pergunta.id) %}
                                         {% if resposta %}
                                         
-                                        {% if pergunta.tipo and pergunta.tipo.name == 'ASSINATURA' %}
-                                            <div class="signature-image-view float-end">
-                                                {% if resposta.resposta and 'data:image' in resposta.resposta %}
-                                                    <img src="{{ resposta.resposta | safe }}" alt="Assinatura">
-                                                {% else %}
-                                                    <span style="color: #999; font-style: italic; padding: 5px;">(Assinatura não preenchida)</span>
-                                                {% endif %}
-                                            </div>
+                                            {% if pergunta.tipo and (pergunta.tipo.name == 'ASSINATURA' or pergunta.tipo.value == 'Assinatura Digital') %}
+                                                <div class="signature-image-view float-end">
+                                                    {% if resposta.resposta and 'data:image' in resposta.resposta %}
+                                                        <img src="{{ resposta.resposta | safe }}" alt="Assinatura">
+                                                    {% else %}
+                                                        <span style="color: #999; font-style: italic; padding: 5px;">(Assinatura não preenchida)</span>
+                                                    {% endif %}
+                                                </div>
+                                            {% else %}
+                                                <div class="text-end">
+                                                    <span class="badge bg-primary">{{ resposta.resposta or 'Sem resposta' }}</span>
+                                                    {% if resposta.observacao %}
+                                                    <br><small class="text-muted">Obs: {{ resposta.observacao }}</small>
+                                                    {% endif %}
+                                                </div>
+                                            {% endif %}
                                         {% else %}
                                             <div class="text-end">
-                                                <span class="badge bg-primary">{{ resposta.resposta or 'Sem resposta' }}</span>
-                                                {% if resposta.observacao %}
-                                                <br><small class="text-muted">Obs: {{ resposta.observacao }}</small>
-                                                {% endif %}
+                                                <span class="badge bg-secondary">Não respondida</span>
                                             </div>
-                                        {% endif %}
-                                        {% else %}
-                                        <div class="text-end">
-                                            <span class="badge bg-secondary">Não respondida</span>
-                                        </div>
                                         {% endif %}
                                     </div>
                                 </div>
@@ -261,14 +267,14 @@
                             Voltar às Aplicações
                         </a>
                         
-                        {% if aplicacao.status != 'finalizada' %}
+                        {% if aplicacao.status.name != 'FINALIZADA' and aplicacao.status.value != 'finalizada' %}
                         <a href="{{ url_for('cli.responder_aplicacao', id=aplicacao.id) }}" class="btn btn-primary">
                             <i class="fas fa-play me-1"></i>
                             Continuar Aplicação
                         </a>
                         {% endif %}
                         
-                        {% if aplicacao.status == 'finalizada' %}
+                        {% if aplicacao.status.name == 'FINALIZADA' or aplicacao.status.value == 'finalizada' %}
                         <a href="{{ url_for('cli.gerar_relatorio_aplicacao', id=aplicacao.id) }}" class="btn btn-danger">
                             <i class="fas fa-file-pdf me-1"></i>
                             Baixar PDF
@@ -296,7 +302,7 @@
                     <hr>
                     <small class="text-muted">
                         {% set data_relatorio = aplicacao.data_fim or aplicacao.data_inicio %}
-Relatório gerado em {{ data_relatorio.strftime('%d/%m/%Y %H:%M') }} pelo sistema QualiGestor CLIQ
+                        Relatório gerado em {{ data_relatorio.strftime('%d/%m/%Y %H:%M') }} pelo sistema QualiGestor CLIQ
                     </small>
                 </div>
             </main>
@@ -305,7 +311,6 @@ Relatório gerado em {{ data_relatorio.strftime('%d/%m/%Y %H:%M') }} pelo sistem
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // ... (Funções JS - Sem Mudanças) ...
         function compartilharResultado() {
             if (navigator.share) {
                 navigator.share({
@@ -314,7 +319,6 @@ Relatório gerado em {{ data_relatorio.strftime('%d/%m/%Y %H:%M') }} pelo sistem
                     url: window.location.href
                 });
             } else {
-                // Fallback para navegadores que não suportam Web Share API
                 const url = window.location.href;
                 navigator.clipboard.writeText(url).then(() => {
                     alert('Link copiado para a área de transferência!');
@@ -324,6 +328,7 @@ Relatório gerado em {{ data_relatorio.strftime('%d/%m/%Y %H:%M') }} pelo sistem
 
         function reabrirAplicacao() {
             if (confirm('Deseja reabrir esta aplicação para edição? Isso permitirá alterar as respostas.')) {
+                // Certifique-se de que a rota 'reabrir' existe no seu routes.py
                 fetch(`/cli/aplicacao/{{ aplicacao.id }}/reabrir`, {
                     method: 'POST',
                     headers: {
@@ -335,36 +340,24 @@ Relatório gerado em {{ data_relatorio.strftime('%d/%m/%Y %H:%M') }} pelo sistem
                     if (data.sucesso) {
                         window.location.href = '/cli/aplicacao/{{ aplicacao.id }}/responder';
                     } else {
-                        alert('Erro ao reabrir aplicação: ' + data.erro);
+                        alert('Erro ao reabrir aplicação: ' + (data.erro || 'Erro desconhecido'));
                     }
                 })
                 .catch(error => {
                     console.error('Erro:', error);
-                    alert('Erro ao reabrir aplicação.');
+                    alert('Erro ao processar solicitação.');
                 });
             }
         }
 
         function excluirAplicacao() {
             if (confirm('Deseja realmente excluir esta aplicação? Esta ação não pode ser desfeita.')) {
-                fetch(`/cli/aplicacao/{{ aplicacao.id }}/excluir`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.sucesso) {
-                        window.location.href = '/cli/aplicacoes';
-                    } else {
-                        alert('Erro ao excluir aplicação: ' + data.erro);
-                    }
-                })
-                .catch(error => {
-                    console.error('Erro:', error);
-                    alert('Erro ao excluir aplicação.');
-                });
+                // CORREÇÃO: Cria um formulário e submete via POST padrão para seguir o redirecionamento do Flask
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = "{{ url_for('cli.excluir_aplicacao', id=aplicacao.id) }}";
+                document.body.appendChild(form);
+                form.submit();
             }
         }
 
