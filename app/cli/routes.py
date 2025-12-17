@@ -230,28 +230,42 @@ def render_template_safe(template_name, **kwargs):
 
 # ===================== CORREÇÃO 7: WEASYPRINT COM CSS LOCAL (Blindado) =====================
 
+# ===================== SOLUÇÃO DEFINITIVA: INJEÇÃO DE CSS =====================
+
 def gerar_pdf_seguro(html_content, filename="relatorio.pdf"):
-    """Gera PDF injetando o CSS diretamente do disco para funcionar na VPS"""
+    """
+    Lê o CSS do disco e injeta o TEXTO diretamente no HTML.
+    Isso elimina qualquer erro de caminho ou permissão do WeasyPrint.
+    """
     try:
-        from weasyprint import HTML, CSS
+        from weasyprint import HTML
         import os
         
-        # 1. Define o caminho exato do CSS no servidor
-        # (O Linux vai ler o arquivo físico, sem depender de internet/localhost)
+        # 1. Localiza o arquivo CSS
         css_path = os.path.join(current_app.static_folder, 'css', 'style.css')
         
-        # 2. Prepara a lista de folhas de estilo
-        estilos = []
+        # 2. Lê o conteúdo do arquivo como texto puro
+        css_text = ""
         if os.path.exists(css_path):
-            estilos.append(CSS(filename=css_path))
+            try:
+                with open(css_path, 'r', encoding='utf-8') as f:
+                    css_text = f.read()
+                print(f"DEBUG PDF: CSS lido com sucesso ({len(css_text)} caracteres)")
+            except Exception as e:
+                print(f"ERRO PDF: Falha ao ler arquivo CSS: {e}")
         else:
-            print(f"ALERTA: Arquivo CSS não encontrado em: {css_path}")
+            print(f"ERRO PDF: Arquivo CSS não encontrado em: {css_path}")
 
-        # 3. Gera o PDF
-        # base_url=current_app.static_folder ajuda a encontrar imagens relativas
-        pdf = HTML(string=html_content, base_url=current_app.static_folder).write_pdf(
-            stylesheets=estilos
-        )
+        # 3. Injeta o CSS dentro do HTML (Força Bruta)
+        # Se tiver tag <head>, coloca lá dentro. Se não, coloca no começo.
+        if "</head>" in html_content:
+            html_final = html_content.replace("</head>", f"<style>{css_text}</style></head>")
+        else:
+            html_final = f"<style>{css_text}</style>\n" + html_content
+
+        # 4. Gera o PDF usando o HTML já "temperado" com o CSS
+        # base_url=current_app.static_folder é CRUCIAL para as imagens funcionarem
+        pdf = HTML(string=html_final, base_url=current_app.static_folder).write_pdf()
         
         response = make_response(pdf)
         response.headers['Content-Type'] = 'application/pdf'
@@ -259,11 +273,10 @@ def gerar_pdf_seguro(html_content, filename="relatorio.pdf"):
         return response
 
     except ImportError:
-        flash("WeasyPrint não instalado. Mostrando versão HTML do relatório.", "warning")
+        flash("WeasyPrint não instalado. Mostrando HTML.", "warning")
         return make_response(html_content)
-        
     except Exception as e:
-        print(f"ERRO CRÍTICO AO GERAR PDF: {e}")
+        print(f"ERRO CRÍTICO PDF: {e}")
         import traceback
         traceback.print_exc()
         flash(f"Erro ao gerar PDF: {str(e)}", "danger")
