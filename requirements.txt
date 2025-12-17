@@ -14,3 +14,4 @@ Pillow>=10.4,<12
 
 # CORREÇÃO: Atualizar WeasyPrint para corrigir erro de compatibilidade com pydyf
 WeasyPrint>=62.0
+psycopg2-binary

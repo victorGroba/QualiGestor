@@ -81,8 +81,20 @@ def create_app() -> Flask:
     # ----------------------------------------------
 
     # Banco em instance/banco.db
-    db_path = instance_dir / "banco.db"
-    app.config["SQLALCHEMY_DATABASE_URI"] = _sqlite_uri(db_path)
+    # -------------------------------------------------------------------------
+    # Configuração de Banco de Dados (Inteligente)
+    # -------------------------------------------------------------------------
+    # 1. Tenta pegar a URL do banco do arquivo .env (Para PostgreSQL no Linux)
+    database_uri = os.getenv("SQLALCHEMY_DATABASE_URI")
+
+    if database_uri:
+        app.config["SQLALCHEMY_DATABASE_URI"] = database_uri
+        print(f"LOG: Usando banco de dados configurado no .env")
+    else:
+        # 2. Se não tiver nada no .env, usa SQLite automático (Padrão Windows)
+        db_path = instance_dir / "banco.db"
+        app.config["SQLALCHEMY_DATABASE_URI"] = _sqlite_uri(db_path)
+        print(f"LOG: Usando banco SQLite local (Padrão)")
 
     # -------------------------------------------------------------------------
     # Versão do sistema

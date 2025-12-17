@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# run.py - Servidor de desenvolvimento QualiGestor
+# run.py - Servidor QualiGestor
 
 import sys
 import os
@@ -12,17 +12,24 @@ try:
     
     app = create_app()
     
+    # LER A CONFIGURAÇÃO DO ARQUIVO .ENV
+    # Se não achar nada, assume False por segurança
+    modo_debug = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
+    
     if __name__ == '__main__':
-        print("🚀 Iniciando QualiGestor...")
-        print("📍 Acesse: http://localhost:5000")
-        print("🔑 Login: admin@admin.com / admin123")
+        if modo_debug:
+            print("🚀 Iniciando QualiGestor em MODO DESENVOLVIMENTO (Windows)...")
+            print("📍 Acesse: http://localhost:5000")
+        else:
+            print("🔒 Iniciando QualiGestor em MODO PRODUÇÃO (Linux/VPS)...")
+            
         print("=" * 50)
         
         app.run(
             host='0.0.0.0',
             port=5000,
-            debug=True,
-            use_reloader=True
+            debug=modo_debug,  # <--- AQUI MUDOU! Agora usa a variável
+            use_reloader=modo_debug # <--- O reloader só liga se for debug
         )
         
 except ImportError as e:
