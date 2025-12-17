@@ -2,549 +2,297 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Relatório - {{ aplicacao.questionario.nome }}</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
-
+    /* ==========================================================================
+       1. RESET E DEFINIÇÕES GERAIS
+       ========================================================================== */
     :root {
       --primary-blue: #004E7C;
       --secondary-blue: #0073AA;
-      --light-bg: #F5F6FA;
-      --border-color: #D9E2EC;
-      --text-dark: #1a1a1a;
-      --text-light: #555;
-      --success-green: #27AE60;
+      --warning-yellow: #FFC107;
       --danger-red: #E74C3C;
       --neutral-gray: #7a7a7a;
-      --warning-yellow: #FFC107;
+      --light-bg: #F5F6FA;
+      --text-dark: #1a1a1a;
+      --border-color: #ddd;
     }
 
     * {
-      margin: 0;
-      padding: 0;
       box-sizing: border-box;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
-      color-adjust: exact;
     }
 
     html, body {
-      font-family: 'Roboto', sans-serif;
-      background: white;
-      color: var(--text-dark);
-      line-height: 1.4;
-      font-size: 12px;
+      width: 100%;
       height: 100%;
-    }
-
-    @page {
-      size: A4;
       margin: 0;
       padding: 0;
-      @bottom-center {
-        content: element(footer);
-      }
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 11px;
+      color: var(--text-dark);
+      background: #fff;
+      line-height: 1.3;
     }
 
-    /* ---- HEADER ---- */
-    .header {
-      display: grid;
-      grid-template-columns: auto 1fr auto;
-      align-items: center;
-      gap: 20px;
+    /* ==========================================================================
+       2. CONFIGURAÇÃO DE PÁGINA (A MÁGICA ESTÁ AQUI)
+       ========================================================================== */
+    @page {
+      size: A4;
+      /* 1. Definimos margens TOP e BOTTOM na @page. 
+            Isso garante que o texto comece DEPOIS dessa margem em TODAS as páginas.
+         2. Zeramos Left/Right para ter controle total via body.
+      */
+      margin-top: 3.5cm;     /* Espaço reservado para o Cabeçalho em TODAS as páginas */
+      margin-bottom: 1.5cm;  /* Espaço reservado para o Rodapé em TODAS as páginas */
+      margin-left: 0;
+      margin-right: 0;
+    }
+
+    body {
+      /* Removemos padding-top/bottom daqui pois agora a @page controla isso. */
+      padding-top: 0;  
+      padding-bottom: 0;
+      
+      /* Mantemos apenas o espaçamento lateral do texto */
+      padding-left: 1.5cm;
+      padding-right: 1.5cm;
+    }
+
+    /* ==========================================================================
+       3. CABEÇALHO FIXO
+       ========================================================================== */
+    .header-fixed {
+      position: fixed;
+      /* No WeasyPrint, position: fixed é relativo à folha de papel física.
+         Como definimos margin-top na @page, o "conteúdo" começa lá embaixo,
+         mas o fixed: top: -3.5cm joga ele pra cima, pra dentro da margem que criamos.
+         
+         IMPORTANTE: Ajustamos o 'top' para negativo para ele subir para a área da margem.
+      */
+      top: -3.5cm; 
+      left: 0;
+      width: 100%;
+      height: 3cm;
+      
       background: linear-gradient(135deg, var(--primary-blue) 0%, var(--secondary-blue) 100%);
       color: white;
-      padding: 12px 1.2cm;
-      margin: 0;
       border-bottom: 4px solid var(--warning-yellow);
-      width: 100%;
-      box-sizing: border-box;
+      z-index: 1000;
+      
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      
+      /* Alinhamento visual com o texto do corpo */
+      padding-left: 1.5cm;
+      padding-right: 1.5cm;
     }
 
-    main {
-      padding: 1.2cm 1.2cm 0 1.2cm;
-      /* Damos espaço para o rodapé não sobrepor */
-      padding-bottom: 40px; 
-    }
+    .header-left { display: flex; align-items: center; gap: 15px; }
 
     .header-logo {
-      height: 50px;
-      filter: brightness(0) invert(1);
+      height: 60px;
+      width: auto;
+      object-fit: contain;
     }
 
-    .header-title {
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-    }
+    .header-info h1 { margin: 0; font-size: 18px; text-transform: uppercase; font-weight: bold; line-height: 1.1; color: #fff; }
+    .header-info p { margin: 3px 0 0 0; font-size: 11px; opacity: 0.9; font-weight: normal; }
 
-    .header-title h1 {
-      font-size: 20px;
-      font-weight: 700;
-      color: white;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      line-height: 1.1;
-    }
+    .header-right { text-align: right; }
+    .header-label { font-size: 8px; text-transform: uppercase; opacity: 0.8; letter-spacing: 0.5px; }
+    .header-value { font-size: 12px; font-weight: bold; margin-bottom: 2px; }
 
-    .header-title p {
-      font-size: 12px;
-      color: rgba(255, 255, 255, 0.9);
-      font-weight: 500;
-    }
-
-    .header-date {
-      text-align: right;
-      font-size: 11px;
-      color: rgba(255, 255, 255, 0.95);
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      white-space: nowrap;
-    }
-
-    .header-date .label {
-      font-size: 10px;
-      text-transform: uppercase;
-      letter-spacing: 0.3px;
-      opacity: 0.85;
-    }
-
-    .header-date .value {
-      font-weight: 700;
-      font-size: 13px;
-      color: white;
-    }
-
-    /* ---- INFO GRID COMPACTO ---- */
-    .info-grid {
-      display: grid;
-      grid-template-columns: repeat(6, 1fr);
-      gap: 6px;
-      margin-bottom: 12px;
-    }
-
-    .info-item {
+    /* ==========================================================================
+       4. RODAPÉ FIXO
+       ========================================================================== */
+    .footer-fixed {
+      position: fixed;
+      /* Mesmo truque: jogamos ele para a área da margem inferior */
+      bottom: -1.5cm; 
+      left: 0;
+      width: 100%;
+      height: 1.2cm;
+      
       background: var(--primary-blue);
       color: white;
-      padding: 6px 8px;
-      border-radius: 3px;
-      font-size: 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
+      border-top: 3px solid var(--warning-yellow);
+      z-index: 1000;
 
-    .info-item strong {
-      display: block;
-      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1.5cm;
       font-size: 9px;
-      opacity: 0.9;
-      text-transform: uppercase;
-      letter-spacing: 0.3px;
     }
 
-    .info-item span {
-      font-weight: 600;
-      font-size: 11px;
-    }
+    .footer-brand { display: flex; align-items: center; gap: 8px; font-weight: bold; }
+    .footer-logo-small { height: 16px; filter: brightness(0) invert(1); }
 
-    /* ---- TÍTULO RESULTADOS ---- */
-    .results-title {
-      text-align: center;
-      font-size: 14px;
-      font-weight: 700;
-      color: var(--primary-blue);
-      border-bottom: 2px solid var(--primary-blue);
-      margin: 12px 0;
-      padding-bottom: 4px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
+    .page-number:after { content: "Página " counter(page); }
 
-    /* ---- TÓPICOS ---- */
-    .topic {
-      margin-bottom: 8px;
-      border-radius: 4px;
-      overflow: hidden;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-      /* (Corretamente removido o page-break-inside: avoid daqui) */
-    }
+    /* ==========================================================================
+       5. ESTILOS DO CONTEÚDO (Mantidos iguais)
+       ========================================================================== */
+    .info-grid { display: table; width: 100%; border-collapse: separate; border-spacing: 6px 0; margin-bottom: 25px; table-layout: fixed; }
+    .info-item { display: table-cell; background: var(--primary-blue); color: white; padding: 8px; border-radius: 4px; vertical-align: middle; overflow: hidden; }
+    .info-label { display: block; font-size: 8px; opacity: 0.8; text-transform: uppercase; margin-bottom: 3px; }
+    .info-value { display: block; font-size: 11px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-    .topic-header {
-      background: linear-gradient(90deg, var(--primary-blue), var(--secondary-blue));
-      color: white;
-      padding: 6px 10px;
-      font-weight: 700;
-      font-size: 11px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      letter-spacing: 0.3px;
-    }
+    .section-title { text-align: center; color: var(--primary-blue); font-size: 14px; font-weight: bold; text-transform: uppercase; border-bottom: 2px solid var(--primary-blue); margin: 20px 0 15px 0; padding-bottom: 5px; }
 
-    .topic-title {
-      flex: 1;
-    }
+    .topic-container { margin-bottom: 20px; border: 1px solid #ccc; border-radius: 5px; overflow: hidden; page-break-inside: avoid; }
+    .topic-header { background: linear-gradient(90deg, var(--primary-blue), var(--secondary-blue)); color: white; padding: 8px 12px; font-weight: bold; font-size: 11px; display: flex; justify-content: space-between; align-items: center; }
 
-    .topic-score {
-      background: rgba(255, 255, 255, 0.25);
-      padding: 3px 8px;
-      border-radius: 12px;
-      font-size: 11px;
-      font-weight: 700;
-      min-width: 40px;
-      text-align: center;
-    }
-
-    /* ---- PERGUNTAS COMPACTAS ---- */
-    .question {
-      border-bottom: 1px solid var(--border-color);
-      padding: 6px 10px;
-      background: #fff;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 8px;
-      page-break-inside: avoid; /* Mantemos aqui para não quebrar UMA pergunta */
-      font-size: 11px;
-    }
-
-    .question:last-child {
-      border-bottom: none;
-    }
-
-    .question-text {
-      flex: 1;
-      line-height: 1.35;
-      color: var(--text-dark);
-    }
-
-    .question-number {
-      font-weight: 700;
-      color: var(--primary-blue);
-      white-space: nowrap;
-      margin-right: 4px;
-    }
-
-    .answer {
-      border-radius: 12px;
-      padding: 3px 10px;
-      font-size: 10px;
-      font-weight: 700;
-      color: #fff;
-      background: var(--secondary-blue);
-      min-width: 35px;
-      text-align: center;
-      white-space: nowrap;
-      flex-shrink: 0;
-      text-transform: uppercase;
-      letter-spacing: 0.2px;
-    }
-
-    .answer.nao {
-      background: var(--danger-red);
-    }
+    .question-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 8px 12px; border-bottom: 1px solid #eee; background: #fff; }
+    .question-row:last-child { border-bottom: none; }
+    .q-text-col { flex: 1; padding-right: 15px; font-size: 11px; }
+    .q-number { color: var(--primary-blue); font-weight: bold; margin-right: 5px; }
+    .q-obs { display: block; margin-top: 5px; font-size: 10px; color: #856404; background: #fff3cd; padding: 4px 6px; border-radius: 3px; border-left: 3px solid #ffeeba; }
     
-    .answer.nao-aplicavel {
-      background: var(--neutral-gray);
-    }
+    .q-badge { font-size: 9px; font-weight: bold; text-transform: uppercase; color: white; padding: 4px 10px; border-radius: 12px; min-width: 60px; text-align: center; white-space: nowrap; background: var(--secondary-blue); }
+    .q-badge.nao { background: var(--danger-red); }
+    .q-badge.na { background: var(--neutral-gray); }
+    .q-badge.parcial { background: var(--warning-yellow); color: #333; }
 
-    .answer.parcial {
-      background: var(--warning-yellow);
-      color: #333;
-    }
-    
-    /* ★★★ BLOCO DE ASSINATURA CORRIGIDO ★★★ */
-    .signature-block {
-        border-bottom: 1px solid var(--border-color);
-        padding: 6px 10px;
-        background: #fff;
-        page-break-inside: avoid;
-    }
-    .signature-block .question-text {
-        padding: 0;
-        margin-bottom: 5px;
-    }
-    .signature-image {
-        border: 1px solid var(--border-color);
-        background: #fafafa;
-        padding: 5px;
-        width: 100%;            /* <-- CORRIGIDO: De 300px para 100% */
-        height: 150px;           /* <-- MANTIDO: Define a altura retangular */
-        box-sizing: border-box;  /* <-- ADICIONADO: Garante que o padding não estoure a largura */
-    }
-    .signature-image img {
-        width: 100%;
-        height: 100%;
-        object-fit: contain;     /* <-- IMPORTANTE: Impede que a imagem estique */
-    }
-    /* ★★★ FIM DO BLOCO DE ASSINATURA CORRIGIDO ★★★ */
+    .signature-container { padding: 15px; background: #fff; border-bottom: 1px solid #eee; page-break-inside: avoid; }
+    .signature-title { font-weight: bold; font-size: 11px; margin-bottom: 8px; color: var(--text-dark); }
+    .signature-box { border: 1px dashed #bbb; background: #fcfcfc; height: 100px; width: 100%; display: flex; align-items: center; justify-content: center; }
+    .signature-box img { max-height: 90px; max-width: 90%; object-fit: contain; }
 
+    .gallery-container { background: #f9f9f9; padding: 10px; border-top: 1px solid #ccc; page-break-inside: avoid; }
+    .gallery-header { font-weight: bold; font-size: 10px; color: #555; margin-bottom: 8px; text-transform: uppercase; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+    .gallery-grid { width: 100%; display: block; }
+    .gallery-item { display: inline-block; vertical-align: top; width: 48%; margin-right: 1.5%; margin-bottom: 10px; background: #fff; border: 1px solid #ddd; padding: 4px; border-radius: 3px; }
+    .gallery-item:nth-child(even) { margin-right: 0; }
+    .gallery-img-wrapper { height: 160px; width: 100%; display: flex; align-items: center; justify-content: center; background: #eee; overflow: hidden; margin-bottom: 4px; border: 1px solid #eee; }
+    .gallery-img-wrapper img { width: 100%; height: 100%; object-fit: contain; }
+    .gallery-caption { font-size: 9px; font-weight: bold; color: var(--primary-blue); line-height: 1.2; }
+    .gallery-obs { font-size: 9px; color: #666; margin-top: 2px; font-style: italic; }
 
-    /* ---- OBSERVAÇÕES COMPACTAS ---- */
-    .observation {
-      font-size: 10px;
-      color: #664D00;
-      background: #FFFBEA;
-      border-left: 2px solid var(--warning-yellow);
-      padding: 3px 6px;
-      margin: 3px 10px 0;
-      border-radius: 2px;
-      line-height: 1.3;
-      font-style: italic;
-      page-break-inside: avoid; /* Evita quebrar observações */
-    }
-
-    /* ---- ESTILO DA GALERIA DE FOTOS (ATUALIZADO) ---- */
-    .photo-gallery-container {
-        padding: 10px;
-        background: var(--light-bg);
-        border-top: 1px solid var(--border-color);
-        /* ★★★ CORREÇÃO DE QUEBRA DE PÁGINA ★★★ */
-        page-break-inside: avoid; /* Impede que a galeria quebre no meio */
-    }
-    .photo-gallery-title {
-        font-size: 11px;
-        font-weight: 700;
-        color: var(--text-dark);
-        margin-bottom: 10px;
-        text-transform: uppercase;
-        letter-spacing: 0.3px;
-        border-bottom: 1px solid var(--border-color);
-        padding-bottom: 4px;
-    }
-    .photo-gallery-item {
-        display: inline-block;
-        width: 48%;
-        margin: 1%;
-        text-align: left; /* ★ Alterado para left para alinhar o texto */
-        border: 1px solid var(--border-color);
-        padding: 5px;
-        box-sizing: border-box;
-        page-break-inside: avoid; /* Não quebra UMA foto */
-        vertical-align: top;
-        background: #fff;
-    }
-    .photo-gallery-item img {
-        max-width: 100%;
-        max-height: 200px;
-        height: auto;
-        margin-bottom: 5px;
-        border: 1px solid var(--border-color);
-        display: block; /* Garante que a imagem ocupe o bloco */
-        margin-left: auto;
-        margin-right: auto;
-    }
-    .photo-gallery-label {
-        font-size: 10px;
-        font-weight: 700;
-        margin: 0;
-        color: var(--primary-blue);
-        line-height: 1.3; /* ★ Adicionado para melhor legibilidade */
-        word-wrap: break-word; /* ★ Adicionado para quebrar texto da pergunta */
-    }
-    
-    /* ★★★ REMOÇÃO DOS ESTILOS ANTIGOS/CONFLITANTES ★★★ */
-    /* As classes .galeria-pdf e .foto-pdf foram removidas daqui */
-    /* pois agora usamos .photo-gallery-container e .photo-gallery-item */
-
-
-    /* ---- RODAPÉ FIXO ---- */
-    .footer {
-      position: running(footer);
-      background: linear-gradient(90deg, var(--primary-blue), var(--secondary-blue));
-      color: white;
-      padding: 8px 1.2cm;
-      font-size: 10px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-top: 4px solid var(--warning-yellow);
-      width: 100%;
-      height: 28px;
-      margin-bottom: 0;
-    }
-    .footer-left {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      font-size: 11px;
-    }
-    .footer-logo {
-      height: 14px;
-      filter: brightness(0) invert(1);
-    }
-    .footer-center {
-      flex: 1;
-      text-align: center;
-      font-size: 9px;
-      color: rgba(255,255,255,0.95);
-      font-weight: 500;
-    }
-    .footer-right {
-      text-align: right;
-      font-weight: 700;
-      color: white;
-      font-size: 11px;
-    }
-
-    /* ---- IMPRESSÃO ---- */
-    @media print {
-      body { margin: 0; padding: 0; height: auto; }
-      main { padding: 1.5cm 1.2cm 40px 1.2cm; }
-      .footer { position: fixed; bottom: 0; left: 0; right: 0; width: 100vw; height: 28px; margin: 0; padding: 8px 1.2cm; }
-      .question { page-break-inside: avoid; }
-      .photo-gallery-item { page-break-inside: avoid; }
-    }
+    .validation-block { text-align: center; margin-top: 30px; padding: 10px; page-break-inside: avoid; }
   </style>
 </head>
-
 <body>
-  <div class="header">
-    {% if logo_pdf_uri %}
-    <img src="{{ logo_pdf_uri }}" alt="Logo" class="header-logo">
-{% endif %}
-    <div class="header-title">
-      <h1>{{ aplicacao.questionario.nome }}</h1>
-      <p>Relatório de Monitoramento {{ aplicacao.data_inicio.strftime('%Y') }}</p>
-    </div>
-    <div class="header-date">
-      <div class="label">Gerado em:</div>
-      <div class="value">{{ aplicacao.data_inicio.strftime('%d/%m/%Y %H:%M') }}</div>
-    </div>
-  </div>
 
-  <main>
-    <div class="info-grid">
-      <div class="info-item">
-        <strong>Data</strong>
-        <span>{{ aplicacao.data_inicio.strftime('%d/%m/%Y') }}</span>
-      </div>
-      <div class="info-item">
-        <strong>Início</strong>
-        <span>{{ aplicacao.data_inicio.strftime('%H:%M') }}</span>
-      </div>
-      <div class="info-item">
-        <strong>Fim</strong>
-        <span>{% if aplicacao.data_fim %}{{ aplicacao.data_fim.strftime('%H:%M') }}{% else %}—{% endif %}</span>
-      </div>
-      <div class="info-item">
-        <strong>Avaliador</strong>
-        <span>{{ avaliador.nome if avaliador else 'N/A' }}</span>
-      </div>
-      <div class="info-item">
-        <strong>Avaliado</strong>
-        <span>{{ aplicacao.avaliado.nome }}</span>
-      </div>
-      <div class="info-item">
-        <strong>Nota</strong>
-        <span>{{ nota_final | round(2) }}%</span>
-      </div>
-    </div>
-
-    <h2 class="results-title">RESULTADOS</h2>
-
-    {% for topico in topicos_ativos %}
-      {% set respostas = respostas_por_topico.get(topico, []) %}
-      {% set score_info = scores_por_topico.get(topico.id, {'score_percent': 0}) %}
-      
-      <div class="topic">
-        <div class="topic-header">
-          <div class="topic-title">{{ topico.ordem }}. {{ topico.nome }}</div>
-          <div class="topic-score">{{ score_info.score_percent | round(2) }}%</div>
-        </div>
-
-        {% if respostas %}
-          {% for resposta in respostas|sort(attribute='pergunta.ordem') %}
-            
-            {% if resposta.pergunta.tipo.name == 'ASSINATURA' %}
-            <div class="signature-block">
-                <div class="question-text">
-                    <span class="question-number">{{ topico.ordem }}.{{ resposta.pergunta.ordem }}</span>
-                    {{ resposta.pergunta.texto }}
-                </div>
-                <div class="signature-image">
-                    {% if resposta.resposta and 'data:image' in resposta.resposta %}
-                        <img src="{{ resposta.resposta | safe }}" alt="Assinatura">
-                    {% else %}
-                        <span style="color: #999; font-style: italic;">(Assinatura não preenchida)</span>
-                    {% endif %}
-                </div>
-            </div>
-            
-            {% else %}
-            <div class="question">
-              <div class="question-text">
-                <span class="question-number">{{ topico.ordem }}.{{ resposta.pergunta.ordem }}</span>
-                {{ resposta.pergunta.texto }}
-              </div>
-              <div class="answer 
-                {% if resposta.resposta|lower in ['não', 'nao'] %}nao
-                {% elif resposta.resposta|lower in ['n.a.', 'n/a', 'na'] %}nao-aplicavel
-                {% elif resposta.resposta == 'Parcial' %}parcial
-                {% endif %}">
-                {{ resposta.resposta or '(Vazio)' }}
-              </div>
-            </div>
-            {% endif %}
-            {% if resposta.observacao %}
-            <div class="observation">{{ resposta.observacao }}</div>
-            {% endif %}
-            
-          {% endfor %}
-        {% else %}
-          <div class="question">
-            <div class="question-text" style="font-style: italic; color: #777;">
-              Nenhuma resposta registrada para este tópico.
-            </div>
-          </div>
-        {% endif %}
-        
-        {% set fotos_deste_topico = fotos_por_topico.get(topico) %}
-        {% if fotos_deste_topico %}
-        <div class="photo-gallery-container">
-          <div class="photo-gallery-title">📷 Galeria de Evidências - Tópico {{ topico.ordem }}</div>
-          
-          {% for foto_info in fotos_deste_topico|sort(attribute='resposta.pergunta.ordem') %}
-          <div class="photo-gallery-item">
-              
-              <div class="photo-gallery-label">
-                {{ topico.ordem }}.{{ foto_info.resposta.pergunta.ordem }} - {{ foto_info.resposta.pergunta.texto }}
-              </div>
-              
-              <img src="{{ foto_info.caminho_url }}" alt="Evidência Item {{ topico.ordem }}.{{ foto_info.resposta.pergunta.ordem }}">
-              
-              {% if foto_info.resposta.observacao %}
-                <div class="observation" style="text-align: left; margin: 4px 0 0 0;">
-                  {{ foto_info.resposta.observacao }}
-                </div>
-              {% endif %}
-          </div>
-          {% endfor %}
-        </div>
-        {% endif %}
-      </div> {% endfor %}
-  </main>
-
-  <div class="footer">
-    <div class="footer-left">
+  <div class="header-fixed">
+    <div class="header-left">
       {% if logo_pdf_uri %}
-    <img src="{{ logo_pdf_uri }}" alt="Logo" class="footer-logo">
-{% endif %}
-      <span>QUALIGESTOR</span>
-    </div
-    <div class="footer-center">
-      Relatório gerado por Qualigestor® | Material Confidencial | Versão 1.0
+        <img src="{{ logo_pdf_uri }}" alt="Logo" class="header-logo">
+      {% else %}
+        <div style="width: 50px;"></div>
+      {% endif %}
+
+      <div class="header-info">
+        <h1>{{ aplicacao.questionario.nome }}</h1>
+        <p>Relatório de Monitoramento {{ aplicacao.data_inicio.strftime('%Y') }}</p>
+      </div>
     </div>
-    <div class="footer-right">
-      {{ data_geracao.strftime('%d/%m/%Y %H:%M') }}
+
+    <div class="header-right">
+      <div>
+        <div class="header-label">EMISSÃO</div>
+        <div class="header-value">{{ aplicacao.data_inicio.strftime('%d/%m/%Y') }}</div>
+      </div>
+      <div style="margin-top: 4px;">
+        <div class="header-label">HORA</div>
+        <div class="header-value" style="font-size: 10px;">{{ aplicacao.data_inicio.strftime('%H:%M') }}</div>
+      </div>
     </div>
   </div>
+
+  <div class="footer-fixed">
+    <div class="footer-brand">
+      {% if logo_pdf_uri %}
+        <img src="{{ logo_pdf_uri }}" alt="Logo" class="footer-logo-small">
+      {% endif %}
+      <span>QUALIGESTOR</span>
+    </div>
+    
+    <div style="text-align: center;">{{ aplicacao.avaliado.nome }}</div>
+    
+    <div class="page-number"></div>
+  </div>
+
+  <div class="info-grid">
+    <div class="info-item"><span class="info-label">AVALIADO</span><span class="info-value">{{ aplicacao.avaliado.nome }}</span></div>
+    <div class="info-item"><span class="info-label">AVALIADOR</span><span class="info-value">{{ avaliador.nome if avaliador else 'N/A' }}</span></div>
+    <div class="info-item"><span class="info-label">DATA INÍCIO</span><span class="info-value">{{ aplicacao.data_inicio.strftime('%d/%m/%Y %H:%M') }}</span></div>
+    <div class="info-item"><span class="info-label">DATA FIM</span><span class="info-value">{% if aplicacao.data_fim %}{{ aplicacao.data_fim.strftime('%H:%M') }}{% else %}Em andamento{% endif %}</span></div>
+    <div class="info-item" style="background: var(--secondary-blue);"><span class="info-label">NOTA FINAL</span><span class="info-value">{{ nota_final | round(2) }}%</span></div>
+  </div>
+
+  <div class="section-title">RESULTADOS DA AVALIAÇÃO</div>
+
+  {% for topico in topicos_ativos %}
+    {% set respostas = respostas_por_topico.get(topico, []) %}
+    {% set score_info = scores_por_topico.get(topico.id, {'score_percent': 0}) %}
+
+    <div class="topic-container">
+      <div class="topic-header">
+        <span>{{ topico.ordem }}. {{ topico.nome }}</span>
+        <span>Score: {{ score_info.score_percent | round(1) }}%</span>
+      </div>
+
+      {% if respostas %}
+        {% for resposta in respostas|sort(attribute='pergunta.ordem') %}
+          
+          {% if resposta.pergunta.tipo.name == 'ASSINATURA' %}
+            <div class="signature-container">
+              <div class="signature-title">{{ topico.ordem }}.{{ resposta.pergunta.ordem }} - {{ resposta.pergunta.texto }}</div>
+              <div class="signature-box">
+                {% if resposta.resposta and 'data:image' in resposta.resposta %}
+                  <img src="{{ resposta.resposta }}" alt="Assinatura">
+                {% else %}
+                  <span style="color:#999; font-style:italic;">(Não assinado)</span>
+                {% endif %}
+              </div>
+            </div>
+          {% else %}
+            <div class="question-row">
+              <div class="q-text-col">
+                <span class="q-number">{{ topico.ordem }}.{{ resposta.pergunta.ordem }}</span> {{ resposta.pergunta.texto }}
+                {% if resposta.observacao %}<span class="q-obs"><strong>Obs:</strong> {{ resposta.observacao }}</span>{% endif %}
+              </div>
+              <div class="q-badge-col">
+                <div class="q-badge {% if resposta.resposta|lower in ['não','nao','no'] %}nao{% elif resposta.resposta|lower in ['n.a.','na'] %}na{% elif resposta.resposta=='Parcial' %}parcial{% endif %}">
+                  {{ resposta.resposta or '-' }}
+                </div>
+              </div>
+            </div>
+          {% endif %}
+        {% endfor %}
+      {% else %}
+        <div style="padding:15px; color:#999; font-style:italic; text-align:center;">Nenhuma resposta neste tópico.</div>
+      {% endif %}
+
+      {% set fotos = fotos_por_topico.get(topico) %}
+      {% if fotos %}
+        <div class="gallery-container">
+          <div class="gallery-header">📸 Evidências Fotográficas</div>
+          <div class="gallery-grid">
+            {% for foto in fotos %}
+              <div class="gallery-item">
+                <div class="gallery-caption">{{ topico.ordem }}.{{ foto.resposta.pergunta.ordem }} - {{ foto.resposta.pergunta.texto }}</div>
+                <div class="gallery-img-wrapper"><img src="{{ foto.caminho_url }}" alt="Foto"></div>
+                {% if foto.resposta.observacao %}<div class="gallery-obs">Obs: {{ foto.resposta.observacao }}</div>{% endif %}
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  {% endfor %}
+
+  {% if qr_code_url %}
+    <div class="validation-block">
+      <img src="{{ qr_code_url }}" style="width:80px;">
+      <div style="font-size:9px; margin-top:5px; color:#666;">Validação Digital Autenticada</div>
+    </div>
+  {% endif %}
+
 </body>
 </html>
-
