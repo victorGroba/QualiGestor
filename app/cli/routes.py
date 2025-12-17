@@ -228,23 +228,44 @@ def render_template_safe(template_name, **kwargs):
 
 # ===================== CORREÇÃO 7: WEASYPRINT OPCIONAL =====================
 
+# ===================== CORREÇÃO 7: WEASYPRINT COM CSS LOCAL (Blindado) =====================
+
 def gerar_pdf_seguro(html_content, filename="relatorio.pdf"):
-    """Gera PDF com fallback se WeasyPrint não estiver disponível"""
+    """Gera PDF injetando o CSS diretamente do disco para funcionar na VPS"""
     try:
-        from weasyprint import HTML
-        pdf = HTML(string=html_content, base_url=request.url_root).write_pdf()
+        from weasyprint import HTML, CSS
+        import os
+        
+        # 1. Define o caminho exato do CSS no servidor
+        # (O Linux vai ler o arquivo físico, sem depender de internet/localhost)
+        css_path = os.path.join(current_app.static_folder, 'css', 'style.css')
+        
+        # 2. Prepara a lista de folhas de estilo
+        estilos = []
+        if os.path.exists(css_path):
+            estilos.append(CSS(filename=css_path))
+        else:
+            print(f"ALERTA: Arquivo CSS não encontrado em: {css_path}")
+
+        # 3. Gera o PDF
+        # base_url=current_app.static_folder ajuda a encontrar imagens relativas
+        pdf = HTML(string=html_content, base_url=current_app.static_folder).write_pdf(
+            stylesheets=estilos
+        )
         
         response = make_response(pdf)
         response.headers['Content-Type'] = 'application/pdf'
         response.headers['Content-Disposition'] = f'inline; filename="{filename}"'
         return response
+
     except ImportError:
-        # Fallback - retornar HTML se WeasyPrint não disponível
         flash("WeasyPrint não instalado. Mostrando versão HTML do relatório.", "warning")
-        response = make_response(html_content)
-        response.headers['Content-Type'] = 'text/html'
-        return response
+        return make_response(html_content)
+        
     except Exception as e:
+        print(f"ERRO CRÍTICO AO GERAR PDF: {e}")
+        import traceback
+        traceback.print_exc()
         flash(f"Erro ao gerar PDF: {str(e)}", "danger")
         return redirect(request.referrer or url_for('cli.index'))
 
