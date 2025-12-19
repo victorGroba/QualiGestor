@@ -1,6 +1,26 @@
-.env
-instance/uploads/
+# Ambiente Virtual
+venv/
+.venv/
+env/
 
+# Python (Arquivos temporários)
 __pycache__/
 *.pyc
-venv/
+*.pyo
+*.pyd
+
+# Configurações sensíveis (NUNCA enviar ao Git)
+.env
+.env.backup
+
+# Pasta de banco de dados e logs (Específicos de cada máquina)
+instance/
+instance/*.db
+instance/*.log
+*.log
+
+# Pasta temporária/CLI que apareceu no seu status
+app/cli/QualiGestor/
+
+# Uploads de usuários
+instance/uploads/
