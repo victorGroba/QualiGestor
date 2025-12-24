@@ -1,141 +1,147 @@
-.login-container {
-  display: flex;
-  height: 100vh;
-  background-color: #f4f7fa;
-  flex-direction: row;
+/* app/static/css/login.css */
+
+:root {
+  --primary-color: #0066a1;
+  --primary-dark: #004d7a;
+  --accent-color: #00d2ff; /* Ciano para brilhos */
+  --bg-dark: #001f33;      /* Fundo muito escuro azulado */
+  --bg-darker: #000d16;    /* Quase preto */
 }
 
-.login-left {
-  width: 40%;
-  background-color: #ffffff;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  padding: 40px;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+body, html {
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  overflow-x: hidden;
+  background-color: #fff;
 }
 
-.login-box {
-  width: 100%;
-  max-width: 350px;
+/* 1️⃣ NAVBAR */
+.custom-navbar {
+  background-color: rgba(0, 13, 22, 0.85); /* Darker translúcido */
+  backdrop-filter: blur(10px);
+  padding: 15px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.login-logo {
-  max-width: 180px;
-  margin-bottom: 30px;
-  display: block;
-  margin-left: auto;
-  margin-right: auto;
+.nav-link {
+  color: rgba(255, 255, 255, 0.7) !important;
+  font-weight: 500;
+  margin: 0 10px;
+  transition: color 0.3s;
 }
 
-
-.form-title {
-  font-size: 22px;
-  font-weight: 600;
-  color: #444;
-  margin-bottom: 20px;
+.nav-link:hover {
+  color: #fff !important;
 }
 
-.login-right {
-  width: 100%;
-  height: 100vh;
+/* 2️⃣ HERO SECTION */
+.hero-section {
+  min-height: 100vh;
+  background: radial-gradient(circle at center, #002f4f 0%, #000d16 100%);
+  padding-top: 80px; /* Espaço para a navbar */
   overflow: hidden;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background-color: #ffffff;
+  position: relative;
 }
 
-.login-right img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  max-width: 100%;
-  max-height: 100vh;
+/* Grid de fundo opcional para dar ar "Tech" */
+.hero-section::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+  z-index: 1;
 }
 
-
-
-
-.btn-login {
-  background-color: #0066a1;
-  border: none;
-  font-weight: bold;
-}
-
-.btn-login:hover {
-  background-color: #004d7a;
-}
-
-.form-check-label {
+/* Badge (Pill) */
+.bg-soft-blue {
+  background-color: rgba(0, 102, 161, 0.2);
+  color: #6ecfff;
+  border: 1px solid rgba(0, 102, 161, 0.4);
+  padding: 8px 16px;
+  font-weight: 500;
   font-size: 0.9rem;
 }
 
-.forgot-password {
-  font-size: 0.85rem;
-  text-align: right;
+/* Texto Gradiente */
+.text-gradient {
+  background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Botão Glow */
+.btn-glow {
+  box-shadow: 0 0 15px rgba(0, 102, 161, 0.5);
+  transition: all 0.3s ease;
+  border: none;
+}
+
+.btn-glow:hover {
+  box-shadow: 0 0 25px rgba(0, 102, 161, 0.8);
+  transform: translateY(-2px);
+}
+
+/* 3️⃣ WAVE DECORATION */
+.hero-wave {
+  position: absolute;
+  bottom: -5px; /* Ajuste para não ter linha branca */
+  left: 0;
+  width: 100%;
+  z-index: 3;
+  line-height: 0;
+}
+
+.hero-wave svg {
   display: block;
-  margin-top: 10px;
+  width: 100%;
+  height: auto;
+  min-height: 100px;
 }
 
-.hover-card {
-  transition: transform 0.3s ease;
-}
-.hover-card:hover {
-  transform: scale(1.02);
-}
-
-
-/* Responsivo para celular */
-@media (max-width: 768px) {
-  .login-container {
-    flex-direction: column;
-  }
-
-  .login-left,
-  .login-right {
-    width: 100%;
-    height: auto;
-  }
-
-  .login-right {
-    padding: 20px;
-  }
-
-  .login-right img {
-    max-height: 300px;
-  }
+/* 4️⃣ TRUST SECTION */
+.trust-section {
+  position: relative;
+  z-index: 4;
 }
 
-/* Animações */
-@keyframes fadeSlideIn {
-  0% {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  100% {
+.ls-2 { letter-spacing: 2px; }
+
+.logos-container img, .logo-item {
+  filter: grayscale(100%);
+  opacity: 0.6;
+  transition: all 0.3s;
+  color: #555;
+}
+
+.logos-container:hover .logo-item {
+  filter: grayscale(0%);
+  opacity: 1;
+  color: var(--primary-color);
+}
+
+/* 5️⃣ ANIMAÇÕES */
+.animate-up {
+  animation: fadeInUp 0.8s ease-out forwards;
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.delay-1 { animation-delay: 0.1s; }
+.delay-2 { animation-delay: 0.3s; }
+.delay-3 { animation-delay: 0.5s; }
+
+@keyframes fadeInUp {
+  to {
     opacity: 1;
     transform: translateY(0);
   }
 }
 
-@keyframes slideInRight {
-  0% {
-    opacity: 0;
-    transform: translateX(30px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-/* Aplicando as animações */
-.login-left {
-  animation: fadeSlideIn 0.8s ease-out both;
-}
-
-.login-right {
-  animation: slideInRight 1s ease-out both;
+/* Ajustes Mobile */
+@media (max-width: 768px) {
+  .display-3 { font-size: 2.5rem; }
+  .hero-section { text-align: center; padding-bottom: 100px; }
+  .custom-navbar { background-color: #000d16; }
 }
