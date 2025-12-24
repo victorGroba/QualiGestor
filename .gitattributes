@@ -1,0 +1,13 @@
+# Forçar detecção de Python para o projeto
+*.py linguist-language=Python
+
+# Ignorar arquivos que costumam ser confundidos com Roff/Manuais
+*.1 linguist-vendored
+*.2 linguist-vendored
+*.3 linguist-vendored
+*.man linguist-vendored
+*.roff linguist-vendored
+
+# Ignorar pastas de migrações e assets estáticos nas estatísticas
+migrations/* linguist-vendored
+app/static/* linguist-vendored

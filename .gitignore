@@ -24,3 +24,5 @@ app/cli/QualiGestor/
 
 # Uploads de usuários
 instance/uploads/
+
+node_modules/
