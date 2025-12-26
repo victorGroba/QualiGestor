@@ -9,25 +9,29 @@
     <title>QualiGestor | Excelência em Controle de Qualidade</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
 
     <style>
-        /* =========================================
-           VARIÁVEIS E RESETS
-        ========================================= */
         :root {
             --primary-color: #0066a1;
             --primary-dark: #004d7a;
+            --primary-light: #0088cc;
             --accent-color: #00d2ff;
+            --accent-glow: rgba(0, 210, 255, 0.4);
             --bg-dark: #001f33;
             --bg-darker: #000d16;
             --text-dark: #1a1d20;
             --text-muted: #64748b;
             --bg-light: #f8fafc;
             --danger-color: #dc3545;
-            --success-color: #28a745;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
             --card-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.08);
             --card-shadow-hover: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+            --transition-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+            --glass-bg: rgba(255, 255, 255, 0.95);
+            --input-focus-ring: rgba(0, 102, 161, 0.25);
         }
 
         * {
@@ -38,29 +42,33 @@
 
         body,
         html {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             overflow-x: hidden;
             scroll-behavior: smooth;
             color: var(--text-dark);
+            font-feature-settings: 'kern' 1;
+            text-rendering: optimizeLegibility;
+            -webkit-font-smoothing: antialiased;
         }
 
-        /* Utilitário para textos com gradiente */
         .text-gradient {
             background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
             display: inline-block;
+            font-weight: 900;
         }
 
-        /* =========================================
-           NAVBAR REFINADA
-        ========================================= */
+        /* ========== NAVBAR OTIMIZADA ========== */
         .custom-navbar {
             background-color: rgba(0, 13, 22, 0.85);
-            padding: 0.8rem 0;
+            padding: 1rem 0;
             border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-            transition: all 0.4s ease;
+            transition: all 0.4s var(--transition-smooth);
+            position: fixed;
+            width: 100%;
+            z-index: 1000;
         }
 
         @supports (backdrop-filter: blur(25px)) {
@@ -70,38 +78,27 @@
             }
         }
 
-        /* Estado ativo do menu (Scrollspy) */
-        .navbar-nav .nav-link.active {
-            color: #fff !important;
+        .custom-navbar.scrolled {
+            padding: 0.6rem 0;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
         }
 
-        .navbar-nav .nav-link.active::after {
-            width: 80%;
+        .navbar-brand {
+            transition: transform 0.3s var(--transition-smooth);
         }
 
-        .navbar-brand-icon {
-            width: 40px;
-            height: 40px;
-            background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 15px rgba(0, 60, 161, 0.4);
-            transition: transform 0.3s ease;
-        }
-
-        .navbar-brand:hover .navbar-brand-icon {
-            transform: rotate(15deg);
+        .navbar-brand:hover {
+            transform: scale(1.05);
         }
 
         .nav-link {
-            color: rgba(255, 255, 255, 0.7) !important;
-            font-weight: 500;
+            color: rgba(255, 255, 255, 0.75) !important;
+            font-weight: 600;
             font-size: 0.95rem;
             margin: 0 0.5rem;
             position: relative;
             transition: color 0.3s;
+            padding: 0.5rem 1rem !important;
         }
 
         .nav-link::after {
@@ -109,30 +106,31 @@
             position: absolute;
             width: 0;
             height: 2px;
-            bottom: -5px;
+            bottom: 0;
             left: 50%;
             background: var(--accent-color);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.3s var(--transition-smooth);
             transform: translateX(-50%);
-            box-shadow: 0 2px 8px rgba(0, 210, 255, 0.5);
+            box-shadow: 0 2px 8px var(--accent-glow);
         }
 
-        .nav-link:hover {
+        .nav-link:hover,
+        .nav-link.active {
             color: #fff !important;
         }
 
-        .nav-link:hover::after {
+        .nav-link:hover::after,
+        .nav-link.active::after {
             width: 80%;
         }
 
-        /* =========================================
-           HERO SECTION (Topo)
-        ========================================= */
+        /* ========== HERO SECTION ========== */
         .hero-top-blue {
-            background: radial-gradient(ellipse at top center, #003d5c 0%, #000d16 60%, #000911 100%);
-            padding: 180px 0 120px;
+            background: radial-gradient(ellipse at top center, #003d5c 0%, #001528 60%, #000911 100%);
+            padding: 200px 0 140px;
             position: relative;
             overflow: hidden;
+            z-index: 1;
         }
 
         .hero-top-blue::before {
@@ -143,12 +141,13 @@
             width: 200%;
             height: 200%;
             background-image:
-                linear-gradient(rgba(0, 210, 255, 0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0, 210, 255, 0.03) 1px, transparent 1px);
-            background-size: 50px 50px;
-            animation: gridMove 60s linear infinite;
+                linear-gradient(rgba(0, 210, 255, 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 210, 255, 0.04) 1px, transparent 1px);
+            background-size: 60px 60px;
+            animation: gridMove 80s linear infinite;
             pointer-events: none;
-            transform: rotate(-15deg);
+            transform: rotate(-12deg);
+            z-index: -1;
         }
 
         @keyframes gridMove {
@@ -157,7 +156,35 @@
             }
 
             100% {
-                background-position: 1000px 1000px;
+                background-position: 1200px 1200px;
+            }
+        }
+
+        .hero-top-blue::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 800px;
+            height: 800px;
+            background: radial-gradient(circle, rgba(0, 210, 255, 0.08) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: pulse 8s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                transform: translateX(-50%) scale(1);
+                opacity: 0.5;
+            }
+
+            50% {
+                transform: translateX(-50%) scale(1.2);
+                opacity: 0.8;
             }
         }
 
@@ -166,9 +193,6 @@
             z-index: 10;
         }
 
-        /* =========================================
-           HERO BOTTOM (Imagem e Onda)
-        ========================================= */
         .hero-bottom-image {
             position: relative;
             height: 750px;
@@ -176,7 +200,7 @@
             align-items: center;
             justify-content: center;
             background: linear-gradient(135deg, rgba(0, 30, 50, 0.92) 0%, rgba(0, 8, 15, 0.85) 100%),
-                url('https://placehold.co/1920x1080/002f4f/ffffff?text=Imagem+de+Fundo+Lab/Operação');
+                url('https://github.com/victorGroba/QualiGestor-assets/blob/main/banner-quali.png?raw=true');
             background-size: cover;
             background-position: center;
             background-attachment: fixed;
@@ -186,6 +210,19 @@
             position: relative;
             z-index: 5;
             margin-top: -280px;
+            animation: fadeInUp 1s ease-out 0.5s both;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .hero-wave {
@@ -197,105 +234,171 @@
             line-height: 0;
         }
 
-        .hero-wave::before {
-            content: '';
-            position: absolute;
-            bottom: 5px;
-            left: 0;
+        .hero-wave svg {
+            display: block;
             width: 100%;
-            height: 100%;
-            background: url('data:image/svg+xml,<svg viewBox="0 0 1440 320" xmlns="http://www.w3.org/2000/svg"><path fill="%23ffffff" fill-opacity="0.3" d="M0,224L48,213.3C96,203,192,181,288,181.3C384,181,480,203,576,224C672,245,768,267,864,261.3C960,256,1056,224,1152,208C1248,192,1344,192,1392,192L1440,192L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path></svg>') no-repeat bottom;
-            background-size: cover;
-            z-index: -1;
+            height: auto;
         }
 
-        /* =========================================
-           COMPONENTES UI MELHORADOS
-        ========================================= */
+        /* ========== MOBILE 3D ========== */
+        .mobile-3d-effect {
+            filter: drop-shadow(0 30px 60px rgba(0, 0, 0, 0.4));
+            transform: perspective(2000px) rotateY(-8deg) rotateX(3deg) translateZ(0);
+            transition: all 0.7s var(--transition-smooth);
+            position: relative;
+            z-index: 10;
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+            will-change: transform;
+            transform-style: preserve-3d;
+        }
+
+        .mobile-3d-effect:hover {
+            transform: perspective(2000px) rotateY(0deg) rotateX(0deg) translateY(-20px) scale(1.03);
+            filter: drop-shadow(0 50px 80px rgba(0, 102, 161, 0.5));
+        }
+
+        .blob-decorativo {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, var(--accent-glow) 0%, rgba(0, 102, 161, 0.0) 70%);
+            border-radius: 50%;
+            z-index: 1;
+            pointer-events: none;
+            animation: blobPulse 6s ease-in-out infinite;
+        }
+
+        @keyframes blobPulse {
+
+            0%,
+            100% {
+                transform: translate(-50%, -50%) scale(1);
+            }
+
+            50% {
+                transform: translate(-50%, -50%) scale(1.1);
+            }
+        }
+
+        /* ========== COMPONENTES UI ========== */
         .bg-soft-blue {
-            background: rgba(0, 210, 255, 0.1);
+            background: rgba(0, 210, 255, 0.12);
             color: #6ecfff;
-            border: 1px solid rgba(0, 210, 255, 0.25);
-            padding: 10px 24px;
+            border: 1px solid rgba(0, 210, 255, 0.3);
+            padding: 12px 28px;
             border-radius: 50px;
-            font-weight: 600;
+            font-weight: 700;
             font-size: 0.9rem;
             display: inline-flex;
             align-items: center;
-            gap: 10px;
-            box-shadow: 0 4px 20px rgba(0, 210, 255, 0.1);
+            gap: 12px;
+            box-shadow: 0 4px 20px var(--accent-glow);
+            animation: fadeInDown 1s ease-out;
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .display-3 {
-            font-size: clamp(2.5rem, 6vw, 4rem);
-            font-weight: 800;
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
             line-height: 1.1;
-            letter-spacing: -0.03em;
+            letter-spacing: -0.04em;
+            animation: fadeInUp 1s ease-out 0.2s both;
         }
 
         .btn-glow {
             position: relative;
             overflow: hidden;
-            box-shadow: 0 4px 25px rgba(0, 102, 161, 0.5);
-            transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+            box-shadow: 0 6px 30px rgba(0, 102, 161, 0.5);
+            transition: all 0.4s var(--transition-smooth);
             border: none;
             background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
             color: white;
             font-weight: 700;
-            padding: 16px 38px;
+            padding: 18px 42px;
             border-radius: 50px;
             font-size: 1.05rem;
+        }
+
+        .btn-glow::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
         }
 
         .btn-glow:hover {
-            box-shadow: 0 8px 40px rgba(0, 102, 161, 0.7), 0 0 20px rgba(0, 210, 255, 0.4) inset;
-            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 10px 50px rgba(0, 102, 161, 0.8), 0 0 30px var(--accent-glow) inset;
+            transform: translateY(-4px) scale(1.03);
             color: white;
         }
 
+        .btn-glow:hover::before {
+            left: 100%;
+        }
+
         .btn-outline-light {
-            border: 2px solid rgba(255, 255, 255, 0.4);
+            border: 2px solid rgba(255, 255, 255, 0.5);
             backdrop-filter: blur(10px);
             transition: all 0.3s ease;
-            font-weight: 600;
-            padding: 14px 34px;
+            font-weight: 700;
+            padding: 16px 38px;
             border-radius: 50px;
             font-size: 1.05rem;
+            background: rgba(255, 255, 255, 0.05);
         }
 
         .btn-outline-light:hover {
-            background: rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.2);
             border-color: #fff;
-            transform: translateY(-2px);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(255, 255, 255, 0.2);
         }
 
-        /* =========================================
-           SEÇÕES REFINADAS
-        ========================================= */
         .section-padding {
             padding: 120px 0;
         }
 
         .section-title {
-            font-weight: 800;
+            font-weight: 900;
             color: var(--text-dark);
             margin-bottom: 1.5rem;
-            font-size: clamp(2rem, 5vw, 2.8rem);
-            letter-spacing: -0.02em;
+            font-size: clamp(2rem, 5vw, 3rem);
+            letter-spacing: -0.03em;
+            line-height: 1.2;
         }
 
         .section-subtitle {
-            font-size: clamp(1.1rem, 2vw, 1.3rem);
+            font-size: clamp(1.1rem, 2vw, 1.35rem);
             color: var(--text-muted);
-            line-height: 1.6;
+            line-height: 1.7;
         }
 
-        /* Trust Section */
-        /* CSS ATUALIZADO PARA O LOOP INFINITO */
+        /* ========== TRUST SECTION ========== */
         .trust-section {
             background: white;
-            padding: 4rem 0;
-            border-bottom: 1px solid #f0f0f0;
+            padding: 5rem 0;
+            border-bottom: 1px solid #e5e7eb;
             overflow: hidden;
         }
 
@@ -303,70 +406,60 @@
             display: flex;
             width: 100%;
             overflow: hidden;
-            /* Gradiente nas pontas para suavizar a entrada/saída */
             mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
-            -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
         }
 
         .marquee-content {
             display: flex;
-            gap: 4rem;
-            /* Espaço entre os itens */
+            gap: 5rem;
             width: max-content;
-            /* IMPORTANTE: Garante que a largura se adapte aos itens */
-            animation: scroll 40s linear infinite;
-            /* Tempo ajustado para suavidade */
+            animation: scroll 45s linear infinite;
             flex-shrink: 0;
         }
 
-        /* Pausa a animação quando passa o mouse por cima (Opcional, mas recomendado) */
         .marquee-content:hover {
             animation-play-state: paused;
         }
 
         .logo-item {
-            color: #cbd5e1;
+            color: #94a3b8;
             transition: all 0.3s ease;
             cursor: pointer;
             display: flex;
             align-items: center;
-            font-weight: 600;
-            font-size: 1.2rem;
+            font-weight: 700;
+            font-size: 1.25rem;
             white-space: nowrap;
-            /* Garante que o texto do item não quebre linha */
         }
 
         .logo-item i {
-            font-size: 2.5rem;
-            margin-right: 10px;
+            font-size: 2.8rem;
+            margin-right: 12px;
         }
 
         .logo-item:hover {
             color: var(--primary-color);
-            transform: scale(1.05);
+            transform: scale(1.08);
         }
 
-        /* A MÁGICA DO LOOP INFINITO */
         @keyframes scroll {
             0% {
                 transform: translateX(0);
             }
 
-            /* Move apenas 50% (o tamanho de um grupo inteiro). 
-       Como o Grupo 2 é igual ao Grupo 1, o salto de volta para 0% é invisível. */
             100% {
                 transform: translateX(-50%);
             }
         }
 
-        /* Cards */
+        /* ========== CARDS ========== */
         .problem-card {
             padding: 3.5rem 2.5rem;
-            border-radius: 24px;
-            background: linear-gradient(to bottom right, #ffffff, #f8fafc);
-            border: 1px solid rgba(0, 0, 0, 0.04);
+            border-radius: 28px;
+            background: linear-gradient(145deg, #ffffff, #f8fafc);
+            border: 1px solid rgba(0, 0, 0, 0.05);
             height: 100%;
-            transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+            transition: all 0.5s var(--transition-smooth);
             position: relative;
             overflow: hidden;
             box-shadow: var(--card-shadow);
@@ -378,15 +471,15 @@
             top: 0;
             left: 0;
             width: 100%;
-            height: 5px;
+            height: 6px;
             background: linear-gradient(90deg, var(--danger-color), #ff9a44);
             transform: scaleX(0);
             transform-origin: left;
-            transition: transform 0.5s ease;
+            transition: transform 0.6s ease;
         }
 
         .problem-card:hover {
-            transform: translateY(-10px);
+            transform: translateY(-12px);
             box-shadow: var(--card-shadow-hover);
             border-color: transparent;
         }
@@ -396,51 +489,52 @@
         }
 
         .icon-box-lg {
-            font-size: 4.5rem;
+            font-size: 5rem;
             margin-bottom: 2rem;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             display: inline-block;
         }
 
         .problem-card:hover .icon-box-lg {
-            transform: scale(1.15) rotate(8deg);
-            filter: drop-shadow(0 10px 15px rgba(220, 53, 69, 0.3));
+            transform: scale(1.2) rotate(12deg);
+            filter: drop-shadow(0 15px 25px rgba(220, 53, 69, 0.35));
         }
 
-        /* Listas e Screenshots */
+        /* ========== LISTAS E SCREENSHOTS ========== */
         .solution-list li {
-            margin-bottom: 1.8rem;
+            margin-bottom: 2rem;
             font-size: 1.15rem;
             color: var(--text-muted);
             transition: all 0.3s ease;
             display: flex;
             align-items: flex-start;
+            padding-left: 1rem;
         }
 
         .solution-list li i {
             flex-shrink: 0;
-            margin-top: 5px;
-            font-size: 1.4rem;
+            margin-top: 6px;
+            font-size: 1.5rem;
         }
 
         .solution-list li:hover {
-            transform: translateX(10px);
+            transform: translateX(12px);
             color: var(--text-dark);
         }
 
         .system-screenshot {
-            border-radius: 24px;
-            box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.2);
-            border: 4px solid rgba(255, 255, 255, 0.8);
-            transition: all 0.5s cubic-bezier(0.165, 0.84, 0.44, 1);
+            border-radius: 28px;
+            box-shadow: 0 30px 70px -15px rgba(0, 0, 0, 0.25);
+            border: 5px solid rgba(255, 255, 255, 0.9);
+            transition: all 0.6s var(--transition-smooth);
         }
 
         .system-screenshot:hover {
-            transform: scale(1.03) perspective(1000px) rotateY(-2deg);
-            box-shadow: 0 40px 80px -20px rgba(0, 0, 0, 0.25);
+            transform: scale(1.04) perspective(1000px) rotateY(-3deg);
+            box-shadow: 0 50px 100px -20px rgba(0, 0, 0, 0.3);
         }
 
-        /* Steps */
+        /* ========== STEPS ========== */
         .steps-container {
             position: relative;
             z-index: 1;
@@ -453,27 +547,27 @@
                 top: 40px;
                 left: 15%;
                 width: 70%;
-                height: 2px;
-                background: repeating-linear-gradient(to right, var(--accent-color) 0, var(--accent-color) 10px, transparent 10px, transparent 20px);
+                height: 3px;
+                background: repeating-linear-gradient(to right, var(--accent-color) 0, var(--accent-color) 12px, transparent 12px, transparent 24px);
                 z-index: -1;
-                opacity: 0.5;
+                opacity: 0.6;
             }
         }
 
         .step-circle {
-            width: 80px;
-            height: 80px;
+            width: 90px;
+            height: 90px;
             background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
             color: white;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 2rem;
-            font-weight: 800;
+            font-size: 2.2rem;
+            font-weight: 900;
             margin: 0 auto 2rem;
-            box-shadow: 0 10px 30px rgba(0, 102, 161, 0.4);
-            transition: all 0.4s ease;
+            box-shadow: 0 12px 35px rgba(0, 102, 161, 0.45);
+            transition: all 0.5s ease;
             position: relative;
         }
 
@@ -483,28 +577,28 @@
             width: 100%;
             height: 100%;
             border-radius: 50%;
-            border: 2px solid var(--accent-color);
-            animation: pulse-border 2s infinite;
+            border: 3px solid var(--accent-color);
+            animation: pulse-border 2.5s infinite;
             opacity: 0;
         }
 
         @keyframes pulse-border {
             0% {
                 transform: scale(1);
-                opacity: 0.8;
+                opacity: 0.9;
             }
 
             100% {
-                transform: scale(1.6);
+                transform: scale(1.7);
                 opacity: 0;
             }
         }
 
         .step-circle:hover {
-            transform: scale(1.1);
+            transform: scale(1.15) rotate(5deg);
         }
 
-        /* CTA Final */
+        /* ========== CTA FINAL ========== */
         #cta-final {
             position: relative;
             overflow: hidden;
@@ -512,29 +606,29 @@
 
         .floating-shape {
             position: absolute;
-            opacity: 0.1;
+            opacity: 0.12;
             pointer-events: none;
-            animation: floating 20s infinite linear;
+            animation: floating 25s infinite ease-in-out;
         }
 
         .shape-1 {
             top: 10%;
             left: 10%;
-            width: 80px;
-            height: 80px;
+            width: 100px;
+            height: 100px;
             background: var(--accent-color);
             border-radius: 50%;
-            animation-duration: 25s;
+            animation-duration: 28s;
         }
 
         .shape-2 {
             bottom: 20%;
             right: 15%;
-            width: 120px;
-            height: 120px;
+            width: 140px;
+            height: 140px;
             background: var(--primary-color);
             transform: rotate(45deg);
-            animation-duration: 30s;
+            animation-duration: 35s;
             animation-direction: reverse;
         }
 
@@ -544,7 +638,7 @@
             }
 
             50% {
-                transform: translate(20px, 40px) rotate(180deg);
+                transform: translate(30px, 50px) rotate(180deg);
             }
 
             100% {
@@ -552,7 +646,7 @@
             }
         }
 
-        /* Footer */
+        /* ========== FOOTER ========== */
         .custom-footer {
             background: linear-gradient(135deg, #0a0e14 0%, #001f33 100%);
             color: rgba(255, 255, 255, 0.7);
@@ -561,33 +655,33 @@
 
         .footer-title {
             color: white;
-            font-weight: 700;
-            margin-bottom: 1.8rem;
-            font-size: 1.1rem;
+            font-weight: 800;
+            margin-bottom: 2rem;
+            font-size: 1.15rem;
             letter-spacing: 0.5px;
         }
 
         .footer-link {
-            color: rgba(255, 255, 255, 0.6);
+            color: rgba(255, 255, 255, 0.65);
             text-decoration: none;
             transition: all 0.3s;
             display: inline-block;
-            margin-bottom: 0.8rem;
+            margin-bottom: 1rem;
             font-size: 0.95rem;
         }
 
         .footer-link:hover {
             color: var(--accent-color);
-            transform: translateX(5px);
+            transform: translateX(6px);
         }
 
         .social-icon {
-            width: 45px;
-            height: 45px;
+            width: 50px;
+            height: 50px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.08);
             border-radius: 50%;
             transition: all 0.3s ease;
         }
@@ -595,39 +689,593 @@
         .social-icon:hover {
             background: var(--accent-color);
             color: var(--bg-darker) !important;
-            transform: translateY(-3px);
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px var(--accent-glow);
         }
 
-        /* Modal & Responsividade */
+        /* ========== MODAL MELHORADO - UX APRIMORADA ========== */
+        .modal-backdrop.show {
+            backdrop-filter: blur(8px);
+        }
+
+        .modal.fade .modal-dialog {
+            transform: scale(0.9) translateY(-30px);
+            opacity: 0;
+            transition: all 0.4s var(--transition-smooth);
+        }
+
+        .modal.show .modal-dialog {
+            transform: scale(1) translateY(0);
+            opacity: 1;
+        }
+
         .modal-content {
-            border-radius: 24px;
+            border-radius: 28px;
             border: none;
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.1);
+            background: var(--glass-bg);
+            overflow: hidden;
+            position: relative;
         }
 
-        .form-floating>.form-control {
-            border-radius: 12px;
+        .modal-content::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+        }
+
+        /* Login Header Melhorado */
+        .login-header {
+            text-align: center;
+            padding-bottom: 1.5rem;
+        }
+
+        .login-logo {
+            width: 64px;
+            height: 64px;
+            background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+            box-shadow: 0 12px 30px rgba(0, 102, 161, 0.3);
+            animation: logoFloat 3s ease-in-out infinite;
+        }
+
+        @keyframes logoFloat {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-5px);
+            }
+        }
+
+        .login-logo i {
+            font-size: 1.8rem;
+            color: white;
+        }
+
+        .login-title {
+            font-size: 1.75rem;
+            font-weight: 800;
+            color: var(--text-dark);
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.02em;
+        }
+
+        .login-subtitle {
+            color: var(--text-muted);
+            font-size: 1rem;
+            line-height: 1.5;
+        }
+
+        /* Inputs Melhorados */
+        .form-group-enhanced {
+            position: relative;
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group-enhanced .form-label {
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: var(--text-dark);
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .form-group-enhanced .form-label i {
+            color: var(--primary-color);
+            font-size: 0.9rem;
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        .input-enhanced {
+            width: 100%;
+            padding: 1rem 1.25rem;
+            padding-right: 3rem;
             border: 2px solid #e9ecef;
+            border-radius: 14px;
             background-color: #f8fafc;
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--text-dark);
+            transition: all 0.3s var(--transition-smooth);
+            outline: none;
         }
 
-        .form-floating>.form-control:focus {
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 4px rgba(0, 102, 161, 0.1);
+        .input-enhanced::placeholder {
+            color: #94a3b8;
+            font-weight: 400;
+        }
+
+        .input-enhanced:hover {
+            border-color: #cbd5e1;
             background-color: #fff;
         }
 
+        .input-enhanced:focus {
+            border-color: var(--primary-color);
+            background-color: #fff;
+            box-shadow: 0 0 0 4px var(--input-focus-ring);
+        }
+
+        .input-enhanced.is-valid {
+            border-color: var(--success-color);
+            background-color: rgba(16, 185, 129, 0.05);
+        }
+
+        .input-enhanced.is-valid:focus {
+            box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15);
+        }
+
+        .input-enhanced.is-invalid {
+            border-color: var(--danger-color);
+            background-color: rgba(220, 53, 69, 0.05);
+        }
+
+        .input-enhanced.is-invalid:focus {
+            box-shadow: 0 0 0 4px rgba(220, 53, 69, 0.15);
+        }
+
+        /* Ícone de validação */
+        .input-icon {
+            position: absolute;
+            right: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.1rem;
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+
+        .input-icon.valid {
+            color: var(--success-color);
+            opacity: 1;
+            animation: popIn 0.3s ease;
+        }
+
+        .input-icon.invalid {
+            color: var(--danger-color);
+            opacity: 1;
+            animation: shake 0.4s ease;
+        }
+
+        @keyframes popIn {
+            0% {
+                transform: translateY(-50%) scale(0);
+            }
+
+            50% {
+                transform: translateY(-50%) scale(1.2);
+            }
+
+            100% {
+                transform: translateY(-50%) scale(1);
+            }
+        }
+
+        @keyframes shake {
+
+            0%,
+            100% {
+                transform: translateY(-50%) translateX(0);
+            }
+
+            25% {
+                transform: translateY(-50%) translateX(-5px);
+            }
+
+            75% {
+                transform: translateY(-50%) translateX(5px);
+            }
+        }
+
+        /* Toggle Senha */
+        .password-toggle {
+            position: absolute;
+            right: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 0.5rem;
+            transition: all 0.2s ease;
+            z-index: 2;
+        }
+
+        .password-toggle:hover {
+            color: var(--primary-color);
+        }
+
+        .password-toggle:focus {
+            outline: none;
+        }
+
+        /* Mensagem de Erro */
+        .error-message {
+            font-size: 0.8rem;
+            color: var(--danger-color);
+            margin-top: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            opacity: 0;
+            transform: translateY(-5px);
+            transition: all 0.3s ease;
+        }
+
+        .error-message.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Checkbox Estilizado */
+        .checkbox-enhanced {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .checkbox-enhanced input {
+            display: none;
+        }
+
+        .checkbox-custom {
+            width: 22px;
+            height: 22px;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            background: white;
+        }
+
+        .checkbox-enhanced:hover .checkbox-custom {
+            border-color: var(--primary-color);
+        }
+
+        .checkbox-enhanced input:checked+.checkbox-custom {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            border-color: transparent;
+        }
+
+        .checkbox-custom i {
+            font-size: 0.75rem;
+            color: white;
+            opacity: 0;
+            transform: scale(0);
+            transition: all 0.2s ease;
+        }
+
+        .checkbox-enhanced input:checked+.checkbox-custom i {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .checkbox-label {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        /* Link Esqueci Senha */
+        .forgot-link {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--primary-color);
+            text-decoration: none;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .forgot-link::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 2px;
+            bottom: -2px;
+            left: 0;
+            background: var(--primary-color);
+            transition: width 0.3s ease;
+        }
+
+        .forgot-link:hover {
+            color: var(--primary-dark);
+        }
+
+        .forgot-link:hover::after {
+            width: 100%;
+        }
+
+        /* Botão Login Melhorado */
+        .btn-login {
+            width: 100%;
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 14px;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white;
+            font-size: 1rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all 0.4s var(--transition-smooth);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+        }
+
+        .btn-login::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.6s;
+        }
+
+        .btn-login:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(0, 102, 161, 0.4);
+        }
+
+        .btn-login:hover::before {
+            left: 100%;
+        }
+
+        .btn-login:active {
+            transform: translateY(-1px);
+        }
+
+        .btn-login:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            display: none;
+        }
+
+        .btn-login.loading .spinner {
+            display: block;
+        }
+
+        .btn-login.loading .btn-text {
+            display: none;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Divider */
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: 1.5rem 0;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #e9ecef;
+        }
+
+        .divider span {
+            padding: 0 1rem;
+        }
+
+        /* Social Buttons */
+        .social-login {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .btn-social {
+            flex: 1;
+            padding: 0.875rem 1rem;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--text-dark);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-social:hover {
+            border-color: var(--primary-color);
+            background: rgba(0, 102, 161, 0.05);
+            transform: translateY(-2px);
+        }
+
+        .btn-social i {
+            font-size: 1.25rem;
+        }
+
+        .btn-social.google i {
+            color: #EA4335;
+        }
+
+        .btn-social.microsoft i {
+            color: #00A4EF;
+        }
+
+        /* Footer Modal */
+        .modal-footer-custom {
+            text-align: center;
+            padding-top: 1.5rem;
+            margin-top: 1.5rem;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .modal-footer-custom p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        .modal-footer-custom a {
+            color: var(--primary-color);
+            font-weight: 700;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+
+        .modal-footer-custom a:hover {
+            color: var(--primary-dark);
+            text-decoration: underline;
+        }
+
+        /* Toast Notification */
+        .toast-notification {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            padding: 1rem 1.5rem;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transform: translateX(150%);
+            transition: transform 0.5s var(--transition-smooth);
+            z-index: 9999;
+        }
+
+        .toast-notification.show {
+            transform: translateX(0);
+        }
+
+        .toast-notification.success {
+            border-left: 4px solid var(--success-color);
+        }
+
+        .toast-notification.error {
+            border-left: 4px solid var(--danger-color);
+        }
+
+        .toast-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .toast-notification.success .toast-icon {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success-color);
+        }
+
+        .toast-notification.error .toast-icon {
+            background: rgba(220, 53, 69, 0.1);
+            color: var(--danger-color);
+        }
+
+        .toast-content h4 {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: 0.25rem;
+        }
+
+        .toast-content p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin: 0;
+        }
+
+        /* ========== SCROLL REVEAL ANIMATIONS ========== */
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.8s var(--transition-smooth);
+        }
+
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* ========== RESPONSIVIDADE ========== */
         @media (max-width: 991px) {
             .hero-top-blue {
-                padding: 140px 0 80px;
+                padding: 160px 0 100px;
             }
 
             .hero-bottom-image {
-                height: 550px;
+                height: 600px;
                 background-attachment: scroll;
             }
 
             .hero-buttons-container {
-                margin-top: -200px;
+                margin-top: -240px;
                 padding: 0 20px;
             }
 
@@ -635,49 +1283,88 @@
                 padding: 80px 0;
             }
 
-            .flex-row-reverse {
-                flex-direction: row !important;
+            .mobile-3d-effect {
+                transform: perspective(1500px) rotateY(-4deg) rotateX(1deg);
             }
 
-            .order-lg-1 {
-                order: 1;
+            .blob-decorativo {
+                width: 350px;
+                height: 350px;
+            }
+        }
+
+        @media (max-width: 767px) {
+            .hero-top-blue {
+                padding: 140px 0 80px;
             }
 
-            .order-lg-2 {
-                order: 2;
+            .hero-bottom-image {
+                height: 500px;
             }
 
-            .step-circle::after {
-                display: none;
+            .hero-buttons-container {
+                margin-top: -200px;
             }
+
+            .display-3 {
+                font-size: 2.2rem;
+            }
+
+            .btn-glow,
+            .btn-outline-light {
+                padding: 14px 30px;
+                font-size: 0.95rem;
+            }
+
+            .problem-card {
+                padding: 2.5rem 2rem;
+            }
+
+            .icon-box-lg {
+                font-size: 4rem;
+            }
+
+            .social-login {
+                flex-direction: column;
+            }
+
+            .toast-notification {
+                left: 1rem;
+                right: 1rem;
+                bottom: 1rem;
+            }
+        }
+
+        /* Acessibilidade */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            border: 0;
+        }
+
+        *:focus-visible {
+            outline: 3px solid var(--accent-color);
+            outline-offset: 2px;
         }
     </style>
 </head>
 
 <body data-bs-spy="scroll" data-bs-target="#main-nav" data-bs-offset="100">
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-    <div class="container position-fixed top-0 start-50 translate-middle-x mt-4" style="z-index: 2000;">
-        {% for category, message in messages %}
-        <div class="alert alert-{{ category }} alert-dismissible fade show shadow-lg" role="alert">
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
-        </div>
-        {% endfor %}
-    </div>
-    {% endif %}
-    {% endwith %}
-
     <header class="navbar navbar-expand-lg navbar-dark fixed-top custom-navbar" id="main-nav">
         <div class="container">
             <a class="navbar-brand d-flex align-items-center gap-3" href="#">
-                <div class="navbar-brand-icon">
-                    <i class="fas fa-check-double" style="color: white; font-size: 1.4rem;"></i>
-                </div>
+                <img src="/static/img/logo-qualigestor.png" alt="Logo QualiGestor" style="height: 42px; width: auto;"
+                    class="me-1" onerror="this.style.display='none'">
                 <span class="fw-bold text-white fs-5" style="letter-spacing: 0.5px;">QualiGestor</span>
             </a>
-            <button class="navbar-toggler border-0 p-2" type="button" data-bs-toggle="collapse" data-bs-target="#menu">
+            <button class="navbar-toggler border-0 p-2" type="button" data-bs-toggle="collapse" data-bs-target="#menu"
+                aria-expanded="false" aria-label="Abrir menu de navegação">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <nav id="menu" class="collapse navbar-collapse bg-dark-mobile p-4 p-lg-0 rounded-4 mt-3 mt-lg-0 shadow-lg"
@@ -690,8 +1377,12 @@
                 </ul>
                 <div class="d-flex gap-3 justify-content-center mt-4 mt-lg-0 flex-column flex-lg-row">
                     <button class="btn btn-outline-light btn-sm px-4 fw-semibold" data-bs-toggle="modal"
-                        data-bs-target="#loginModal">Entrar</button>
-                    <a href="#cta-final" class="btn btn-glow btn-sm px-4 text-decoration-none fw-bold">Demonstração</a>
+                        data-bs-target="#loginModal">
+                        <i class="fas fa-sign-in-alt me-2"></i>Entrar
+                    </button>
+                    <a href="#cta-final" class="btn btn-glow btn-sm px-4 text-decoration-none fw-bold">
+                        <i class="fas fa-rocket me-2"></i>Demonstração
+                    </a>
                 </div>
             </nav>
         </div>
@@ -700,15 +1391,15 @@
     <section class="hero-top-blue">
         <div class="container hero-content-text text-center">
             <div class="mb-4">
-                <span class="badge bg-soft-blue animate-up">
+                <span class="badge bg-soft-blue">
                     <i class="fas fa-rocket"></i> Gestão da Qualidade 4.0
                 </span>
             </div>
-            <h1 class="display-3 fw-bold text-white mb-4 animate-up delay-1">
+            <h1 class="display-3 fw-bold text-white mb-4">
                 Auditorias inteligentes que<br class="d-none d-lg-block">
                 <span class="text-gradient">garantem a excelência.</span>
             </h1>
-            <p class="lead text-white-50 mx-auto animate-up delay-2 mb-5" style="max-width: 750px; font-size: 1.2rem;">
+            <p class="lead text-white-50 mx-auto mb-5" style="max-width: 800px; font-size: 1.25rem;">
                 Centralize checklists, monitore conformidades e gerencie toda sua rede com dados em tempo real.
                 Transforme papelada e planilhas em inteligência estratégica.
             </p>
@@ -716,13 +1407,13 @@
     </section>
 
     <div class="hero-bottom-image">
-        <div class="hero-buttons-container animate-up delay-3">
+        <div class="hero-buttons-container">
             <div class="d-flex justify-content-center gap-3 flex-wrap px-3">
                 <button class="btn btn-glow btn-lg px-5 py-3" data-bs-toggle="modal" data-bs-target="#loginModal">
                     <i class="fas fa-sign-in-alt me-2"></i> Acessar Sistema
                 </button>
                 <a href="#solucao" class="btn btn-outline-light btn-lg px-5 py-3 text-decoration-none">
-                    Conheça a Plataforma
+                    <i class="fas fa-chart-line me-2"></i>Conheça a Plataforma
                 </a>
             </div>
         </div>
@@ -737,7 +1428,7 @@
 
     <section class="trust-section">
         <div class="container text-center mb-4">
-            <p class="text-muted small text-uppercase fw-bold" style="letter-spacing: 2px;">A escolha de equipes que
+            <p class="text-muted small text-uppercase fw-bold" style="letter-spacing: 2.5px;">A escolha de equipes que
                 buscam a excelência operacional</p>
         </div>
         <div class="marquee-wrapper">
@@ -748,7 +1439,6 @@
                 <div class="logo-item"><i class="fas fa-truck-loading"></i> Logística</div>
                 <div class="logo-item"><i class="fas fa-hospital"></i> Saúde</div>
                 <div class="logo-item"><i class="fas fa-hotel"></i> Hotelaria</div>
-
                 <div class="logo-item"><i class="fas fa-industry"></i> Indústrias</div>
                 <div class="logo-item"><i class="fas fa-store"></i> Varejo & Redes</div>
                 <div class="logo-item"><i class="fas fa-utensils"></i> Food Service</div>
@@ -762,14 +1452,15 @@
     <section id="problema" class="section-padding bg-white">
         <div class="container">
             <div class="text-center mb-5">
-                <span class="text-primary fw-bold text-uppercase small mb-2 d-block animate-up">O Cenário Atual</span>
-                <h2 class="section-title animate-up delay-1">O custo invisível da gestão tradicional</h2>
-                <p class="section-subtitle lead mx-auto animate-up delay-2" style="max-width: 800px;">Sua operação
-                    cresceu, mas seus processos de controle de qualidade continuam baseados em ferramentas do passado?
+                <span class="text-primary fw-bold text-uppercase small mb-2 d-block reveal">O Cenário Atual</span>
+                <h2 class="section-title reveal">O custo invisível da gestão tradicional</h2>
+                <p class="section-subtitle lead mx-auto reveal" style="max-width: 820px;">
+                    Sua operação cresceu, mas seus processos de controle de qualidade continuam baseados em ferramentas
+                    do passado?
                 </p>
             </div>
             <div class="row g-4 d-flex align-items-stretch mt-4">
-                <div class="col-md-4 animate-up delay-1">
+                <div class="col-md-4 reveal">
                     <div class="problem-card text-center">
                         <i class="fas fa-file-excel icon-box-lg" style="color: var(--danger-color);"></i>
                         <h4 class="fw-bold mb-3 fs-4">Caos do papel e planilhas</h4>
@@ -777,7 +1468,7 @@
                             consolidando informações que já nascem desatualizadas.</p>
                     </div>
                 </div>
-                <div class="col-md-4 animate-up delay-2">
+                <div class="col-md-4 reveal">
                     <div class="problem-card text-center">
                         <i class="fas fa-random icon-box-lg" style="color: var(--danger-color);"></i>
                         <h4 class="fw-bold mb-3 fs-4">Falta de padrão na rede</h4>
@@ -785,7 +1476,7 @@
                             produto ou serviço varia, prejudicando a marca.</p>
                     </div>
                 </div>
-                <div class="col-md-4 animate-up delay-3">
+                <div class="col-md-4 reveal">
                     <div class="problem-card text-center">
                         <i class="fas fa-eye-slash icon-box-lg" style="color: var(--danger-color);"></i>
                         <h4 class="fw-bold mb-3 fs-4">Dados que morrem na gaveta</h4>
@@ -800,37 +1491,40 @@
     <section id="solucao" class="section-padding" style="background-color: var(--bg-light);">
         <div class="container">
             <div class="row align-items-center gy-5">
-                <div class="col-lg-6 pe-lg-5 order-2 order-lg-1">
+                <div class="col-lg-6 pe-lg-5 order-2 order-lg-1 reveal">
                     <span class="text-primary fw-bold text-uppercase small mb-2 d-block">A Resolução</span>
                     <h2 class="section-title mb-4">QualiGestor: Centralize. Padronize. Evolua.</h2>
-                    <p class="lead text-muted mb-5">A plataforma all-in-one que tira sua gestão da qualidade do
-                        operacional e a leva para o estratégico, garantindo conformidade em toda a cadeia.</p>
+                    <p class="lead text-muted mb-5">
+                        A plataforma all-in-one que tira sua gestão da qualidade do operacional e a leva para o
+                        estratégico, garantindo conformidade em toda a cadeia.
+                    </p>
                     <ul class="list-unstyled solution-list">
-                        <li class="d-flex align-items-start">
-                            <i class="fas fa-check-circle mt-1 me-3 text-gradient"></i>
+                        <li>
+                            <i class="fas fa-check-circle me-3 text-gradient"></i>
                             <div><strong>Auditorias Digitais Ágeis:</strong> Elimine o papel. Aplique checklists pelo
                                 celular ou tablet, 100% offline.</div>
                         </li>
-                        <li class="d-flex align-items-start">
-                            <i class="fas fa-check-circle mt-1 me-3 text-gradient"></i>
+                        <li>
+                            <i class="fas fa-check-circle me-3 text-gradient"></i>
                             <div><strong>Checklists Inteligentes:</strong> Pontuação automática, regras condicionais e
                                 coleta de fotos obrigatórias.</div>
                         </li>
-                        <li class="d-flex align-items-start">
-                            <i class="fas fa-check-circle mt-1 me-3 text-gradient"></i>
+                        <li>
+                            <i class="fas fa-check-circle me-3 text-gradient"></i>
                             <div><strong>Gestão Ativa de RNC:</strong> Abra planos de ação automaticamente e acompanhe o
                                 fluxo até a resolução.</div>
                         </li>
-                        <li class="d-flex align-items-start">
-                            <i class="fas fa-check-circle mt-1 me-3 text-gradient"></i>
+                        <li>
+                            <i class="fas fa-check-circle me-3 text-gradient"></i>
                             <div><strong>Visão 360º da Rede:</strong> Monitore o desempenho e a conformidade de todas as
                                 unidades em tempo real.</div>
                         </li>
                     </ul>
                 </div>
-                <div class="col-lg-6 order-1 order-lg-2 text-center">
-                    <img src="https://placehold.co/600x450/e9ecef/0066a1?text=VISÃO+GERAL+DO+DASHBOARD"
-                        alt="Dashboard QualiGestor" class="img-fluid system-screenshot bg-white p-1">
+                <div class="col-lg-6 order-1 order-lg-2 text-center reveal">
+                    <img src="https://github.com/victorGroba/QualiGestor-assets/blob/main/visao-geral.png?raw=true"
+                        alt="Dashboard QualiGestor mostrando visão geral"
+                        class="img-fluid system-screenshot bg-white p-1">
                 </div>
             </div>
         </div>
@@ -838,29 +1532,29 @@
 
     <section id="como-funciona" class="section-padding bg-white">
         <div class="container">
-            <div class="text-center mb-5">
+            <div class="text-center mb-5 reveal">
                 <h2 class="section-title">Simples para quem usa. Poderoso para quem gerencia.</h2>
                 <p class="section-subtitle lead">Implementação rápida em 4 passos para transformar sua operação.</p>
             </div>
             <div class="row text-center gy-5 gx-lg-5 mt-5 justify-content-center steps-container">
-                <div class="col-md-3 col-sm-6">
+                <div class="col-md-3 col-sm-6 reveal">
                     <div class="step-circle">1</div>
                     <h4 class="fw-bold fs-5">Padronize</h4>
                     <p class="text-muted">Crie seus checklists, defina os padrões de qualidade e cadastre suas unidades.
                     </p>
                 </div>
-                <div class="col-md-3 col-sm-6">
+                <div class="col-md-3 col-sm-6 reveal">
                     <div class="step-circle">2</div>
                     <h4 class="fw-bold fs-5">Audite</h4>
                     <p class="text-muted">Sua equipe de campo realiza as auditorias pelo aplicativo de forma intuitiva.
                     </p>
                 </div>
-                <div class="col-md-3 col-sm-6">
+                <div class="col-md-3 col-sm-6 reveal">
                     <div class="step-circle">3</div>
                     <h4 class="fw-bold fs-5">Corrija</h4>
                     <p class="text-muted">Não conformidades geram planos de ação automáticos. Acompanhe a resolução.</p>
                 </div>
-                <div class="col-md-3 col-sm-6">
+                <div class="col-md-3 col-sm-6 reveal">
                     <div class="step-circle">4</div>
                     <h4 class="fw-bold fs-5">Evolua</h4>
                     <p class="text-muted">Acesse dashboards gerenciais, compare o desempenho e tome decisões.</p>
@@ -871,67 +1565,74 @@
 
     <section id="recursos" class="section-padding" style="background-color: var(--bg-light);">
         <div class="container">
-            <div class="text-center mb-5 pb-3">
+            <div class="text-center mb-5 pb-3 reveal">
                 <h2 class="section-title">Tudo o que você precisa para garantir a excelência.</h2>
             </div>
 
             <div class="row align-items-center mb-5 gy-5 gx-lg-5">
-                <div class="col-lg-6 order-2 order-lg-1 text-center">
-                    <img src="https://placehold.co/500x600/e9ecef/0066a1?text=APP+MOBILE+CHECKLIST"
-                        alt="App Mobile Auditoria" class="img-fluid system-screenshot bg-white p-1 mx-auto d-block"
-                        style="max-height: 500px;">
+                <div class="col-lg-6 order-2 order-lg-1 text-center position-relative reveal">
+                    <div class="blob-decorativo d-none d-lg-block"></div>
+                    <img src="https://github.com/victorGroba/QualiGestor-assets/blob/main/mobile-3.png?raw=true"
+                        alt="App Mobile para Auditorias" class="img-fluid mobile-3d-effect mx-auto d-block"
+                        style="max-height: 600px; width: auto;">
                 </div>
-                <div class="col-lg-6 order-1 order-lg-2 ps-lg-5">
+                <div class="col-lg-6 order-1 order-lg-2 ps-lg-5 reveal">
                     <h3 class="fw-bold mb-4 h2">Auditorias & Checklists Flexíveis</h3>
-                    <p class="lead text-muted mb-4">Crie desde rotinas simples de abertura até auditorias complexas de
-                        certificação com nosso construtor arrasta-e-solta.</p>
+                    <p class="lead text-muted mb-4">
+                        Crie desde rotinas simples de abertura até auditorias complexas de certificação com nosso
+                        construtor arrasta-e-solta.
+                    </p>
                     <ul class="list-unstyled text-muted lead fs-6 solution-list">
-                        <li class="mb-3"><i class="fas fa-check text-success me-3"></i>Scoring (notas) automático
-                            baseado nos critérios.</li>
-                        <li class="mb-3"><i class="fas fa-check text-success me-3"></i>Coleta de evidências com fotos
-                            obrigatórias e anotações.</li>
-                        <li class="mb-3"><i class="fas fa-check text-success me-3"></i>Funciona 100% offline com
-                            sincronização inteligente.</li>
+                        <li><i class="fas fa-check text-success me-3"></i>Scoring (notas) automático baseado nos
+                            critérios.</li>
+                        <li><i class="fas fa-check text-success me-3"></i>Coleta de evidências com fotos obrigatórias e
+                            anotações.</li>
+                        <li><i class="fas fa-check text-success me-3"></i>Funciona 100% offline com sincronização
+                            inteligente.</li>
                     </ul>
                 </div>
             </div>
 
             <div class="row align-items-center mb-5 gy-5 gx-lg-5 flex-row-reverse mt-5 pt-5">
-                <div class="col-lg-6 order-2 order-lg-1 text-center">
-                    <img src="https://placehold.co/600x450/e9ecef/0066a1?text=GESTÃO+DE+RNC+(WEB)" alt="Gestão de RNC"
-                        class="img-fluid system-screenshot bg-white p-1">
+                <div class="col-lg-6 order-2 order-lg-1 text-center reveal">
+                    <img src="https://placehold.co/600x450/e9ecef/0066a1?text=GESTÃO+DE+RNC+(WEB)"
+                        alt="Interface de Gestão de RNC" class="img-fluid system-screenshot bg-white p-1">
                 </div>
-                <div class="col-lg-6 order-1 order-lg-2 pe-lg-5">
+                <div class="col-lg-6 order-1 order-lg-2 pe-lg-5 reveal">
                     <h3 class="fw-bold mb-4 h2">Gestão de Não Conformidades (RNC)</h3>
-                    <p class="lead text-muted mb-4">Feche o ciclo da qualidade. Não deixe os problemas sem solução e
-                        evite reincidências com um fluxo de trabalho claro.</p>
+                    <p class="lead text-muted mb-4">
+                        Feche o ciclo da qualidade. Não deixe os problemas sem solução e evite reincidências com um
+                        fluxo de trabalho claro.
+                    </p>
                     <ul class="list-unstyled text-muted lead fs-6 solution-list">
-                        <li class="mb-3"><i class="fas fa-check text-success me-3"></i>Fluxo completo: Causa raiz, ação
-                            corretiva, prazo e responsável.</li>
-                        <li class="mb-3"><i class="fas fa-check text-success me-3"></i>Status visual claro (Pendente, Em
-                            Andamento, Resolvido).</li>
-                        <li class="mb-3"><i class="fas fa-check text-success me-3"></i>Rastreabilidade total e histórico
-                            de todas as ocorrências.</li>
+                        <li><i class="fas fa-check text-success me-3"></i>Fluxo completo: Causa raiz, ação corretiva,
+                            prazo e responsável.</li>
+                        <li><i class="fas fa-check text-success me-3"></i>Status visual claro (Pendente, Em Andamento,
+                            Resolvido).</li>
+                        <li><i class="fas fa-check text-success me-3"></i>Rastreabilidade total e histórico de todas as
+                            ocorrências.</li>
                     </ul>
                 </div>
             </div>
 
             <div class="row align-items-center gy-5 gx-lg-5 mt-5 pt-5">
-                <div class="col-lg-6 order-2 order-lg-1 text-center">
-                    <img src="https://placehold.co/600x450/e9ecef/0066a1?text=DASHBOARD+DE+BI+E+GRÁFICOS"
-                        alt="Dashboard de BI" class="img-fluid system-screenshot bg-white p-1">
+                <div class="col-lg-6 order-2 order-lg-1 text-center reveal">
+                    <img src="https://placehold.co/600x450/e9ecef/0066a1?text=DASHBOARD+DE+BI"
+                        alt="Dashboard de Business Intelligence" class="img-fluid system-screenshot bg-white p-1">
                 </div>
-                <div class="col-lg-6 order-1 order-lg-2 ps-lg-5">
+                <div class="col-lg-6 order-1 order-lg-2 ps-lg-5 reveal">
                     <h3 class="fw-bold mb-4 h2">Indicadores & BI (Business Intelligence)</h3>
-                    <p class="lead text-muted mb-4">Tome decisões baseadas em dados reais da sua operação, não em
-                        achismos. Identifique gargalos rapidamente.</p>
+                    <p class="lead text-muted mb-4">
+                        Tome decisões baseadas em dados reais da sua operação, não em achismos. Identifique gargalos
+                        rapidamente.
+                    </p>
                     <ul class="list-unstyled text-muted lead fs-6 solution-list">
-                        <li class="mb-3"><i class="fas fa-check text-success me-3"></i>Dashboards gerenciais visuais e
-                            intuitivos em tempo real.</li>
-                        <li class="mb-3"><i class="fas fa-check text-success me-3"></i>Ranking de desempenho entre
-                            unidades (Benchmarking).</li>
-                        <li class="mb-3"><i class="fas fa-check text-success me-3"></i>Acompanhamento da evolução
-                            temporal da conformidade.</li>
+                        <li><i class="fas fa-check text-success me-3"></i>Dashboards gerenciais visuais e intuitivos em
+                            tempo real.</li>
+                        <li><i class="fas fa-check text-success me-3"></i>Ranking de desempenho entre unidades
+                            (Benchmarking).</li>
+                        <li><i class="fas fa-check text-success me-3"></i>Acompanhamento da evolução temporal da
+                            conformidade.</li>
                     </ul>
                 </div>
             </div>
@@ -941,47 +1642,49 @@
     <section class="section-padding bg-white">
         <div class="container">
             <div class="row gy-5 align-items-center">
-                <div class="col-lg-6 pe-lg-5">
+                <div class="col-lg-6 pe-lg-5 reveal">
                     <h3 class="mb-4 fw-bold h2">Desenvolvido para quem precisa de escala</h3>
-                    <p class="text-muted mb-4 lead">O QualiGestor se adapta a operações complexas que exigem padrão
-                        rigoroso e controle distribuído.</p>
+                    <p class="text-muted mb-4 lead">
+                        O QualiGestor se adapta a operações complexas que exigem padrão rigoroso e controle distribuído.
+                    </p>
                     <div class="row g-3 text-center">
                         <div class="col-6">
-                            <div class="p-4 border rounded-4 bg-light h-100 problem-card pt-3 pb-3"><i
-                                    class="fas fa-store text-primary fs-2 mb-3"></i><br><strong>Varejo & Redes</strong>
+                            <div class="p-4 border rounded-4 bg-light h-100 problem-card pt-3 pb-3">
+                                <i class="fas fa-store text-primary fs-2 mb-3"></i><br><strong>Varejo & Redes</strong>
                             </div>
                         </div>
                         <div class="col-6">
-                            <div class="p-4 border rounded-4 bg-light h-100 problem-card pt-3 pb-3"><i
-                                    class="fas fa-utensils text-primary fs-2 mb-3"></i><br><strong>Food Service</strong>
+                            <div class="p-4 border rounded-4 bg-light h-100 problem-card pt-3 pb-3">
+                                <i class="fas fa-utensils text-primary fs-2 mb-3"></i><br><strong>Food Service</strong>
                             </div>
                         </div>
                         <div class="col-6">
-                            <div class="p-4 border rounded-4 bg-light h-100 problem-card pt-3 pb-3"><i
-                                    class="fas fa-industry text-primary fs-2 mb-3"></i><br><strong>Indústrias</strong>
+                            <div class="p-4 border rounded-4 bg-light h-100 problem-card pt-3 pb-3">
+                                <i class="fas fa-industry text-primary fs-2 mb-3"></i><br><strong>Indústrias</strong>
                             </div>
                         </div>
                         <div class="col-6">
-                            <div class="p-4 border rounded-4 bg-light h-100 problem-card pt-3 pb-3"><i
-                                    class="fas fa-clipboard-check text-primary fs-2 mb-3"></i><br><strong>Times de
-                                    Qualidade</strong></div>
+                            <div class="p-4 border rounded-4 bg-light h-100 problem-card pt-3 pb-3">
+                                <i class="fas fa-clipboard-check text-primary fs-2 mb-3"></i><br><strong>Times de
+                                    Qualidade</strong>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-lg-6 ps-lg-5 border-start-lg">
+                <div class="col-lg-6 ps-lg-5 border-start-lg reveal">
                     <h3 class="mb-4 fw-bold h2">Por que escolher o QualiGestor?</h3>
                     <ul class="list-unstyled lead fs-6 solution-list">
-                        <li class="mb-4">
+                        <li>
                             <i class="fas fa-flag text-success me-3 fs-4"></i>
                             <div><strong>Foco na realidade brasileira:</strong> Pensado para os desafios operacionais,
                                 de conectividade e legislação locais.</div>
                         </li>
-                        <li class="mb-4">
+                        <li>
                             <i class="fas fa-rocket text-success me-3 fs-4"></i>
                             <div><strong>Usabilidade em 1º lugar:</strong> Interface limpa e intuitiva. Sua equipe de
                                 campo não precisa de treinamento complexo.</div>
                         </li>
-                        <li class="mb-4">
+                        <li>
                             <i class="fas fa-headset text-success me-3 fs-4"></i>
                             <div><strong>Suporte Próximo:</strong> Atendimento ágil e humanizado para garantir o sucesso
                                 da sua implantação.</div>
@@ -996,12 +1699,12 @@
         style="background: linear-gradient(135deg, var(--bg-darker) 0%, #002a4d 100%);">
         <div class="floating-shape shape-1"></div>
         <div class="floating-shape shape-2"></div>
-
-        <div class="container position-relative z-2">
+        <div class="container position-relative z-2 reveal">
             <h2 class="fw-bold display-4 mb-4">Pronto para transformar suas auditorias?</h2>
-            <p class="lead mb-5 mx-auto text-white-50" style="max-width: 700px; font-size: 1.25rem;">Deixe as planilhas
-                no passado. Junte-se às empresas que já garantem a excelência operacional com o QualiGestor.</p>
-
+            <p class="lead mb-5 mx-auto text-white-50" style="max-width: 720px; font-size: 1.3rem;">
+                Deixe as planilhas no passado. Junte-se às empresas que já garantem a excelência operacional com o
+                QualiGestor.
+            </p>
             <div class="d-flex justify-content-center gap-3 flex-wrap">
                 <a href="#" class="btn btn-glow btn-lg px-5 py-3 fw-bold fs-5">
                     <i class="fas fa-paper-plane me-2"></i> SOLICITAR DEMONSTRAÇÃO
@@ -1017,17 +1720,21 @@
             <div class="row gy-5 mb-5">
                 <div class="col-lg-4">
                     <a class="d-flex align-items-center gap-3 mb-4 text-decoration-none" href="#">
-                        <div class="navbar-brand-icon">
-                            <i class="fas fa-check-double" style="color: white; font-size: 1.4rem;"></i>
-                        </div>
+                        <img src="/static/img/logo-qualigestor.png" alt="Logo QualiGestor"
+                            style="height: 42px; width: auto;" class="me-1" onerror="this.style.display='none'">
                         <span class="fw-bold text-white fs-4">QualiGestor</span>
                     </a>
-                    <p class="mb-4 text-white-50 pe-lg-5">Gestão da Qualidade Simples e Inteligente para cadeias de
-                        alimentos, bebidas e franquias que não podem errar.</p>
+                    <p class="mb-4 text-white-50 pe-lg-5">
+                        Gestão da Qualidade Simples e Inteligente para cadeias de alimentos, bebidas e franquias que não
+                        podem errar.
+                    </p>
                     <div class="d-flex gap-2">
-                        <a href="#" class="text-white-50 footer-link social-icon"><i class="fab fa-linkedin-in"></i></a>
-                        <a href="#" class="text-white-50 footer-link social-icon"><i class="fab fa-instagram"></i></a>
-                        <a href="#" class="text-white-50 footer-link social-icon"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#" class="text-white-50 footer-link social-icon" aria-label="LinkedIn"><i
+                                class="fab fa-linkedin-in"></i></a>
+                        <a href="#" class="text-white-50 footer-link social-icon" aria-label="Instagram"><i
+                                class="fab fa-instagram"></i></a>
+                        <a href="#" class="text-white-50 footer-link social-icon" aria-label="Facebook"><i
+                                class="fab fa-facebook-f"></i></a>
                     </div>
                 </div>
                 <div class="col-6 col-lg-2 offset-lg-1">
@@ -1051,12 +1758,15 @@
                 <div class="col-lg-3">
                     <h5 class="footer-title">Contato</h5>
                     <ul class="list-unstyled text-white-50">
-                        <li class="mb-3 d-flex align-items-center"><i class="fas fa-envelope me-3 text-accent"></i>
-                            contato@qualigestor.com.br</li>
-                        <li class="mb-3 d-flex align-items-center"><i class="fas fa-phone-alt me-3 text-accent"></i>
-                            (11) 99999-9999</li>
-                        <li class="d-flex align-items-start"><i class="fas fa-map-marker-alt me-3 text-accent mt-1"></i>
-                            São Paulo, Brasil</li>
+                        <li class="mb-3 d-flex align-items-center">
+                            <i class="fas fa-envelope me-3 text-accent"></i> contato@qualigestor.com.br
+                        </li>
+                        <li class="mb-3 d-flex align-items-center">
+                            <i class="fas fa-phone-alt me-3 text-accent"></i> (11) 99999-9999
+                        </li>
+                        <li class="d-flex align-items-start">
+                            <i class="fas fa-map-marker-alt me-3 text-accent mt-1"></i> Rio de Janeiro, Brasil
+                        </li>
                     </ul>
                 </div>
             </div>
@@ -1064,7 +1774,7 @@
                 style="border-color: rgba(255,255,255,0.1) !important;">
                 <div class="row align-items-center">
                     <div class="col-md-6 text-md-start mb-2 mb-md-0">
-                        &copy; 2024 QualiGestor. Todos os direitos reservados.
+                        &copy; 2025 QualiGestor. Todos os direitos reservados.
                     </div>
                     <div class="col-md-6 text-md-end">
                         <a href="#" class="text-white-50 text-decoration-none me-3 footer-link m-0">Termos de Uso</a>
@@ -1076,67 +1786,342 @@
         </div>
     </footer>
 
-    <div class="modal fade" id="loginModal" tabindex="-1" aria-hidden="true">
+    <!-- MODAL DE LOGIN MELHORADO -->
+    <div class="modal fade" id="loginModal" tabindex="-1" aria-labelledby="loginModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content shadow-lg bg-white p-4 px-sm-5 py-sm-5">
-                <div class="modal-header border-0 pb-0 mb-3">
-                    <div>
-                        <h4 class="modal-title fw-bold text-dark">Acessar o Sistema</h4>
-                        <p class="text-muted mb-0">Insira suas credenciais para continuar.</p>
-                    </div>
-                    <button type="button" class="btn-close mb-auto" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body pt-2">
-                    <form method="POST" action="{{ url_for('auth.login') }}">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="button" class="btn-close position-absolute"
+                    style="top: 1.5rem; right: 1.5rem; z-index: 10;" data-bs-dismiss="modal"
+                    aria-label="Fechar modal"></button>
 
-                        <div class="form-floating mb-3">
-                            <input type="email" class="form-control" id="emailInput" name="email"
-                                placeholder="nome@exemplo.com" required>
-                            <label for="emailInput"><i class="fas fa-envelope me-2 text-muted"></i>E-mail
-                                corporativo</label>
+                <div class="modal-body pt-2">
+                    <!-- Header -->
+                    <div class="login-header">
+                        <div class="login-logo">
+                            <i class="fas fa-shield-alt"></i>
                         </div>
-                        <div class="form-floating mb-4">
-                            <input type="password" class="form-control" id="passwordInput" name="senha"
-                                placeholder="Senha" required>
-                            <label for="passwordInput"><i class="fas fa-lock me-2 text-muted"></i>Senha</label>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center mb-4">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="rememberMe" name="remember">
-                                <label class="form-check-label small text-muted fw-medium"
-                                    for="rememberMe">Lembrar-me</label>
+                        <h4 class="login-title" id="loginModalLabel">Bem-vindo de volta!</h4>
+                        <p class="login-subtitle">Acesse sua conta para continuar gerenciando a qualidade.</p>
+                    </div>
+
+                    <!-- Form -->
+                    <form id="loginForm" method="POST" action="{{ url_for('auth.login') }}" novalidate>
+                        <!-- Email Field -->
+                        <div class="form-group-enhanced">
+                            <label for="emailInput" class="form-label">
+                                <i class="fas fa-envelope"></i>
+                                E-mail corporativo
+                            </label>
+                            <div class="input-wrapper">
+                                <input type="email" class="input-enhanced" id="emailInput" name="email"
+                                    placeholder="seu.email@empresa.com.br" autocomplete="email" required>
+                                <span class="input-icon" id="emailIcon">
+                                    <i class="fas fa-check-circle"></i>
+                                </span>
                             </div>
-                            <a href="#" class="text-decoration-none small fw-bold"
-                                style="color: var(--primary-color);">Esqueci a senha</a>
+                            <div class="error-message" id="emailError">
+                                <i class="fas fa-exclamation-circle"></i>
+                                <span>Digite um e-mail válido</span>
+                            </div>
                         </div>
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-glow btn-lg fs-6 py-3">ENTRAR NA PLATAFORMA</button>
+
+                        <!-- Password Field -->
+                        <div class="form-group-enhanced">
+                            <label for="passwordInput" class="form-label">
+                                <i class="fas fa-lock"></i>
+                                Senha
+                            </label>
+                            <div class="input-wrapper">
+                                <input type="password" class="input-enhanced" id="passwordInput" name="senha"
+                                    placeholder="Digite sua senha" autocomplete="current-password" required
+                                    minlength="6">
+                                <button type="button" class="password-toggle" id="togglePassword"
+                                    aria-label="Mostrar senha">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <div class="error-message" id="passwordError">
+                                <i class="fas fa-exclamation-circle"></i>
+                                <span>A senha deve ter no mínimo 6 caracteres</span>
+                            </div>
                         </div>
+
+                        <!-- Remember & Forgot -->
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <label class="checkbox-enhanced">
+                                <input type="checkbox" id="rememberMe" name="remember">
+                                <span class="checkbox-custom">
+                                    <i class="fas fa-check"></i>
+                                </span>
+                                <span class="checkbox-label">Lembrar-me</span>
+                            </label>
+                            <a href="#" class="forgot-link">Esqueci minha senha</a>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <button type="submit" class="btn-login" id="btnLogin">
+                            <span class="spinner"></span>
+                            <span class="btn-text">
+                                <i class="fas fa-sign-in-alt"></i>
+                                Entrar na Plataforma
+                            </span>
+                        </button>
                     </form>
-                </div>
-                <div class="modal-footer border-0 justify-content-center pt-4 mt-2 border-top">
-                    <p class="small text-muted mb-0">Ainda não é cliente? <a href="#cta-final"
-                            class="fw-bold text-primary text-decoration-none" data-bs-dismiss="modal">Solicite uma
-                            demonstração</a></p>
+
+                    <!-- Divider -->
+                    <div class="divider">
+                        <span>ou continue com</span>
+                    </div>
+
+                    <!-- Social Login -->
+                    <div class="social-login">
+                        <button type="button" class="btn-social google">
+                            <i class="fab fa-google"></i>
+                            <span>Google</span>
+                        </button>
+                        <button type="button" class="btn-social microsoft">
+                            <i class="fab fa-microsoft"></i>
+                            <span>Microsoft</span>
+                        </button>
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="modal-footer-custom">
+                        <p>
+                            Ainda não é cliente?
+                            <a href="#cta-final" data-bs-dismiss="modal">Solicite uma demonstração</a>
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Toast Notification -->
+    <div class="toast-notification" id="toastNotification">
+        <div class="toast-icon">
+            <i class="fas fa-check"></i>
+        </div>
+        <div class="toast-content">
+            <h4>Sucesso!</h4>
+            <p>Login realizado com sucesso.</p>
+        </div>
+    </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            // Navbar behavior
+            const navbar = document.querySelector('.custom-navbar');
             const navLinks = document.querySelectorAll('.navbar-nav .nav-link');
             const menuToggle = document.getElementById('menu');
             const bsCollapse = new bootstrap.Collapse(menuToggle, { toggle: false });
-            navLinks.forEach((l) => {
-                l.addEventListener('click', () => { if (menuToggle.classList.contains('show')) { bsCollapse.toggle(); } });
+
+            // ========== NAVBAR SCROLL ==========
+            window.addEventListener('scroll', () => {
+                if (window.scrollY > 50) {
+                    navbar.classList.add('scrolled');
+                } else {
+                    navbar.classList.remove('scrolled');
+                }
             });
 
-            // Script de auto-abertura removido conforme solicitado
+            // ========== MENU MOBILE ==========
+            navLinks.forEach((link) => {
+                link.addEventListener('click', () => {
+                    if (menuToggle.classList.contains('show')) {
+                        bsCollapse.toggle();
+                    }
+                });
+            });
+
+            // ========== SCROLL REVEAL ==========
+            const reveals = document.querySelectorAll('.reveal');
+            const revealObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('active');
+                    }
+                });
+            }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+
+            reveals.forEach(reveal => revealObserver.observe(reveal));
+
+            // ========== SMOOTH SCROLL ==========
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    const href = this.getAttribute('href');
+                    if (href !== '#' && href !== '#loginModal') {
+                        e.preventDefault();
+                        const target = document.querySelector(href);
+                        if (target) {
+                            const offsetTop = target.offsetTop - 80;
+                            window.scrollTo({
+                                top: offsetTop,
+                                behavior: 'smooth'
+                            });
+                        }
+                    }
+                });
+            });
+
+            // ========== LOGIN FORM UX ==========
+            const loginForm = document.getElementById('loginForm');
+            const emailInput = document.getElementById('emailInput');
+            const passwordInput = document.getElementById('passwordInput');
+            const togglePassword = document.getElementById('togglePassword');
+            const btnLogin = document.getElementById('btnLogin');
+            const emailIcon = document.getElementById('emailIcon');
+            const emailError = document.getElementById('emailError');
+            const passwordError = document.getElementById('passwordError');
+
+            // Email Validation Pattern
+            const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+            // Toggle Password Visibility
+            togglePassword.addEventListener('click', function () {
+                const type = passwordInput.type === 'password' ? 'text' : 'password';
+                passwordInput.type = type;
+                this.querySelector('i').classList.toggle('fa-eye');
+                this.querySelector('i').classList.toggle('fa-eye-slash');
+            });
+
+            // Real-time Email Validation
+            emailInput.addEventListener('input', function () {
+                const value = this.value.trim();
+                if (value === '') {
+                    this.classList.remove('is-valid', 'is-invalid');
+                    emailIcon.classList.remove('valid', 'invalid');
+                    emailError.classList.remove('show');
+                } else if (emailPattern.test(value)) {
+                    this.classList.remove('is-invalid');
+                    this.classList.add('is-valid');
+                    emailIcon.innerHTML = '<i class="fas fa-check-circle"></i>';
+                    emailIcon.classList.remove('invalid');
+                    emailIcon.classList.add('valid');
+                    emailError.classList.remove('show');
+                } else {
+                    this.classList.remove('is-valid');
+                    this.classList.add('is-invalid');
+                    emailIcon.innerHTML = '<i class="fas fa-times-circle"></i>';
+                    emailIcon.classList.remove('valid');
+                    emailIcon.classList.add('invalid');
+                }
+            });
+
+            emailInput.addEventListener('blur', function () {
+                const value = this.value.trim();
+                if (value !== '' && !emailPattern.test(value)) {
+                    emailError.classList.add('show');
+                }
+            });
+
+            // Real-time Password Validation
+            passwordInput.addEventListener('input', function () {
+                const value = this.value;
+                if (value === '') {
+                    this.classList.remove('is-valid', 'is-invalid');
+                    passwordError.classList.remove('show');
+                } else if (value.length >= 6) {
+                    this.classList.remove('is-invalid');
+                    this.classList.add('is-valid');
+                    passwordError.classList.remove('show');
+                } else {
+                    this.classList.remove('is-valid');
+                    this.classList.add('is-invalid');
+                }
+            });
+
+            passwordInput.addEventListener('blur', function () {
+                const value = this.value;
+                if (value !== '' && value.length < 6) {
+                    passwordError.classList.add('show');
+                }
+            });
+
+            // Form Submit with Loading State
+            loginForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+
+                const email = emailInput.value.trim();
+                const password = passwordInput.value;
+                let isValid = true;
+
+                // Validate Email
+                if (!emailPattern.test(email)) {
+                    emailInput.classList.add('is-invalid');
+                    emailError.classList.add('show');
+                    isValid = false;
+                }
+
+                // Validate Password
+                if (password.length < 6) {
+                    passwordInput.classList.add('is-invalid');
+                    passwordError.classList.add('show');
+                    isValid = false;
+                }
+
+                if (isValid) {
+                    // Add loading state
+                    btnLogin.classList.add('loading');
+                    btnLogin.disabled = true;
+
+                    // Simulate API call (replace with actual form submission)
+                    setTimeout(() => {
+                        btnLogin.classList.remove('loading');
+                        btnLogin.disabled = false;
+
+                        // Show success toast
+                        showToast('success', 'Login realizado!', 'Redirecionando para o painel...');
+
+                        // Submit form after delay
+                        this.submit(); // Removemos o comentário "//"
+
+                        // Close modal after success
+                        setTimeout(() => {
+                            const modal = bootstrap.Modal.getInstance(document.getElementById('loginModal'));
+                            if (modal) modal.hide();
+                        }, 1500);
+                    }, 2000);
+                }
+            });
+
+            // Toast Notification Function
+            function showToast(type, title, message) {
+                const toast = document.getElementById('toastNotification');
+                const icon = toast.querySelector('.toast-icon i');
+                const toastTitle = toast.querySelector('.toast-content h4');
+                const toastMessage = toast.querySelector('.toast-content p');
+
+                toast.className = 'toast-notification ' + type;
+                icon.className = type === 'success' ? 'fas fa-check' : 'fas fa-times';
+                toastTitle.textContent = title;
+                toastMessage.textContent = message;
+
+                toast.classList.add('show');
+
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                }, 4000);
+            }
+
+            // Reset form state when modal opens
+            document.getElementById('loginModal').addEventListener('show.bs.modal', function () {
+                emailInput.value = '';
+                passwordInput.value = '';
+                emailInput.classList.remove('is-valid', 'is-invalid');
+                passwordInput.classList.remove('is-valid', 'is-invalid');
+                emailIcon.classList.remove('valid', 'invalid');
+                emailError.classList.remove('show');
+                passwordError.classList.remove('show');
+                passwordInput.type = 'password';
+                togglePassword.querySelector('i').classList.remove('fa-eye-slash');
+                togglePassword.querySelector('i').classList.add('fa-eye');
+            });
+
+            // Focus first input when modal opens
+            document.getElementById('loginModal').addEventListener('shown.bs.modal', function () {
+                emailInput.focus();
+            });
         });
     </script>
 </body>
