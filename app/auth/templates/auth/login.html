@@ -1,14 +1,16 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="QualiGestor - Centralize seu Controle de Qualidade. Auditorias digitais, checklists inteligentes e gestão de RNC para a cadeia de alimentos e bebidas.">
+    <meta name="description"
+        content="QualiGestor - Centralize seu Controle de Qualidade. Auditorias digitais, checklists inteligentes e gestão de RNC para a cadeia de alimentos e bebidas.">
     <title>QualiGestor | Excelência em Controle de Qualidade</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    
+
     <style>
         /* =========================================
            VARIÁVEIS E RESETS
@@ -28,15 +30,20 @@
             --card-shadow-hover: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-        body, html {
+        body,
+        html {
             font-family: 'Inter', sans-serif;
             overflow-x: hidden;
             scroll-behavior: smooth;
             color: var(--text-dark);
         }
-        
+
         /* Utilitário para textos com gradiente */
         .text-gradient {
             background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
@@ -50,52 +57,73 @@
            NAVBAR REFINADA
         ========================================= */
         .custom-navbar {
-            background-color: rgba(0, 13, 22, 0.85); /* Um pouco mais transparente */
-            supports (backdrop-filter: blur(25px)) {
-                background-color: rgba(0, 13, 22, 0.7);
-                backdrop-filter: blur(25px) saturate(180%); /* Blur mais intenso e moderno */
-            }
+            background-color: rgba(0, 13, 22, 0.85);
             padding: 0.8rem 0;
             border-bottom: 1px solid rgba(255, 255, 255, 0.08);
             transition: all 0.4s ease;
+        }
+
+        @supports (backdrop-filter: blur(25px)) {
+            .custom-navbar {
+                background-color: rgba(0, 13, 22, 0.7);
+                backdrop-filter: blur(25px) saturate(180%);
+            }
         }
 
         /* Estado ativo do menu (Scrollspy) */
         .navbar-nav .nav-link.active {
             color: #fff !important;
         }
+
         .navbar-nav .nav-link.active::after {
             width: 80%;
         }
 
         .navbar-brand-icon {
-            width: 40px; height: 40px; 
-            background: linear-gradient(135deg, var(--primary-color), var(--accent-color)); 
-            border-radius: 10px; 
-            display: flex; align-items: center; justify-content: center; 
-            box-shadow: 0 4px 15px rgba(0, 102, 161, 0.4);
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(0, 60, 161, 0.4);
             transition: transform 0.3s ease;
         }
-        .navbar-brand:hover .navbar-brand-icon { transform: rotate(15deg); }
+
+        .navbar-brand:hover .navbar-brand-icon {
+            transform: rotate(15deg);
+        }
 
         .nav-link {
             color: rgba(255, 255, 255, 0.7) !important;
-            font-weight: 500; font-size: 0.95rem;
-            margin: 0 0.5rem; position: relative;
+            font-weight: 500;
+            font-size: 0.95rem;
+            margin: 0 0.5rem;
+            position: relative;
             transition: color 0.3s;
         }
 
         .nav-link::after {
-            content: ''; position: absolute; width: 0; height: 2px;
-            bottom: -5px; left: 50%;
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 2px;
+            bottom: -5px;
+            left: 50%;
             background: var(--accent-color);
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             transform: translateX(-50%);
             box-shadow: 0 2px 8px rgba(0, 210, 255, 0.5);
         }
 
-        .nav-link:hover { color: #fff !important; }
-        .nav-link:hover::after { width: 80%; }
+        .nav-link:hover {
+            color: #fff !important;
+        }
+
+        .nav-link:hover::after {
+            width: 80%;
+        }
 
         /* =========================================
            HERO SECTION (Topo)
@@ -103,47 +131,79 @@
         .hero-top-blue {
             background: radial-gradient(ellipse at top center, #003d5c 0%, #000d16 60%, #000911 100%);
             padding: 180px 0 120px;
-            position: relative; overflow: hidden;
+            position: relative;
+            overflow: hidden;
         }
 
-        /* Efeito de grade animada mais sutil */
         .hero-top-blue::before {
-            content: ""; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+            content: "";
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
             background-image:
                 linear-gradient(rgba(0, 210, 255, 0.03) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(0, 210, 255, 0.03) 1px, transparent 1px);
             background-size: 50px 50px;
-            animation: gridMove 60s linear infinite; /* Mais lento */
+            animation: gridMove 60s linear infinite;
             pointer-events: none;
-            transform: rotate(-15deg); /* Inclinado para mais dinamismo */
+            transform: rotate(-15deg);
         }
-        @keyframes gridMove { 0% { background-position: 0 0; } 100% { background-position: 1000px 1000px; } }
 
-        .hero-content-text { position: relative; z-index: 10; }
+        @keyframes gridMove {
+            0% {
+                background-position: 0 0;
+            }
+
+            100% {
+                background-position: 1000px 1000px;
+            }
+        }
+
+        .hero-content-text {
+            position: relative;
+            z-index: 10;
+        }
 
         /* =========================================
            HERO BOTTOM (Imagem e Onda)
         ========================================= */
         .hero-bottom-image {
-            position: relative; height: 750px; /* Um pouco mais alto */
-            display: flex; align-items: center; justify-content: center;
+            position: relative;
+            height: 750px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             background: linear-gradient(135deg, rgba(0, 30, 50, 0.92) 0%, rgba(0, 8, 15, 0.85) 100%),
-                        url('https://placehold.co/1920x1080/002f4f/ffffff?text=Imagem+de+Fundo+Lab/Operação');
-            background-size: cover; background-position: center;
-            background-attachment: fixed; /* Efeito Parallax simples no desktop */
+                url('https://placehold.co/1920x1080/002f4f/ffffff?text=Imagem+de+Fundo+Lab/Operação');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
         }
 
         .hero-buttons-container {
-            position: relative; z-index: 5;
-            margin-top: -280px; /* Ajustado */
+            position: relative;
+            z-index: 5;
+            margin-top: -280px;
         }
 
-        /* Onda com camada dupla para suavizar a transição */
         .hero-wave {
-            position: absolute; bottom: -1px; left: 0; width: 100%; z-index: 4; line-height: 0;
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            width: 100%;
+            z-index: 4;
+            line-height: 0;
         }
+
         .hero-wave::before {
-            content: ''; position: absolute; bottom: 5px; left: 0; width: 100%; height: 100%;
+            content: '';
+            position: absolute;
+            bottom: 5px;
+            left: 0;
+            width: 100%;
+            height: 100%;
             background: url('data:image/svg+xml,<svg viewBox="0 0 1440 320" xmlns="http://www.w3.org/2000/svg"><path fill="%23ffffff" fill-opacity="0.3" d="M0,224L48,213.3C96,203,192,181,288,181.3C384,181,480,203,576,224C672,245,768,267,864,261.3C960,256,1056,224,1152,208C1248,192,1344,192,1392,192L1440,192L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path></svg>') no-repeat bottom;
             background-size: cover;
             z-index: -1;
@@ -156,159 +216,459 @@
             background: rgba(0, 210, 255, 0.1);
             color: #6ecfff;
             border: 1px solid rgba(0, 210, 255, 0.25);
-            padding: 10px 24px; border-radius: 50px;
-            font-weight: 600; font-size: 0.9rem;
-            display: inline-flex; align-items: center; gap: 10px;
+            padding: 10px 24px;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
             box-shadow: 0 4px 20px rgba(0, 210, 255, 0.1);
         }
 
         .display-3 {
             font-size: clamp(2.5rem, 6vw, 4rem);
-            font-weight: 800; line-height: 1.1; letter-spacing: -0.03em;
+            font-weight: 800;
+            line-height: 1.1;
+            letter-spacing: -0.03em;
         }
 
         .btn-glow {
-            position: relative; overflow: hidden;
+            position: relative;
+            overflow: hidden;
             box-shadow: 0 4px 25px rgba(0, 102, 161, 0.5);
             transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
             border: none;
             background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-            color: white; font-weight: 700; padding: 16px 38px; border-radius: 50px;
+            color: white;
+            font-weight: 700;
+            padding: 16px 38px;
+            border-radius: 50px;
             font-size: 1.05rem;
         }
+
         .btn-glow:hover {
             box-shadow: 0 8px 40px rgba(0, 102, 161, 0.7), 0 0 20px rgba(0, 210, 255, 0.4) inset;
-            transform: translateY(-3px) scale(1.02); color: white;
+            transform: translateY(-3px) scale(1.02);
+            color: white;
         }
 
         .btn-outline-light {
             border: 2px solid rgba(255, 255, 255, 0.4);
             backdrop-filter: blur(10px);
             transition: all 0.3s ease;
-            font-weight: 600; padding: 14px 34px; border-radius: 50px;
+            font-weight: 600;
+            padding: 14px 34px;
+            border-radius: 50px;
             font-size: 1.05rem;
         }
+
         .btn-outline-light:hover {
             background: rgba(255, 255, 255, 0.15);
-            border-color: #fff; transform: translateY(-2px);
+            border-color: #fff;
+            transform: translateY(-2px);
         }
 
         /* =========================================
            SEÇÕES REFINADAS
         ========================================= */
-        .section-padding { padding: 120px 0; }
-        .section-title { font-weight: 800; color: var(--text-dark); margin-bottom: 1.5rem; font-size: clamp(2rem, 5vw, 2.8rem); letter-spacing: -0.02em; }
-        .section-subtitle { font-size: clamp(1.1rem, 2vw, 1.3rem); color: var(--text-muted); line-height: 1.6; }
+        .section-padding {
+            padding: 120px 0;
+        }
 
-        /* Trust Section Dinâmica (Marquee Infinite Scroll) */
-        .trust-section { background: white; padding: 4rem 0; border-bottom: 1px solid #f0f0f0; overflow: hidden; }
-        .marquee-wrapper { display: flex; width: 100%; overflow: hidden; mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent); }
-        .marquee-content { display: flex; gap: 4rem; animation: scroll 30s linear infinite; flex-shrink: 0; }
-        .logo-item { color: #cbd5e1; transition: all 0.3s ease; cursor: pointer; display: flex; align-items: center; font-weight: 600; font-size: 1.2rem; }
-        .logo-item i { font-size: 2.5rem; margin-right: 10px; }
-        .logo-item:hover { color: var(--primary-color); transform: scale(1.05); }
-        @keyframes scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
+        .section-title {
+            font-weight: 800;
+            color: var(--text-dark);
+            margin-bottom: 1.5rem;
+            font-size: clamp(2rem, 5vw, 2.8rem);
+            letter-spacing: -0.02em;
+        }
 
-        /* Cards com Efeito 3D Suave */
+        .section-subtitle {
+            font-size: clamp(1.1rem, 2vw, 1.3rem);
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        /* Trust Section */
+        /* CSS ATUALIZADO PARA O LOOP INFINITO */
+        .trust-section {
+            background: white;
+            padding: 4rem 0;
+            border-bottom: 1px solid #f0f0f0;
+            overflow: hidden;
+        }
+
+        .marquee-wrapper {
+            display: flex;
+            width: 100%;
+            overflow: hidden;
+            /* Gradiente nas pontas para suavizar a entrada/saída */
+            mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+            -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+        }
+
+        .marquee-content {
+            display: flex;
+            gap: 4rem;
+            /* Espaço entre os itens */
+            width: max-content;
+            /* IMPORTANTE: Garante que a largura se adapte aos itens */
+            animation: scroll 40s linear infinite;
+            /* Tempo ajustado para suavidade */
+            flex-shrink: 0;
+        }
+
+        /* Pausa a animação quando passa o mouse por cima (Opcional, mas recomendado) */
+        .marquee-content:hover {
+            animation-play-state: paused;
+        }
+
+        .logo-item {
+            color: #cbd5e1;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            font-weight: 600;
+            font-size: 1.2rem;
+            white-space: nowrap;
+            /* Garante que o texto do item não quebre linha */
+        }
+
+        .logo-item i {
+            font-size: 2.5rem;
+            margin-right: 10px;
+        }
+
+        .logo-item:hover {
+            color: var(--primary-color);
+            transform: scale(1.05);
+        }
+
+        /* A MÁGICA DO LOOP INFINITO */
+        @keyframes scroll {
+            0% {
+                transform: translateX(0);
+            }
+
+            /* Move apenas 50% (o tamanho de um grupo inteiro). 
+       Como o Grupo 2 é igual ao Grupo 1, o salto de volta para 0% é invisível. */
+            100% {
+                transform: translateX(-50%);
+            }
+        }
+
+        /* Cards */
         .problem-card {
-            padding: 3.5rem 2.5rem; border-radius: 24px;
+            padding: 3.5rem 2.5rem;
+            border-radius: 24px;
             background: linear-gradient(to bottom right, #ffffff, #f8fafc);
-            border: 1px solid rgba(0, 0, 0, 0.04); height: 100%;
+            border: 1px solid rgba(0, 0, 0, 0.04);
+            height: 100%;
             transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
-            position: relative; overflow: hidden;
+            position: relative;
+            overflow: hidden;
             box-shadow: var(--card-shadow);
         }
+
         .problem-card::before {
-            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 5px;
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
             background: linear-gradient(90deg, var(--danger-color), #ff9a44);
-            transform: scaleX(0); transform-origin: left; transition: transform 0.5s ease;
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.5s ease;
         }
-        .problem-card:hover { transform: translateY(-10px); box-shadow: var(--card-shadow-hover); border-color: transparent; }
-        .problem-card:hover::before { transform: scaleX(1); }
-        .icon-box-lg { font-size: 4.5rem; margin-bottom: 2rem; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); display: inline-block; }
-        .problem-card:hover .icon-box-lg { transform: scale(1.15) rotate(8deg); filter: drop-shadow(0 10px 15px rgba(220, 53, 69, 0.3)); }
+
+        .problem-card:hover {
+            transform: translateY(-10px);
+            box-shadow: var(--card-shadow-hover);
+            border-color: transparent;
+        }
+
+        .problem-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .icon-box-lg {
+            font-size: 4.5rem;
+            margin-bottom: 2rem;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: inline-block;
+        }
+
+        .problem-card:hover .icon-box-lg {
+            transform: scale(1.15) rotate(8deg);
+            filter: drop-shadow(0 10px 15px rgba(220, 53, 69, 0.3));
+        }
 
         /* Listas e Screenshots */
-        .solution-list li { margin-bottom: 1.8rem; font-size: 1.15rem; color: var(--text-muted); transition: all 0.3s ease; display: flex; align-items: flex-start; }
-        .solution-list li i { flex-shrink: 0; margin-top: 5px; font-size: 1.4rem; }
-        .solution-list li:hover { transform: translateX(10px); color: var(--text-dark); }
-        
+        .solution-list li {
+            margin-bottom: 1.8rem;
+            font-size: 1.15rem;
+            color: var(--text-muted);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .solution-list li i {
+            flex-shrink: 0;
+            margin-top: 5px;
+            font-size: 1.4rem;
+        }
+
+        .solution-list li:hover {
+            transform: translateX(10px);
+            color: var(--text-dark);
+        }
+
         .system-screenshot {
             border-radius: 24px;
             box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.2);
             border: 4px solid rgba(255, 255, 255, 0.8);
             transition: all 0.5s cubic-bezier(0.165, 0.84, 0.44, 1);
         }
-        .system-screenshot:hover { transform: scale(1.03) perspective(1000px) rotateY(-2deg); box-shadow: 0 40px 80px -20px rgba(0, 0, 0, 0.25); }
 
-        /* Steps com Conectores e Pulso */
-        .steps-container { position: relative; z-index: 1; }
+        .system-screenshot:hover {
+            transform: scale(1.03) perspective(1000px) rotateY(-2deg);
+            box-shadow: 0 40px 80px -20px rgba(0, 0, 0, 0.25);
+        }
+
+        /* Steps */
+        .steps-container {
+            position: relative;
+            z-index: 1;
+        }
+
         @media (min-width: 992px) {
-            .steps-container::before { /* Linha conectora no desktop */
-                content: ''; position: absolute; top: 40px; left: 15%; width: 70%; height: 2px;
+            .steps-container::before {
+                content: '';
+                position: absolute;
+                top: 40px;
+                left: 15%;
+                width: 70%;
+                height: 2px;
                 background: repeating-linear-gradient(to right, var(--accent-color) 0, var(--accent-color) 10px, transparent 10px, transparent 20px);
-                z-index: -1; opacity: 0.5;
+                z-index: -1;
+                opacity: 0.5;
             }
         }
+
         .step-circle {
-            width: 80px; height: 80px;
+            width: 80px;
+            height: 80px;
             background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
-            color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            font-size: 2rem; font-weight: 800; margin: 0 auto 2rem;
-            box-shadow: 0 10px 30px rgba(0, 102, 161, 0.4); transition: all 0.4s ease;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            font-weight: 800;
+            margin: 0 auto 2rem;
+            box-shadow: 0 10px 30px rgba(0, 102, 161, 0.4);
+            transition: all 0.4s ease;
             position: relative;
         }
-        /* Efeito de pulso atrás do número */
-        .step-circle::after {
-            content: ''; position: absolute; width: 100%; height: 100%; border-radius: 50%;
-            border: 2px solid var(--accent-color); animation: pulse-border 2s infinite; opacity: 0;
-        }
-        @keyframes pulse-border { 0% { transform: scale(1); opacity: 0.8; } 100% { transform: scale(1.6); opacity: 0; } }
-        .step-circle:hover { transform: scale(1.1); }
 
-        /* CTA Final com Partículas */
-        #cta-final { position: relative; overflow: hidden; }
+        .step-circle::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 2px solid var(--accent-color);
+            animation: pulse-border 2s infinite;
+            opacity: 0;
+        }
+
+        @keyframes pulse-border {
+            0% {
+                transform: scale(1);
+                opacity: 0.8;
+            }
+
+            100% {
+                transform: scale(1.6);
+                opacity: 0;
+            }
+        }
+
+        .step-circle:hover {
+            transform: scale(1.1);
+        }
+
+        /* CTA Final */
+        #cta-final {
+            position: relative;
+            overflow: hidden;
+        }
+
         .floating-shape {
-            position: absolute; opacity: 0.1; pointer-events: none;
+            position: absolute;
+            opacity: 0.1;
+            pointer-events: none;
             animation: floating 20s infinite linear;
         }
-        .shape-1 { top: 10%; left: 10%; width: 80px; height: 80px; background: var(--accent-color); border-radius: 50%; animation-duration: 25s; }
-        .shape-2 { bottom: 20%; right: 15%; width: 120px; height: 120px; background: var(--primary-color); transform: rotate(45deg); animation-duration: 30s; animation-direction: reverse; }
-        @keyframes floating { 0% { transform: translate(0, 0) rotate(0deg); } 50% { transform: translate(20px, 40px) rotate(180deg); } 100% { transform: translate(0, 0) rotate(360deg); } }
 
-        /* =========================================
-           FOOTER
-        ========================================= */
+        .shape-1 {
+            top: 10%;
+            left: 10%;
+            width: 80px;
+            height: 80px;
+            background: var(--accent-color);
+            border-radius: 50%;
+            animation-duration: 25s;
+        }
+
+        .shape-2 {
+            bottom: 20%;
+            right: 15%;
+            width: 120px;
+            height: 120px;
+            background: var(--primary-color);
+            transform: rotate(45deg);
+            animation-duration: 30s;
+            animation-direction: reverse;
+        }
+
+        @keyframes floating {
+            0% {
+                transform: translate(0, 0) rotate(0deg);
+            }
+
+            50% {
+                transform: translate(20px, 40px) rotate(180deg);
+            }
+
+            100% {
+                transform: translate(0, 0) rotate(360deg);
+            }
+        }
+
+        /* Footer */
         .custom-footer {
             background: linear-gradient(135deg, #0a0e14 0%, #001f33 100%);
-            color: rgba(255, 255, 255, 0.7); padding-top: 6rem;
+            color: rgba(255, 255, 255, 0.7);
+            padding-top: 6rem;
         }
-        .footer-title { color: white; font-weight: 700; margin-bottom: 1.8rem; font-size: 1.1rem; letter-spacing: 0.5px; }
-        .footer-link { color: rgba(255, 255, 255, 0.6); text-decoration: none; transition: all 0.3s; display: inline-block; margin-bottom: 0.8rem; font-size: 0.95rem; }
-        .footer-link:hover { color: var(--accent-color); transform: translateX(5px); }
-        .social-icon { width: 45px; height: 45px; display: inline-flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.05); border-radius: 50%; transition: all 0.3s ease; }
-        .social-icon:hover { background: var(--accent-color); color: var(--bg-darker) !important; transform: translateY(-3px); }
 
-        /* =========================================
-           MODAL & RESPONSIVIDADE
-        ========================================= */
-        .modal-content { border-radius: 24px; border: none; }
-        .form-floating > .form-control { border-radius: 12px; border: 2px solid #e9ecef; background-color: #f8fafc; }
-        .form-floating > .form-control:focus { border-color: var(--primary-color); box-shadow: 0 0 0 4px rgba(0, 102, 161, 0.1); background-color: #fff; }
+        .footer-title {
+            color: white;
+            font-weight: 700;
+            margin-bottom: 1.8rem;
+            font-size: 1.1rem;
+            letter-spacing: 0.5px;
+        }
+
+        .footer-link {
+            color: rgba(255, 255, 255, 0.6);
+            text-decoration: none;
+            transition: all 0.3s;
+            display: inline-block;
+            margin-bottom: 0.8rem;
+            font-size: 0.95rem;
+        }
+
+        .footer-link:hover {
+            color: var(--accent-color);
+            transform: translateX(5px);
+        }
+
+        .social-icon {
+            width: 45px;
+            height: 45px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+
+        .social-icon:hover {
+            background: var(--accent-color);
+            color: var(--bg-darker) !important;
+            transform: translateY(-3px);
+        }
+
+        /* Modal & Responsividade */
+        .modal-content {
+            border-radius: 24px;
+            border: none;
+        }
+
+        .form-floating>.form-control {
+            border-radius: 12px;
+            border: 2px solid #e9ecef;
+            background-color: #f8fafc;
+        }
+
+        .form-floating>.form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 4px rgba(0, 102, 161, 0.1);
+            background-color: #fff;
+        }
 
         @media (max-width: 991px) {
-            .hero-top-blue { padding: 140px 0 80px; }
-            .hero-bottom-image { height: 550px; background-attachment: scroll; }
-            .hero-buttons-container { margin-top: -200px; padding: 0 20px; }
-            .section-padding { padding: 80px 0; }
-            .flex-row-reverse { flex-direction: row !important; }
-            .order-lg-1 { order: 1; } .order-lg-2 { order: 2; }
-            .step-circle::after { display: none; } /* Remove pulso no mobile para performance */
+            .hero-top-blue {
+                padding: 140px 0 80px;
+            }
+
+            .hero-bottom-image {
+                height: 550px;
+                background-attachment: scroll;
+            }
+
+            .hero-buttons-container {
+                margin-top: -200px;
+                padding: 0 20px;
+            }
+
+            .section-padding {
+                padding: 80px 0;
+            }
+
+            .flex-row-reverse {
+                flex-direction: row !important;
+            }
+
+            .order-lg-1 {
+                order: 1;
+            }
+
+            .order-lg-2 {
+                order: 2;
+            }
+
+            .step-circle::after {
+                display: none;
+            }
         }
     </style>
 </head>
+
 <body data-bs-spy="scroll" data-bs-target="#main-nav" data-bs-offset="100">
-    
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="container position-fixed top-0 start-50 translate-middle-x mt-4" style="z-index: 2000;">
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show shadow-lg" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
     <header class="navbar navbar-expand-lg navbar-dark fixed-top custom-navbar" id="main-nav">
         <div class="container">
             <a class="navbar-brand d-flex align-items-center gap-3" href="#">
@@ -320,7 +680,8 @@
             <button class="navbar-toggler border-0 p-2" type="button" data-bs-toggle="collapse" data-bs-target="#menu">
                 <span class="navbar-toggler-icon"></span>
             </button>
-            <nav id="menu" class="collapse navbar-collapse bg-dark-mobile p-4 p-lg-0 rounded-4 mt-3 mt-lg-0 shadow-lg" style="background: rgba(0,13,22,0.95);">
+            <nav id="menu" class="collapse navbar-collapse bg-dark-mobile p-4 p-lg-0 rounded-4 mt-3 mt-lg-0 shadow-lg"
+                style="background: rgba(0,13,22,0.95);">
                 <ul class="navbar-nav mx-auto">
                     <li class="nav-item"><a class="nav-link" href="#problema">O Desafio</a></li>
                     <li class="nav-item"><a class="nav-link" href="#solucao">Solução</a></li>
@@ -328,7 +689,8 @@
                     <li class="nav-item"><a class="nav-link" href="#recursos">Recursos</a></li>
                 </ul>
                 <div class="d-flex gap-3 justify-content-center mt-4 mt-lg-0 flex-column flex-lg-row">
-                    <button class="btn btn-outline-light btn-sm px-4 fw-semibold" data-bs-toggle="modal" data-bs-target="#loginModal">Entrar</button>
+                    <button class="btn btn-outline-light btn-sm px-4 fw-semibold" data-bs-toggle="modal"
+                        data-bs-target="#loginModal">Entrar</button>
                     <a href="#cta-final" class="btn btn-glow btn-sm px-4 text-decoration-none fw-bold">Demonstração</a>
                 </div>
             </nav>
@@ -366,14 +728,17 @@
         </div>
         <div class="hero-wave">
             <svg viewBox="0 0 1440 320" xmlns="http://www.w3.org/2000/svg">
-                <path fill="#ffffff" fill-opacity="1" d="M0,224L48,213.3C96,203,192,181,288,181.3C384,181,480,203,576,224C672,245,768,267,864,261.3C960,256,1056,224,1152,208C1248,192,1344,192,1392,192L1440,192L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
+                <path fill="#ffffff" fill-opacity="1"
+                    d="M0,224L48,213.3C96,203,192,181,288,181.3C384,181,480,203,576,224C672,245,768,267,864,261.3C960,256,1056,224,1152,208C1248,192,1344,192,1392,192L1440,192L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z">
+                </path>
             </svg>
         </div>
     </div>
 
     <section class="trust-section">
         <div class="container text-center mb-4">
-            <p class="text-muted small text-uppercase fw-bold" style="letter-spacing: 2px;">A escolha de equipes que buscam a excelência operacional</p>
+            <p class="text-muted small text-uppercase fw-bold" style="letter-spacing: 2px;">A escolha de equipes que
+                buscam a excelência operacional</p>
         </div>
         <div class="marquee-wrapper">
             <div class="marquee-content">
@@ -383,10 +748,13 @@
                 <div class="logo-item"><i class="fas fa-truck-loading"></i> Logística</div>
                 <div class="logo-item"><i class="fas fa-hospital"></i> Saúde</div>
                 <div class="logo-item"><i class="fas fa-hotel"></i> Hotelaria</div>
+
                 <div class="logo-item"><i class="fas fa-industry"></i> Indústrias</div>
                 <div class="logo-item"><i class="fas fa-store"></i> Varejo & Redes</div>
                 <div class="logo-item"><i class="fas fa-utensils"></i> Food Service</div>
                 <div class="logo-item"><i class="fas fa-truck-loading"></i> Logística</div>
+                <div class="logo-item"><i class="fas fa-hospital"></i> Saúde</div>
+                <div class="logo-item"><i class="fas fa-hotel"></i> Hotelaria</div>
             </div>
         </div>
     </section>
@@ -396,28 +764,33 @@
             <div class="text-center mb-5">
                 <span class="text-primary fw-bold text-uppercase small mb-2 d-block animate-up">O Cenário Atual</span>
                 <h2 class="section-title animate-up delay-1">O custo invisível da gestão tradicional</h2>
-                <p class="section-subtitle lead mx-auto animate-up delay-2" style="max-width: 800px;">Sua operação cresceu, mas seus processos de controle de qualidade continuam baseados em ferramentas do passado?</p>
+                <p class="section-subtitle lead mx-auto animate-up delay-2" style="max-width: 800px;">Sua operação
+                    cresceu, mas seus processos de controle de qualidade continuam baseados em ferramentas do passado?
+                </p>
             </div>
             <div class="row g-4 d-flex align-items-stretch mt-4">
                 <div class="col-md-4 animate-up delay-1">
                     <div class="problem-card text-center">
                         <i class="fas fa-file-excel icon-box-lg" style="color: var(--danger-color);"></i>
                         <h4 class="fw-bold mb-3 fs-4">Caos do papel e planilhas</h4>
-                        <p class="text-muted">Checklists que se perdem, dados descentralizados e horas gastas consolidando informações que já nascem desatualizadas.</p>
+                        <p class="text-muted">Checklists que se perdem, dados descentralizados e horas gastas
+                            consolidando informações que já nascem desatualizadas.</p>
                     </div>
                 </div>
                 <div class="col-md-4 animate-up delay-2">
                     <div class="problem-card text-center">
                         <i class="fas fa-random icon-box-lg" style="color: var(--danger-color);"></i>
                         <h4 class="fw-bold mb-3 fs-4">Falta de padrão na rede</h4>
-                        <p class="text-muted">Cada unidade opera de uma forma. Sem uma régua única, a qualidade do produto ou serviço varia, prejudicando a marca.</p>
+                        <p class="text-muted">Cada unidade opera de uma forma. Sem uma régua única, a qualidade do
+                            produto ou serviço varia, prejudicando a marca.</p>
                     </div>
                 </div>
                 <div class="col-md-4 animate-up delay-3">
                     <div class="problem-card text-center">
                         <i class="fas fa-eye-slash icon-box-lg" style="color: var(--danger-color);"></i>
                         <h4 class="fw-bold mb-3 fs-4">Dados que morrem na gaveta</h4>
-                        <p class="text-muted">Você coleta informação, mas ela não vira estratégia de melhoria. O retrabalho nas não conformidades é constante.</p>
+                        <p class="text-muted">Você coleta informação, mas ela não vira estratégia de melhoria. O
+                            retrabalho nas não conformidades é constante.</p>
                     </div>
                 </div>
             </div>
@@ -430,28 +803,34 @@
                 <div class="col-lg-6 pe-lg-5 order-2 order-lg-1">
                     <span class="text-primary fw-bold text-uppercase small mb-2 d-block">A Resolução</span>
                     <h2 class="section-title mb-4">QualiGestor: Centralize. Padronize. Evolua.</h2>
-                    <p class="lead text-muted mb-5">A plataforma all-in-one que tira sua gestão da qualidade do operacional e a leva para o estratégico, garantindo conformidade em toda a cadeia.</p>
+                    <p class="lead text-muted mb-5">A plataforma all-in-one que tira sua gestão da qualidade do
+                        operacional e a leva para o estratégico, garantindo conformidade em toda a cadeia.</p>
                     <ul class="list-unstyled solution-list">
                         <li class="d-flex align-items-start">
                             <i class="fas fa-check-circle mt-1 me-3 text-gradient"></i>
-                            <div><strong>Auditorias Digitais Ágeis:</strong> Elimine o papel. Aplique checklists pelo celular ou tablet, 100% offline.</div>
+                            <div><strong>Auditorias Digitais Ágeis:</strong> Elimine o papel. Aplique checklists pelo
+                                celular ou tablet, 100% offline.</div>
                         </li>
                         <li class="d-flex align-items-start">
                             <i class="fas fa-check-circle mt-1 me-3 text-gradient"></i>
-                            <div><strong>Checklists Inteligentes:</strong> Pontuação automática, regras condicionais e coleta de fotos obrigatórias.</div>
+                            <div><strong>Checklists Inteligentes:</strong> Pontuação automática, regras condicionais e
+                                coleta de fotos obrigatórias.</div>
                         </li>
                         <li class="d-flex align-items-start">
                             <i class="fas fa-check-circle mt-1 me-3 text-gradient"></i>
-                            <div><strong>Gestão Ativa de RNC:</strong> Abra planos de ação automaticamente e acompanhe o fluxo até a resolução.</div>
+                            <div><strong>Gestão Ativa de RNC:</strong> Abra planos de ação automaticamente e acompanhe o
+                                fluxo até a resolução.</div>
                         </li>
                         <li class="d-flex align-items-start">
                             <i class="fas fa-check-circle mt-1 me-3 text-gradient"></i>
-                            <div><strong>Visão 360º da Rede:</strong> Monitore o desempenho e a conformidade de todas as unidades em tempo real.</div>
+                            <div><strong>Visão 360º da Rede:</strong> Monitore o desempenho e a conformidade de todas as
+                                unidades em tempo real.</div>
                         </li>
                     </ul>
                 </div>
                 <div class="col-lg-6 order-1 order-lg-2 text-center">
-                    <img src="https://placehold.co/600x450/e9ecef/0066a1?text=VISÃO+GERAL+DO+DASHBOARD" alt="Dashboard QualiGestor" class="img-fluid system-screenshot bg-white p-1">
+                    <img src="https://placehold.co/600x450/e9ecef/0066a1?text=VISÃO+GERAL+DO+DASHBOARD"
+                        alt="Dashboard QualiGestor" class="img-fluid system-screenshot bg-white p-1">
                 </div>
             </div>
         </div>
@@ -467,12 +846,14 @@
                 <div class="col-md-3 col-sm-6">
                     <div class="step-circle">1</div>
                     <h4 class="fw-bold fs-5">Padronize</h4>
-                    <p class="text-muted">Crie seus checklists, defina os padrões de qualidade e cadastre suas unidades.</p>
+                    <p class="text-muted">Crie seus checklists, defina os padrões de qualidade e cadastre suas unidades.
+                    </p>
                 </div>
                 <div class="col-md-3 col-sm-6">
                     <div class="step-circle">2</div>
                     <h4 class="fw-bold fs-5">Audite</h4>
-                    <p class="text-muted">Sua equipe de campo realiza as auditorias pelo aplicativo de forma intuitiva.</p>
+                    <p class="text-muted">Sua equipe de campo realiza as auditorias pelo aplicativo de forma intuitiva.
+                    </p>
                 </div>
                 <div class="col-md-3 col-sm-6">
                     <div class="step-circle">3</div>
@@ -496,45 +877,61 @@
 
             <div class="row align-items-center mb-5 gy-5 gx-lg-5">
                 <div class="col-lg-6 order-2 order-lg-1 text-center">
-                    <img src="https://placehold.co/500x600/e9ecef/0066a1?text=APP+MOBILE+CHECKLIST" alt="App Mobile Auditoria" class="img-fluid system-screenshot bg-white p-1 mx-auto d-block" style="max-height: 500px;">
+                    <img src="https://placehold.co/500x600/e9ecef/0066a1?text=APP+MOBILE+CHECKLIST"
+                        alt="App Mobile Auditoria" class="img-fluid system-screenshot bg-white p-1 mx-auto d-block"
+                        style="max-height: 500px;">
                 </div>
                 <div class="col-lg-6 order-1 order-lg-2 ps-lg-5">
                     <h3 class="fw-bold mb-4 h2">Auditorias & Checklists Flexíveis</h3>
-                    <p class="lead text-muted mb-4">Crie desde rotinas simples de abertura até auditorias complexas de certificação com nosso construtor arrasta-e-solta.</p>
+                    <p class="lead text-muted mb-4">Crie desde rotinas simples de abertura até auditorias complexas de
+                        certificação com nosso construtor arrasta-e-solta.</p>
                     <ul class="list-unstyled text-muted lead fs-6 solution-list">
-                        <li class="mb-3"><i class="fas fa-check text-success me-3"></i>Scoring (notas) automático baseado nos critérios.</li>
-                        <li class="mb-3"><i class="fas fa-check text-success me-3"></i>Coleta de evidências com fotos obrigatórias e anotações.</li>
-                        <li class="mb-3"><i class="fas fa-check text-success me-3"></i>Funciona 100% offline com sincronização inteligente.</li>
+                        <li class="mb-3"><i class="fas fa-check text-success me-3"></i>Scoring (notas) automático
+                            baseado nos critérios.</li>
+                        <li class="mb-3"><i class="fas fa-check text-success me-3"></i>Coleta de evidências com fotos
+                            obrigatórias e anotações.</li>
+                        <li class="mb-3"><i class="fas fa-check text-success me-3"></i>Funciona 100% offline com
+                            sincronização inteligente.</li>
                     </ul>
                 </div>
             </div>
-            
+
             <div class="row align-items-center mb-5 gy-5 gx-lg-5 flex-row-reverse mt-5 pt-5">
                 <div class="col-lg-6 order-2 order-lg-1 text-center">
-                    <img src="https://placehold.co/600x450/e9ecef/0066a1?text=GESTÃO+DE+RNC+(WEB)" alt="Gestão de RNC" class="img-fluid system-screenshot bg-white p-1">
+                    <img src="https://placehold.co/600x450/e9ecef/0066a1?text=GESTÃO+DE+RNC+(WEB)" alt="Gestão de RNC"
+                        class="img-fluid system-screenshot bg-white p-1">
                 </div>
                 <div class="col-lg-6 order-1 order-lg-2 pe-lg-5">
                     <h3 class="fw-bold mb-4 h2">Gestão de Não Conformidades (RNC)</h3>
-                    <p class="lead text-muted mb-4">Feche o ciclo da qualidade. Não deixe os problemas sem solução e evite reincidências com um fluxo de trabalho claro.</p>
+                    <p class="lead text-muted mb-4">Feche o ciclo da qualidade. Não deixe os problemas sem solução e
+                        evite reincidências com um fluxo de trabalho claro.</p>
                     <ul class="list-unstyled text-muted lead fs-6 solution-list">
-                        <li class="mb-3"><i class="fas fa-check text-success me-3"></i>Fluxo completo: Causa raiz, ação corretiva, prazo e responsável.</li>
-                        <li class="mb-3"><i class="fas fa-check text-success me-3"></i>Status visual claro (Pendente, Em Andamento, Resolvido).</li>
-                        <li class="mb-3"><i class="fas fa-check text-success me-3"></i>Rastreabilidade total e histórico de todas as ocorrências.</li>
+                        <li class="mb-3"><i class="fas fa-check text-success me-3"></i>Fluxo completo: Causa raiz, ação
+                            corretiva, prazo e responsável.</li>
+                        <li class="mb-3"><i class="fas fa-check text-success me-3"></i>Status visual claro (Pendente, Em
+                            Andamento, Resolvido).</li>
+                        <li class="mb-3"><i class="fas fa-check text-success me-3"></i>Rastreabilidade total e histórico
+                            de todas as ocorrências.</li>
                     </ul>
                 </div>
             </div>
 
             <div class="row align-items-center gy-5 gx-lg-5 mt-5 pt-5">
                 <div class="col-lg-6 order-2 order-lg-1 text-center">
-                    <img src="https://placehold.co/600x450/e9ecef/0066a1?text=DASHBOARD+DE+BI+E+GRÁFICOS" alt="Dashboard de BI" class="img-fluid system-screenshot bg-white p-1">
+                    <img src="https://placehold.co/600x450/e9ecef/0066a1?text=DASHBOARD+DE+BI+E+GRÁFICOS"
+                        alt="Dashboard de BI" class="img-fluid system-screenshot bg-white p-1">
                 </div>
                 <div class="col-lg-6 order-1 order-lg-2 ps-lg-5">
                     <h3 class="fw-bold mb-4 h2">Indicadores & BI (Business Intelligence)</h3>
-                    <p class="lead text-muted mb-4">Tome decisões baseadas em dados reais da sua operação, não em achismos. Identifique gargalos rapidamente.</p>
+                    <p class="lead text-muted mb-4">Tome decisões baseadas em dados reais da sua operação, não em
+                        achismos. Identifique gargalos rapidamente.</p>
                     <ul class="list-unstyled text-muted lead fs-6 solution-list">
-                        <li class="mb-3"><i class="fas fa-check text-success me-3"></i>Dashboards gerenciais visuais e intuitivos em tempo real.</li>
-                        <li class="mb-3"><i class="fas fa-check text-success me-3"></i>Ranking de desempenho entre unidades (Benchmarking).</li>
-                        <li class="mb-3"><i class="fas fa-check text-success me-3"></i>Acompanhamento da evolução temporal da conformidade.</li>
+                        <li class="mb-3"><i class="fas fa-check text-success me-3"></i>Dashboards gerenciais visuais e
+                            intuitivos em tempo real.</li>
+                        <li class="mb-3"><i class="fas fa-check text-success me-3"></i>Ranking de desempenho entre
+                            unidades (Benchmarking).</li>
+                        <li class="mb-3"><i class="fas fa-check text-success me-3"></i>Acompanhamento da evolução
+                            temporal da conformidade.</li>
                     </ul>
                 </div>
             </div>
@@ -546,49 +943,72 @@
             <div class="row gy-5 align-items-center">
                 <div class="col-lg-6 pe-lg-5">
                     <h3 class="mb-4 fw-bold h2">Desenvolvido para quem precisa de escala</h3>
-                    <p class="text-muted mb-4 lead">O QualiGestor se adapta a operações complexas que exigem padrão rigoroso e controle distribuído.</p>
+                    <p class="text-muted mb-4 lead">O QualiGestor se adapta a operações complexas que exigem padrão
+                        rigoroso e controle distribuído.</p>
                     <div class="row g-3 text-center">
-                        <div class="col-6"><div class="p-4 border rounded-4 bg-light h-100 problem-card pt-3 pb-3"><i class="fas fa-store text-primary fs-2 mb-3"></i><br><strong>Varejo & Redes</strong></div></div>
-                        <div class="col-6"><div class="p-4 border rounded-4 bg-light h-100 problem-card pt-3 pb-3"><i class="fas fa-utensils text-primary fs-2 mb-3"></i><br><strong>Food Service</strong></div></div>
-                        <div class="col-6"><div class="p-4 border rounded-4 bg-light h-100 problem-card pt-3 pb-3"><i class="fas fa-industry text-primary fs-2 mb-3"></i><br><strong>Indústrias</strong></div></div>
-                        <div class="col-6"><div class="p-4 border rounded-4 bg-light h-100 problem-card pt-3 pb-3"><i class="fas fa-clipboard-check text-primary fs-2 mb-3"></i><br><strong>Times de Qualidade</strong></div></div>
+                        <div class="col-6">
+                            <div class="p-4 border rounded-4 bg-light h-100 problem-card pt-3 pb-3"><i
+                                    class="fas fa-store text-primary fs-2 mb-3"></i><br><strong>Varejo & Redes</strong>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-4 border rounded-4 bg-light h-100 problem-card pt-3 pb-3"><i
+                                    class="fas fa-utensils text-primary fs-2 mb-3"></i><br><strong>Food Service</strong>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-4 border rounded-4 bg-light h-100 problem-card pt-3 pb-3"><i
+                                    class="fas fa-industry text-primary fs-2 mb-3"></i><br><strong>Indústrias</strong>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-4 border rounded-4 bg-light h-100 problem-card pt-3 pb-3"><i
+                                    class="fas fa-clipboard-check text-primary fs-2 mb-3"></i><br><strong>Times de
+                                    Qualidade</strong></div>
+                        </div>
                     </div>
                 </div>
                 <div class="col-lg-6 ps-lg-5 border-start-lg">
-                     <h3 class="mb-4 fw-bold h2">Por que escolher o QualiGestor?</h3>
-                     <ul class="list-unstyled lead fs-6 solution-list">
+                    <h3 class="mb-4 fw-bold h2">Por que escolher o QualiGestor?</h3>
+                    <ul class="list-unstyled lead fs-6 solution-list">
                         <li class="mb-4">
                             <i class="fas fa-flag text-success me-3 fs-4"></i>
-                            <div><strong>Foco na realidade brasileira:</strong> Pensado para os desafios operacionais, de conectividade e legislação locais.</div>
+                            <div><strong>Foco na realidade brasileira:</strong> Pensado para os desafios operacionais,
+                                de conectividade e legislação locais.</div>
                         </li>
                         <li class="mb-4">
                             <i class="fas fa-rocket text-success me-3 fs-4"></i>
-                            <div><strong>Usabilidade em 1º lugar:</strong> Interface limpa e intuitiva. Sua equipe de campo não precisa de treinamento complexo.</div>
+                            <div><strong>Usabilidade em 1º lugar:</strong> Interface limpa e intuitiva. Sua equipe de
+                                campo não precisa de treinamento complexo.</div>
                         </li>
                         <li class="mb-4">
                             <i class="fas fa-headset text-success me-3 fs-4"></i>
-                            <div><strong>Suporte Próximo:</strong> Atendimento ágil e humanizado para garantir o sucesso da sua implantação.</div>
+                            <div><strong>Suporte Próximo:</strong> Atendimento ágil e humanizado para garantir o sucesso
+                                da sua implantação.</div>
                         </li>
-                     </ul>
+                    </ul>
                 </div>
             </div>
         </div>
     </section>
 
-    <section id="cta-final" class="section-padding text-center text-white" style="background: linear-gradient(135deg, var(--bg-darker) 0%, #002a4d 100%);">
+    <section id="cta-final" class="section-padding text-center text-white"
+        style="background: linear-gradient(135deg, var(--bg-darker) 0%, #002a4d 100%);">
         <div class="floating-shape shape-1"></div>
         <div class="floating-shape shape-2"></div>
-        
+
         <div class="container position-relative z-2">
             <h2 class="fw-bold display-4 mb-4">Pronto para transformar suas auditorias?</h2>
-            <p class="lead mb-5 mx-auto text-white-50" style="max-width: 700px; font-size: 1.25rem;">Deixe as planilhas no passado. Junte-se às empresas que já garantem a excelência operacional com o QualiGestor.</p>
-            
+            <p class="lead mb-5 mx-auto text-white-50" style="max-width: 700px; font-size: 1.25rem;">Deixe as planilhas
+                no passado. Junte-se às empresas que já garantem a excelência operacional com o QualiGestor.</p>
+
             <div class="d-flex justify-content-center gap-3 flex-wrap">
                 <a href="#" class="btn btn-glow btn-lg px-5 py-3 fw-bold fs-5">
                     <i class="fas fa-paper-plane me-2"></i> SOLICITAR DEMONSTRAÇÃO
                 </a>
             </div>
-            <p class="mt-4 text-white-50 small">Entraremos em contato para entender as necessidades específicas da sua operação.</p>
+            <p class="mt-4 text-white-50 small">Entraremos em contato para entender as necessidades específicas da sua
+                operação.</p>
         </div>
     </section>
 
@@ -602,7 +1022,8 @@
                         </div>
                         <span class="fw-bold text-white fs-4">QualiGestor</span>
                     </a>
-                    <p class="mb-4 text-white-50 pe-lg-5">Gestão da Qualidade Simples e Inteligente para cadeias de alimentos, bebidas e franquias que não podem errar.</p>
+                    <p class="mb-4 text-white-50 pe-lg-5">Gestão da Qualidade Simples e Inteligente para cadeias de
+                        alimentos, bebidas e franquias que não podem errar.</p>
                     <div class="d-flex gap-2">
                         <a href="#" class="text-white-50 footer-link social-icon"><i class="fab fa-linkedin-in"></i></a>
                         <a href="#" class="text-white-50 footer-link social-icon"><i class="fab fa-instagram"></i></a>
@@ -630,20 +1051,25 @@
                 <div class="col-lg-3">
                     <h5 class="footer-title">Contato</h5>
                     <ul class="list-unstyled text-white-50">
-                        <li class="mb-3 d-flex align-items-center"><i class="fas fa-envelope me-3 text-accent"></i> contato@qualigestor.com.br</li>
-                        <li class="mb-3 d-flex align-items-center"><i class="fas fa-phone-alt me-3 text-accent"></i> (11) 99999-9999</li>
-                        <li class="d-flex align-items-start"><i class="fas fa-map-marker-alt me-3 text-accent mt-1"></i> São Paulo, Brasil</li>
+                        <li class="mb-3 d-flex align-items-center"><i class="fas fa-envelope me-3 text-accent"></i>
+                            contato@qualigestor.com.br</li>
+                        <li class="mb-3 d-flex align-items-center"><i class="fas fa-phone-alt me-3 text-accent"></i>
+                            (11) 99999-9999</li>
+                        <li class="d-flex align-items-start"><i class="fas fa-map-marker-alt me-3 text-accent mt-1"></i>
+                            São Paulo, Brasil</li>
                     </ul>
                 </div>
             </div>
-            <div class="border-top border-white-10 pt-4 text-center small text-white-50" style="border-color: rgba(255,255,255,0.1) !important;">
+            <div class="border-top border-white-10 pt-4 text-center small text-white-50"
+                style="border-color: rgba(255,255,255,0.1) !important;">
                 <div class="row align-items-center">
                     <div class="col-md-6 text-md-start mb-2 mb-md-0">
                         &copy; 2024 QualiGestor. Todos os direitos reservados.
                     </div>
                     <div class="col-md-6 text-md-end">
                         <a href="#" class="text-white-50 text-decoration-none me-3 footer-link m-0">Termos de Uso</a>
-                        <a href="#" class="text-white-50 text-decoration-none footer-link m-0">Política de Privacidade</a>
+                        <a href="#" class="text-white-50 text-decoration-none footer-link m-0">Política de
+                            Privacidade</a>
                     </div>
                 </div>
             </div>
@@ -661,21 +1087,28 @@
                     <button type="button" class="btn-close mb-auto" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body pt-2">
-                    <form>
+                    <form method="POST" action="{{ url_for('auth.login') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
                         <div class="form-floating mb-3">
-                            <input type="email" class="form-control" id="emailInput" placeholder="nome@exemplo.com">
-                            <label for="emailInput"><i class="fas fa-envelope me-2 text-muted"></i>E-mail corporativo</label>
+                            <input type="email" class="form-control" id="emailInput" name="email"
+                                placeholder="nome@exemplo.com" required>
+                            <label for="emailInput"><i class="fas fa-envelope me-2 text-muted"></i>E-mail
+                                corporativo</label>
                         </div>
                         <div class="form-floating mb-4">
-                            <input type="password" class="form-control" id="passwordInput" placeholder="Senha">
+                            <input type="password" class="form-control" id="passwordInput" name="senha"
+                                placeholder="Senha" required>
                             <label for="passwordInput"><i class="fas fa-lock me-2 text-muted"></i>Senha</label>
                         </div>
                         <div class="d-flex justify-content-between align-items-center mb-4">
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="rememberMe">
-                                <label class="form-check-label small text-muted fw-medium" for="rememberMe">Lembrar-me</label>
+                                <input class="form-check-input" type="checkbox" id="rememberMe" name="remember">
+                                <label class="form-check-label small text-muted fw-medium"
+                                    for="rememberMe">Lembrar-me</label>
                             </div>
-                            <a href="#" class="text-decoration-none small fw-bold" style="color: var(--primary-color);">Esqueci a senha</a>
+                            <a href="#" class="text-decoration-none small fw-bold"
+                                style="color: var(--primary-color);">Esqueci a senha</a>
                         </div>
                         <div class="d-grid">
                             <button type="submit" class="btn btn-glow btn-lg fs-6 py-3">ENTRAR NA PLATAFORMA</button>
@@ -683,23 +1116,29 @@
                     </form>
                 </div>
                 <div class="modal-footer border-0 justify-content-center pt-4 mt-2 border-top">
-                    <p class="small text-muted mb-0">Ainda não é cliente? <a href="#cta-final" class="fw-bold text-primary text-decoration-none" data-bs-dismiss="modal">Solicite uma demonstração</a></p>
+                    <p class="small text-muted mb-0">Ainda não é cliente? <a href="#cta-final"
+                            class="fw-bold text-primary text-decoration-none" data-bs-dismiss="modal">Solicite uma
+                            demonstração</a></p>
                 </div>
             </div>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
+
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
+            // Navbar behavior
             const navLinks = document.querySelectorAll('.navbar-nav .nav-link');
             const menuToggle = document.getElementById('menu');
-            const bsCollapse = new bootstrap.Collapse(menuToggle, {toggle: false});
+            const bsCollapse = new bootstrap.Collapse(menuToggle, { toggle: false });
             navLinks.forEach((l) => {
                 l.addEventListener('click', () => { if (menuToggle.classList.contains('show')) { bsCollapse.toggle(); } });
             });
+
+            // Script de auto-abertura removido conforme solicitado
         });
     </script>
 </body>
+
 </html>
