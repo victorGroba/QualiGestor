@@ -1806,6 +1806,7 @@
 
                     <!-- Form -->
                     <form id="loginForm" method="POST" action="{{ url_for('auth.login') }}" novalidate>
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <!-- Email Field -->
                         <div class="form-group-enhanced">
                             <label for="emailInput" class="form-label">
