@@ -1579,8 +1579,9 @@
     <section class="hero-top-blue">
     <div class="video-hero-wrapper">
         <video autoplay loop muted playsinline poster="{{ url_for('static', filename='img/fundo_lab.png') }}" class="background-video">
-            <source src="{{ url_for('static', filename='videos/banner-hero.webm') }}" type="video/webm">
             <source src="{{ url_for('static', filename='videos/banner-hero.mp4') }}" type="video/mp4">
+            <source src="{{ url_for('static', filename='videos/banner-hero.webm') }}" type="video/webm">
+            
         </video>
         <div class="video-overlay"></div>
     </div>
@@ -1589,11 +1590,7 @@
         
         <div class="glass-card">
 
-            <div class="mb-4">
-                <span class="badge bg-soft-blue">
-                    <i class="fas fa-rocket"></i> Qualigestor
-                </span>
-            </div>
+            
 
             <h1 class="display-3 fw-bold text-white mb-4">
                 Auditorias inteligentes que<br class="d-none d-lg-block">
