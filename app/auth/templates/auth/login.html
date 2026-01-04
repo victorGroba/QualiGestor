@@ -105,36 +105,110 @@
             animation: pulseLines 8s infinite ease-in-out alternate;
         }
 
-        .p1 { top: -15%; left: -5%; animation: float1 28s infinite alternate ease-in-out; }
-        .p2 { bottom: -25%; right: -10%; animation: float2 32s infinite alternate ease-in-out; }
-        .p3 { top: 40%; left: 60%; animation: float1 35s infinite alternate-reverse ease-in-out; }
-        .p4 { top: 25%; right: 25%; animation: float2 22s infinite alternate ease-in-out; }
-        .p5 { bottom: 35%; left: 15%; animation: float1 25s infinite alternate-reverse ease-in-out; }
-        .p6 { top: 70%; left: 70%; animation: float3 24s infinite alternate ease-in-out; }
-        .p7 { top: 20%; left: 30%; animation: float3 15s infinite alternate ease-in-out; }
-        .p8 { bottom: 20%; right: 30%; animation: float1 18s infinite alternate-reverse ease-in-out; }
-        .p9 { top: 55%; right: 15%; animation: float2 16s infinite alternate ease-in-out; }
-        .p10 { bottom: 50%; left: 50%; animation: float3 19s infinite alternate-reverse ease-in-out; }
+        .p1 {
+            top: -15%;
+            left: -5%;
+            animation: float1 28s infinite alternate ease-in-out;
+        }
+
+        .p2 {
+            bottom: -25%;
+            right: -10%;
+            animation: float2 32s infinite alternate ease-in-out;
+        }
+
+        .p3 {
+            top: 40%;
+            left: 60%;
+            animation: float1 35s infinite alternate-reverse ease-in-out;
+        }
+
+        .p4 {
+            top: 25%;
+            right: 25%;
+            animation: float2 22s infinite alternate ease-in-out;
+        }
+
+        .p5 {
+            bottom: 35%;
+            left: 15%;
+            animation: float1 25s infinite alternate-reverse ease-in-out;
+        }
+
+        .p6 {
+            top: 70%;
+            left: 70%;
+            animation: float3 24s infinite alternate ease-in-out;
+        }
+
+        .p7 {
+            top: 20%;
+            left: 30%;
+            animation: float3 15s infinite alternate ease-in-out;
+        }
+
+        .p8 {
+            bottom: 20%;
+            right: 30%;
+            animation: float1 18s infinite alternate-reverse ease-in-out;
+        }
+
+        .p9 {
+            top: 55%;
+            right: 15%;
+            animation: float2 16s infinite alternate ease-in-out;
+        }
+
+        .p10 {
+            bottom: 50%;
+            left: 50%;
+            animation: float3 19s infinite alternate-reverse ease-in-out;
+        }
 
         @keyframes float1 {
-            0% { transform: translate(0, 0) rotate(0deg); }
-            100% { transform: translate(180px, 100px) rotate(25deg); }
+            0% {
+                transform: translate(0, 0) rotate(0deg);
+            }
+
+            100% {
+                transform: translate(180px, 100px) rotate(25deg);
+            }
         }
 
         @keyframes float2 {
-            0% { transform: translate(0, 0) scale(1); }
-            100% { transform: translate(-120px, -90px) scale(1.2); }
+            0% {
+                transform: translate(0, 0) scale(1);
+            }
+
+            100% {
+                transform: translate(-120px, -90px) scale(1.2);
+            }
         }
 
         @keyframes float3 {
-            0% { transform: translate(0, 0); opacity: 0.4; }
-            50% { opacity: 0.2; }
-            100% { transform: translate(100px, -150px); opacity: 0.6; }
+            0% {
+                transform: translate(0, 0);
+                opacity: 0.4;
+            }
+
+            50% {
+                opacity: 0.2;
+            }
+
+            100% {
+                transform: translate(100px, -150px);
+                opacity: 0.6;
+            }
         }
 
         @keyframes pulseLines {
-            0% { opacity: 0.1; }
-            100% { opacity: 0.3; }
+            0% {
+                opacity: 0.1;
+            }
+
+            100% {
+                opacity: 0.3;
+            }
         }
 
 
@@ -277,7 +351,7 @@
             width: 100%;
             height: 100%;
             /* Gradiente escuro para garantir leitura */
-            background: linear-gradient(180deg, rgba(0,13,22,0.85) 0%, rgba(0,31,51,0.6) 100%);
+            background: linear-gradient(180deg, rgba(0, 13, 22, 0.85) 0%, rgba(0, 31, 51, 0.6) 100%);
             z-index: 1;
         }
 
@@ -793,7 +867,7 @@
             position: relative;
             transition: all 0.3s ease;
         }
-        
+
         /* ================== NOVO ESTILO DO MODAL (DARK GLASS) ================== */
         .modal.show .modal-content {
             background-color: rgba(0, 13, 22, 0.75) !important;
@@ -808,41 +882,45 @@
         .modal.show .divider span,
         .modal.show .modal-footer-custom p {
             color: #ffffff !important;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
         }
+
         .modal.show .login-subtitle,
         .modal.show .forgot-link {
             color: rgba(255, 255, 255, 0.8) !important;
         }
-        
+
         .modal.show .input-enhanced {
-            background-color: rgba(255,255,255,0.08) !important;
-            border: 2px solid rgba(255,255,255,0.1) !important;
+            background-color: rgba(255, 255, 255, 0.08) !important;
+            border: 2px solid rgba(255, 255, 255, 0.1) !important;
             color: white !important;
         }
+
         .modal.show .input-enhanced::placeholder {
-             color: rgba(255, 255, 255, 0.5) !important;
+            color: rgba(255, 255, 255, 0.5) !important;
         }
+
         .modal.show .input-enhanced:focus {
-             border-color: var(--accent-color) !important;
-             background-color: rgba(255,255,255,0.12) !important;
-             box-shadow: 0 0 0 4px rgba(0, 210, 255, 0.15) !important;
+            border-color: var(--accent-color) !important;
+            background-color: rgba(255, 255, 255, 0.12) !important;
+            box-shadow: 0 0 0 4px rgba(0, 210, 255, 0.15) !important;
         }
-        
+
         .modal.show .form-label i,
         .modal.show .password-toggle {
             color: var(--accent-color) !important;
         }
 
         .modal.show .btn-social {
-             background: rgba(255, 255, 255, 0.08) !important;
-             border-color: rgba(255, 255, 255, 0.15) !important;
-             color: white !important;
+            background: rgba(255, 255, 255, 0.08) !important;
+            border-color: rgba(255, 255, 255, 0.15) !important;
+            color: white !important;
         }
+
         .modal.show .btn-social:hover {
-             background: rgba(255, 255, 255, 0.15) !important;
+            background: rgba(255, 255, 255, 0.15) !important;
         }
-        
+
         .modal.show .checkbox-custom {
             background: rgba(255, 255, 255, 0.1) !important;
             border-color: rgba(255, 255, 255, 0.3) !important;
@@ -851,6 +929,7 @@
         .modal.show .btn-close {
             filter: invert(1) grayscale(100%) brightness(200%);
         }
+
         /* ================== FIM DO ESTILO DO MODAL ================== */
 
 
@@ -1391,7 +1470,7 @@
         .reveal {
             opacity: 0;
             /* Começa mais de baixo (80px) para um movimento mais longo */
-            transform: translateY(80px); 
+            transform: translateY(80px);
             /* Duração maior (1.5s) e curva de aceleração mais suave (ease-out) */
             transition: all 1.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
         }
@@ -1491,33 +1570,35 @@
         }
 
         .glass-card {
-    /* Fundo escuro com transparência (Ajuste o 0.6 para mais ou menos escuro) */
-    background: rgba(15, 23, 42, 0.6);
-    
-    /* O efeito de embaçar o que está atrás */
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px); /* Para Safari */
-    
-    /* Bordas e arredondamento para ficar bonito */
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 24px;
-    padding: 3rem; /* Espaçamento interno */
-    
-    /* Sombra para dar profundidade */
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
-    
-    /* Centralizar o card (opcional, mas bom para heros) */
-    max-width: 900px;
-    margin: 0 auto;
-}
+            /* Fundo escuro com transparência (Ajuste o 0.6 para mais ou menos escuro) */
+            background: rgba(15, 23, 42, 0.6);
 
-/* Ajuste para celular para não comer a tela toda */
-@media (max-width: 768px) {
-    .glass-card {
-        padding: 1.5rem;
-        backdrop-filter: blur(8px);
-    }
-}
+            /* O efeito de embaçar o que está atrás */
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            /* Para Safari */
+
+            /* Bordas e arredondamento para ficar bonito */
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 3rem;
+            /* Espaçamento interno */
+
+            /* Sombra para dar profundidade */
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+
+            /* Centralizar o card (opcional, mas bom para heros) */
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        /* Ajuste para celular para não comer a tela toda */
+        @media (max-width: 768px) {
+            .glass-card {
+                padding: 1.5rem;
+                backdrop-filter: blur(8px);
+            }
+        }
     </style>
 </head>
 
@@ -1527,7 +1608,7 @@
         <div class="particle p-large p1"></div>
         <div class="particle p-large p2"></div>
         <div class="particle p-large p3"></div>
-        
+
         <div class="particle p-medium p4"></div>
         <div class="particle p-medium p5"></div>
         <div class="particle p-medium p6"></div>
@@ -1536,12 +1617,12 @@
         <div class="particle p-small p8"></div>
         <div class="particle p-small p9"></div>
         <div class="particle p-small p10"></div>
-        
+
         <svg class="particle-connections" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-            <line x1="10%" y1="20%" x2="30%" y2="40%" stroke="var(--accent-color)" opacity="0.2" stroke-width="1"/>
-            <line x1="70%" y1="60%" x2="90%" y2="80%" stroke="var(--accent-color)" opacity="0.2" stroke-width="1"/>
-            <line x1="40%" y1="10%" x2="60%" y2="30%" stroke="var(--accent-color)" opacity="0.1" stroke-width="1"/>
-            <line x1="20%" y1="80%" x2="80%" y2="20%" stroke="var(--accent-color)" opacity="0.05" stroke-width="1"/>
+            <line x1="10%" y1="20%" x2="30%" y2="40%" stroke="var(--accent-color)" opacity="0.2" stroke-width="1" />
+            <line x1="70%" y1="60%" x2="90%" y2="80%" stroke="var(--accent-color)" opacity="0.2" stroke-width="1" />
+            <line x1="40%" y1="10%" x2="60%" y2="30%" stroke="var(--accent-color)" opacity="0.1" stroke-width="1" />
+            <line x1="20%" y1="80%" x2="80%" y2="20%" stroke="var(--accent-color)" opacity="0.05" stroke-width="1" />
         </svg>
     </div>
     <header class="navbar navbar-expand-lg navbar-dark fixed-top custom-navbar" id="main-nav">
@@ -1577,41 +1658,44 @@
     </header>
 
     <section class="hero-top-blue">
-    <div class="video-hero-wrapper">
-        <video autoplay loop muted playsinline poster="{{ url_for('static', filename='img/fundo_lab.png') }}" class="background-video">
-            <source src="{{ url_for('static', filename='videos/banner-hero.mp4') }}" type="video/mp4">
-            <source src="{{ url_for('static', filename='videos/banner-hero.webm') }}" type="video/webm">
-            
-        </video>
-        <div class="video-overlay"></div>
-    </div>
+        <div class="video-hero-wrapper">
+            <video autoplay loop muted playsinline poster="{{ url_for('static', filename='img/fundo_lab.png') }}"
+                class="background-video">
+                <source src="{{ url_for('static', filename='videos/banner-hero.mp4') }}" type="video/mp4">
+                <source src="{{ url_for('static', filename='videos/banner-hero.webm') }}" type="video/webm">
 
-    <div class="container hero-content-text text-center position-relative">
-        
-        <div class="glass-card">
+            </video>
+            <div class="video-overlay"></div>
+        </div>
 
-            
+        <div class="container hero-content-text text-center position-relative">
 
-            <h1 class="display-3 fw-bold text-white mb-4">
-                Auditorias inteligentes que<br class="d-none d-lg-block">
-                <span class="text-gradient">garantem a excelência.</span>
-            </h1>
+            <div class="glass-card">
 
-            <p class="lead text-white-50 mx-auto mb-5" style="max-width: 800px; font-size: 1.25rem;">
-                Centralize checklists, monitore conformidades e gerencie toda sua rede com dados em tempo real.
-                Transforme papelada e planilhas em inteligência estratégica.
-            </p>
 
-            <div class="d-flex justify-content-center gap-3 flex-wrap px-3 pb-4">
-                <button class="btn btn-glow btn-lg px-5 py-3" data-bs-toggle="modal" data-bs-target="#loginModal">
-                    <i class="fas fa-sign-in-alt me-2"></i> Acessar Sistema
-                </button>
-                <a href="#solucao" class="btn btn-outline-light btn-lg px-5 py-3 text-decoration-none">
-                    <i class="fas fa-chart-line me-2"></i>Conheça a Plataforma
-                </a>
+
+                <h1 class="display-3 fw-bold text-white mb-4">
+                    Auditorias inteligentes que<br class="d-none d-lg-block">
+                    <span class="text-gradient">garantem a excelência.</span>
+                </h1>
+
+                <p class="lead text-white-50 mx-auto mb-5" style="max-width: 800px; font-size: 1.25rem;">
+                    Centralize checklists, monitore conformidades e gerencie toda sua rede com dados em tempo real.
+                    Transforme papelada e planilhas em inteligência estratégica.
+                </p>
+
+                <div class="d-flex justify-content-center gap-3 flex-wrap px-3 pb-4">
+                    <button class="btn btn-glow btn-lg px-5 py-3" data-bs-toggle="modal" data-bs-target="#loginModal">
+                        <i class="fas fa-sign-in-alt me-2"></i> Acessar Sistema
+                    </button>
+                    <a href="#solucao" class="btn btn-outline-light btn-lg px-5 py-3 text-decoration-none">
+                        <i class="fas fa-chart-line me-2"></i>Conheça a Plataforma
+                    </a>
+                </div>
+
             </div>
-
-        </div> </div> </section>
+        </div>
+    </section>
 
     <div class="hero-bottom-image">
         <div class="hero-wave">
@@ -2001,7 +2085,8 @@
                 <div class="modal-body pt-2">
                     <div class="login-header">
                         <div class="login-logo">
-                            <img src="/static/img/logo-qualigestor.png" alt="Logo QualiGestor" style="height: 36px; width: auto; filter: brightness(0) invert(1);">
+                            <img src="/static/img/logo-qualigestor.png" alt="Logo QualiGestor"
+                                style="height: 36px; width: auto; filter: brightness(0) invert(1);">
                         </div>
                         <h4 class="login-title" id="loginModalLabel">Bem-vindo de volta!</h4>
                         <p class="login-subtitle">Acesse sua conta para continuar gerenciando a qualidade.</p>
@@ -2270,7 +2355,7 @@
 
                         // Submit form after delay
                         this.submit();
-                        
+
 
                         // Close modal after success
                         setTimeout(() => {
@@ -2318,6 +2403,24 @@
             document.getElementById('loginModal').addEventListener('shown.bs.modal', function () {
                 emailInput.focus();
             });
+        });
+        document.addEventListener('DOMContentLoaded', function () {
+            var video = document.querySelector('.background-video');
+            if (video) {
+                // O iOS exige que essa propriedade seja setada via JS para garantir
+                video.muted = true;
+                video.defaultMuted = true;
+
+                // Tenta forçar o play
+                var promise = video.play();
+
+                if (promise !== undefined) {
+                    promise.catch(error => {
+                        // Se o autoplay for bloqueado, mostramos os controles ou deixamos a imagem de capa
+                        console.log('Autoplay bloqueado pelo iOS/Safari:', error);
+                    });
+                }
+            }
         });
     </script>
 </body>
