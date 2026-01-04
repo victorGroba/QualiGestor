@@ -49,7 +49,102 @@
             font-feature-settings: 'kern' 1;
             text-rendering: optimizeLegibility;
             -webkit-font-smoothing: antialiased;
+            background-color: transparent;
         }
+
+        /* ================== FUNDO ANIMADO DE PARTÍCULAS (ATUALIZADO - MAIS RÁPIDO) ================== */
+        .particle-bg-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at bottom center, #002a4d 0%, #000d16 100%);
+            z-index: -2;
+            overflow: hidden;
+        }
+
+        .particle {
+            position: absolute;
+            border-radius: 50%;
+            background: var(--accent-color);
+            pointer-events: none;
+        }
+
+        .p-large {
+            width: 400px;
+            height: 400px;
+            opacity: 0.12;
+            filter: blur(90px);
+            z-index: -1;
+        }
+
+        .p-medium {
+            width: 120px;
+            height: 120px;
+            opacity: 0.25;
+            filter: blur(30px);
+            z-index: 0;
+        }
+
+        .p-small {
+            width: 15px;
+            height: 15px;
+            opacity: 0.5;
+            filter: blur(4px);
+            background: #ffffff;
+            box-shadow: 0 0 15px var(--accent-color);
+            z-index: 1;
+        }
+
+        .particle-connections {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: -1;
+            animation: pulseLines 8s infinite ease-in-out alternate; /* Linhas pulsando mais rápido */
+        }
+
+        /* --- VELOCIDADES ATUALIZADAS (Mais rápidas) --- */
+        /* Partículas Grandes (Mais lentas que as outras, mas mais rápidas que antes) */
+        .p1 { top: -15%; left: -5%; animation: float1 28s infinite alternate ease-in-out; }
+        .p2 { bottom: -25%; right: -10%; animation: float2 32s infinite alternate ease-in-out; }
+        .p3 { top: 40%; left: 60%; animation: float1 35s infinite alternate-reverse ease-in-out; }
+
+        /* Partículas Médias */
+        .p4 { top: 25%; right: 25%; animation: float2 22s infinite alternate ease-in-out; }
+        .p5 { bottom: 35%; left: 15%; animation: float1 25s infinite alternate-reverse ease-in-out; }
+        .p6 { top: 70%; left: 70%; animation: float3 24s infinite alternate ease-in-out; }
+
+        /* Partículas Pequenas (As mais rápidas) */
+        .p7 { top: 20%; left: 30%; animation: float3 15s infinite alternate ease-in-out; }
+        .p8 { bottom: 20%; right: 30%; animation: float1 18s infinite alternate-reverse ease-in-out; }
+        .p9 { top: 55%; right: 15%; animation: float2 16s infinite alternate ease-in-out; }
+        .p10 { bottom: 50%; left: 50%; animation: float3 19s infinite alternate-reverse ease-in-out; }
+
+        /* Keyframes ajustados para movimento mais perceptível */
+        @keyframes float1 {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            100% { transform: translate(180px, 100px) rotate(25deg); }
+        }
+
+        @keyframes float2 {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(-120px, -90px) scale(1.2); }
+        }
+
+        @keyframes float3 {
+            0% { transform: translate(0, 0); opacity: 0.4; }
+            50% { opacity: 0.2; }
+            100% { transform: translate(100px, -150px); opacity: 0.6; }
+        }
+
+        @keyframes pulseLines {
+            0% { opacity: 0.1; }
+            100% { opacity: 0.3; }
+        }
+        /* ================== FIM DO CSS DAS PARTÍCULAS ================== */
+
 
         .text-gradient {
             background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
@@ -58,6 +153,36 @@
             background-clip: text;
             display: inline-block;
             font-weight: 900;
+        }
+
+        .browser-mockup {
+            background: #fff;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #e9ecef;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .browser-mockup:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 1.5rem 3.5rem rgba(0, 0, 0, .15);
+        }
+
+        .browser-header {
+            background: #f8f9fa;
+            padding: 12px 15px;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
         }
 
         /* ========== NAVBAR OTIMIZADA ========== */
@@ -126,38 +251,11 @@
 
         /* ========== HERO SECTION ========== */
         .hero-top-blue {
-            background: radial-gradient(ellipse at top center, #003d5c 0%, #001528 60%, #000911 100%);
+            background: transparent;
             padding: 200px 0 140px;
             position: relative;
             overflow: hidden;
             z-index: 1;
-        }
-
-        .hero-top-blue::before {
-            content: "";
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background-image:
-                linear-gradient(rgba(0, 210, 255, 0.04) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0, 210, 255, 0.04) 1px, transparent 1px);
-            background-size: 60px 60px;
-            animation: gridMove 80s linear infinite;
-            pointer-events: none;
-            transform: rotate(-12deg);
-            z-index: -1;
-        }
-
-        @keyframes gridMove {
-            0% {
-                background-position: 0 0;
-            }
-
-            100% {
-                background-position: 1200px 1200px;
-            }
         }
 
         .hero-top-blue::after {
@@ -207,7 +305,6 @@
         }
 
         .hero-buttons-container {
-            /* Removido pois os botões subiram */
             display: none;
         }
 
@@ -228,22 +325,17 @@
 
         /* ========== MOBILE 3D ========== */
         .mobile-3d-effect {
-            filter: drop-shadow(0 30px 60px rgba(0, 0, 0, 0.4));
-            transform: perspective(2000px) rotateY(-8deg) rotateX(3deg) translateZ(0);
-            transition: all 0.7s var(--transition-smooth);
+            filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.25));
+            transform: translateY(0);
+            transition: all 0.5s var(--transition-smooth);
             position: relative;
             z-index: 10;
-            image-rendering: -webkit-optimize-contrast;
-            image-rendering: crisp-edges;
-            backface-visibility: hidden;
-            -webkit-backface-visibility: hidden;
-            will-change: transform;
-            transform-style: preserve-3d;
+            border-radius: 20px;
         }
 
         .mobile-3d-effect:hover {
-            transform: perspective(2000px) rotateY(0deg) rotateX(0deg) translateY(-20px) scale(1.03);
-            filter: drop-shadow(0 50px 80px rgba(0, 102, 161, 0.5));
+            transform: translateY(-10px);
+            filter: drop-shadow(0 30px 60px rgba(0, 102, 161, 0.4));
         }
 
         .blob-decorativo {
@@ -702,7 +794,68 @@
             background: var(--glass-bg);
             overflow: hidden;
             position: relative;
+            transition: all 0.3s ease;
         }
+        
+        /* ================== NOVO ESTILO DO MODAL (DARK GLASS) ================== */
+        .modal.show .modal-content {
+            background-color: rgba(0, 13, 22, 0.75) !important;
+            backdrop-filter: blur(25px) saturate(120%) !important;
+            border: 1px solid rgba(0, 210, 255, 0.15) !important;
+            box-shadow: 0 30px 70px rgba(0, 0, 0, 0.6) !important;
+        }
+
+        .modal.show .login-title,
+        .modal.show .form-label,
+        .modal.show .checkbox-label,
+        .modal.show .divider span,
+        .modal.show .modal-footer-custom p {
+            color: #ffffff !important;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        }
+        .modal.show .login-subtitle,
+        .modal.show .forgot-link {
+            color: rgba(255, 255, 255, 0.8) !important;
+        }
+        
+        .modal.show .input-enhanced {
+            background-color: rgba(255,255,255,0.08) !important;
+            border: 2px solid rgba(255,255,255,0.1) !important;
+            color: white !important;
+        }
+        .modal.show .input-enhanced::placeholder {
+             color: rgba(255, 255, 255, 0.5) !important;
+        }
+        .modal.show .input-enhanced:focus {
+             border-color: var(--accent-color) !important;
+             background-color: rgba(255,255,255,0.12) !important;
+             box-shadow: 0 0 0 4px rgba(0, 210, 255, 0.15) !important;
+        }
+        
+        .modal.show .form-label i,
+        .modal.show .password-toggle {
+            color: var(--accent-color) !important;
+        }
+
+        .modal.show .btn-social {
+             background: rgba(255, 255, 255, 0.08) !important;
+             border-color: rgba(255, 255, 255, 0.15) !important;
+             color: white !important;
+        }
+        .modal.show .btn-social:hover {
+             background: rgba(255, 255, 255, 0.15) !important;
+        }
+        
+        .modal.show .checkbox-custom {
+            background: rgba(255, 255, 255, 0.1) !important;
+            border-color: rgba(255, 255, 255, 0.3) !important;
+        }
+
+        .modal.show .btn-close {
+            filter: invert(1) grayscale(100%) brightness(200%);
+        }
+        /* ================== FIM DO ESTILO DO MODAL ================== */
+
 
         .modal-content::before {
             content: '';
@@ -1237,11 +1390,13 @@
             margin: 0;
         }
 
-        /* ========== SCROLL REVEAL ANIMATIONS ========== */
+        /* ========== SCROLL REVEAL ANIMATIONS (SUAVIZADO) ========== */
         .reveal {
             opacity: 0;
-            transform: translateY(30px);
-            transition: all 0.8s var(--transition-smooth);
+            /* Começa mais de baixo (80px) para um movimento mais longo */
+            transform: translateY(80px); 
+            /* Duração maior (1.5s) e curva de aceleração mais suave (ease-out) */
+            transition: all 1.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
         }
 
         .reveal.active {
@@ -1342,6 +1497,27 @@
 
 <body data-bs-spy="scroll" data-bs-target="#main-nav" data-bs-offset="100">
 
+    <div class="particle-bg-container">
+        <div class="particle p-large p1"></div>
+        <div class="particle p-large p2"></div>
+        <div class="particle p-large p3"></div>
+        
+        <div class="particle p-medium p4"></div>
+        <div class="particle p-medium p5"></div>
+        <div class="particle p-medium p6"></div>
+
+        <div class="particle p-small p7"></div>
+        <div class="particle p-small p8"></div>
+        <div class="particle p-small p9"></div>
+        <div class="particle p-small p10"></div>
+        
+        <svg class="particle-connections" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+            <line x1="10%" y1="20%" x2="30%" y2="40%" stroke="var(--accent-color)" opacity="0.2" stroke-width="1"/>
+            <line x1="70%" y1="60%" x2="90%" y2="80%" stroke="var(--accent-color)" opacity="0.2" stroke-width="1"/>
+            <line x1="40%" y1="10%" x2="60%" y2="30%" stroke="var(--accent-color)" opacity="0.1" stroke-width="1"/>
+            <line x1="20%" y1="80%" x2="80%" y2="20%" stroke="var(--accent-color)" opacity="0.05" stroke-width="1"/>
+        </svg>
+    </div>
     <header class="navbar navbar-expand-lg navbar-dark fixed-top custom-navbar" id="main-nav">
         <div class="container">
             <a class="navbar-brand d-flex align-items-center gap-3" href="#">
@@ -1378,7 +1554,7 @@
         <div class="container hero-content-text text-center">
             <div class="mb-4">
                 <span class="badge bg-soft-blue">
-                    <i class="fas fa-rocket"></i> Gestão da Qualidade 4.0
+                    <i class="fas fa-rocket"></i> Lançamento em 2026
                 </span>
             </div>
             <h1 class="display-3 fw-bold text-white mb-4">
@@ -1580,7 +1756,7 @@
 
             <div class="row align-items-center mb-5 gy-5 gx-lg-5 flex-row-reverse mt-5 pt-5">
                 <div class="col-lg-6 order-2 order-lg-1 text-center reveal">
-                    <img src="https://placehold.co/600x450/e9ecef/0066a1?text=GESTÃO+DE+RNC+(WEB)"
+                    <img src="https://github.com/victorGroba/QualiGestor-assets/blob/main/rcn-qualigestor.png?raw=true"
                         alt="Interface de Gestão de RNC" class="img-fluid system-screenshot bg-white p-1">
                 </div>
                 <div class="col-lg-6 order-1 order-lg-2 pe-lg-5 reveal">
@@ -1602,8 +1778,15 @@
 
             <div class="row align-items-center gy-5 gx-lg-5 mt-5 pt-5">
                 <div class="col-lg-6 order-2 order-lg-1 text-center reveal">
-                    <img src="https://placehold.co/600x450/e9ecef/0066a1?text=DASHBOARD+DE+BI"
-                        alt="Dashboard de Business Intelligence" class="img-fluid system-screenshot bg-white p-1">
+                    <div class="browser-mockup">
+                        <div class="browser-header">
+                            <span class="dot bg-danger"></span>
+                            <span class="dot bg-warning"></span>
+                            <span class="dot bg-success"></span>
+                        </div>
+                        <img src="https://github.com/victorGroba/QualiGestor/blob/main/BI-Quali.png?raw=true"
+                            alt="Dashboard de Business Intelligence - Visão Geral" class="img-fluid w-100">
+                    </div>
                 </div>
                 <div class="col-lg-6 order-1 order-lg-2 ps-lg-5 reveal">
                     <h3 class="fw-bold mb-4 h2">Indicadores & BI (Business Intelligence)</h3>
@@ -1612,11 +1795,12 @@
                         rapidamente.
                     </p>
                     <ul class="list-unstyled text-muted lead fs-6 solution-list">
-                        <li><i class="fas fa-check text-success me-3"></i>Dashboards gerenciais visuais e intuitivos em
+                        <li><i class="fas fa-check-circle text-primary me-3"></i>Dashboards gerenciais visuais e
+                            intuitivos em
                             tempo real.</li>
-                        <li><i class="fas fa-check text-success me-3"></i>Ranking de desempenho entre unidades
+                        <li><i class="fas fa-check-circle text-primary me-3"></i>Ranking de desempenho entre unidades
                             (Benchmarking).</li>
-                        <li><i class="fas fa-check text-success me-3"></i>Acompanhamento da evolução temporal da
+                        <li><i class="fas fa-check-circle text-primary me-3"></i>Acompanhamento da evolução temporal da
                             conformidade.</li>
                     </ul>
                 </div>
@@ -1773,7 +1957,7 @@
 
     <div class="modal fade" id="loginModal" tabindex="-1" aria-labelledby="loginModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content shadow-lg bg-white p-4 px-sm-5 py-sm-5">
+            <div class="modal-content shadow-lg p-4 px-sm-5 py-sm-5">
                 <button type="button" class="btn-close position-absolute"
                     style="top: 1.5rem; right: 1.5rem; z-index: 10;" data-bs-dismiss="modal"
                     aria-label="Fechar modal"></button>
@@ -1781,7 +1965,7 @@
                 <div class="modal-body pt-2">
                     <div class="login-header">
                         <div class="login-logo">
-                            <i class="fas fa-shield-alt"></i>
+                            <img src="/static/img/logo-qualigestor.png" alt="Logo QualiGestor" style="height: 36px; width: auto; filter: brightness(0) invert(1);">
                         </div>
                         <h4 class="login-title" id="loginModalLabel">Bem-vindo de volta!</h4>
                         <p class="login-subtitle">Acesse sua conta para continuar gerenciando a qualidade.</p>
@@ -2049,7 +2233,8 @@
                         showToast('success', 'Login realizado!', 'Redirecionando para o painel...');
 
                         // Submit form after delay
-                        this.submit(); // Removemos o comentário "//"
+                        this.submit();
+                        
 
                         // Close modal after success
                         setTimeout(() => {
