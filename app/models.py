@@ -1,4 +1,4 @@
-# app/models.py - VERSÃO COMPLETA PARA CLI ROUTES
+# app/models.py
 from datetime import datetime
 from sqlalchemy import Enum as SqlEnum
 import enum
@@ -23,9 +23,15 @@ class TipoResposta(enum.Enum):
     MOEDA = "Moeda"
     ASSINATURA = "Assinatura Digital"
 
+class CriterioFoto(enum.Enum):
+    """Define a obrigatoriedade da foto"""
+    NENHUMA = "nenhuma"          # Não pede foto
+    OPCIONAL = "opcional"        # Botão de foto aparece, mas usuário não é obrigado
+    OBRIGATORIA = "obrigatoria"  # Botão aparece e sistema bloqueia se não enviar
+
 class TipoUsuario(enum.Enum):
     """Tipos de usuário do sistema"""
-    SUPER_ADMIN = "super_admin"  # ADICIONAR ESTA LINHA
+    SUPER_ADMIN = "super_admin"
     ADMIN = "admin"
     GESTOR = "gestor"
     AUDITOR = "auditor"
@@ -197,16 +203,6 @@ class Usuario(db.Model, UserMixin):
         from werkzeug.security import generate_password_hash
         self.senha_hash = generate_password_hash(password)
 
-    def check_password(self, password):
-        """Verifica se a senha está correta"""
-        from werkzeug.security import check_password_hash
-        return check_password_hash(self.senha_hash, password)
-    
-    def set_password(self, password):
-        """Define nova senha"""
-        from werkzeug.security import generate_password_hash
-        self.senha_hash = generate_password_hash(password)
-
 # ==================== QUESTIONÁRIOS E ESTRUTURA ====================
 
 class Questionario(db.Model):
@@ -284,9 +280,8 @@ class Topico(db.Model):
     # Chaves estrangeiras
     questionario_id = db.Column(db.Integer, db.ForeignKey('questionario.id'), nullable=False)
     
-    # --- NOVO CAMPO: Vínculo com CategoriaIndicador ---
+    # Vínculo com CategoriaIndicador
     categoria_indicador_id = db.Column(db.Integer, db.ForeignKey('categoria_indicador.id'), nullable=True)
-    # --------------------------------------------------
 
     # Relacionamentos
     perguntas = db.relationship('Pergunta', backref='topico', lazy='dynamic', cascade='all, delete-orphan')
@@ -304,9 +299,13 @@ class Pergunta(db.Model):
     ordem = db.Column(db.Integer, nullable=False, default=0)
     ativo = db.Column(db.Boolean, default=True)
     
-    # --- LINHA ADICIONADA ---
+    # --- CAMPO LEGADO ---
     exige_foto_se_nao_conforme = db.Column(db.Boolean, default=False, nullable=False) 
-    # -----------------------
+    
+    # --- NOVO CAMPO (FLEXIBILIDADE DE FOTO) ---
+    # Usamos db.String em vez de SqlEnum para facilitar migração em ambientes híbridos (Postgres/SQLite)
+    criterio_foto = db.Column(db.String(20), default='nenhuma', server_default='nenhuma')
+    # ------------------------------------------
     
     # Configurações específicas por tipo
     configuracoes = db.Column(db.Text)  # JSON para configurações específicas
@@ -318,7 +317,6 @@ class Pergunta(db.Model):
     criado_em = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relacionamentos
-    # Certifique-se que OpcaoPergunta e RespostaPergunta estão definidas ANTES ou DEPOIS desta classe
     opcoes = db.relationship('OpcaoPergunta', backref='pergunta', lazy='select', cascade='all, delete-orphan')
     respostas = db.relationship('RespostaPergunta', backref='pergunta', lazy='dynamic')
 
@@ -381,9 +379,8 @@ class RespostaPergunta(db.Model):
     observacao = db.Column(db.Text)  # Observação adicional
     pontos = db.Column(db.Float)  # Pontos obtidos nesta resposta
 
-    # --- LINHA ADICIONADA ---
-    caminho_foto = db.Column(db.String(255), nullable=True) # Caminho para a foto de evidência
-    # -----------------------
+    # Caminho para a foto de evidência
+    caminho_foto = db.Column(db.String(255), nullable=True)
     
     # Metadados
     data_resposta = db.Column(db.DateTime, default=datetime.utcnow)
@@ -508,6 +505,25 @@ class Integracao(db.Model):
     # Timestamps
     criado_em = db.Column(db.DateTime, default=datetime.utcnow)
 
+class CategoriaIndicador(db.Model):
+    """
+    As 'Gavetas' do Relatório.
+    Ex: Infraestrutura, Higiene Pessoal, Controle de Pragas.
+    """
+    __tablename__ = "categoria_indicador"
+    
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(100), nullable=False)  # Nome que aparece no título do gráfico
+    ordem = db.Column(db.Integer, default=0)          # Ordem que aparece no painel
+    cor = db.Column(db.String(7), default='#4e73df')  # Cor da barra no gráfico
+    ativo = db.Column(db.Boolean, default=True)
+    
+    # Vínculo com Cliente (para cada cliente poder ter seus próprios indicadores)
+    cliente_id = db.Column(db.Integer, db.ForeignKey('cliente.id'), nullable=False)
+    
+    # Relacionamento inverso
+    topicos = db.relationship('Topico', backref='indicador', lazy='dynamic')
+
 # ==================== FUNÇÕES AUXILIARES ====================
 
 def init_db():
@@ -541,23 +557,3 @@ def criar_admin_padrao():
         db.session.commit()
         return True
     return False
-
-class CategoriaIndicador(db.Model):
-    """
-    As 'Gavetas' do Relatório.
-    Ex: Infraestrutura, Higiene Pessoal, Controle de Pragas.
-    """
-    __tablename__ = "categoria_indicador"
-    
-    id = db.Column(db.Integer, primary_key=True)
-    nome = db.Column(db.String(100), nullable=False)  # Nome que aparece no título do gráfico
-    ordem = db.Column(db.Integer, default=0)          # Ordem que aparece no painel
-    cor = db.Column(db.String(7), default='#4e73df')  # Cor da barra no gráfico
-    ativo = db.Column(db.Boolean, default=True)
-    
-    # Vínculo com Cliente (para cada cliente poder ter seus próprios indicadores)
-    cliente_id = db.Column(db.Integer, db.ForeignKey('cliente.id'), nullable=False)
-    
-    # Relacionamento inverso
-    topicos = db.relationship('Topico', backref='indicador', lazy='dynamic')
-

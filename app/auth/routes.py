@@ -177,3 +177,35 @@ def excluir_usuario(usuario_id):
     db.session.commit()
     flash('Usuário excluído com sucesso!', 'success')
     return redirect(url_for('auth.listar_usuarios'))
+
+
+# app/auth/routes.py
+
+@auth_bp.route('/alterar-senha', methods=['GET', 'POST'])
+@login_required
+def alterar_senha():
+    if request.method == 'POST':
+        senha_atual = request.form.get('senha_atual')
+        nova_senha = request.form.get('nova_senha')
+        confirmar_senha = request.form.get('confirmar_senha')
+
+        if not current_user.check_password(senha_atual):
+            flash('Sua senha atual está incorreta.', 'danger')
+            return redirect(url_for('auth.alterar_senha'))
+
+        if nova_senha != confirmar_senha:
+            flash('A nova senha e a confirmação não conferem.', 'warning')
+            return redirect(url_for('auth.alterar_senha'))
+
+        if len(nova_senha) < 6:
+            flash('A nova senha deve ter pelo menos 6 caracteres.', 'warning')
+            return redirect(url_for('auth.alterar_senha'))
+
+        # Salva a nova senha
+        current_user.set_password(nova_senha)
+        db.session.commit()
+
+        flash('Senha alterada com sucesso!', 'success')
+        return redirect(url_for('main.painel'))
+
+    return render_template('auth/alterar_senha.html')

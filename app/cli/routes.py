@@ -1296,7 +1296,7 @@ def gerenciar_perguntas(topico_id):
 @cli_bp.route('/topico/<int:topico_id>/pergunta/nova', methods=['GET', 'POST'])
 @login_required
 def nova_pergunta(topico_id):
-    """Criar nova pergunta - CORRIGIDA e ATUALIZADA (v2 - auto-opções SIM_NAO_NA)""" # <-- Nome atualizado
+    """Criar nova pergunta - ATUALIZADA (v3 - Suporte a CriterioFoto)"""
     print(f"DEBUG nova_pergunta: método={request.method}, topico_id={topico_id}")
     
     try:
@@ -1317,11 +1317,12 @@ def nova_pergunta(topico_id):
                 permite_observacao = request.form.get('permite_observacao') == 'on'
                 peso = int(request.form.get('peso', 1))
                 
-                # --- LINHA ADICIONADA ---
-                exige_foto = request.form.get('exige_foto_se_nao_conforme') == 'on'
-                # ------------------------
+                # --- ATUALIZAÇÃO: CRITÉRIO DE FOTO (Select Box) ---
+                # Pega 'nenhuma', 'opcional' ou 'obrigatoria' do formulário
+                criterio_foto = request.form.get('criterio_foto', 'nenhuma')
+                # --------------------------------------------------
 
-                print(f"DEBUG: texto='{texto}', tipo='{tipo_str}', peso={peso}, exige_foto={exige_foto}")
+                print(f"DEBUG: texto='{texto}', tipo='{tipo_str}', peso={peso}, criterio_foto={criterio_foto}")
                 
                 if not texto:
                     flash("Texto da pergunta é obrigatório.", "danger")
@@ -1330,7 +1331,7 @@ def nova_pergunta(topico_id):
                 
                 # Obter próxima ordem
                 ultima_ordem = db.session.query(func.max(Pergunta.ordem)).filter_by(
-                    topico_id=topico_id, ativo=True # Considerar apenas ativos para ordem
+                    topico_id=topico_id, ativo=True
                 ).scalar() or 0
                 print(f"DEBUG: Última ordem: {ultima_ordem}")
 
@@ -1339,7 +1340,7 @@ def nova_pergunta(topico_id):
                     # Tenta buscar pelo NOME do enum ('SIM_NAO_NA')
                     tipo_enum = TipoResposta[tipo_str]
                 except KeyError:
-                    # Se falhar, tenta buscar pelo VALOR ('Sim/Não/N.A.') - menos ideal, mas robusto
+                    # Se falhar, tenta buscar pelo VALOR ('Sim/Não/N.A.')
                     tipo_enum = None
                     for item in TipoResposta:
                         if item.value == tipo_str:
@@ -1352,12 +1353,14 @@ def nova_pergunta(topico_id):
                 
                 nova_pergunta_obj = Pergunta(
                     texto=texto,
-                    tipo=tipo_enum, # Salva o Enum
+                    tipo=tipo_enum,
                     obrigatoria=obrigatoria,
                     permite_observacao=permite_observacao,
                     peso=peso,
                     ordem=ultima_ordem + 1,
-                    exige_foto_se_nao_conforme=exige_foto, # --- CAMPO ADICIONADO ---
+                    # --- CAMPO NOVO (Substitui exige_foto_se_nao_conforme) ---
+                    criterio_foto=criterio_foto, 
+                    # ---------------------------------------------------------
                     topico_id=topico_id,
                     ativo=True
                 )
@@ -1366,7 +1369,7 @@ def nova_pergunta(topico_id):
                 db.session.flush() # Para obter o ID da pergunta para as opções
                 print(f"DEBUG: Pergunta criada com ID: {nova_pergunta_obj.id}")
                 
-                # --- LÓGICA DE OPÇÕES CORRIGIDA ---
+                # --- LÓGICA DE OPÇÕES (Mantida igual) ---
                 
                 # Adicionar opções se for múltipla escolha ou escala (baseado no form)
                 if tipo_enum in [TipoResposta.MULTIPLA_ESCOLHA, TipoResposta.ESCALA_NUMERICA] and 'OpcaoPergunta' in globals():
@@ -1381,17 +1384,16 @@ def nova_pergunta(topico_id):
                                 valor_opcao_str = opcoes_valor[i] if i < len(opcoes_valor) else '0'
                                 valor_float = float(valor_opcao_str) if valor_opcao_str else 0.0
                             except (ValueError, IndexError):
-                                valor_float = 0.0 # Default seguro
+                                valor_float = 0.0
 
                             opcao = OpcaoPergunta(
                                 texto=texto_opcao_strip,
                                 valor=valor_float,
                                 ordem=i + 1,
                                 pergunta_id=nova_pergunta_obj.id,
-                                ativo=True # <<< Garante ativo=True
+                                ativo=True
                             )
                             db.session.add(opcao)
-                            print(f"DEBUG: Opção adicionada (form): '{texto_opcao_strip}' = {valor_float}")
 
                 # Criar opções padrão automaticamente para SIM_NAO_NA
                 elif tipo_enum == TipoResposta.SIM_NAO_NA and 'OpcaoPergunta' in globals():
@@ -1399,7 +1401,7 @@ def nova_pergunta(topico_id):
                     opcoes_padrao = [
                         {"texto": "Sim", "valor": 1.0, "ordem": 1},
                         {"texto": "Não", "valor": 0.0, "ordem": 2},
-                        {"texto": "N.A.", "valor": 0.0, "ordem": 3} # Ajuste o valor se N.A. tiver pontuação diferente
+                        {"texto": "N.A.", "valor": 0.0, "ordem": 3}
                     ]
                     for op_data in opcoes_padrao:
                         opcao = OpcaoPergunta(
@@ -1407,18 +1409,18 @@ def nova_pergunta(topico_id):
                             valor=op_data["valor"],
                             ordem=op_data["ordem"],
                             pergunta_id=nova_pergunta_obj.id,
-                            ativo=True # <<< Garante ativo=True
+                            ativo=True
                         )
                         db.session.add(opcao)
-                        print(f"DEBUG: Opção padrão adicionada: '{op_data['texto']}'")
                 
-                # --- FIM DA LÓGICA DE OPÇÕES CORRIGIDA ---
+                # --- FIM DA LÓGICA DE OPÇÕES ---
                 
                 db.session.commit()
-                log_acao(f"Criou pergunta: {texto[:50]}...", None, "Pergunta", nova_pergunta_obj.id)
+                # Tenta logar se a função existir
+                if 'log_acao' in globals():
+                    log_acao(f"Criou pergunta: {texto[:50]}...", None, "Pergunta", nova_pergunta_obj.id)
                 
                 flash("Pergunta criada com sucesso!", "success")
-                print(f"DEBUG: Redirecionando para gerenciar_perguntas com topico_id={topico_id}")
                 return redirect(url_for('cli.gerenciar_perguntas', topico_id=topico_id))
                 
             except Exception as e:
@@ -1427,11 +1429,9 @@ def nova_pergunta(topico_id):
                 traceback.print_exc()
                 db.session.rollback()
                 flash(f"Erro ao criar pergunta: {str(e)}", "danger")
-                # Passa os dados do formulário de volta para preencher os campos
                 return render_template_safe('cli/nova_pergunta.html', topico=topico, form_data=request.form)
         
         # GET - Mostrar formulário
-        print("DEBUG: Renderizando template nova_pergunta.html para GET")
         return render_template_safe('cli/nova_pergunta.html', topico=topico)
             
     except Exception as e:
@@ -1439,15 +1439,14 @@ def nova_pergunta(topico_id):
         import traceback
         traceback.print_exc()
         flash(f"Erro ao carregar formulário: {str(e)}", "danger")
-        # Tenta redirecionar para gerenciar_topicos se topico_id estiver disponível
+        
+        # Redirecionamento de segurança
         redirect_url = url_for('cli.listar_questionarios')
-        # Correção: O redirect deve ser para gerenciar_topicos usando 'id' do questionário
         if 'topico' in locals() and hasattr(topico, 'questionario_id'):
              try:
                  redirect_url = url_for('cli.gerenciar_topicos', id=topico.questionario_id)
-             except Exception as redirect_err:
-                 print(f"DEBUG: Erro ao gerar URL para gerenciar_topicos: {redirect_err}")
-                 pass # Mantém o redirect para listar_questionarios
+             except:
+                 pass
         return redirect(redirect_url)
 
 # ===================== PUBLICAR QUESTIONÁRIO CORRIGIDA =====================
@@ -1550,7 +1549,7 @@ def test_publish(id):
 @cli_bp.route('/pergunta/<int:pergunta_id>/editar', methods=['GET', 'POST'])
 @login_required
 def editar_pergunta(pergunta_id):
-    """Editar pergunta existente - ATUALIZADA (v3 - auto-opções SIM_NAO_NA)""" # <-- Nome atualizado
+    """Editar pergunta existente - ATUALIZADA (v4 - Suporte a CriterioFoto)"""
     try:
         # Removido o eager loading que causava erro com lazy='dynamic'
         pergunta = Pergunta.query.get_or_404(pergunta_id)
@@ -1566,7 +1565,11 @@ def editar_pergunta(pergunta_id):
                 pergunta.obrigatoria = request.form.get('obrigatoria') == 'on'
                 pergunta.permite_observacao = request.form.get('permite_observacao') == 'on'
                 pergunta.peso = int(request.form.get('peso', 1))
-                pergunta.exige_foto_se_nao_conforme = request.form.get('exige_foto_se_nao_conforme') == 'on'
+                
+                # --- ATUALIZAÇÃO: CRITÉRIO DE FOTO (Select Box) ---
+                # Substitui o checkbox antigo pelo valor do select box ('nenhuma', 'opcional', 'obrigatoria')
+                pergunta.criterio_foto = request.form.get('criterio_foto', 'nenhuma')
+                # --------------------------------------------------
 
                 # --- CONVERSÃO STRING PARA ENUM ROBUSTA ---
                 tipo_enum_antigo = pergunta.tipo # Guarda o tipo antigo
@@ -1582,8 +1585,8 @@ def editar_pergunta(pergunta_id):
                              break
                 
                 if tipo_enum_novo is None:
-                     flash(f"Tipo de resposta inválido recebido: '{tipo_str}'. Mantendo tipo anterior.", "warning")
-                     tipo_enum_novo = tipo_enum_antigo # Reverte se inválido
+                      flash(f"Tipo de resposta inválido recebido: '{tipo_str}'. Mantendo tipo anterior.", "warning")
+                      tipo_enum_novo = tipo_enum_antigo # Reverte se inválido
                 else:
                     pergunta.tipo = tipo_enum_novo # Atualiza o tipo se válido
                 # ------------------------------------
@@ -1717,7 +1720,9 @@ def editar_pergunta(pergunta_id):
                 # --- FIM DA LÓGICA DE OPÇÕES CORRIGIDA ---
 
                 db.session.commit()
-                log_acao(f"Editou pergunta: {pergunta.texto[:50]}...", None, "Pergunta", pergunta_id)
+                # Tenta logar se a função existir
+                if 'log_acao' in globals():
+                    log_acao(f"Editou pergunta: {pergunta.texto[:50]}...", None, "Pergunta", pergunta_id)
 
                 flash("Pergunta atualizada com sucesso!", "success")
                 return redirect(url_for('cli.gerenciar_perguntas', topico_id=pergunta.topico_id))
@@ -1732,9 +1737,9 @@ def editar_pergunta(pergunta_id):
                 # Carrega opções (lazy load) e ordena para passar ao template
                 opcoes_ordenadas = []
                 try:
-                     opcoes_ordenadas = sorted(list(pergunta.opcoes), key=lambda o: o.ordem)
+                      opcoes_ordenadas = sorted(list(pergunta.opcoes), key=lambda o: o.ordem)
                 except Exception as load_err:
-                     print(f"DEBUG: Erro ao carregar opções no except: {load_err}")
+                      print(f"DEBUG: Erro ao carregar opções no except: {load_err}")
 
                 return render_template_safe('cli/editar_pergunta.html', pergunta=pergunta, opcoes=opcoes_ordenadas)
 
@@ -1764,7 +1769,7 @@ def editar_pergunta(pergunta_id):
             if pergunta_fallback and pergunta_fallback.topico_id:
                  redirect_url = url_for('cli.gerenciar_perguntas', topico_id=pergunta_fallback.topico_id)
         except:
-             pass # Mantém o redirect para listar_questionarios
+             pass 
         return redirect(redirect_url)
 
 @cli_bp.route('/pergunta/<int:pergunta_id>/remover', methods=['POST'])

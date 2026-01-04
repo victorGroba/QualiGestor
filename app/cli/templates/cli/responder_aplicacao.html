@@ -4,194 +4,229 @@
 <div class="container-fluid">
     <div class="row">
         <div class="col-lg-3">
-            <div class="card sticky-top" style="top: 20px;">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>Detalhes da Aplicação</h5>
+            <div class="card sticky-top shadow-sm" style="top: 20px; z-index: 100;">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-clipboard-check me-2"></i>Aplicação</h5>
                 </div>
                 <div class="card-body">
-                    <h6 class="card-title">{{ aplicacao.questionario.nome }}</h6>
-                    <p class="card-text">
-                        <strong>Avaliador:</strong> {{ aplicacao.aplicador.nome }}<br>
-                        <strong>Avaliado:</strong> {{ aplicacao.avaliado.nome }}<br>
-                        <strong>Data Início:</strong> {{ aplicacao.data_inicio.strftime('%d/%m/%Y %H:%M') }}
-                    </p>
+                    <h6 class="card-title fw-bold text-primary">{{ aplicacao.questionario.nome }}</h6>
+                    <ul class="list-unstyled small mb-3">
+                        <li class="mb-1"><i class="fas fa-user-tag me-2 text-muted"></i><strong>Avaliado:</strong> {{ aplicacao.avaliado.nome }}</li>
+                        <li class="mb-1"><i class="fas fa-user-edit me-2 text-muted"></i><strong>Avaliador:</strong> {{ aplicacao.aplicador.nome }}</li>
+                        <li><i class="far fa-clock me-2 text-muted"></i><strong>Início:</strong> {{ aplicacao.data_inicio.strftime('%d/%m/%Y %H:%M') }}</li>
+                    </ul>
                     <hr>
-                    <p class="text-muted small">
-                        Suas respostas são salvas automaticamente à medida que você preenche.
-                    </p>
+                    <div class="d-flex align-items-center text-success small">
+                        <i class="fas fa-sync fa-spin me-2"></i>
+                        <span>Salvamento automático ativo</span>
+                    </div>
                 </div>
             </div>
         </div>
 
         <div class="col-lg-9">
-            <form id="form-finalizar" action="{{ url_for('cli.finalizar_aplicacao', id=aplicacao.id) }}" method="POST">
+            <form id="form-finalizar" action="{{ url_for('cli.finalizar_aplicacao', id=aplicacao.id) }}" method="POST" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                 {% for topico in topicos %}
-                <div class="card mb-4">
-                    <div class="card-header bg-light">
-                        <h5 class="mb-0">{{ topico.nome }}</h5>
+                <div class="card mb-4 shadow-sm border-0">
+                    <div class="card-header bg-light border-bottom">
+                        <h5 class="mb-0 text-dark fw-bold">{{ topico.nome }}</h5>
                         {% if topico.descricao %}
-                        <p class="text-muted mb-0 small">{{ topico.descricao }}</p>
+                        <p class="text-muted mb-0 small mt-1">{{ topico.descricao }}</p>
                         {% endif %}
                     </div>
-                    <div class="card-body">
+                    <div class="card-body p-2 p-md-3">
                         {% if perguntas_por_topico[topico.id] %}
                         
-                        {% for pergunta in perguntas_por_topico[topico.id] %}
-                        
-                        <div class="mb-4 p-3 border rounded pergunta-container" 
-                             data-pergunta-id="{{ pergunta.id }}"
-                             {% if pergunta.obrigatoria %}data-obrigatoria="true"{% endif %}> 
-                            
-                            <label class="form-label fw-bold">
-                                {{ topico.ordem }}.{{ pergunta.ordem }} - {{ pergunta.texto }}
-                                {% if pergunta.obrigatoria %}
-                                <span class="text-danger">*</span>
-                                {% endif %}
-                            </label>
-                            
-                            {% set resposta_salva = respostas_existentes.get(pergunta.id) %}
-
-                            {% if pergunta.tipo.name == 'SIM_NAO_NA' %}
-                            <div id="resposta-container-{{ pergunta.id }}"> 
-                                {% for opcao in pergunta.opcoes|sort(attribute='ordem') %}
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="resposta-{{ pergunta.id }}"
-                                        id="opcao-{{ opcao.id }}" value="{{ opcao.texto }}"
-                                        data-pergunta-id="{{ pergunta.id }}" onchange="salvarResposta(this)" {% if
-                                        resposta_salva and resposta_salva.resposta==opcao.texto %}checked{% endif %}>
-                                    <label class="form-check-label" for="opcao-{{ opcao.id }}">
-                                        {{ opcao.texto }}
-                                    </label>
-                                </div>
-                                {% endfor %}
-                            </div>
-
-                            {% elif pergunta.tipo.name == 'MULTIPLA_ESCOLHA' %}
-                            <select class="form-select" name="resposta-{{ pergunta.id }}"
-                                data-pergunta-id="{{ pergunta.id }}" onchange="salvarResposta(this)">
-                                <option value="">Selecione...</option>
-                                {% for opcao in pergunta.opcoes|sort(attribute='ordem') %}
-                                <option value="{{ opcao.texto }}" {% if resposta_salva and
-                                    resposta_salva.resposta==opcao.texto %}selected{% endif %}>
-                                    {{ opcao.texto }}
-                                </option>
-                                {% endfor %}
-                            </select>
-
-                            {% elif pergunta.tipo.name == 'NOTA' or pergunta.tipo.name == 'ESCALA_NUMERICA' %}
-                            <input type="number" class="form-control" name="resposta-{{ pergunta.id }}"
-                                data-pergunta-id="{{ pergunta.id }}"
-                                value="{{ resposta_salva.resposta if resposta_salva else '' }}"
-                                onblur="salvarResposta(this)">
-
-                            {% elif pergunta.tipo.name == 'TEXTO_CURTO' %}
-                            <input type="text" class="form-control" name="resposta-{{ pergunta.id }}"
-                                data-pergunta-id="{{ pergunta.id }}"
-                                value="{{ resposta_salva.resposta if resposta_salva else '' }}"
-                                onblur="salvarResposta(this)">
-
-                            {% elif pergunta.tipo.name == 'TEXTO_LONGO' %}
-                            <textarea class="form-control" rows="3" name="resposta-{{ pergunta.id }}"
-                                data-pergunta-id="{{ pergunta.id }}"
-                                onblur="salvarResposta(this)">{{ resposta_salva.resposta if resposta_salva else '' }}</textarea>
-
-                            {% elif pergunta.tipo.name == 'ASSINATURA' %}
-                            <div class="signature-pad-container" style="position: relative; height: 250px; width: 100%;">
-                                <canvas id="signature-pad-{{ pergunta.id }}" 
-                                        class="border" 
-                                        style="width: 100%; height: 100%;"></canvas>
-                                <input type="hidden" 
-                                       name="resposta-{{ pergunta.id }}" 
-                                       id="resposta-input-{{ pergunta.id }}"
-                                       data-pergunta-id="{{ pergunta.id }}"
-                                       value="{{ resposta_salva.resposta if resposta_salva else '' }}">
-                                <button type="button" 
-                                        class="btn btn-sm btn-outline-secondary clear-signature-btn" 
-                                        data-pergunta-id="{{ pergunta.id }}"
-                                        style="position: absolute; top: 10px; right: 10px;">
-                                    <i class="fas fa-eraser me-1"></i> Limpar
-                                </button>
-                            </div>
-                            {% if resposta_salva and resposta_salva.resposta %}
-                            <div class="mt-2" id="preview-assinatura-{{ pergunta.id }}">
-                                <small class="text-muted">Assinatura Salva:</small><br>
-                                <img src="{{ resposta_salva.resposta }}" alt="Assinatura" class="img-thumbnail" style="max-height: 100px;">
-                            </div>
-                            {% endif %}
-                            {% else %}
-                            <p class="text-danger small">Tipo de pergunta não suportado: {{ pergunta.tipo.name }}</p>
-                            {% endif %}
-                            
-                            {% if pergunta.permite_observacao %}
-                            <div class="mt-2">
-                                <label for="obs-{{ pergunta.id }}" class="form-label small text-muted">Observação:</label>
-                                <textarea class="form-control form-control-sm" id="obs-{{ pergunta.id }}"
-                                    name="observacao-{{ pergunta.id }}" data-pergunta-id="{{ pergunta.id }}"
-                                    onblur="salvarResposta(this, true)"
-                                    rows="2">{{ resposta_salva.observacao if resposta_salva else '' }}</textarea>
-                            </div>
-                            {% endif %}
-                            <div id="feedback-{{ pergunta.id }}" class="form-text small mt-1"></div>
-                            {% set exige_foto = pergunta.exige_foto_se_nao_conforme %}
-                            {% set resposta_nao_conforme = (resposta_salva and resposta_salva.resposta|lower in ['não', 'nao']) %}
-                            <div class="mt-2" 
-                                 id="foto-container-{{ pergunta.id }}" 
-                                 {% if not (exige_foto and resposta_nao_conforme) %}style="display: none;"{% endif %}>
-                                <label for="foto-{{ pergunta.id }}" class="form-label small fw-bold text-danger">
-                                    <i class="fas fa-camera me-1"></i> Anexar foto de evidência (obrigatório):
+                            {% for pergunta in perguntas_por_topico[topico.id] %}
+                            <div class="mb-3 p-3 border rounded pergunta-container bg-white" 
+                                 data-pergunta-id="{{ pergunta.id }}"
+                                 {% if pergunta.obrigatoria %}data-obrigatoria="true"{% endif %}>
+                                
+                                <label class="form-label fw-bold d-block mb-2">
+                                    <span class="badge bg-secondary me-1">{{ topico.ordem }}.{{ pergunta.ordem }}</span>
+                                    {{ pergunta.texto }}
+                                    {% if pergunta.obrigatoria %}
+                                        <span class="text-danger" title="Obrigatório">*</span>
+                                    {% endif %}
                                 </label>
-                                <input class="form-control form-control-sm" 
-                                       type="file" 
-                                       id="foto-{{ pergunta.id }}" 
-                                       name="foto-{{ pergunta.id }}" 
-                                       accept="image/*"
-                                       data-resposta-id="{{ resposta_salva.id if resposta_salva else '' }}"
-                                       data-exige-foto="{{ 'true' if exige_foto else 'false' }}"
-                                       onchange="handleFotoUpload(this)">
-                                <div id="feedback-foto-{{ pergunta.id }}" class="form-text small mt-1"></div>
-                                {% if resposta_salva and resposta_salva.caminho_foto %}
+                                
+                                {% set resposta_salva = respostas_existentes.get(pergunta.id) %}
+
+                                <div class="resposta-wrapper">
+                                    
+                                    {% if pergunta.tipo.name == 'SIM_NAO_NA' %}
+                                    <div class="d-flex flex-wrap gap-3"> 
+                                        {% for opcao in pergunta.opcoes|sort(attribute='ordem') %}
+                                        <div class="form-check form-check-inline custom-radio-lg">
+                                            <input class="form-check-input" type="radio" name="resposta-{{ pergunta.id }}"
+                                                id="opcao-{{ pergunta.id }}-{{ opcao.id }}" value="{{ opcao.texto }}"
+                                                data-pergunta-id="{{ pergunta.id }}" onchange="salvarResposta(this)" 
+                                                {% if resposta_salva and resposta_salva.resposta==opcao.texto %}checked{% endif %}>
+                                            <label class="form-check-label" for="opcao-{{ pergunta.id }}-{{ opcao.id }}">
+                                                {{ opcao.texto }}
+                                            </label>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+
+                                    {% elif pergunta.tipo.name == 'MULTIPLA_ESCOLHA' %}
+                                    <select class="form-select" name="resposta-{{ pergunta.id }}"
+                                        data-pergunta-id="{{ pergunta.id }}" onchange="salvarResposta(this)">
+                                        <option value="">Selecione...</option>
+                                        {% for opcao in pergunta.opcoes|sort(attribute='ordem') %}
+                                        <option value="{{ opcao.texto }}" {% if resposta_salva and resposta_salva.resposta==opcao.texto %}selected{% endif %}>
+                                            {{ opcao.texto }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+
+                                    {% elif pergunta.tipo.name == 'NOTA' or pergunta.tipo.name == 'ESCALA_NUMERICA' or pergunta.tipo.name == 'NUMERO' %}
+                                    <input type="number" class="form-control" name="resposta-{{ pergunta.id }}"
+                                        data-pergunta-id="{{ pergunta.id }}"
+                                        value="{{ resposta_salva.resposta if resposta_salva else '' }}"
+                                        onblur="salvarResposta(this)" step="any">
+
+                                    {% elif pergunta.tipo.name == 'TEXTO_CURTO' %}
+                                    <input type="text" class="form-control" name="resposta-{{ pergunta.id }}"
+                                        data-pergunta-id="{{ pergunta.id }}"
+                                        value="{{ resposta_salva.resposta if resposta_salva else '' }}"
+                                        onblur="salvarResposta(this)">
+
+                                    {% elif pergunta.tipo.name == 'TEXTO_LONGO' %}
+                                    <textarea class="form-control" rows="3" name="resposta-{{ pergunta.id }}"
+                                        data-pergunta-id="{{ pergunta.id }}"
+                                        onblur="salvarResposta(this)">{{ resposta_salva.resposta if resposta_salva else '' }}</textarea>
+
+                                    {% elif pergunta.tipo.name == 'DATA' %}
+                                    <input type="date" class="form-control" name="resposta-{{ pergunta.id }}"
+                                           data-pergunta-id="{{ pergunta.id }}" value="{{ resposta_salva.resposta if resposta_salva else '' }}" onblur="salvarResposta(this)">
+
+                                    {% elif pergunta.tipo.name == 'HORA' %}
+                                    <input type="time" class="form-control" name="resposta-{{ pergunta.id }}"
+                                           data-pergunta-id="{{ pergunta.id }}" value="{{ resposta_salva.resposta if resposta_salva else '' }}" onblur="salvarResposta(this)">
+
+                                    {% elif pergunta.tipo.name == 'ASSINATURA' %}
+                                    <div class="signature-pad-container border rounded bg-light" style="position: relative; height: 200px; width: 100%;">
+                                        <canvas id="signature-pad-{{ pergunta.id }}" style="width: 100%; height: 100%; display: block;"></canvas>
+                                        <input type="hidden" name="resposta-{{ pergunta.id }}" id="resposta-input-{{ pergunta.id }}"
+                                               data-pergunta-id="{{ pergunta.id }}" value="{{ resposta_salva.resposta if resposta_salva else '' }}">
+                                        
+                                        <button type="button" class="btn btn-sm btn-outline-danger clear-signature-btn" 
+                                                data-pergunta-id="{{ pergunta.id }}"
+                                                style="position: absolute; bottom: 10px; right: 10px; z-index: 10;">
+                                            <i class="fas fa-eraser"></i> Limpar
+                                        </button>
+                                    </div>
+                                    {% if resposta_salva and resposta_salva.resposta %}
+                                    <div class="mt-2 text-center" id="preview-assinatura-{{ pergunta.id }}">
+                                        <small class="text-success"><i class="fas fa-check-circle"></i> Assinatura Salva</small>
+                                    </div>
+                                    {% endif %}
+
+                                    {% else %}
+                                    <div class="alert alert-warning p-2 small">Tipo {{ pergunta.tipo.name }} não suportado neste formulário.</div>
+                                    {% endif %}
+                                </div>
+
+                                <div id="feedback-{{ pergunta.id }}" class="form-text small mt-1" style="min-height: 20px;"></div>
+
+                                {% if pergunta.permite_observacao %}
                                 <div class="mt-2">
-                                    <img src="{{ url_for('cli.get_foto_resposta', filename=resposta_salva.caminho_foto) }}" 
-                                         alt="Foto de Evidência" 
-                                         class="img-thumbnail" 
-                                         style="max-height: 150px;">
+                                    <a class="text-decoration-none small text-muted" data-bs-toggle="collapse" href="#collapseObs{{ pergunta.id }}" role="button">
+                                        <i class="far fa-comment-alt"></i> Adicionar Observação
+                                    </a>
+                                    <div class="collapse {% if resposta_salva and resposta_salva.observacao %}show{% endif %}" id="collapseObs{{ pergunta.id }}">
+                                        <textarea class="form-control form-control-sm mt-1" id="obs-{{ pergunta.id }}"
+                                            name="observacao-{{ pergunta.id }}" data-pergunta-id="{{ pergunta.id }}"
+                                            onblur="salvarResposta(this, true)" rows="2" placeholder="Detalhes adicionais...">{{ resposta_salva.observacao if resposta_salva else '' }}</textarea>
+                                    </div>
                                 </div>
                                 {% endif %}
+
+                                {% if pergunta.criterio_foto != 'nenhuma' %}
+                                <div class="mt-3 p-3 border border-secondary rounded bg-light foto-container">
+                                    <label class="form-label fw-bold text-dark mb-2 d-flex justify-content-between align-items-center">
+                                        <span>
+                                            <i class="fas fa-camera text-primary me-1"></i> Evidência Fotográfica
+                                        </span>
+                                        {% if pergunta.criterio_foto == 'obrigatoria' %}
+                                            <span class="badge bg-danger">Obrigatória</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Opcional</span>
+                                        {% endif %}
+                                    </label>
+
+                                    <div class="input-group">
+                                        <input type="file" 
+                                               class="form-control" 
+                                               id="foto-{{ pergunta.id }}" 
+                                               name="foto-{{ pergunta.id }}" 
+                                               accept="image/*" 
+                                               capture="environment"
+                                               data-pergunta-id="{{ pergunta.id }}"
+                                               data-resposta-id="{{ resposta_salva.id if resposta_salva else '' }}"
+                                               {% if pergunta.criterio_foto == 'obrigatoria' %}data-obrigatoria="true"{% endif %}
+                                               onchange="handleFotoUpload(this)">
+                                    </div>
+
+                                    <div id="feedback-foto-{{ pergunta.id }}" class="form-text small mt-1"></div>
+
+                                    <div id="container-preview-foto-{{ pergunta.id }}" class="mt-2">
+                                        {% if resposta_salva and resposta_salva.caminho_foto %}
+                                            <div class="position-relative d-inline-block img-salva-container">
+                                                <img src="{{ url_for('cli.get_foto_resposta', filename=resposta_salva.caminho_foto) }}" 
+                                                     class="img-thumbnail rounded" 
+                                                     style="height: 120px; width: auto; object-fit: cover;">
+                                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success">
+                                                    <i class="fas fa-check"></i>
+                                                </span>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% endif %}
+                                
                             </div>
-                            </div> {% endfor %}
+                            {% endfor %}
+
                         {% else %}
-                        <p class="text-muted">Nenhuma pergunta encontrada neste tópico.</p>
+                        <div class="text-center py-4 text-muted">
+                            <i class="fas fa-inbox fa-2x mb-2"></i>
+                            <p>Nenhuma pergunta neste tópico.</p>
+                        </div>
                         {% endif %}
                     </div>
                 </div>
                 {% endfor %}
-                
-                <div class="card mb-4">
-                    <div class="card-header">
-                        <h5 class="mb-0"><i class="fas fa-comment-alt me-2"></i>Observações Finais</h5>
+
+                <div class="card mb-5 shadow-sm border-0">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0"><i class="fas fa-flag-checkered me-2"></i>Conclusão</h5>
                     </div>
                     <div class="card-body">
-                        <textarea class="form-control" name="observacoes_finais" rows="4"
-                            placeholder="Digite aqui qualquer observação geral sobre a aplicação...">{{ aplicacao.observacoes_finais or '' }}</textarea>
-                    </div>
-                </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Observações Gerais da Aplicação</label>
+                            <textarea class="form-control" name="observacoes_finais" rows="4"
+                                placeholder="Resumo geral, intercorrências ou comentários finais...">{{ aplicacao.observacoes_finais or '' }}</textarea>
+                        </div>
 
-                <div class="alert alert-danger d-none" role="alert" id="alerta-validacao">
-                    <h5 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Erros Encontrados</h5>
-                    <p id="alerta-validacao-mensagem">Existem perguntas obrigatórias sem resposta. Por favor, revise os itens marcados.</p>
-                    <hr>
-                    <ul id="alerta-validacao-lista" class="mb-0">
-                        </ul>
-                </div>
-                <div class="text-end mb-5">
-                    <a href="{{ url_for('cli.listar_aplicacoes') }}" class="btn btn-secondary">
-                        <i class="fas fa-times me-2"></i>Cancelar
-                    </a>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-check-circle me-2"></i>Finalizar Aplicação
-                    </button>
+                        <div class="alert alert-danger d-none" role="alert" id="alerta-validacao">
+                            <h6 class="alert-heading fw-bold"><i class="fas fa-exclamation-triangle me-2"></i>Impedimento de Envio</h6>
+                            <p class="mb-2" id="alerta-validacao-mensagem">Existem pendências obrigatórias:</p>
+                            <ul id="alerta-validacao-lista" class="mb-0 small"></ul>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('cli.listar_aplicacoes') }}" class="btn btn-outline-secondary me-md-2">
+                                Cancelar e Sair
+                            </a>
+                            <button type="submit" class="btn btn-success btn-lg px-5">
+                                <i class="fas fa-check-circle me-2"></i> Finalizar Aplicação
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </form>
         </div>
@@ -199,60 +234,45 @@
 </div>
 {% endblock %}
 
-
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+
 <script>
-    // Função: Salva a resposta de TEXTO/RADIO/SELECT via AJAX
-    // (Esta função está correta, sem mudanças)
+    // ========================================================================
+    // 1. SALVAR RESPOSTA (Texto, Radio, Select)
+    // ========================================================================
     async function salvarResposta(inputElement, isObservacao = false) {
-        let perguntaId, respostaValue, observacaoValue;
-        perguntaId = inputElement.dataset.perguntaId;
-
-        // 1. Pega os elementos
-        let respostaInput, observacaoInput, fotoContainer;
-        fotoContainer = document.getElementById(`foto-container-${perguntaId}`);
-        const fotoInputElement = document.getElementById(`foto-${perguntaId}`);
-        const exigeFoto = fotoInputElement ? fotoInputElement.dataset.exigeFoto === 'true' : false;
-
-        if (isObservacao) {
-            observacaoInput = inputElement;
-            respostaInput = document.querySelector(`[name="resposta-${perguntaId}"]:checked`) ||
-                document.querySelector(`[name="resposta-${perguntaId}"]`);
-        } else {
-            respostaInput = inputElement;
-            observacaoInput = document.querySelector(`[name="observacao-${perguntaId}"]`);
-        }
-
-        // 2. Pega os valores
-        respostaValue = respostaInput ? respostaInput.value : '';
-        observacaoValue = observacaoInput ? observacaoInput.value : '';
-
-        // 3. Mostra/Oculta o campo de FOTO baseado na resposta
-        if (exigeFoto && fotoContainer) {
-            if (respostaValue.trim().toLowerCase() === 'não' || respostaValue.trim().toLowerCase() === 'nao') {
-                fotoContainer.style.display = 'block';
-            } else {
-                fotoContainer.style.display = 'none';
-            }
-        }
-
+        const perguntaId = inputElement.dataset.perguntaId;
         const feedbackEl = document.getElementById(`feedback-${perguntaId}`);
+        const fotoInput = document.getElementById(`foto-${perguntaId}`);
+
+        let respostaValue = '';
+        let observacaoValue = '';
+
+        // Identifica os valores
+        if (isObservacao) {
+            observacaoValue = inputElement.value;
+            // Busca a resposta atual para não sobrescrever com vazio
+            const respEl = document.querySelector(`[name="resposta-${perguntaId}"]:checked`) || 
+                           document.querySelector(`[name="resposta-${perguntaId}"]`);
+            if(respEl) respostaValue = respEl.value;
+        } else {
+            respostaValue = inputElement.value;
+            // Busca obs atual
+            const obsEl = document.getElementById(`obs-${perguntaId}`);
+            if(obsEl) observacaoValue = obsEl.value;
+        }
+
+        // Feedback Visual de "Salvando..."
         if (feedbackEl) {
             feedbackEl.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Salvando...';
             feedbackEl.className = 'form-text small text-muted';
-        } else {
-            console.warn(`Elemento de feedback 'feedback-${perguntaId}' não encontrado.`);
-        }
-        
-        if (respostaValue.trim() !== '') {
-            const container = inputElement.closest('.pergunta-container');
-            if(container) {
-                container.classList.remove('border-danger', 'bg-light');
-            }
         }
 
+        // Remove borda vermelha de erro se houver
+        inputElement.closest('.pergunta-container').classList.remove('border-danger');
+
         try {
-            // 4. Envia os dados de TEXTO/OBS/ASSINATURA(Base64) para a rota 'salvar_resposta'
             const response = await fetch("{{ url_for('cli.salvar_resposta', id=aplicacao.id) }}", {
                 method: 'POST',
                 headers: {
@@ -261,7 +281,7 @@
                 },
                 body: JSON.stringify({
                     pergunta_id: parseInt(perguntaId),
-                    resposta: respostaValue, // Para assinatura, isso enviará o Base64
+                    resposta: respostaValue,
                     observacao: observacaoValue
                 })
             });
@@ -270,52 +290,52 @@
 
             if (response.ok && data.sucesso) {
                 if (feedbackEl) {
-                    feedbackEl.innerHTML = '<i class="fas fa-check me-1"></i>Salvo com sucesso!';
+                    feedbackEl.innerHTML = '<i class="fas fa-check me-1"></i>Salvo';
                     feedbackEl.className = 'form-text small text-success';
+                    // Some após 2s
+                    setTimeout(() => { feedbackEl.innerHTML = ''; }, 2000);
                 }
                 
-                if (fotoInputElement && data.resposta_id) {
-                    fotoInputElement.dataset.respostaId = data.resposta_id;
-                    console.log(`Resposta ID ${data.resposta_id} associada ao campo de foto.`);
+                // Atualiza o ID da resposta no campo de foto (se existir)
+                // Isso permite enviar foto logo após responder sem recarregar
+                if (fotoInput && data.resposta_id) {
+                    fotoInput.dataset.respostaId = data.resposta_id;
                 }
             } else {
-                throw new Error(data.erro || 'Erro desconhecido');
+                throw new Error(data.erro || 'Erro ao processar');
             }
 
         } catch (error) {
-            console.error('Erro ao salvar resposta:', error);
+            console.error('Erro:', error);
             if (feedbackEl) {
-                feedbackEl.innerHTML = `<i class="fas fa-exclamation-triangle me-1"></i>Falha ao salvar: ${error.message}`;
-                feedbackEl.className = 'form-text small text-danger';
+                feedbackEl.innerHTML = '<span class="text-danger">Erro ao salvar! Tente novamente.</span>';
             }
         }
     }
 
-    // ====================================================================
-    // Função para UPLOAD DA FOTO
-    // (Esta função está correta, sem mudanças)
-    // ====================================================================
+    // ========================================================================
+    // 2. UPLOAD DE FOTO (Mobile Optimized)
+    // ========================================================================
     async function handleFotoUpload(fileInput) {
+        const perguntaId = fileInput.dataset.perguntaId;
         const respostaId = fileInput.dataset.respostaId;
-        const perguntaId = fileInput.name.replace('foto-', '');
-        const feedbackFotoEl = document.getElementById(`feedback-foto-${perguntaId}`);
+        const feedbackEl = document.getElementById(`feedback-foto-${perguntaId}`);
+        const previewContainer = document.getElementById(`container-preview-foto-${perguntaId}`);
 
-        if (!respostaId) {
-            alert('A resposta (Sim/Não/N.A.) deve ser salva antes de anexar uma foto. A resposta "Não" já foi selecionada?');
-            fileInput.value = '';
-            if (feedbackFotoEl) feedbackFotoEl.innerHTML = '<span class="text-danger">Salve a resposta "Não" primeiro.</span>';
+        // Validação: Precisa ter respondido a pergunta antes (para ter um ID de resposta)
+        if (!respostaId || respostaId === '') {
+            alert("Por favor, responda a pergunta (Sim/Não, Nota, etc) antes de anexar a foto.");
+            fileInput.value = ''; // Limpa
             return;
         }
 
         const file = fileInput.files[0];
-        if (!file) {
-            if (feedbackFotoEl) feedbackFotoEl.innerHTML = '';
-            return;
-        }
+        if (!file) return;
 
-        if (feedbackFotoEl) {
-            feedbackFotoEl.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Enviando foto...';
-            feedbackFotoEl.className = 'form-text small text-muted';
+        // Feedback de envio
+        if (feedbackEl) {
+            feedbackEl.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Enviando foto (' + (file.size/1024/1024).toFixed(2) + 'MB)...';
+            feedbackEl.className = 'form-text small text-primary';
         }
 
         const formData = new FormData();
@@ -324,260 +344,161 @@
         try {
             const response = await fetch(`/cli/resposta/${respostaId}/upload-foto`, {
                 method: 'POST',
-                headers: {
-                    'X-CSRFToken': '{{ csrf_token() }}'
-                },
+                headers: { 'X-CSRFToken': '{{ csrf_token() }}' },
                 body: formData
             });
 
             const data = await response.json();
 
             if (response.ok && data.sucesso) {
-                if (feedbackFotoEl) {
-                    feedbackFotoEl.innerHTML = `<i class="fas fa-check me-1"></i>Foto enviada com sucesso! (${data.filename})`;
-                    feedbackFotoEl.className = 'form-text small text-success';
+                if (feedbackEl) {
+                    feedbackEl.innerHTML = '<i class="fas fa-check-circle me-1"></i>Foto enviada!';
+                    feedbackEl.className = 'form-text small text-success';
                 }
-                location.reload(); 
+                
+                // Atualiza Preview
+                // Como a URL pode demorar a propagar, usamos FileReader para mostrar a local imediatamente ou recarregamos
+                // Opção Simples: Mostrar "Imagem Salva" ou recarregar a div
+                previewContainer.innerHTML = `
+                    <div class="position-relative d-inline-block">
+                        <img src="${URL.createObjectURL(file)}" class="img-thumbnail rounded" style="height: 120px; opacity: 0.8">
+                         <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success">
+                            <i class="fas fa-check"></i> Nova
+                        </span>
+                    </div>`;
+                
+                // Remove erro visual se tivesse
+                fileInput.closest('.pergunta-container').classList.remove('border-danger');
+
             } else {
-                throw new Error(data.erro || 'Erro desconhecido no upload');
+                throw new Error(data.erro || 'Falha no upload');
             }
 
         } catch (error) {
-            console.error('Erro ao enviar foto:', error);
-            if (feedbackFotoEl) {
-                feedbackFotoEl.innerHTML = `<i class="fas fa-exclamation-triangle me-1"></i>Falha no envio da foto: ${error.message}`;
-                feedbackFotoEl.className = 'form-text small text-danger';
+            console.error(error);
+            if (feedbackEl) {
+                feedbackEl.innerHTML = `<span class="text-danger"><i class="fas fa-times"></i> ${error.message}</span>`;
             }
+            alert("Erro ao enviar foto: " + error.message + ". Tente uma foto menor ou verifique a conexão.");
         }
     }
 
-    // ====================================================================
-    // (MODIFICADO!) LÓGICA PARA MÚLTIPLAS ASSINATURAS (v4)
-    // ====================================================================
-    
-    // Armazena todos os pads inicializados (ex: { 'signature-pad-10': padObject, ... })
-    const signaturePads = {};
-
-    // Função para redimensionar TODOS os canvases de assinatura
-    function resizeAllSignaturePads() {
-        document.querySelectorAll('.signature-pad-container canvas').forEach(canvas => {
-            try {
-                const pad = signaturePads[canvas.id];
-                const ratio =  Math.max(window.devicePixelRatio || 1, 1);
-                
-                let data = null;
-                if (pad && !pad.isEmpty()) {
-                    // Salva a assinatura atual (se houver)
-                    data = pad.toDataURL();
-                }
-
-                canvas.width = canvas.offsetWidth * ratio;
-                canvas.height = canvas.offsetHeight * ratio;
-                canvas.getContext("2d").scale(ratio, ratio);
-
-                if (pad) {
-                    // Se tinha dados, restaura. Senão, limpa.
-                    if (data) {
-                        pad.fromDataURL(data);
-                    } else {
-                        // Se não tinha dados, verifica se o input hidden tem
-                        const perguntaId = pad.perguntaId;
-                        const hiddenInput = document.getElementById(`resposta-input-${perguntaId}`);
-                        if (hiddenInput && hiddenInput.value) {
-                            pad.fromDataURL(hiddenInput.value);
-                        } else {
-                            pad.clear();
-                        }
-                    }
-                }
-            } catch(e) {
-                console.error("Erro ao redimensionar canvas:", e, canvas);
-            }
-        });
-    }
-
-    // Inicializa todos os pads na página
-    function initializeSignaturePads() {
-        document.querySelectorAll('.signature-pad-container canvas').forEach(canvas => {
-            const perguntaId = canvas.id.replace('signature-pad-', '');
-            const pad = new SignaturePad(canvas, {
-                backgroundColor: 'rgb(255, 255, 255)'
-            });
-
-            // Guarda a referência ao pad
-            pad.perguntaId = perguntaId; // Adiciona uma propriedade para referência
-            signaturePads[canvas.id] = pad;
-
-            // Pega o input hidden correspondente
-            const hiddenInput = document.getElementById(`resposta-input-${perguntaId}`);
-
-            // Se houver valor salvo (Base64), carrega no pad
-            if (hiddenInput && hiddenInput.value) {
-                try {
-                    pad.fromDataURL(hiddenInput.value);
-                } catch(e) {
-                    console.warn("Não foi possível carregar a assinatura salva:", e);
-                    hiddenInput.value = ''; // Limpa se for inválida
-                }
-            }
-
-            // ==================================================================
-            //               ★ ★ ★ CORREÇÃO (SALVAR ASSINATURA) ★ ★ ★
-            //      Substituído '.onEnd' (v2) por '.addEventListener' (v4)
-            // ==================================================================
-            pad.addEventListener("endStroke", () => {
-                console.log(`Assinatura (Pergunta ${perguntaId}) atualizada.`);
-                if (pad.isEmpty()) {
-                    hiddenInput.value = '';
-                } else {
-                    const data = pad.toDataURL('image/png');
-                    hiddenInput.value = data;
-                }
-                // Chama a função de salvar existente, passando o input hidden
-                salvarResposta(hiddenInput, false); 
-            });
-            // ==================================================================
-        });
-
-        // Configura os botões de limpar
-        document.querySelectorAll('.clear-signature-btn').forEach(button => {
-            // Remove listener antigo para evitar duplicação (boa prática)
-            button.replaceWith(button.cloneNode(true));
-            button = document.querySelector(`[data-pergunta-id="${button.dataset.perguntaId}"].clear-signature-btn`);
-
-            button.addEventListener('click', function() {
-                const perguntaId = this.dataset.perguntaId;
-                const pad = signaturePads[`signature-pad-${perguntaId}`];
-                const hiddenInput = document.getElementById(`resposta-input-${perguntaId}`);
-                if (pad) {
-                    pad.clear();
-                }
-                if (hiddenInput) {
-                    hiddenInput.value = '';
-                    // Salva a resposta "vazia"
-                    salvarResposta(hiddenInput, false);
-                }
-                
-                // Remove a imagem de preview, se houver
-                const preview = document.getElementById(`preview-assinatura-${perguntaId}`);
-                if (preview) {
-                    preview.style.display = 'none';
-                }
-            });
-        });
-    }
-
-    // --- INICIALIZAÇÃO ---
-    document.addEventListener('DOMContentLoaded', () => {
-        initializeSignaturePads();
-        
-        // Redimensiona ao carregar e ao mudar o tamanho da janela
-        window.addEventListener("resize", resizeAllSignaturePads);
-        resizeAllSignaturePads(); // Chama uma vez para definir o tamanho inicial
-    });
-
-
-    // ====================================================================
-    // (NOVO!) Função de Validação
-    // (Esta função está correta, sem mudanças)
-    // ====================================================================
-    function validarFormulario() {
-        let pendentes = [];
-        
-        // 1. Limpa erros antigos
-        document.querySelectorAll('.pergunta-container.border-danger').forEach(el => {
-            el.classList.remove('border-danger', 'bg-light');
-        });
-
-        // 2. Itera por todas as perguntas marcadas como obrigatórias
-        document.querySelectorAll('.pergunta-container[data-obrigatoria="true"]').forEach(container => {
-            const perguntaId = container.dataset.perguntaId;
-            let isRespondida = false;
-
-            // Tenta encontrar por nome (radio, select, text, textarea)
-            const inputPorNome = container.querySelector(`[name="resposta-${perguntaId}"]`);
-            // Tenta encontrar por ID (hidden input da assinatura)
-            const inputPorId = container.querySelector(`#resposta-input-${perguntaId}`);
-
-            if (inputPorNome) {
-                if (inputPorNome.type === 'radio') {
-                    isRespondida = container.querySelector(`[name="resposta-${perguntaId}"]:checked`) !== null;
-                } else {
-                    // (text, select, textarea, number)
-                    isRespondida = inputPorNome.value.trim() !== '';
-                }
-            } else if (inputPorId) {
-                // (assinatura)
-                isRespondida = inputPorId.value.trim() !== '';
-            }
-
-            // 3. Se não respondida, marca e adiciona à lista
-            if (!isRespondida) {
-                container.classList.add('border-danger', 'bg-light');
-                const label = container.querySelector('.form-label').innerText.trim();
-                // Remove o "*" da label para ficar mais limpo na lista
-                pendentes.push(label.replace('*', '').trim()); 
-            }
-        });
-
-        // 4. Retorna o status e a lista de pendentes
-        return {
-            valido: pendentes.length === 0,
-            pendentes: pendentes
-        };
-    }
-
-
-    // ====================================================================
-    // (MODIFICADO!) Listener de 'submit' do formulário
-    // (Esta função está correta, sem mudanças)
-    // ====================================================================
-    document.getElementById('form-finalizar').addEventListener('submit', function (event) {
-        
-        // Previne o envio padrão para podermos validar primeiro
-        event.preventDefault(); 
-
+    // ========================================================================
+    // 3. VALIDAÇÃO ANTES DE ENVIAR
+    // ========================================================================
+    document.getElementById('form-finalizar').addEventListener('submit', function(e) {
         const alerta = document.getElementById('alerta-validacao');
-        const listaAlerta = document.getElementById('alerta-validacao-lista');
-        
-        // 1. Chama a função de validação
-        const { valido, pendentes } = validarFormulario();
+        const listaErros = document.getElementById('alerta-validacao-lista');
+        let erros = [];
 
-        if (valido) {
-            // 2. Se for válido, esconde o alerta (caso esteja visível)
-            alerta.classList.add('d-none');
-            listaAlerta.innerHTML = '';
+        // Limpa estados anteriores
+        document.querySelectorAll('.pergunta-container').forEach(el => el.classList.remove('border-danger', 'bg-warning-subtle'));
+
+        // 3.1. Validação de Perguntas Obrigatórias (Texto/Radio/Select)
+        document.querySelectorAll('.pergunta-container[data-obrigatoria="true"]').forEach(container => {
+            const pid = container.dataset.perguntaId;
+            let respondido = false;
+
+            // Checa Radio
+            const radioCheck = container.querySelector(`input[type="radio"]:checked`);
+            if (radioCheck) respondido = true;
+
+            // Checa Inputs Texto/Number/Date
+            const textInput = container.querySelector(`input[type="text"], input[type="number"], input[type="date"], input[type="time"], textarea`);
+            if (textInput && textInput.value.trim() !== '') respondido = true;
             
-            // 3. Mostra a confirmação padrão
-            if (confirm('Tem certeza que deseja finalizar esta aplicação? Você não poderá editá-la depois.')) {
-                // 4. Se o usuário confirmar, envia o formulário
-                this.submit(); // 'this' é o <form>
+            // Checa Select
+            const select = container.querySelector('select');
+            if (select && select.value !== '') respondido = true;
+
+            // Checa Assinatura (hidden input)
+            const signInput = container.querySelector(`#resposta-input-${pid}`);
+            if (signInput && signInput.value.trim() !== '') respondido = true;
+
+            if (!respondido) {
+                erros.push(`Pergunta obrigatória não respondida: "${container.querySelector('label').innerText.split('\n')[0]}"`);
+                container.classList.add('border-danger', 'bg-warning-subtle');
             }
-        } else {
-            // 5. Se for inválido, mostra o alerta
-            document.getElementById('alerta-validacao-mensagem').textContent = 
-                `Existem ${pendentes.length} pergunta(s) obrigatória(s) sem resposta. Por favor, revise os itens marcados:`;
+        });
 
-            // Limpa a lista antiga e preenche com a nova
-            listaAlerta.innerHTML = '';
-            pendentes.forEach(texto => {
+        // 3.2. Validação de FOTOS Obrigatórias
+        document.querySelectorAll('input[type="file"][data-obrigatoria="true"]').forEach(fileInput => {
+            const container = fileInput.closest('.pergunta-container');
+            const temFotoSalva = container.querySelector('.img-salva-container, .badge.bg-success') !== null;
+            
+            // Se não selecionou arquivo AGORA e NÃO tem foto salva ANTES
+            if (fileInput.files.length === 0 && !temFotoSalva) {
+                erros.push(`Foto obrigatória ausente: "${container.querySelector('label').innerText.split('\n')[0]}"`);
+                container.classList.add('border-danger', 'bg-warning-subtle');
+            }
+        });
+
+        if (erros.length > 0) {
+            e.preventDefault(); // Bloqueia envio
+            
+            listaErros.innerHTML = '';
+            erros.forEach(erro => {
                 const li = document.createElement('li');
-                // Pega só o texto da pergunta (remove a numeração "1.1 - ")
-                li.textContent = texto.split(' - ').slice(1).join(' - ') || texto; 
-                listaAlerta.appendChild(li);
+                li.innerText = erro;
+                listaErros.appendChild(li);
             });
-            
+
             alerta.classList.remove('d-none');
-            
-            // 6. Rola a tela para o primeiro erro ou para o alerta
-            const primeiroErro = document.querySelector('.pergunta-container.border-danger');
-            if (primeiroErro) {
-                primeiroErro.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            } else {
-                alerta.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            alerta.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else {
+            // Tudo certo
+            if(!confirm("Deseja realmente finalizar a aplicação?")) {
+                e.preventDefault();
             }
         }
     });
 
+    // ========================================================================
+    // 4. INICIALIZAÇÃO E ASSINATURA DIGITAL
+    // ========================================================================
+    document.addEventListener('DOMContentLoaded', () => {
+        // Inicializa Signature Pads
+        const pads = document.querySelectorAll('canvas[id^="signature-pad-"]');
+        pads.forEach(canvas => {
+            const pid = canvas.id.split('-')[2];
+            const hiddenInput = document.getElementById(`resposta-input-${pid}`);
+            const parent = canvas.parentElement;
+
+            // Ajusta tamanho do canvas para o container
+            canvas.width = parent.offsetWidth;
+            canvas.height = parent.offsetHeight;
+
+            const pad = new SignaturePad(canvas, { backgroundColor: 'rgb(255, 255, 255)' });
+
+            // Se já tem assinatura salva, carrega
+            if (hiddenInput && hiddenInput.value) {
+                pad.fromDataURL(hiddenInput.value);
+            }
+
+            // Ao terminar traço, salva no hidden e envia
+            pad.addEventListener("endStroke", () => {
+                if (!pad.isEmpty()) {
+                    hiddenInput.value = pad.toDataURL();
+                    salvarResposta(hiddenInput); // Reusa a lógica de salvar
+                }
+            });
+
+            // Botão Limpar
+            const btnClear = parent.querySelector('.clear-signature-btn');
+            if (btnClear) {
+                btnClear.addEventListener('click', () => {
+                    pad.clear();
+                    hiddenInput.value = '';
+                    salvarResposta(hiddenInput);
+                });
+            }
+            
+            // Redimensionamento responsivo
+            window.addEventListener('resize', () => {
+                // Nota: Redimensionar limpa o canvas. Em prod, ideal é salvar imagem e redesenhar.
+                // Aqui mantemos simples.
+            });
+        });
+    });
 </script>
-{% endblock %} 
+{% endblock %}

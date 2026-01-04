@@ -1,73 +1,56 @@
 {% extends 'base_cliq.html' %}
-{% block title %}Editar Tópico{% endblock %}
+{% block title %}Editar Tópico - {{ topico.questionario.nome }}{% endblock %}
 
 {% block content %}
 <div class="container py-4">
-    <div class="row justify-content-center">
-        <div class="col-lg-8">
-            
-            <nav aria-label="breadcrumb" class="mb-2">
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item">
-                        <a href="{{ url_for_safe('cli.listar_questionarios') }}">Questionários</a>
-                    </li>
-                    <li class="breadcrumb-item">
-                        <a href="{{ url_for_safe('cli.gerenciar_topicos', id=topico.questionario_id) }}">{{ topico.questionario.nome }}</a>
-                    </li>
-                    <li class="breadcrumb-item active" aria-current="page">
-                        Editar Tópico
-                    </li>
-                </ol>
-            </nav>
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for_safe('cli.index') }}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for_safe('cli.listar_questionarios') }}">Questionários</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for_safe('cli.gerenciar_topicos', id=topico.questionario_id) }}">{{ topico.questionario.nome }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Editar Tópico</li>
+        </ol>
+    </nav>
 
-            <div class="card shadow-sm">
-                <div class="card-header bg-primary text-white">
-                    <h4 class="h5 mb-0">
-                        <i class="fas fa-edit me-2"></i>
-                        Editar Tópico
-                    </h4>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="h3 mb-0"><i class="fas fa-edit text-primary me-2"></i> Editar Tópico</h2>
+        <a href="{{ url_for_safe('cli.gerenciar_topicos', id=topico.questionario_id) }}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Voltar
+        </a>
+    </div>
+
+    {% include 'includes/_flash_messages.html' %}
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-white py-3">
+            <h5 class="mb-0 text-secondary"><i class="fas fa-folder me-2"></i>Detalhes do Tópico</h5>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('cli.editar_topico', topico_id=topico.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
+                <div class="mb-3">
+                    <label for="nome" class="form-label fw-bold">Nome do Tópico <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="nome" name="nome" value="{{ topico.nome }}" required placeholder="Ex: Higiene Pessoal, Infraestrutura...">
                 </div>
-                <div class="card-body">
-                    <form method="POST" action="{{ url_for('cli.editar_topico', topico_id=topico.id) }}">
-                        
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        
-                        <div class="mb-3">
-                            <label for="nome" class="form-label">Nome do Tópico</label>
-                            <input type="text"
-                                   class="form-control"
-                                   id="nome"
-                                   name="nome"
-                                   value="{{ topico.nome or '' }}"
-                                   required>
-                            <div class="form-text">O nome principal da seção (ex: "Limpeza", "Segurança").</div>
-                        </div>
 
-                        <div class="mb-3">
-                            <label for="descricao" class="form-label">Descrição (Opcional)</label>
-                            <textarea class="form-control"
-                                      id="descricao"
-                                      name="descricao"
-                                      rows="3">{{ topico.descricao or '' }}</textarea>
-                            <div class="form-text">Uma breve explicação sobre o que este tópico avalia.</div>
-                        </div>
-
-                        <hr class="my-4">
-
-                        <div class="d-flex justify-content-between">
-                            <a href="{{ url_for_safe('cli.gerenciar_topicos', id=topico.questionario_id) }}" class="btn btn-outline-secondary">
-                                <i class="fas fa-times me-2"></i>
-                                Cancelar
-                            </a>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save me-2"></i>
-                                Salvar Alterações
-                            </button>
-                        </div>
-                    </form>
+                <div class="mb-3">
+                    <label for="descricao" class="form-label">Descrição (Opcional)</label>
+                    <textarea class="form-control" id="descricao" name="descricao" rows="3" placeholder="Instruções ou detalhes sobre este grupo de perguntas">{{ topico.descricao or '' }}</textarea>
                 </div>
-            </div>
+
+                <hr class="my-4">
+
+                <div class="d-flex justify-content-between">
+                    <a href="{{ url_for('cli.gerenciar_topicos', id=topico.questionario_id) }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times me-2"></i> Cancelar
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i> Salvar Alterações
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
-{% endblock %}  
+{% endblock %}
