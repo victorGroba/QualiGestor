@@ -1659,9 +1659,11 @@
 
     <section class="hero-top-blue">
         <div class="video-hero-wrapper">
-            <video autoplay loop muted playsinline poster="{{ url_for('static', filename='img/fundo_lab.png') }}"
-                class="background-video">
+            <video id="heroVideo" autoplay loop muted playsinline webkit-playsinline
+                poster="{{ url_for('static', filename='img/fundo_lab.png') }}" class="background-video">
+
                 <source src="{{ url_for('static', filename='videos/banner-hero.mp4') }}" type="video/mp4">
+
                 <source src="{{ url_for('static', filename='videos/banner-hero.webm') }}" type="video/webm">
 
             </video>
@@ -2406,19 +2408,39 @@
         });
         document.addEventListener('DOMContentLoaded', function () {
             var video = document.querySelector('.background-video');
+
             if (video) {
-                // O iOS exige que essa propriedade seja setada via JS para garantir
+                // 1. Remove qualquer atributo que possa estar conflitando
+                video.removeAttribute('controls');
+
+                // 2. Força os atributos essenciais para iOS via JS
+                video.setAttribute('playsinline', '');
+                video.setAttribute('webkit-playsinline', '');
+                video.setAttribute('muted', '');
+
+                // 3. Garante o mudo na propriedade do objeto
                 video.muted = true;
                 video.defaultMuted = true;
 
-                // Tenta forçar o play
-                var promise = video.play();
+                // 4. Truque do Safari: Pause antes do Play para resetar o estado
+                video.pause();
 
-                if (promise !== undefined) {
-                    promise.catch(error => {
-                        // Se o autoplay for bloqueado, mostramos os controles ou deixamos a imagem de capa
-                        console.log('Autoplay bloqueado pelo iOS/Safari:', error);
-                    });
+                // 5. Tenta rodar
+                var playPromise = video.play();
+
+                if (playPromise !== undefined) {
+                    playPromise.then(_ => {
+                        console.log("Autoplay iniciado com sucesso.");
+                    })
+                        .catch(error => {
+                            console.log("Autoplay bloqueado. Tentando fallback...", error);
+
+                            // Fallback: Se falhar, tenta rodar no primeiro toque na tela (qualquer lugar)
+                            // Isso garante que se o usuário tocar na tela para rolar, o vídeo começa
+                            document.body.addEventListener('touchstart', function () {
+                                video.play();
+                            }, { once: true });
+                        });
                 }
             }
         });
