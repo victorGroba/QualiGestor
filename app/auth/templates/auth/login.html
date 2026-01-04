@@ -52,7 +52,7 @@
             background-color: transparent;
         }
 
-        /* ================== FUNDO ANIMADO DE PARTÍCULAS (ATUALIZADO - MAIS RÁPIDO) ================== */
+        /* ================== FUNDO ANIMADO DE PARTÍCULAS (MANTIDO COMO FALLBACK/FUNDO GERAL) ================== */
         .particle-bg-container {
             position: fixed;
             top: 0;
@@ -102,27 +102,20 @@
             top: 0;
             left: 0;
             z-index: -1;
-            animation: pulseLines 8s infinite ease-in-out alternate; /* Linhas pulsando mais rápido */
+            animation: pulseLines 8s infinite ease-in-out alternate;
         }
 
-        /* --- VELOCIDADES ATUALIZADAS (Mais rápidas) --- */
-        /* Partículas Grandes (Mais lentas que as outras, mas mais rápidas que antes) */
         .p1 { top: -15%; left: -5%; animation: float1 28s infinite alternate ease-in-out; }
         .p2 { bottom: -25%; right: -10%; animation: float2 32s infinite alternate ease-in-out; }
         .p3 { top: 40%; left: 60%; animation: float1 35s infinite alternate-reverse ease-in-out; }
-
-        /* Partículas Médias */
         .p4 { top: 25%; right: 25%; animation: float2 22s infinite alternate ease-in-out; }
         .p5 { bottom: 35%; left: 15%; animation: float1 25s infinite alternate-reverse ease-in-out; }
         .p6 { top: 70%; left: 70%; animation: float3 24s infinite alternate ease-in-out; }
-
-        /* Partículas Pequenas (As mais rápidas) */
         .p7 { top: 20%; left: 30%; animation: float3 15s infinite alternate ease-in-out; }
         .p8 { bottom: 20%; right: 30%; animation: float1 18s infinite alternate-reverse ease-in-out; }
         .p9 { top: 55%; right: 15%; animation: float2 16s infinite alternate ease-in-out; }
         .p10 { bottom: 50%; left: 50%; animation: float3 19s infinite alternate-reverse ease-in-out; }
 
-        /* Keyframes ajustados para movimento mais perceptível */
         @keyframes float1 {
             0% { transform: translate(0, 0) rotate(0deg); }
             100% { transform: translate(180px, 100px) rotate(25deg); }
@@ -143,7 +136,6 @@
             0% { opacity: 0.1; }
             100% { opacity: 0.3; }
         }
-        /* ================== FIM DO CSS DAS PARTÍCULAS ================== */
 
 
         .text-gradient {
@@ -249,7 +241,7 @@
             width: 80%;
         }
 
-        /* ========== HERO SECTION ========== */
+        /* ========== HERO SECTION (COM VÍDEO) ========== */
         .hero-top-blue {
             background: transparent;
             padding: 200px 0 140px;
@@ -258,37 +250,41 @@
             z-index: 1;
         }
 
-        .hero-top-blue::after {
-            content: '';
+        /* Ajustes para o Vídeo de Fundo */
+        .video-hero-wrapper {
             position: absolute;
             top: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 800px;
-            height: 800px;
-            background: radial-gradient(circle, rgba(0, 210, 255, 0.08) 0%, transparent 70%);
-            border-radius: 50%;
-            pointer-events: none;
-            animation: pulse 8s ease-in-out infinite;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: 0;
         }
 
-        @keyframes pulse {
-
-            0%,
-            100% {
-                transform: translateX(-50%) scale(1);
-                opacity: 0.5;
-            }
-
-            50% {
-                transform: translateX(-50%) scale(1.2);
-                opacity: 0.8;
-            }
+        .background-video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            position: absolute;
+            top: 0;
+            left: 0;
         }
 
+        .video-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            /* Gradiente escuro para garantir leitura */
+            background: linear-gradient(180deg, rgba(0,13,22,0.85) 0%, rgba(0,31,51,0.6) 100%);
+            z-index: 1;
+        }
+
+        /* Garante que o texto fique ACIMA do vídeo */
         .hero-content-text {
             position: relative;
-            z-index: 10;
+            z-index: 2;
         }
 
         .hero-bottom-image {
@@ -297,6 +293,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            /* Fallback com imagem estática caso o vídeo não carregue ou seja removido */
             background: linear-gradient(135deg, rgba(0, 30, 50, 0.92) 0%, rgba(0, 8, 15, 0.85) 100%),
                 url('https://github.com/victorGroba/QualiGestor-assets/blob/main/banner-quali.png?raw=true');
             background-size: cover;
@@ -1492,6 +1489,35 @@
             outline: 3px solid var(--accent-color);
             outline-offset: 2px;
         }
+
+        .glass-card {
+    /* Fundo escuro com transparência (Ajuste o 0.6 para mais ou menos escuro) */
+    background: rgba(15, 23, 42, 0.6);
+    
+    /* O efeito de embaçar o que está atrás */
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px); /* Para Safari */
+    
+    /* Bordas e arredondamento para ficar bonito */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 24px;
+    padding: 3rem; /* Espaçamento interno */
+    
+    /* Sombra para dar profundidade */
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+    
+    /* Centralizar o card (opcional, mas bom para heros) */
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+/* Ajuste para celular para não comer a tela toda */
+@media (max-width: 768px) {
+    .glass-card {
+        padding: 1.5rem;
+        backdrop-filter: blur(8px);
+    }
+}
     </style>
 </head>
 
@@ -1551,16 +1577,29 @@
     </header>
 
     <section class="hero-top-blue">
-        <div class="container hero-content-text text-center">
+    <div class="video-hero-wrapper">
+        <video autoplay loop muted playsinline poster="{{ url_for('static', filename='img/fundo_lab.png') }}" class="background-video">
+            <source src="{{ url_for('static', filename='videos/banner-hero.webm') }}" type="video/webm">
+            <source src="{{ url_for('static', filename='videos/banner-hero.mp4') }}" type="video/mp4">
+        </video>
+        <div class="video-overlay"></div>
+    </div>
+
+    <div class="container hero-content-text text-center position-relative">
+        
+        <div class="glass-card">
+
             <div class="mb-4">
                 <span class="badge bg-soft-blue">
-                    <i class="fas fa-rocket"></i> Lançamento em 2026
+                    <i class="fas fa-rocket"></i> Qualigestor
                 </span>
             </div>
+
             <h1 class="display-3 fw-bold text-white mb-4">
                 Auditorias inteligentes que<br class="d-none d-lg-block">
                 <span class="text-gradient">garantem a excelência.</span>
             </h1>
+
             <p class="lead text-white-50 mx-auto mb-5" style="max-width: 800px; font-size: 1.25rem;">
                 Centralize checklists, monitore conformidades e gerencie toda sua rede com dados em tempo real.
                 Transforme papelada e planilhas em inteligência estratégica.
@@ -1574,8 +1613,8 @@
                     <i class="fas fa-chart-line me-2"></i>Conheça a Plataforma
                 </a>
             </div>
-        </div>
-    </section>
+
+        </div> </div> </section>
 
     <div class="hero-bottom-image">
         <div class="hero-wave">
