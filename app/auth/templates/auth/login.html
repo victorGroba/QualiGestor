@@ -52,7 +52,7 @@
             background-color: transparent;
         }
 
-        /* ================== FUNDO ANIMADO DE PARTÍCULAS (MANTIDO COMO FALLBACK/FUNDO GERAL) ================== */
+        /* ================== FUNDO ANIMADO DE PARTÍCULAS ================== */
         .particle-bg-container {
             position: fixed;
             top: 0;
@@ -105,112 +105,98 @@
             animation: pulseLines 8s infinite ease-in-out alternate;
         }
 
-        .p1 {
-            top: -15%;
-            left: -5%;
-            animation: float1 28s infinite alternate ease-in-out;
+        .p1 { top: -15%; left: -5%; animation: float1 28s infinite alternate ease-in-out; }
+        .p2 { bottom: -25%; right: -10%; animation: float2 32s infinite alternate ease-in-out; }
+        .p3 { top: 40%; left: 60%; animation: float1 35s infinite alternate-reverse ease-in-out; }
+        .p4 { top: 25%; right: 25%; animation: float2 22s infinite alternate ease-in-out; }
+        .p5 { bottom: 35%; left: 15%; animation: float1 25s infinite alternate-reverse ease-in-out; }
+        .p6 { top: 70%; left: 70%; animation: float3 24s infinite alternate ease-in-out; }
+        .p7 { top: 20%; left: 30%; animation: float3 15s infinite alternate ease-in-out; }
+        .p8 { bottom: 20%; right: 30%; animation: float1 18s infinite alternate-reverse ease-in-out; }
+        .p9 { top: 55%; right: 15%; animation: float2 16s infinite alternate ease-in-out; }
+        .p10 { bottom: 50%; left: 50%; animation: float3 19s infinite alternate-reverse ease-in-out; }
+
+        @keyframes float1 { 0% { transform: translate(0, 0) rotate(0deg); } 100% { transform: translate(180px, 100px) rotate(25deg); } }
+        @keyframes float2 { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(-120px, -90px) scale(1.2); } }
+        @keyframes float3 { 0% { transform: translate(0, 0); opacity: 0.4; } 50% { opacity: 0.2; } 100% { transform: translate(100px, -150px); opacity: 0.6; } }
+        @keyframes pulseLines { 0% { opacity: 0.1; } 100% { opacity: 0.3; } }
+
+        /* ================== ESTILOS DO HERO (PROFISSIONAL & CLEAN) ================== */
+        
+        /* NOVO: Wrapper para o blur sutil atrás do texto */
+        .hero-text-wrapper {
+            /* Fundo muito transparente apenas para base do blur */
+            background: rgba(0, 13, 22, 0.25);
+            /* O efeito de blur real */
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            padding: 3.5rem;
+            border-radius: 30px;
+            /* Borda sutil para definição */
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            display: inline-block;
+            max-width: 920px;
+            margin: 0 auto;
         }
 
-        .p2 {
-            bottom: -25%;
-            right: -10%;
-            animation: float2 32s infinite alternate ease-in-out;
+        /* Tipografia Principal do Hero */
+        .hero-title-main {
+            font-size: clamp(3rem, 5vw, 4.8rem);
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            line-height: 1.1;
+            color: #ffffff;
+            margin-bottom: 1.5rem;
+            /* Sombra de texto para contraste extra sobre o vídeo */
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5); 
         }
 
-        .p3 {
-            top: 40%;
-            left: 60%;
-            animation: float1 35s infinite alternate-reverse ease-in-out;
+        /* Texto Gradiente Animado */
+        .text-gradient-hero {
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 50%, #4facfe 100%);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: gradientMove 5s linear infinite;
+            display: inline-block;
+            /* Pequeno filtro para fazer o gradiente "brilhar" */
+            filter: drop-shadow(0 0 8px rgba(0, 210, 255, 0.3));
         }
 
-        .p4 {
-            top: 25%;
-            right: 25%;
-            animation: float2 22s infinite alternate ease-in-out;
+        @keyframes gradientMove {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 200% 50%; }
         }
 
-        .p5 {
-            bottom: 35%;
-            left: 15%;
-            animation: float1 25s infinite alternate-reverse ease-in-out;
+        /* Subtítulo Hero */
+        .hero-subtitle {
+            font-size: clamp(1.15rem, 2vw, 1.4rem);
+            font-weight: 400;
+            color: rgba(255, 255, 255, 0.95);
+            line-height: 1.6;
+            max-width: 780px;
+            margin: 0 auto 2.5rem auto;
         }
 
-        .p6 {
-            top: 70%;
-            left: 70%;
-            animation: float3 24s infinite alternate ease-in-out;
+        /* Badge Hero */
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 50px;
+            color: #00d2ff;
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
         }
-
-        .p7 {
-            top: 20%;
-            left: 30%;
-            animation: float3 15s infinite alternate ease-in-out;
-        }
-
-        .p8 {
-            bottom: 20%;
-            right: 30%;
-            animation: float1 18s infinite alternate-reverse ease-in-out;
-        }
-
-        .p9 {
-            top: 55%;
-            right: 15%;
-            animation: float2 16s infinite alternate ease-in-out;
-        }
-
-        .p10 {
-            bottom: 50%;
-            left: 50%;
-            animation: float3 19s infinite alternate-reverse ease-in-out;
-        }
-
-        @keyframes float1 {
-            0% {
-                transform: translate(0, 0) rotate(0deg);
-            }
-
-            100% {
-                transform: translate(180px, 100px) rotate(25deg);
-            }
-        }
-
-        @keyframes float2 {
-            0% {
-                transform: translate(0, 0) scale(1);
-            }
-
-            100% {
-                transform: translate(-120px, -90px) scale(1.2);
-            }
-        }
-
-        @keyframes float3 {
-            0% {
-                transform: translate(0, 0);
-                opacity: 0.4;
-            }
-
-            50% {
-                opacity: 0.2;
-            }
-
-            100% {
-                transform: translate(100px, -150px);
-                opacity: 0.6;
-            }
-        }
-
-        @keyframes pulseLines {
-            0% {
-                opacity: 0.1;
-            }
-
-            100% {
-                opacity: 0.3;
-            }
-        }
-
 
         .text-gradient {
             background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
@@ -253,9 +239,10 @@
 
         /* ========== NAVBAR OTIMIZADA ========== */
         .custom-navbar {
-            background-color: rgba(0, 13, 22, 0.85);
+            /* Mais transparente no topo para fundir com o hero */
+            background-color: rgba(0, 13, 22, 0.5);
             padding: 1rem 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
             transition: all 0.4s var(--transition-smooth);
             position: fixed;
             width: 100%;
@@ -264,14 +251,17 @@
 
         @supports (backdrop-filter: blur(25px)) {
             .custom-navbar {
-                background-color: rgba(0, 13, 22, 0.7);
-                backdrop-filter: blur(25px) saturate(180%);
+                background-color: rgba(0, 13, 22, 0.4);
+                backdrop-filter: blur(20px) saturate(180%);
             }
         }
 
+        /* Quando rola a página, fica mais sólido */
         .custom-navbar.scrolled {
+            background-color: rgba(0, 13, 22, 0.95);
             padding: 0.6rem 0;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
         }
 
         .navbar-brand {
@@ -283,7 +273,7 @@
         }
 
         .nav-link {
-            color: rgba(255, 255, 255, 0.75) !important;
+            color: rgba(255, 255, 255, 0.8) !important;
             font-weight: 600;
             font-size: 0.95rem;
             margin: 0 0.5rem;
@@ -318,10 +308,14 @@
         /* ========== HERO SECTION (COM VÍDEO) ========== */
         .hero-top-blue {
             background: transparent;
-            padding: 200px 0 140px;
+            /* Aumentei o padding superior para centralizar melhor verticalmente */
+            padding: 220px 0 160px;
             position: relative;
             overflow: hidden;
             z-index: 1;
+            min-height: 95vh; 
+            display: flex;
+            align-items: center;
         }
 
         /* Ajustes para o Vídeo de Fundo */
@@ -350,8 +344,8 @@
             left: 0;
             width: 100%;
             height: 100%;
-            /* Gradiente escuro para garantir leitura */
-            background: linear-gradient(180deg, rgba(0, 13, 22, 0.85) 0%, rgba(0, 31, 51, 0.6) 100%);
+            /* Gradiente radial para focar no centro e escurecer as bordas */
+            background: radial-gradient(circle at center, rgba(0, 13, 22, 0.4) 0%, rgba(0, 13, 22, 0.8) 100%);
             z-index: 1;
         }
 
@@ -367,16 +361,11 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            /* Fallback com imagem estática caso o vídeo não carregue ou seja removido */
             background: linear-gradient(135deg, rgba(0, 30, 50, 0.92) 0%, rgba(0, 8, 15, 0.85) 100%),
                 url('https://github.com/victorGroba/QualiGestor-assets/blob/main/banner-quali.png?raw=true');
             background-size: cover;
             background-position: center;
             background-attachment: fixed;
-        }
-
-        .hero-buttons-container {
-            display: none;
         }
 
         .hero-wave {
@@ -424,15 +413,8 @@
         }
 
         @keyframes blobPulse {
-
-            0%,
-            100% {
-                transform: translate(-50%, -50%) scale(1);
-            }
-
-            50% {
-                transform: translate(-50%, -50%) scale(1.1);
-            }
+            0%, 100% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.1); }
         }
 
         /* ========== COMPONENTES UI ========== */
@@ -452,15 +434,8 @@
         }
 
         @keyframes fadeInDown {
-            from {
-                opacity: 0;
-                transform: translateY(-20px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .display-3 {
@@ -514,7 +489,7 @@
             padding: 16px 38px;
             border-radius: 50px;
             font-size: 1.05rem;
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.08);
         }
 
         .btn-outline-light:hover {
@@ -592,13 +567,8 @@
         }
 
         @keyframes scroll {
-            0% {
-                transform: translateX(0);
-            }
-
-            100% {
-                transform: translateX(-50%);
-            }
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
         }
 
         /* ========== CARDS ========== */
@@ -732,15 +702,8 @@
         }
 
         @keyframes pulse-border {
-            0% {
-                transform: scale(1);
-                opacity: 0.9;
-            }
-
-            100% {
-                transform: scale(1.7);
-                opacity: 0;
-            }
+            0% { transform: scale(1); opacity: 0.9; }
+            100% { transform: scale(1.7); opacity: 0; }
         }
 
         .step-circle:hover {
@@ -782,17 +745,9 @@
         }
 
         @keyframes floating {
-            0% {
-                transform: translate(0, 0) rotate(0deg);
-            }
-
-            50% {
-                transform: translate(30px, 50px) rotate(180deg);
-            }
-
-            100% {
-                transform: translate(0, 0) rotate(360deg);
-            }
+            0% { transform: translate(0, 0) rotate(0deg); }
+            50% { transform: translate(30px, 50px) rotate(180deg); }
+            100% { transform: translate(0, 0) rotate(360deg); }
         }
 
         /* ========== FOOTER ========== */
@@ -842,7 +797,7 @@
             box-shadow: 0 8px 20px var(--accent-glow);
         }
 
-        /* ========== MODAL MELHORADO - UX APRIMORADA ========== */
+        /* ========== MODAL ========== */
         .modal-backdrop.show {
             backdrop-filter: blur(8px);
         }
@@ -868,7 +823,7 @@
             transition: all 0.3s ease;
         }
 
-        /* ================== NOVO ESTILO DO MODAL (DARK GLASS) ================== */
+        /* ESTILO DO MODAL (DARK GLASS) */
         .modal.show .modal-content {
             background-color: rgba(0, 13, 22, 0.75) !important;
             backdrop-filter: blur(25px) saturate(120%) !important;
@@ -930,9 +885,6 @@
             filter: invert(1) grayscale(100%) brightness(200%);
         }
 
-        /* ================== FIM DO ESTILO DO MODAL ================== */
-
-
         .modal-content::before {
             content: '';
             position: absolute;
@@ -943,7 +895,6 @@
             background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
         }
 
-        /* Login Header Melhorado */
         .login-header {
             text-align: center;
             padding-bottom: 1.5rem;
@@ -963,15 +914,8 @@
         }
 
         @keyframes logoFloat {
-
-            0%,
-            100% {
-                transform: translateY(0);
-            }
-
-            50% {
-                transform: translateY(-5px);
-            }
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
         }
 
         .login-logo i {
@@ -993,7 +937,6 @@
             line-height: 1.5;
         }
 
-        /* Inputs Melhorados */
         .form-group-enhanced {
             position: relative;
             margin-bottom: 1.5rem;
@@ -1066,7 +1009,6 @@
             box-shadow: 0 0 0 4px rgba(220, 53, 69, 0.15);
         }
 
-        /* Ícone de validação */
         .input-icon {
             position: absolute;
             right: 1rem;
@@ -1090,36 +1032,17 @@
         }
 
         @keyframes popIn {
-            0% {
-                transform: translateY(-50%) scale(0);
-            }
-
-            50% {
-                transform: translateY(-50%) scale(1.2);
-            }
-
-            100% {
-                transform: translateY(-50%) scale(1);
-            }
+            0% { transform: translateY(-50%) scale(0); }
+            50% { transform: translateY(-50%) scale(1.2); }
+            100% { transform: translateY(-50%) scale(1); }
         }
 
         @keyframes shake {
-
-            0%,
-            100% {
-                transform: translateY(-50%) translateX(0);
-            }
-
-            25% {
-                transform: translateY(-50%) translateX(-5px);
-            }
-
-            75% {
-                transform: translateY(-50%) translateX(5px);
-            }
+            0%, 100% { transform: translateY(-50%) translateX(0); }
+            25% { transform: translateY(-50%) translateX(-5px); }
+            75% { transform: translateY(-50%) translateX(5px); }
         }
 
-        /* Toggle Senha */
         .password-toggle {
             position: absolute;
             right: 1rem;
@@ -1142,7 +1065,6 @@
             outline: none;
         }
 
-        /* Mensagem de Erro */
         .error-message {
             font-size: 0.8rem;
             color: var(--danger-color);
@@ -1160,7 +1082,6 @@
             transform: translateY(0);
         }
 
-        /* Checkbox Estilizado */
         .checkbox-enhanced {
             display: flex;
             align-items: center;
@@ -1213,7 +1134,6 @@
             font-weight: 500;
         }
 
-        /* Link Esqueci Senha */
         .forgot-link {
             font-size: 0.9rem;
             font-weight: 600;
@@ -1242,7 +1162,6 @@
             width: 100%;
         }
 
-        /* Botão Login Melhorado */
         .btn-login {
             width: 100%;
             padding: 1rem 2rem;
@@ -1293,7 +1212,6 @@
             transform: none;
         }
 
-        /* Loading Spinner */
         .spinner {
             width: 20px;
             height: 20px;
@@ -1313,12 +1231,9 @@
         }
 
         @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
+            to { transform: rotate(360deg); }
         }
 
-        /* Divider */
         .divider {
             display: flex;
             align-items: center;
@@ -1339,7 +1254,6 @@
             padding: 0 1rem;
         }
 
-        /* Social Buttons */
         .social-login {
             display: flex;
             gap: 1rem;
@@ -1380,7 +1294,6 @@
             color: #00A4EF;
         }
 
-        /* Footer Modal */
         .modal-footer-custom {
             text-align: center;
             padding-top: 1.5rem;
@@ -1405,7 +1318,6 @@
             text-decoration: underline;
         }
 
-        /* Toast Notification */
         .toast-notification {
             position: fixed;
             bottom: 2rem;
@@ -1466,12 +1378,9 @@
             margin: 0;
         }
 
-        /* ========== SCROLL REVEAL ANIMATIONS (SUAVIZADO) ========== */
         .reveal {
             opacity: 0;
-            /* Começa mais de baixo (80px) para um movimento mais longo */
             transform: translateY(80px);
-            /* Duração maior (1.5s) e curva de aceleração mais suave (ease-out) */
             transition: all 1.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
         }
 
@@ -1489,11 +1398,6 @@
             .hero-bottom-image {
                 height: 600px;
                 background-attachment: scroll;
-            }
-
-            .hero-buttons-container {
-                margin-top: -240px;
-                padding: 0 20px;
             }
 
             .section-padding {
@@ -1519,12 +1423,14 @@
                 height: 500px;
             }
 
-            .hero-buttons-container {
-                margin-top: -200px;
+            .hero-title-main {
+                font-size: 2.2rem;
             }
 
-            .display-3 {
-                font-size: 2.2rem;
+            /* Ajuste do wrapper de texto no mobile */
+            .hero-text-wrapper {
+                padding: 2rem;
+                backdrop-filter: blur(8px);
             }
 
             .btn-glow,
@@ -1552,7 +1458,6 @@
             }
         }
 
-        /* Acessibilidade */
         .sr-only {
             position: absolute;
             width: 1px;
@@ -1567,37 +1472,6 @@
         *:focus-visible {
             outline: 3px solid var(--accent-color);
             outline-offset: 2px;
-        }
-
-        .glass-card {
-            /* Fundo escuro com transparência (Ajuste o 0.6 para mais ou menos escuro) */
-            background: rgba(15, 23, 42, 0.6);
-
-            /* O efeito de embaçar o que está atrás */
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            /* Para Safari */
-
-            /* Bordas e arredondamento para ficar bonito */
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 24px;
-            padding: 3rem;
-            /* Espaçamento interno */
-
-            /* Sombra para dar profundidade */
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
-
-            /* Centralizar o card (opcional, mas bom para heros) */
-            max-width: 900px;
-            margin: 0 auto;
-        }
-
-        /* Ajuste para celular para não comer a tela toda */
-        @media (max-width: 768px) {
-            .glass-card {
-                padding: 1.5rem;
-                backdrop-filter: blur(8px);
-            }
         }
     </style>
 </head>
@@ -1661,37 +1535,34 @@
         <div class="video-hero-wrapper">
             <video id="heroVideo" autoplay loop muted playsinline webkit-playsinline
                 poster="{{ url_for('static', filename='img/fundo_lab.png') }}" class="background-video">
-
                 <source src="{{ url_for('static', filename='videos/banner-hero.mp4') }}" type="video/mp4">
-
                 <source src="{{ url_for('static', filename='videos/banner-hero.webm') }}" type="video/webm">
-
             </video>
             <div class="video-overlay"></div>
         </div>
 
-        <div class="container hero-content-text text-center position-relative">
+        <div class="container hero-content-text text-center position-relative h-100 d-flex flex-column justify-content-center">
+            
+            <div class="hero-text-wrapper reveal active">
+                
+                
 
-            <div class="glass-card">
-
-
-
-                <h1 class="display-3 fw-bold text-white mb-4">
-                    Auditorias inteligentes que<br class="d-none d-lg-block">
-                    <span class="text-gradient">garantem a excelência.</span>
+                <h1 class="hero-title-main">
+                    Auditorias Inteligentes.<br>
+                    Garantem a <span class="text-gradient-hero">Excelência.</span>
                 </h1>
 
-                <p class="lead text-white-50 mx-auto mb-5" style="max-width: 800px; font-size: 1.25rem;">
-                    Centralize checklists, monitore conformidades e gerencie toda sua rede com dados em tempo real.
-                    Transforme papelada e planilhas em inteligência estratégica.
+                <p class="hero-subtitle">
+                    Centralize checklists, elimine o papel e gerencie toda sua rede com dados em tempo real.
+                    
                 </p>
 
-                <div class="d-flex justify-content-center gap-3 flex-wrap px-3 pb-4">
+                <div class="d-flex justify-content-center gap-3 flex-wrap px-3 pb-2">
                     <button class="btn btn-glow btn-lg px-5 py-3" data-bs-toggle="modal" data-bs-target="#loginModal">
                         <i class="fas fa-sign-in-alt me-2"></i> Acessar Sistema
                     </button>
                     <a href="#solucao" class="btn btn-outline-light btn-lg px-5 py-3 text-decoration-none">
-                        <i class="fas fa-chart-line me-2"></i>Conheça a Plataforma
+                        <i class="fas fa-play-circle me-2"></i> Ver Como Funciona
                     </a>
                 </div>
 
