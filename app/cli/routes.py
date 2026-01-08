@@ -4598,12 +4598,59 @@ def perfil():
 
     return render_template_safe('cli/perfil.html', usuario=usuario_db)
 
+# --- INÍCIO DA FUNÇÃO QUE FALTA ---
+@cli_bp.route('/auditoria/passo2/<int:avaliado_id>', methods=['GET', 'POST'])
+@login_required
+def escolher_questionario(avaliado_id):
+    """
+    Passo 2: Escolher o Questionário e Criar a Aplicação.
+    """
+    rancho = Avaliado.query.get_or_404(avaliado_id)
+    
+    # Segurança de Hierarquia
+    if current_user.tipo.name in ['AUDITOR', 'GESTOR']:
+        if rancho.grupo_id != current_user.grupo_id:
+            flash("Acesso negado a este rancho.", "danger")
+            return redirect(url_for('cli.selecionar_rancho_auditoria'))
 
+    if request.method == 'POST':
+        questionario_id = request.form.get('questionario_id')
+        
+        if questionario_id:
+            try:
+                # --- CORREÇÃO AQUI: Usando AplicacaoQuestionario ---
+                nova_aplicacao = AplicacaoQuestionario(
+                    # Nota: Verifique se no seu model é 'aplicador_id' ou 'usuario_id'
+                    # Pelo seu código anterior parecia ser 'aplicador_id'
+                    aplicador_id=current_user.id, 
+                    avaliado_id=rancho.id,
+                    questionario_id=int(questionario_id),
+                    cliente_id=current_user.cliente_id,
+                    data_inicio=datetime.now(),
+                    # Se der erro no Status, use a string 'em_andamento'
+                    status=StatusAplicacao.EM_ANDAMENTO 
+                )
+                
+                db.session.add(nova_aplicacao)
+                db.session.commit()
+                
+                flash(f"Aplicação iniciada! (ID: {nova_aplicacao.id})", "success")
+                
+                # Redireciona para a tela de responder
+                return redirect(url_for('cli.responder_aplicacao', id=nova_aplicacao.id))
+                
+            except Exception as e:
+                db.session.rollback()
+                flash(f"Erro ao criar aplicação: {str(e)}", "danger")
+                # Útil para debug: imprime o erro no terminal
+                print(f"ERRO AO CRIAR APLICACAO: {e}") 
+        else:
+            flash("Selecione um questionário.", "warning")
 
+    # Carrega questionários
+    questionarios = Questionario.query.filter_by(
+        cliente_id=current_user.cliente_id, 
+        ativo=True
+    ).order_by(Questionario.titulo).all()
 
-
-
-
-
-
-
+    return render_template_safe('cli/auditoria_passo2.html', rancho=rancho, questionarios=questionarios)
