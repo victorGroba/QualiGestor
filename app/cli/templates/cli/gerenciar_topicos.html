@@ -2,6 +2,8 @@
 {% block title %}Gerenciar Tópicos - {{ questionario.nome }}{% endblock %}
 
 {% block content %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+
 <div class="container py-4">
     <nav aria-label="breadcrumb" class="mb-3">
         <ol class="breadcrumb">
@@ -40,21 +42,25 @@
     <div class="card shadow-sm border-0">
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
+                <table class="table table-hover align-middle mb-0" id="tabela-topicos">
                     <thead class="bg-light">
                         <tr>
-                            <th class="ps-4" width="80">Ordem</th>
+                            <th width="50" class="text-center"><i class="fas fa-arrows-alt text-muted"></i></th>
+                            <th class="ps-2" width="80">Ordem</th>
                             <th>Nome do Tópico</th>
                             <th>Descrição</th>
                             <th class="text-center" width="120">Perguntas</th>
                             <th width="220" class="text-end pe-4">Ações</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="lista-topicos">
                         {% for topico in topicos %}
-                        <tr>
-                            <td class="ps-4">
-                                <span class="badge bg-secondary rounded-pill">{{ topico.ordem }}</span>
+                        <tr data-id="{{ topico.id }}" class="item-arrastavel">
+                            <td class="text-center handle-drag" style="cursor: grab;">
+                                <i class="fas fa-grip-vertical text-muted"></i>
+                            </td>
+                            <td class="ps-2">
+                                <span class="badge bg-secondary rounded-pill numero-ordem">{{ topico.ordem }}</span>
                             </td>
                             <td>
                                 <a href="{{ url_for_safe('cli.gerenciar_perguntas', topico_id=topico.id) }}" class="text-decoration-none fw-bold text-dark">
@@ -124,4 +130,46 @@
         </a>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var el = document.getElementById('lista-topicos');
+    if (el) {
+        Sortable.create(el, {
+            handle: '.handle-drag', // Só arrasta clicando no ícone
+            animation: 150,
+            ghostClass: 'bg-light',
+            onEnd: function (evt) {
+                var rows = document.querySelectorAll('#lista-topicos tr');
+                var ordem = [];
+                
+                // Atualiza visualmente os números e coleta IDs
+                rows.forEach(function(row, index) {
+                    ordem.push(row.getAttribute('data-id'));
+                    // Atualiza o número da ordem visualmente na hora
+                    var badge = row.querySelector('.numero-ordem');
+                    if(badge) badge.textContent = index + 1;
+                });
+
+                // Envia para o backend
+                fetch("{{ url_for('cli.reordenar_topicos', questionario_id=questionario.id) }}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': "{{ csrf_token() }}" 
+                    },
+                    body: JSON.stringify({ 'ordem': ordem })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.sucesso) {
+                        alert('Erro ao salvar a ordem: ' + (data.erro || 'Desconhecido'));
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+            }
+        });
+    }
+});
+</script>
 {% endblock %}

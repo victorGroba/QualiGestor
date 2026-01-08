@@ -2,6 +2,8 @@
 {% block title %}Gerenciar Perguntas - {{ topico.nome }}{% endblock %}
 
 {% block content %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+
 <div class="container py-4">
     <nav aria-label="breadcrumb" class="mb-3">
         <ol class="breadcrumb">
@@ -33,7 +35,8 @@
                 <table class="table table-hover align-middle mb-0">
                     <thead class="bg-light">
                         <tr>
-                            <th class="ps-4" width="80">Ordem</th>
+                            <th width="50" class="text-center"><i class="fas fa-arrows-alt text-muted"></i></th>
+                            <th class="ps-2" width="80">Ordem</th>
                             <th>Descrição da Pergunta</th>
                             <th width="150">Tipo</th>
                             <th width="120" class="text-center">Configurações</th>
@@ -41,11 +44,14 @@
                             <th width="140" class="text-end pe-4">Ações</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="lista-perguntas">
                         {% for pergunta in perguntas %}
-                        <tr>
-                            <td class="ps-4">
-                                <span class="badge bg-secondary rounded-pill">{{ pergunta.ordem }}</span>
+                        <tr data-id="{{ pergunta.id }}">
+                            <td class="text-center handle-drag" style="cursor: grab;">
+                                <i class="fas fa-grip-vertical text-muted"></i>
+                            </td>
+                            <td class="ps-2">
+                                <span class="badge bg-secondary rounded-pill numero-ordem">{{ pergunta.ordem }}</span>
                             </td>
                             <td>
                                 <span class="fw-bold text-dark">{{ pergunta.texto }}</span>
@@ -128,4 +134,44 @@
         </a>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var el = document.getElementById('lista-perguntas');
+    if (el) {
+        Sortable.create(el, {
+            handle: '.handle-drag',
+            animation: 150,
+            ghostClass: 'bg-light',
+            onEnd: function (evt) {
+                var rows = document.querySelectorAll('#lista-perguntas tr');
+                var ordem = [];
+                
+                rows.forEach(function(row, index) {
+                    ordem.push(row.getAttribute('data-id'));
+                    var badge = row.querySelector('.numero-ordem');
+                    if(badge) badge.textContent = index + 1;
+                });
+
+                // URL da rota da API para reordenar perguntas
+                fetch("{{ url_for('cli.reordenar_perguntas', topico_id=topico.id) }}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': "{{ csrf_token() }}"
+                    },
+                    body: JSON.stringify({ 'ordem': ordem })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.sucesso) {
+                        alert('Erro ao salvar a ordem: ' + (data.erro || 'Desconhecido'));
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+            }
+        });
+    }
+});
+</script>
 {% endblock %}
