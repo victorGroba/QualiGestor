@@ -4155,32 +4155,7 @@ print("=" * 50)
 
 # ===================== ROTAS PLACEHOLDER ADICIONAIS =====================
 
-@cli_bp.route('/perfil')
-@cli_bp.route('/profile')
-@cli_bp.route('/meu-perfil')
-@login_required
-def placeholder_perfil():
-    """Página de perfil (placeholder)"""
-    return criar_placeholder_route('placeholder_perfil', 'Perfil do Usuário',
-                                   'Módulo de perfil em desenvolvimento.')()
 
-@cli_bp.route('/ajuda')
-@cli_bp.route('/help')
-@cli_bp.route('/suporte')
-@login_required  
-def placeholder_ajuda():
-    """Página de ajuda (placeholder)"""
-    return criar_placeholder_route('placeholder_ajuda', 'Ajuda e Suporte',
-                                   'Módulo de ajuda em desenvolvimento.')()
-
-@cli_bp.route('/sobre')
-@cli_bp.route('/about')
-@cli_bp.route('/info')
-@login_required
-def placeholder_sobre():
-    """Página sobre (placeholder)"""
-    return criar_placeholder_route('placeholder_sobre', 'Sobre o Sistema',
-                                   'Informações sobre o QualiGestor CLIQ.')()
 
 # ===================== HANDLER DE ERROS PARA ROTAS NÃO ENCONTRADAS =====================
 
@@ -4602,26 +4577,23 @@ def perfil():
     
     if request.method == 'POST':
         try:
-            # Captura dados do formulário
             nome = request.form.get('nome')
-            
-            # Captura senhas
             senha_atual = request.form.get('senha_atual')
             nova_senha = request.form.get('nova_senha')
             confirma_senha = request.form.get('confirma_senha')
 
-            # 1. Atualiza Nome
+            # Atualiza nome
             if nome: 
                 usuario.nome = nome
             
-            # 2. Lógica de Troca de Senha
+            # Atualiza senha
             if nova_senha:
                 if not senha_atual:
-                    flash("Para alterar a senha, é obrigatório informar a senha atual.", "warning")
+                    flash("Para alterar a senha, informe a senha atual.", "warning")
                     return redirect(url_for('cli.perfil'))
                 
                 if not check_password_hash(usuario.senha_hash, senha_atual):
-                    flash("A senha atual informada está incorreta.", "danger")
+                    flash("A senha atual está incorreta.", "danger")
                     return redirect(url_for('cli.perfil'))
                 
                 if nova_senha != confirma_senha:
@@ -4629,7 +4601,7 @@ def perfil():
                     return redirect(url_for('cli.perfil'))
                 
                 usuario.senha_hash = generate_password_hash(nova_senha)
-                flash("Senha alterada com sucesso! Use a nova senha no próximo login.", "success")
+                flash("Senha alterada com sucesso!", "success")
             else:
                 flash("Dados atualizados com sucesso!", "success")
 
@@ -4640,7 +4612,6 @@ def perfil():
             db.session.rollback()
             flash(f"Erro ao atualizar perfil: {str(e)}", "danger")
 
-    # IMPORTANTE: Usa o render_template_safe que você já tem no projeto
     return render_template_safe('cli/perfil.html', usuario=usuario)
 
 
