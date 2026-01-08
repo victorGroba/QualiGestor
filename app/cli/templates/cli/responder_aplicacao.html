@@ -500,5 +500,71 @@
             });
         });
     });
+    function atualizarRegraFoto(radio) {
+        // O name do radio é "resposta-ID" (ex: resposta-105). Pegamos o ID.
+        const parts = radio.name.split('-');
+        if (parts.length < 2) return;
+        const pid = parts[1];
+
+        const fileInput = document.getElementById(`foto-${pid}`);
+        // Procura o label para adicionar o asterisco visual
+        // Tenta achar pelo 'for' ou pega o label próximo
+        let labelFoto = document.querySelector(`label[for="foto-${pid}"]`);
+        
+        // Fallback: se não achar pelo 'for', tenta achar dentro do container de foto
+        if (!labelFoto && fileInput) {
+            const container = fileInput.closest('.mb-2') || fileInput.parentElement;
+            if(container) labelFoto = container.querySelector('label');
+        }
+
+        if (!fileInput) return;
+
+        const valor = radio.value.toLowerCase();
+
+        // Lógica: Se for "nao" ou "nc" -> Foto Obrigatória
+        if (valor === 'nao' || valor === 'nc') {
+            // 1. Ativa a flag que o seu validador (Seção 3.2) procura
+            fileInput.setAttribute('data-obrigatoria', 'true');
+            
+            // 2. Feedback Visual (Texto Vermelho)
+            if (labelFoto && !labelFoto.innerHTML.includes('(Obrigatória)')) {
+                labelFoto.originalText = labelFoto.innerHTML; // Salva texto original
+                labelFoto.innerHTML += ' <span class="text-danger fw-bold small">* (Foto Obrigatória)</span>';
+            }
+            // Adiciona borda vermelha suave no input para destacar
+            fileInput.classList.add('border', 'border-danger');
+
+        } else {
+            // 1. Remove a obrigatoriedade
+            fileInput.setAttribute('data-obrigatoria', 'false');
+            
+            // 2. Remove Feedback Visual
+            if (labelFoto && labelFoto.innerHTML.includes('(Obrigatória)')) {
+                // Remove o span de erro mantendo o ícone/texto original
+                const spanErro = labelFoto.querySelector('.text-danger');
+                if(spanErro) spanErro.remove();
+            }
+            fileInput.classList.remove('border', 'border-danger');
+        }
+    }
+
+    // Inicializa os ouvintes (Listeners)
+    document.addEventListener("DOMContentLoaded", function() {
+        const todosRadios = document.querySelectorAll('input[type="radio"]');
+
+        todosRadios.forEach(radio => {
+            // A. Quando o usuário clica/muda a opção
+            radio.addEventListener('change', function() {
+                atualizarRegraFoto(this);
+                // Se o radio já tiver onchange="salvarResposta(this)" no HTML, 
+                // ele vai salvar e depois rodar essa regra visual. Tudo certo.
+            });
+
+            // B. Ao carregar a página (para aplicar a regra em respostas já salvas/carregadas)
+            if (radio.checked) {
+                atualizarRegraFoto(radio);
+            }
+        });
+    });
 </script>
 {% endblock %}
