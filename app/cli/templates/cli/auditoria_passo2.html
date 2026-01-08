@@ -1,0 +1,104 @@
+{% extends "base_cliq.html" %}
+
+{% block title %}Selecionar Checklist{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+
+    <div class="row justify-content-center mb-5">
+        <div class="col-md-8">
+            <div class="d-flex justify-content-between position-relative align-items-center">
+                <div class="position-absolute top-50 start-0 w-100 translate-middle-y bg-secondary bg-opacity-25" style="height: 3px; z-index: 0;"></div>
+                
+                <div class="text-center position-relative z-1">
+                    <div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center mx-auto" style="width: 50px; height: 50px; border: 4px solid #fff;">
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <small class="fw-bold text-success mt-2 d-block">Local</small>
+                </div>
+
+                <div class="text-center position-relative z-1">
+                    <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center mx-auto shadow" style="width: 50px; height: 50px; border: 4px solid #fff;">
+                        <i class="fas fa-clipboard-check"></i>
+                    </div>
+                    <small class="fw-bold text-primary mt-2 d-block">2. Checklist</small>
+                </div>
+
+                <div class="text-center position-relative z-1">
+                    <div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center mx-auto" style="width: 50px; height: 50px; border: 4px solid #fff;">
+                        <i class="fas fa-play"></i>
+                    </div>
+                    <small class="fw-bold text-muted mt-2 d-block">3. Execução</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-6 col-md-8">
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+                
+                <div class="card-header bg-white border-bottom border-light py-4 text-center">
+                    <h6 class="text-uppercase text-muted fw-bold small ls-1 mb-2">Local Selecionado</h6>
+                    <h3 class="text-primary fw-bold mb-0">
+                        <i class="fas fa-map-marker-alt text-danger me-2"></i>{{ rancho.nome }}
+                    </h3>
+                </div>
+
+                <div class="card-body p-4 p-md-5 bg-white">
+                    <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        
+                        <div class="mb-4">
+                            <label for="questionario_id" class="form-label text-dark fw-bold h5 mb-3">Qual checklist aplicar?</label>
+                            
+                            <div class="list-group shadow-sm rounded-3">
+                                <select name="questionario_id" id="questionario_id" class="form-select form-select-lg border-primary border-opacity-25 py-3" required size="5" style="overflow-y: auto;">
+                                    {% for q in questionarios %}
+                                        <option value="{{ q.id }}" class="p-2 border-bottom border-light">
+                                            {{ q.nome }}
+                                        </option>
+                                    {% else %}
+                                        <option disabled>Nenhum questionário disponível.</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="form-text mt-2 text-muted">
+                                <i class="fas fa-info-circle me-1"></i> Selecione o modelo na lista acima.
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-3">
+                            <button type="submit" class="btn btn-success btn-lg rounded-pill shadow-sm fw-bold py-3 text-uppercase">
+                                <i class="fas fa-rocket me-2"></i> Iniciar Auditoria
+                            </button>
+                            
+                            <a href="{{ url_for('cli.selecionar_rancho_auditoria') }}" class="btn btn-outline-secondary rounded-pill border-0">
+                                <i class="fas fa-arrow-left me-1"></i> Trocar Rancho
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .ls-1 { letter-spacing: 1px; }
+    /* Estilizando o select para parecer uma lista bonita */
+    #questionario_id option {
+        margin-bottom: 5px;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+    #questionario_id option:checked {
+        background-color: var(--bs-primary) !important;
+        color: white;
+    }
+    #questionario_id:focus {
+        border-color: var(--bs-primary);
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.1);
+    }
+</style>
+{% endblock %}

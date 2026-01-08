@@ -1,62 +1,132 @@
 {% extends "base_cliq.html" %}
 
-{% block title %}Nova Auditoria{% endblock %}
+{% block title %}Nova Auditoria - Seleção de Local{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-6">
-            <div class="card shadow border-left-primary">
-                <div class="card-header py-3">
-                    <h5 class="m-0 font-weight-bold text-primary">
-                        <i class="fas fa-clipboard-check me-2"></i>Iniciar Nova Auditoria
-                    </h5>
+<div class="container py-5">
+    
+    <div class="row justify-content-center mb-5">
+        <div class="col-md-8">
+            <div class="d-flex justify-content-between position-relative align-items-center">
+                <div class="position-absolute top-50 start-0 w-100 translate-middle-y bg-secondary bg-opacity-25" style="height: 3px; z-index: 0;"></div>
+                
+                <div class="text-center position-relative z-1">
+                    <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center mx-auto shadow" style="width: 50px; height: 50px; border: 4px solid #fff;">
+                        <i class="fas fa-map-marker-alt"></i>
+                    </div>
+                    <small class="fw-bold text-primary mt-2 d-block">1. Local</small>
                 </div>
-                <div class="card-body">
-                    
-                    <p class="mb-4">Selecione abaixo qual Unidade (Rancho) será auditada:</p>
 
-                    <form method="POST">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        
-                        <div class="mb-4">
-                            <label class="form-label font-weight-bold">Unidade de Alimentação</label>
-                            <select name="avaliado_id" class="form-select form-select-lg" required>
-                                <option value="">-- Selecione o Rancho --</option>
-                                {% for r in ranchos %}
-                                    <option value="{{ r.id }}">
-                                        {{ r.nome }} 
-                                        {% if r.grupo %}({{ r.grupo.nome }}){% endif %}
-                                    </option>
-                                {% endfor %}
-                            </select>
-                            
-                            {% if not ranchos %}
-                                <div class="alert alert-warning mt-3 small">
-                                    <i class="fas fa-exclamation-triangle me-1"></i>
-                                    Nenhum rancho disponível para o seu perfil de acesso.
-                                </div>
-                            {% endif %}
-                        </div>
-
-                        <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-primary btn-lg" {{ 'disabled' if not ranchos }}>
-                                Avançar para o Checklist <i class="fas fa-arrow-right ms-2"></i>
-                            </button>
-                            <a href="{{ url_for('cli.index') }}" class="btn btn-light text-muted">Cancelar</a>
-                        </div>
-                    </form>
-
+                <div class="text-center position-relative z-1">
+                    <div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center mx-auto" style="width: 50px; height: 50px; border: 4px solid #fff;">
+                        <i class="fas fa-clipboard-list"></i>
+                    </div>
+                    <small class="fw-bold text-muted mt-2 d-block">2. Checklist</small>
                 </div>
-                <div class="card-footer bg-light py-2">
-                    <small class="text-muted">
-                        <i class="fas fa-user-lock me-1"></i>
-                        Você está vendo apenas as unidades permitidas para o seu perfil 
-                        (<strong>{{ current_user.tipo.name }}</strong>).
-                    </small>
+
+                <div class="text-center position-relative z-1">
+                    <div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center mx-auto" style="width: 50px; height: 50px; border: 4px solid #fff;">
+                        <i class="fas fa-play"></i>
+                    </div>
+                    <small class="fw-bold text-muted mt-2 d-block">3. Execução</small>
                 </div>
             </div>
         </div>
     </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-6 col-md-8">
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="card-header bg-primary text-white py-3 text-center border-0">
+                    <h5 class="mb-0 fw-bold">Onde será a auditoria?</h5>
+                    <p class="mb-0 small opacity-75">Selecione a unidade para continuar</p>
+                </div>
+                
+                <div class="card-body p-4 p-md-5 bg-white">
+                    <form method="POST" action="{{ url_for('cli.selecionar_rancho_auditoria') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                        <div class="mb-4">
+                            <label for="grupo_id" class="form-label text-uppercase text-secondary fw-bold small ls-1">
+                                <i class="fas fa-layer-group me-1 text-primary"></i> Grupamento (GAP)
+                            </label>
+                            <select class="form-select form-select-lg bg-light border-0 shadow-sm" id="grupo_id" name="grupo_id" required onchange="filtrarRanchos()">
+                                <option value="" selected disabled>Selecione o GAP...</option>
+                                {% for gap in grupos %}
+                                    <option value="{{ gap.id }}">{{ gap.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="avaliado_id" class="form-label text-uppercase text-secondary fw-bold small ls-1">
+                                <i class="fas fa-utensils me-1 text-success"></i> Rancho (Unidade)
+                            </label>
+                            <select class="form-select form-select-lg bg-light border-0 shadow-sm" id="avaliado_id" name="avaliado_id" required disabled>
+                                <option value="">-- Selecione o GAP primeiro --</option>
+                            </select>
+                        </div>
+
+                        <div class="d-grid mt-5">
+                            <button type="submit" class="btn btn-primary btn-lg rounded-pill shadow-sm fw-bold">
+                                Avançar para Checklist <i class="fas fa-arrow-right ms-2"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="text-center mt-4">
+                <a href="{{ url_for('cli.index') }}" class="text-decoration-none text-muted small">
+                    <i class="fas fa-times me-1"></i> Cancelar Auditoria
+                </a>
+            </div>
+        </div>
+    </div>
 </div>
+
+<script>
+    const todosRanchos = [
+        {% for r in avaliados %}
+        { 
+            id: "{{ r.id }}", 
+            nome: "{{ r.nome }}", 
+            grupo_id: "{{ r.grupo_id if r.grupo_id else '' }}" 
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    function filtrarRanchos() {
+        const gapId = document.getElementById('grupo_id').value;
+        const selectRancho = document.getElementById('avaliado_id');
+        
+        selectRancho.innerHTML = '<option value="">-- Selecione o Rancho --</option>';
+        selectRancho.disabled = true;
+
+        if (gapId) {
+            const ranchosFiltrados = todosRanchos.filter(r => String(r.grupo_id) === String(gapId));
+            
+            if (ranchosFiltrados.length > 0) {
+                selectRancho.disabled = false;
+                ranchosFiltrados.forEach(r => {
+                    const option = document.createElement('option');
+                    option.value = r.id;
+                    option.text = r.nome;
+                    selectRancho.appendChild(option);
+                });
+            } else {
+                const option = document.createElement('option');
+                option.text = "Nenhum rancho neste GAP";
+                selectRancho.appendChild(option);
+            }
+        }
+    }
+</script>
+
+<style>
+    .ls-1 { letter-spacing: 1px; }
+    .form-select-lg { font-size: 1.1rem; padding-top: 0.8rem; padding-bottom: 0.8rem; }
+    /* Efeito de foco suave */
+    .form-select:focus { border-color: #86b7fe; box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15); }
+</style>
 {% endblock %}
