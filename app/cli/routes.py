@@ -3018,7 +3018,8 @@ def novo_usuario():
         gaps = Grupo.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).order_by(Grupo.nome).all()
         ranchos = Avaliado.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).order_by(Avaliado.nome).all()
         
-        return render_template_safe('cli/usuario_form.html', gaps=gaps, ranchos=ranchos)
+        # Mude 'gaps=gaps' para 'grupos=gaps' para bater com o {% for gap in grupos %} do HTML
+        return render_template_safe('cli/usuario_form.html', grupos=gaps, ranchos=ranchos)
     except Exception as e:
         flash(f"Erro ao carregar formulário: {str(e)}", "danger")
         return redirect(url_for('cli.gerenciar_usuarios'))
