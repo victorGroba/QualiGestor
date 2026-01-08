@@ -2950,8 +2950,8 @@ def novo_usuario():
             nome = request.form.get('nome', '').strip()
             email = request.form.get('email', '').strip().lower()
             tipo_str = request.form.get('tipo')
-            grupo_id = request.form.get('grupo_id')       # ID do GAP
-            avaliado_id = request.form.get('avaliado_id') # ID do Rancho
+            grupo_id = request.form.get('grupo_id')       # ID do GAP selecionado
+            avaliado_id = request.form.get('avaliado_id') # ID do Rancho selecionado
             
             # 2. Validações Básicas
             if not all([nome, email, tipo_str]):
@@ -2963,8 +2963,7 @@ def novo_usuario():
                 flash('Este e-mail já está em uso.', 'error')
                 return redirect(url_for('cli.novo_usuario'))
 
-            # 3. VALIDAÇÃO DE VÍNCULOS (A Regra da Hierarquia)
-            
+            # 3. VALIDAÇÃO DE VÍNCULOS (Regras FAB)
             # Consultora (AUDITOR) ou Gestor GAP (GESTOR) -> Obrigatório ter GAP
             if tipo_str in ['auditor', 'gestor'] and not grupo_id:
                 flash('Para Consultoras e Gestores, é OBRIGATÓRIO selecionar o GAP.', 'warning')
@@ -2978,13 +2977,9 @@ def novo_usuario():
             # 4. Criação do Usuário
             from werkzeug.security import generate_password_hash
             
-            # Tenta converter a string do form para o Enum do banco (se usar Enum)
-            # Se seu model usa string direta, isso vai passar direto como string
+            # Converte a string do formulário para o Enum correto
             try:
-                if 'TipoUsuario' in globals():
-                    tipo_enum = TipoUsuario[tipo_str.upper()]
-                else:
-                    tipo_enum = tipo_str 
+                tipo_enum = TipoUsuario[tipo_str.upper()]
             except:
                 tipo_enum = tipo_str
 
@@ -2999,7 +2994,7 @@ def novo_usuario():
                 ativo=True
             )
             
-            # Se for usuário de rancho, garantimos que o grupo_id (GAP) seja o mesmo do Rancho
+            # Se for usuário de rancho, garantimos que o grupo_id seja o mesmo do Rancho
             if usuario.avaliado_id:
                 rancho = Avaliado.query.get(usuario.avaliado_id)
                 if rancho:
@@ -3019,10 +3014,8 @@ def novo_usuario():
     
     # GET: Carregar dados para os selects do formulário
     try:
-        # Carrega GAPs (Grupos)
+        # Importante: enviamos 'gaps' e 'ranchos' para bater com o JavaScript do seu HTML
         gaps = Grupo.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).order_by(Grupo.nome).all()
-        
-        # Carrega Ranchos (Avaliados) - passamos todos, o JavaScript vai filtrar
         ranchos = Avaliado.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).order_by(Avaliado.nome).all()
         
         return render_template_safe('cli/usuario_form.html', gaps=gaps, ranchos=ranchos)
@@ -3856,24 +3849,27 @@ def buscar():
 @login_required
 @admin_required
 def listar_grupos():
-    """Página de gestão de grupos"""
+    """Página de gestão de grupos (GAPs)"""
     try:
+        # Busca apenas os grupos do cliente logado (Aeronáutica)
         grupos = Grupo.query.filter_by(
             cliente_id=current_user.cliente_id,
             ativo=True
         ).order_by(Grupo.nome).all()
         
-        # Contar avaliados por grupo
+        # Contar ranchos (avaliados) por grupo para mostrar na tabela
         for grupo in grupos:
             grupo.total_avaliados = Avaliado.query.filter_by(
                 grupo_id=grupo.id,
                 ativo=True
             ).count()
         
+        # Certifique-se de que o arquivo listar_grupos.html existe na pasta templates/cli/
         return render_template_safe('cli/listar_grupos.html', grupos=grupos)
     except Exception as e:
         flash(f"Erro ao carregar grupos: {str(e)}", "danger")
-        return render_template_safe('cli/index.html')
+        # Se der erro, volta para o dashboard
+        return redirect(url_for('cli.index'))
 
 @cli_bp.route('/grupo/novo', methods=['GET', 'POST'])
 @login_required
