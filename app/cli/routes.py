@@ -1969,96 +1969,50 @@ def novo_avaliado():
 
 
 
-@cli_bp.route('/avaliados/<int:id>/editar', methods=['GET', 'POST'])
 @cli_bp.route('/avaliado/<int:id>/editar', methods=['GET', 'POST'])
 @login_required
+@admin_required # Garante que só admins mexem aqui
 def editar_avaliado(id):
-    """Edita um avaliado do cliente atual."""
-    try:
-        avaliado = Avaliado.query.get_or_404(id)
+    """Edita um avaliado (Rancho) existente"""
+    # 1. Busca segura: garante que pertence ao cliente
+    avaliado = Avaliado.query.filter_by(id=id, cliente_id=current_user.cliente_id).first_or_404()
 
-        # segurança: o avaliado precisa pertencer ao mesmo cliente do usuário
-        if avaliado.cliente_id != current_user.cliente_id:
-            flash("Avaliado não encontrado.", "danger")
-            return redirect(url_for('cli.listar_avaliados'))
-
-        if request.method == 'POST':
-            try:
-                nome = (request.form.get('nome') or '').strip()
-                codigo = (request.form.get('codigo') or '').strip()
-                endereco = (request.form.get('endereco') or '').strip()
-                grupo_id_raw = request.form.get('grupo_id')
-                ativo_flag = request.form.get('ativo') == 'on'
-
-                if not nome:
-                    flash("Nome é obrigatório.", "warning")
-                    return redirect(url_for('cli.editar_avaliado', id=id))
-
-                # valida grupo (se enviado) e se pertence ao mesmo cliente
-                grupo = None
-                if grupo_id_raw:
-                    try:
-                        gid = int(grupo_id_raw)
-                    except ValueError:
-                        flash("Grupo inválido.", "warning")
-                        return redirect(url_for('cli.editar_avaliado', id=id))
-
-                    grupo = Grupo.query.filter_by(
-                        id=gid, cliente_id=current_user.cliente_id, ativo=True
-                    ).first()
-                    if not grupo:
-                        flash("Grupo não encontrado ou sem permissão.", "warning")
-                        return redirect(url_for('cli.editar_avaliado', id=id))
-
-                # código único por cliente (se fornecido e mudou)
-                if codigo and codigo != (avaliado.codigo or ''):
-                    existe = Avaliado.query.filter_by(
-                        cliente_id=current_user.cliente_id, codigo=codigo
-                    ).first()
-                    if existe and existe.id != id:
-                        flash("Já existe um avaliado com este código.", "warning")
-                        return redirect(url_for('cli.editar_avaliado', id=id))
-
-                # aplica alterações
+    if request.method == 'POST':
+        try:
+            # 2. Coleta dados explicitamente (sem loops mágicos)
+            nome = request.form.get('nome', '').strip()
+            endereco = request.form.get('endereco', '').strip()
+            email = request.form.get('email', '').strip() # <--- Agora é explícito
+            grupo_id = request.form.get('grupo_id')
+            
+            # 3. Validação
+            if not nome or not grupo_id:
+                flash("Nome e GAP são obrigatórios.", "warning")
+            else:
+                # 4. Atualização
                 avaliado.nome = nome
-                avaliado.codigo = (codigo or None)
-                avaliado.endereco = (endereco or None)
-                avaliado.grupo_id = (grupo.id if grupo else None)
-                avaliado.ativo = ativo_flag
-
-                # campos opcionais, se existirem no modelo
-                for campo in ('email', 'idioma'):
-                    if campo in request.form:
-                        try:
-                            valor = (request.form.get(campo) or None)
-                            setattr(avaliado, campo, valor)
-                        except Exception:
-                            pass
+                avaliado.grupo_id = int(grupo_id)
+                avaliado.endereco = endereco if endereco else None
+                avaliado.email = email if email else None
+                
+                # Se tiver código único
+                codigo = request.form.get('codigo', '').strip()
+                if codigo:
+                     avaliado.codigo = codigo
 
                 db.session.commit()
-
-                log_acao(
-                    "Editou avaliado",
-                    {"id": id, "nome": avaliado.nome, "codigo": avaliado.codigo},
-                    "Avaliado",
-                    id
-                )
-
-                flash("Avaliado atualizado com sucesso!", "success")
+                flash(f"Rancho '{nome}' atualizado com sucesso!", "success")
                 return redirect(url_for('cli.listar_avaliados'))
 
-            except Exception as e:
-                db.session.rollback()
-                flash(f"Erro ao atualizar avaliado: {str(e)}", "danger")
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Erro ao salvar: {str(e)}", "danger")
 
-        # GET: carrega grupos do mesmo cliente
-        grupos = Grupo.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).order_by(Grupo.nome.asc()).all()
-        return render_template_safe('cli/editar_avaliado.html', avaliado=avaliado, grupos=grupos)
-
-    except Exception as e:
-        flash(f"Erro ao carregar avaliado: {str(e)}", "danger")
-        return redirect(url_for('cli.listar_avaliados'))
+    # GET: Carrega os dados para o formulário
+    grupos = Grupo.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).order_by(Grupo.nome).all()
     
+    # Nota: Verifique se o seu template se chama 'avaliado_form.html' ou 'editar_avaliado.html'
+    return render_template_safe('cli/editar_avaliado.html', avaliado=avaliado, grupos=grupos)
 
 @cli_bp.route('/avaliados/<int:id>/excluir', methods=['POST'])
 @cli_bp.route('/avaliado/<int:id>/excluir', methods=['POST'])
@@ -3913,6 +3867,64 @@ def novo_grupo():
             flash(f'Erro ao criar grupo: {str(e)}', 'error')
     
     return render_template_safe('cli/grupo_form.html')
+
+# --- ROTAS DE GERENCIAMENTO DE GRUPOS (GAPs) ---
+
+@cli_bp.route('/grupo/<int:id>/editar', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def editar_grupo(id):
+    """Edita um Grupo (GAP)"""
+    grupo = Grupo.query.filter_by(id=id, cliente_id=current_user.cliente_id).first_or_404()
+
+    if request.method == 'POST':
+        try:
+            nome = request.form.get('nome', '').strip()
+            descricao = request.form.get('descricao', '').strip()
+
+            if not nome:
+                flash("O nome do GAP é obrigatório.", "warning")
+            else:
+                grupo.nome = nome
+                grupo.descricao = descricao if descricao else None
+                
+                db.session.commit()
+                flash(f"GAP '{nome}' atualizado com sucesso!", "success")
+                return redirect(url_for('cli.listar_grupos'))
+                
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Erro ao editar GAP: {str(e)}", "danger")
+
+    # Reutiliza o formulário de criação se possível, ou crie um específico
+    return render_template_safe('cli/grupo_form.html', grupo=grupo)
+
+
+@cli_bp.route('/grupo/<int:id>/excluir', methods=['POST'])
+@login_required
+@admin_required
+def excluir_grupo(id):
+    """Exclui (ou inativa) um Grupo (GAP)"""
+    grupo = Grupo.query.filter_by(id=id, cliente_id=current_user.cliente_id).first_or_404()
+    
+    # Verificação de Segurança: Não excluir se tiver Ranchos vinculados
+    ranchos_vinculados = Avaliado.query.filter_by(grupo_id=grupo.id, ativo=True).count()
+    
+    if ranchos_vinculados > 0:
+        flash(f"Não é possível excluir o {grupo.nome}: Existem {ranchos_vinculados} ranchos vinculados a ele.", "danger")
+    else:
+        try:
+            # Soft Delete (Recomendado): Apenas inativa
+            grupo.ativo = False
+            # Se quiser excluir de verdade: db.session.delete(grupo)
+            
+            db.session.commit()
+            flash(f"GAP '{grupo.nome}' removido com sucesso.", "success")
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Erro ao excluir: {str(e)}", "danger")
+            
+    return redirect(url_for('cli.listar_grupos'))
 
 # ===================== FORÇA REGISTRO DE ROTAS CRÍTICAS - SOLUÇÃO DEFINITIVA =====================
 

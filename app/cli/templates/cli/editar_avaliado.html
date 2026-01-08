@@ -1,28 +1,80 @@
 {% extends 'base_cliq.html' %}
-{% block title %}Editar Avaliado{% endblock %}
+
+{% block title %}Editar Rancho{% endblock %}
+
 {% block content %}
-<div class="container py-4">
-  <h4>Editar Avaliado</h4>
-  <form method="POST">
-    <div class="mb-3">
-      <label class="form-label">Nome</label>
-      <input type="text" name="nome" class="form-control" value="{{ avaliado.nome }}" required>
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-edit me-2"></i>Editar Rancho (Avaliado)
+                    </h6>
+                </div>
+                <div class="card-body">
+                    
+                    <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label font-weight-bold">Nome do Rancho *</label>
+                                <input type="text" name="nome" class="form-control" value="{{ avaliado.nome }}" required>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label font-weight-bold">Vinculado ao GAP *</label>
+                                <select name="grupo_id" class="form-select" required>
+                                    <option value="">-- Selecione o GAP --</option>
+                                    {% for g in grupos %}
+                                    <option value="{{ g.id }}" {% if avaliado.grupo_id == g.id %}selected{% endif %}>
+                                        {{ g.nome }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Endereço</label>
+                            <input type="text" name="endereco" class="form-control" 
+                                   placeholder="Rua, Número, Bairro..." 
+                                   value="{{ avaliado.endereco or '' }}">
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">E-mail de Contato</label>
+                                <input type="email" name="email" class="form-control" 
+                                       placeholder="rancho@fab.mil.br" 
+                                       value="{{ avaliado.email or '' }}">
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Código Interno (Opcional)</label>
+                                <input type="text" name="codigo" class="form-control" value="{{ avaliado.codigo or '' }}">
+                            </div>
+                        </div>
+
+                        <div class="form-check mb-3">
+                             <input class="form-check-input" type="checkbox" id="ativo" name="ativo" 
+                                    {{ 'checked' if avaliado.ativo }}>
+                             <label class="form-check-label" for="ativo">Cadastro Ativo</label>
+                        </div>
+
+                        <hr>
+
+                        <div class="d-flex justify-content-end">
+                            <a class="btn btn-secondary me-2" href="{{ url_for('cli.listar_avaliados') }}">Cancelar</a>
+                            <button class="btn btn-primary px-4" type="submit">
+                                <i class="fas fa-save me-1"></i> Salvar Alterações
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
-    <div class="mb-3">
-      <label class="form-label">Código</label>
-      <input type="text" name="codigo" class="form-control" value="{{ avaliado.codigo }}">
-    </div>
-    <div class="mb-3">
-      <label class="form-label">Grupo</label>
-      <select name="grupo_id" class="form-select">
-        <option value="">-- Selecionar --</option>
-        {% for g in grupos %}
-        <option value="{{ g.id }}" {% if avaliado.grupo_id==g.id %}selected{% endif %}>{{ g.nome }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <button class="btn btn-primary" type="submit">Salvar</button>
-    <a class="btn btn-secondary" href="{{ url_for('cli.listar_avaliados') }}">Cancelar</a>
-  </form>
 </div>
 {% endblock %}

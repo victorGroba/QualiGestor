@@ -1,53 +1,53 @@
 {% extends "base_cliq.html" %}
 
+{% block title %}{{ 'Editar' if grupo else 'Novo' }} GAP{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
     <div class="row">
         <div class="col-md-8 mx-auto">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
                         <i class="fas fa-users me-2"></i>
-                        {% if grupo %}Editar Grupo{% else %}Novo Grupo{% endif %}
-                    </h5>
+                        {{ 'Editar Grupo (GAP)' if grupo else 'Novo Grupo (GAP)' }}
+                    </h6>
                 </div>
                 <div class="card-body">
+                    
                     <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
                         <div class="row">
-                            <div class="col-md-6">
+                            <div class="col-md-8">
                                 <div class="mb-3">
-                                    <label for="nome" class="form-label">Nome do Grupo *</label>
+                                    <label for="nome" class="form-label font-weight-bold">Nome do Grupo / OM *</label>
                                     <input type="text" class="form-control" id="nome" name="nome" 
-                                           value="{{ grupo.nome if grupo else '' }}" required>
+                                           value="{{ grupo.nome if grupo else '' }}" required autofocus>
                                 </div>
                             </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="codigo" class="form-label">Código</label>
-                                    <input type="text" class="form-control" id="codigo" name="codigo" 
-                                           value="{{ grupo.codigo if grupo else '' }}">
-                                </div>
                             </div>
-                        </div>
                         
                         <div class="mb-3">
                             <label for="descricao" class="form-label">Descrição</label>
                             <textarea class="form-control" id="descricao" name="descricao" rows="3">{{ grupo.descricao if grupo else '' }}</textarea>
                         </div>
                         
+                        {% if grupo %}
                         <div class="form-check mb-3">
                             <input class="form-check-input" type="checkbox" id="ativo" name="ativo" 
-                                   {{ 'checked' if not grupo or grupo.ativo }}>
-                            <label class="form-check-label" for="ativo">Ativo</label>
+                                   {{ 'checked' if grupo.ativo }}>
+                            <label class="form-check-label" for="ativo">Grupo Ativo</label>
                         </div>
+                        {% endif %}
                         
-                        <div class="mt-4">
-                            <button type="submit" class="btn btn-primary me-2">
-                                <i class="fas fa-save me-2"></i>{% if grupo %}Atualizar{% else %}Salvar{% endif %}
-                            </button>
-                            <a href="{{ url_for('cli.listar_grupos') }}" class="btn btn-secondary">
+                        <div class="d-flex justify-content-end mt-4">
+                            <a href="{{ url_for('cli.listar_grupos') }}" class="btn btn-secondary me-2">
                                 <i class="fas fa-arrow-left me-2"></i>Voltar
                             </a>
+                            <button type="submit" class="btn btn-primary px-4">
+                                <i class="fas fa-save me-2"></i>{{ 'Atualizar' if grupo else 'Salvar' }}
+                            </button>
                         </div>
                     </form>
                 </div>
