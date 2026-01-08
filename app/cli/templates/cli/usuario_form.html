@@ -76,7 +76,8 @@
                         <label for="grupo_id" class="form-label font-weight-bold text-info">Vincular a qual GAP?</label>
                         <select class="form-select border-info" id="grupo_id" name="grupo_id" onchange="filtrarRanchos()">
                             <option value="">-- Selecione o GAP --</option>
-                            {% for gap in grupos %} <option value="{{ gap.id }}">{{ gap.nome }}</option>
+                            {% for gap in grupos %}
+                                <option value="{{ gap.id }}">{{ gap.nome }}</option>
                             {% endfor %}
                         </select>
                         <div class="form-text text-info">Define a região de atuação.</div>
@@ -108,16 +109,14 @@
 </div>
 
 <script>
-    /* Gera o array de objetos JS com dados vindos do Flask.
-       Isso permite filtrar no cliente sem recarregar a página.
-    */
+    // Criamos o array de objetos JSON de forma que o VS Code entenda como uma string/objeto válido
     const todosRanchos = [
-        {% for r in avaliados %}
+        {% for r in ranchos %}
         { 
-            id: "{{ r.id }}", 
-            nome: "{{ r.nome }}", 
-            grupo_id: "{{ r.grupo_id if r.grupo_id else '' }}" 
-        },
+            "id": "{{ r.id }}", 
+            "nome": "{{ r.nome }}", 
+            "grupo_id": "{{ r.grupo_id if r.grupo_id else '' }}" 
+        }{% if not loop.last %},{% endif %}
         {% endfor %}
     ];
 
@@ -129,35 +128,23 @@
         const selectRancho = document.getElementById('avaliado_id');
         const textoAjuda = document.getElementById('textoAjuda');
 
-        // 1. Reseta visualização
         divGap.style.display = 'none';
         divRancho.style.display = 'none';
-        
-        // 2. Remove obrigatoriedade (para não travar o form se oculto)
         selectGap.removeAttribute('required');
         selectRancho.removeAttribute('required');
 
-        // 3. Aplica lógica baseada no tipo selecionado
         if (tipo === 'gestor' || tipo === 'auditor') {
-            // Nível GAP
             divGap.style.display = 'block';
             selectGap.setAttribute('required', 'required');
             textoAjuda.innerText = "Selecione o GAP de atuação.";
-            
-            // Limpa seleção de rancho se houver
             selectRancho.value = ""; 
-
         } else if (tipo === 'usuario') {
-            // Nível Rancho (precisa de GAP + Rancho)
             divGap.style.display = 'block';
             divRancho.style.display = 'block';
-            
             selectGap.setAttribute('required', 'required');
             selectRancho.setAttribute('required', 'required');
             textoAjuda.innerText = "Selecione o GAP e o Rancho específico.";
-            
         } else {
-            // Admins
             selectGap.value = "";
             selectRancho.value = "";
             textoAjuda.innerText = "Administradores possuem visão global.";
@@ -167,15 +154,10 @@
     function filtrarRanchos() {
         const gapId = document.getElementById('grupo_id').value;
         const selectRancho = document.getElementById('avaliado_id');
-        
-        // Limpa opções atuais
         selectRancho.innerHTML = '<option value="">-- Selecione o Rancho --</option>';
 
         if (gapId) {
-            // Filtra o array JS
-            // A comparação usa == para permitir string vs int (HTML value é sempre string)
             const ranchosFiltrados = todosRanchos.filter(r => r.grupo_id == gapId);
-            
             if (ranchosFiltrados.length > 0) {
                 ranchosFiltrados.forEach(r => {
                     const option = document.createElement('option');
@@ -189,18 +171,14 @@
                 selectRancho.appendChild(option);
             }
         } else {
-            // Se o usuário "des-selecionar" o GAP
             const option = document.createElement('option');
             option.text = "-- Selecione o GAP primeiro --";
             selectRancho.appendChild(option);
         }
     }
 
-    // Inicializa ao carregar (caso haja erro de validação e o form retorne preenchido)
     document.addEventListener("DOMContentLoaded", function() {
         atualizarFormulario();
-        
-        // Opcional: Se já houver um GAP selecionado e estivermos no modo Usuario, filtra os ranchos
         const tipo = document.getElementById('tipo').value;
         const gapId = document.getElementById('grupo_id').value;
         if (tipo === 'usuario' && gapId) {
