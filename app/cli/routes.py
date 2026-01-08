@@ -4649,12 +4649,12 @@ def escolher_questionario(avaliado_id):
         
         if questionario_id:
             try:
-                # Cria a aplicação no banco
+                # --- CORREÇÃO: REMOVIDO O CLIENTE_ID ---
                 nova_aplicacao = AplicacaoQuestionario(
                     aplicador_id=current_user.id,
                     avaliado_id=rancho.id,
                     questionario_id=int(questionario_id),
-                    cliente_id=current_user.cliente_id,
+                    # cliente_id=current_user.cliente_id,  <-- LINHA REMOVIDA (CAUSAVA O ERRO)
                     data_inicio=datetime.now(),
                     status=StatusAplicacao.EM_ANDAMENTO 
                 )
@@ -4668,14 +4668,16 @@ def escolher_questionario(avaliado_id):
                 
             except Exception as e:
                 db.session.rollback()
+                # Imprime o erro no terminal para facilitar
+                print(f"ERRO SQL: {e}")
                 flash(f"Erro ao criar registro: {str(e)}", "danger")
         else:
             flash("Selecione um questionário.", "warning")
 
-    # CORREÇÃO AQUI: Trocamos .titulo por .nome
+    # Carrega questionários
     questionarios = Questionario.query.filter_by(
         cliente_id=current_user.cliente_id, 
         ativo=True
-    ).order_by(Questionario.nome).all() # <--- AQUI MUDOU
+    ).order_by(Questionario.nome).all()
 
     return render_template_safe('cli/auditoria_passo2.html', rancho=rancho, questionarios=questionarios)
