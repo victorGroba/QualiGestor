@@ -4,24 +4,51 @@
 
 {% block content %}
 <div class="container mt-4">
-  <h4 class="mb-4">Avaliados</h4>
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="mb-0 text-gray-800"><i class="fas fa-map-marker-alt me-2"></i>Ranchos (Avaliados)</h4>
+    
+    {# Botão de Novo Avaliado (Corrigido para novo_avaliado) #}
+    {% if has_endpoint('cli.novo_avaliado') %}
+      <a href="{{ url_for('cli.novo_avaliado') }}" class="btn btn-primary shadow-sm">
+        <i class="fas fa-plus me-1"></i> Novo Rancho
+      </a>
+    {% else %}
+      {# Fallback caso a rota ainda se chame cadastrar_avaliado #}
+      <a href="{{ url_for('cli.cadastrar_avaliado') }}" class="btn btn-primary shadow-sm">
+        <i class="fas fa-plus me-1"></i> Novo Rancho
+      </a>
+    {% endif %}
+  </div>
 
-  <!-- Filtro -->
-  <div class="card mb-4 shadow-sm">
+  <div class="card mb-4 shadow-sm border-left-primary">
     <div class="card-body">
       <form method="GET" class="row g-3 align-items-end">
-        <div class="col-md-5">
-          <label class="form-label">Nome</label>
+        
+        <div class="col-md-3">
+          <label class="form-label font-weight-bold">Nome</label>
           <input type="text"
                  class="form-control"
                  name="nome"
-                 placeholder="Nome do avaliado"
+                 placeholder="Busca por nome..."
                  value="{{ request.args.get('nome', '') }}">
         </div>
-        <div class="col-md-5">
-          <label class="form-label">Campos do avaliado</label>
+
+        <div class="col-md-4">
+          <label class="form-label font-weight-bold text-primary">Filtrar por GAP</label>
+          <select class="form-select border-primary" name="grupo_id" onchange="this.form.submit()">
+            <option value="">-- Todos os GAPs --</option>
+            {% for grupo in grupos %}
+              <option value="{{ grupo.id }}" {% if request.args.get('grupo_id') == grupo.id|string %}selected{% endif %}>
+                {{ grupo.nome }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label font-weight-bold">Campos extras</label>
           <select class="form-select" name="campo_id">
-            <option value="">Selecione um campo do avaliado</option>
+            <option value="">-- Qualquer campo --</option>
             {% for campo in (campos_personalizados or []) %}
               <option value="{{ campo.id }}" {% if request.args.get('campo_id') == campo.id|string %}selected{% endif %}>
                 {{ campo.nome }}
@@ -29,116 +56,111 @@
             {% endfor %}
           </select>
         </div>
+
         <div class="col-md-2 d-grid">
-          <button type="submit" class="btn btn-primary">Filtrar</button>
+          <button type="submit" class="btn btn-secondary">
+            <i class="fas fa-search me-1"></i> Buscar
+          </button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- Listagem -->
-  <div class="card shadow-sm">
+  <div class="card shadow mb-4">
+    <div class="card-header py-3">
+      <h6 class="m-0 font-weight-bold text-primary">Listagem de Ranchos</h6>
+    </div>
     <div class="card-body">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="mb-0">Listagem</h5>
-
-        {% if has_endpoint('cli.cadastrar_avaliado') %}
-          <a href="{{ url_for('cli.cadastrar_avaliado') }}" class="btn btn-primary">
-            <i class="fas fa-plus me-1"></i> Novo avaliado
-          </a>
-        {% else %}
-          <button type="button" class="btn btn-secondary" disabled>
-            <i class="fas fa-plus me-1"></i> Novo avaliado
-          </button>
-        {% endif %}
-      </div>
-
+      
       <div class="mb-3">
-        <label class="form-label">Filtro rápido</label>
-        <input type="text" class="form-control" placeholder="Digite para filtrar" id="filtroRapido">
+        <input type="text" class="form-control form-control-sm" placeholder="Digitar para filtrar na tabela..." id="filtroRapido" style="max-width: 300px;">
       </div>
 
       <div class="table-responsive">
-        <table class="table table-hover align-middle" id="tabelaAvaliados">
+        <table class="table table-hover align-middle table-striped" id="tabelaAvaliados">
           <thead class="table-light">
             <tr>
-              <th>Nome do avaliado</th>
-              <th>Grupo</th>
+              <th>Nome do Rancho</th>
+              <th>GAP (Vínculo)</th>
               <th>Endereço</th>
               <th>E-mail</th>
-              <th class="text-center">Ações</th>
+              <th class="text-center" style="width: 150px;">Ações</th>
             </tr>
           </thead>
           <tbody>
             {% for a in avaliados %}
             <tr>
-              <td>{{ a.nome }}</td>
-              <td>{{ a.grupo.nome if a.grupo else '-' }}</td>
-              <td>{{ a.endereco or '-' }}</td>
-              <td>{{ a.email or '-' }}</td>
+              <td class="fw-bold text-dark">{{ a.nome }}</td>
+              <td>
+                {% if a.grupo %}
+                  <span class="badge bg-info text-dark">{{ a.grupo.nome }}</span>
+                {% else %}
+                  <span class="badge bg-secondary">Sem GAP</span>
+                {% endif %}
+              </td>
+              <td class="small">{{ a.endereco or '-' }}</td>
+              <td class="small">{{ a.email or '-' }}</td>
               <td class="text-center">
 
-                {# Editar #}
+                {# Botão Editar #}
                 {% if has_endpoint('cli.editar_avaliado') %}
-                  <a href="{{ url_for('cli.editar_avaliado', id=a.id) }}"
-                     class="text-primary me-2"
-                     title="Editar">
-                    <i class="fas fa-pen-to-square"></i>
+                  <a href="{{ url_for('cli.editar_avaliado', id=a.id) }}" class="btn btn-sm btn-outline-primary" title="Editar">
+                    <i class="fas fa-pen"></i>
                   </a>
-                {% else %}
-                  <button type="button" class="btn btn-link p-0 text-secondary me-2" title="Editar indisponível" disabled>
-                    <i class="fas fa-pen-to-square"></i>
-                  </button>
                 {% endif %}
 
-                {# Excluir (soft delete) #}
+                {# Botão Excluir #}
                 {% if has_endpoint('cli.excluir_avaliado') %}
-                  <form method="POST"
-                        action="{{ url_for('cli.excluir_avaliado', id=a.id) }}"
-                        style="display:inline;"
-                        onsubmit="return confirm('Deseja realmente excluir este avaliado?');">
-                    {% if csrf_token is defined %}
-                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    {% endif %}
-                    <button type="submit" class="btn btn-link p-0 text-danger" title="Excluir">
+                  <form method="POST" action="{{ url_for('cli.excluir_avaliado', id=a.id) }}" style="display:inline;" onsubmit="return confirm('Tem certeza que deseja excluir o rancho {{ a.nome }}?');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Excluir">
                       <i class="fas fa-trash"></i>
                     </button>
                   </form>
-                {% else %}
-                  <button type="button" class="btn btn-link p-0 text-secondary" title="Excluir indisponível" disabled>
-                    <i class="fas fa-trash"></i>
-                  </button>
                 {% endif %}
 
               </td>
             </tr>
             {% else %}
             <tr>
-              <td colspan="5" class="text-center text-muted">Nenhum avaliado encontrado.</td>
+              <td colspan="5" class="text-center py-4 text-muted">
+                <i class="fas fa-inbox fa-2x mb-2"></i><br>
+                Nenhum rancho encontrado com os filtros selecionados.
+              </td>
             </tr>
             {% endfor %}
           </tbody>
         </table>
+      </div>
+      
+      <div class="mt-2 text-muted small text-end">
+        Total de registros: {{ avaliados|length }}
       </div>
     </div>
   </div>
 </div>
 
 <script>
+  // Script para filtro rápido no front-end (já existente)
   document.addEventListener("DOMContentLoaded", function () {
     const filtro = document.getElementById("filtroRapido");
     const tabela = document.getElementById("tabelaAvaliados").getElementsByTagName("tbody")[0];
 
-    filtro.addEventListener("keyup", function () {
-      const texto = this.value.toLowerCase();
-      const linhas = tabela.getElementsByTagName("tr");
+    if(filtro && tabela) {
+        filtro.addEventListener("keyup", function () {
+          const texto = this.value.toLowerCase();
+          const linhas = tabela.getElementsByTagName("tr");
 
-      for (let i = 0; i < linhas.length; i++) {
-        const linha = linhas[i];
-        const textoLinha = linha.textContent.toLowerCase();
-        linha.style.display = textoLinha.includes(texto) ? "" : "none";
-      }
-    });
+          for (let i = 0; i < linhas.length; i++) {
+            const linha = linhas[i];
+            const textoLinha = linha.textContent.toLowerCase();
+            // Ignora a linha de "Nenhum resultado" se ela for a única
+            if (linha.cells.length > 1) {
+                linha.style.display = textoLinha.includes(texto) ? "" : "none";
+            }
+          }
+        });
+    }
   });
 </script>
 {% endblock %}

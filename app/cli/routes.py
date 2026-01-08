@@ -1817,35 +1817,42 @@ def remover_pergunta(pergunta_id):
 
 # ===================== AVALIADOS =====================
 
-@cli_bp.route('/listar-avaliados', methods=['GET'])
-@cli_bp.route('/avaliados', methods=['GET'])
+@cli_bp.route('/avaliados', endpoint='listar_avaliados')
 @login_required
+# @admin_required (Mantenha se já tiver)
 def listar_avaliados():
-    """Lista avaliados do cliente do usuário, com filtro opcional por nome."""
+    """Lista avaliados com filtro por Grupo (GAP)"""
     try:
-        nome = (request.args.get('nome') or '').strip()
+        # 1. Carrega todos os grupos para preencher o <select> de filtro
+        grupos = Grupo.query.filter_by(
+            cliente_id=current_user.cliente_id, 
+            ativo=True
+        ).order_by(Grupo.nome).all()
 
-        q = Avaliado.query.filter_by(cliente_id=current_user.cliente_id, ativo=True)
-        if nome:
-            q = q.filter(Avaliado.nome.ilike(f'%{nome}%'))
-
-        avaliados = q.order_by(Avaliado.nome.asc()).all()
-
-        # Se você tiver campos personalizados, carregue aqui; senão, passe lista vazia
-        campos_personalizados = []
-
-        return render_template_safe(
-            'cli/listar_avaliados.html',
-            avaliados=avaliados,
-            campos_personalizados=campos_personalizados
+        # 2. Inicia a query base dos avaliados
+        query = Avaliado.query.filter_by(
+            cliente_id=current_user.cliente_id, 
+            ativo=True
         )
+
+        # 3. Verifica se o usuário selecionou um filtro
+        grupo_id = request.args.get('grupo_id')
+        
+        if grupo_id:
+            # Se tiver filtro, adiciona à query
+            query = query.filter_by(grupo_id=grupo_id)
+        
+        # 4. Executa a busca ordenando por nome
+        avaliados = query.order_by(Avaliado.nome).all()
+        
+        return render_template_safe('cli/listar_avaliados.html', 
+                                  avaliados=avaliados, 
+                                  grupos=grupos,
+                                  grupo_selecionado=grupo_id)
+
     except Exception as e:
-        flash(f'Erro ao listar avaliados: {str(e)}', 'danger')
-        return render_template_safe(
-            'cli/listar_avaliados.html',
-            avaliados=[],
-            campos_personalizados=[]
-        )
+        flash(f"Erro ao carregar avaliados: {str(e)}", "danger")
+        return render_template_safe('cli/index.html')
 # Alias compatível com o template antigo (NÃO remova o de baixo):
 @cli_bp.route('/avaliados/cadastrar', methods=['GET', 'POST'], endpoint='cadastrar_avaliado')
 @cli_bp.route('/avaliados/novo', methods=['GET', 'POST'])
