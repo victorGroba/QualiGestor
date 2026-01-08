@@ -5,30 +5,30 @@
 <div class="container py-4">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h4>Grupos Cadastrados</h4>
-    <a href="{{ url_for('cli.cadastrar_grupo') }}" class="btn btn-primary">
-      <i class="fas fa-plus"></i> Novo Grupo
+    <a href="{{ url_for('cli.novo_grupo') }}" class="btn btn-primary btn-sm shadow-sm">
+      <i class="fas fa-plus fa-sm text-white-50 me-1"></i> Novo GAP
     </a>
   </div>
 
   {% if grupos %}
-    <table class="table table-bordered table-striped">
-      <thead class="table-light">
-        <tr>
-          <th>ID</th>
-          <th>Nome</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for grupo in grupos %}
-        <tr>
-          <td>{{ grupo.id }}</td>
-          <td>{{ grupo.nome }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <table class="table table-bordered table-striped">
+    <thead class="table-light">
+      <tr>
+        <th>ID</th>
+        <th>Nome</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for grupo in grupos %}
+      <tr>
+        <td>{{ grupo.id }}</td>
+        <td>{{ grupo.nome }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
   {% else %}
-    <p class="text-muted">Nenhum grupo cadastrado ainda.</p>
+  <p class="text-muted">Nenhum grupo cadastrado ainda.</p>
   {% endif %}
 </div>
 {% endblock %}
