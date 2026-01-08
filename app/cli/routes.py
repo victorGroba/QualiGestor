@@ -2941,7 +2941,7 @@ def novo_usuario():
                 return redirect(url_for('cli.novo_usuario'))
 
             # 4. Criação do Usuário
-            from werkzeug.security import generate_password_hash
+            from werkzeug.security import generate_password_hash, check_password_hash
             
             # Converte a string do formulário para o Enum correto
             try:
@@ -4594,6 +4594,58 @@ def responder_checklist(avaliado_id):
 
     return f"<h1>Iniciando auditoria no rancho: {rancho.nome}</h1><p>Aqui carregaremos as perguntas...</p>"
 
+@cli_bp.route('/perfil', methods=['GET', 'POST'])
+@login_required
+def perfil():
+    """Permite ao usuário ver seus dados e alterar a senha"""
+    usuario = current_user
+    
+    if request.method == 'POST':
+        try:
+            # Captura dados do formulário
+            nome = request.form.get('nome')
+            
+            # Captura senhas
+            senha_atual = request.form.get('senha_atual')
+            nova_senha = request.form.get('nova_senha')
+            confirma_senha = request.form.get('confirma_senha')
+
+            # 1. Atualiza Nome (E-mail deixamos travado por segurança)
+            if nome: 
+                usuario.nome = nome
+            
+            # 2. Lógica de Troca de Senha
+            if nova_senha:
+                # Valida se digitou a senha atual
+                if not senha_atual:
+                    flash("Para alterar a senha, é obrigatório informar a senha atual.", "warning")
+                    return redirect(url_for('cli.perfil'))
+                
+                # Valida se a senha atual confere com o banco
+                if not check_password_hash(usuario.senha_hash, senha_atual):
+                    flash("A senha atual informada está incorreta.", "danger")
+                    return redirect(url_for('cli.perfil'))
+                
+                # Valida se a nova senha e a confirmação batem
+                if nova_senha != confirma_senha:
+                    flash("A nova senha e a confirmação não conferem.", "warning")
+                    return redirect(url_for('cli.perfil'))
+                
+                # Tudo certo: Gera o novo hash e salva
+                usuario.senha_hash = generate_password_hash(nova_senha)
+                flash("Senha alterada com sucesso! Use a nova senha no próximo login.", "success")
+            else:
+                # Se não mexeu na senha, avisa que salvou os dados básicos
+                flash("Dados atualizados com sucesso!", "success")
+
+            db.session.commit()
+            return redirect(url_for('cli.perfil'))
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Erro ao atualizar perfil: {str(e)}", "danger")
+
+    return render_template_safe('cli/perfil.html', usuario=usuario)
 
 
 

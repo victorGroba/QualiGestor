@@ -300,15 +300,36 @@
     <i class="fas fa-bars fs-5 icon-open"></i>
     <i class="fas fa-times fs-5 icon-close"></i>
   </button>
+  
   <header class="header-topbar">
     <div class="d-flex align-items-center gap-3">
       <a href="{{ url_for('cli.index') }}" class="logo-header">
         <img src="{{ url_for('static', filename='img/logo.jpg') }}" alt="QualiGestor">
       </a>
-      
-      <p class="text-end text-muted small mb-0">Tipo de usuário: {{ session.get('tipo') }}</p>
     </div>
-    <div class="text-end text-muted small">Versão {{ versao }}</div>
+    
+    <div class="dropdown">
+        <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle text-dark" id="dropdownUser1" data-bs-toggle="dropdown" aria-expanded="false">
+            <div class="d-none d-md-block text-end me-2" style="line-height: 1.2;">
+                <span class="d-block fw-bold small">{{ current_user.nome }}</span>
+                <span class="d-block text-muted" style="font-size: 11px;">{{ session.get('tipo') }}</span>
+            </div>
+            <i class="fas fa-user-circle fa-2x text-secondary"></i>
+        </a>
+        <ul class="dropdown-menu dropdown-menu-end shadow border-0" aria-labelledby="dropdownUser1">
+            <li>
+                <a class="dropdown-item py-2" href="{{ url_for('cli.perfil') }}">
+                    <i class="fas fa-id-card me-2 text-primary"></i> Meus Dados / Senha
+                </a>
+            </li>
+            <li><hr class="dropdown-divider"></li>
+            <li>
+                <a class="dropdown-item py-2 text-danger" href="{{ url_for('auth.logout') }}">
+                    <i class="fas fa-sign-out-alt me-2"></i> Sair
+                </a>
+            </li>
+        </ul>
+    </div>
   </header>
 
   <div class="sidebar" id="sidebar">
@@ -323,7 +344,7 @@
         <div id="collapseAplicacoes" class="accordion-collapse collapse" data-bs-parent="#accordionSidebar">
           <div class="accordion-body"> 
             <a class="nav-link" href="{{ url_for('cli.listar_aplicacoes') }}">Listar aplicações</a>
-            <a class="nav-link" href="{{ url_for('cli.nova_aplicacao') }}">Nova aplicação</a>
+            <a class="nav-link" href="{{ url_for('cli.selecionar_rancho_auditoria') }}">Nova Auditoria</a>
             <a class="nav-link" href="#">Configurações de listagem</a>
             <a class="nav-link" href="#">Exportar aplicações</a>
           </div>

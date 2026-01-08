@@ -1,0 +1,84 @@
+{% extends "base_cliq.html" %}
+
+{% block title %}Meus Dados{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-id-card me-2"></i>Meus Dados
+                    </h6>
+                    <span class="badge bg-secondary">{{ usuario.tipo.name }}</span>
+                </div>
+                <div class="card-body">
+                    
+                    <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                        <div class="mb-3">
+                            <label class="form-label font-weight-bold">Nome Completo</label>
+                            <input type="text" name="nome" class="form-control" value="{{ usuario.nome }}" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label font-weight-bold">Login (E-mail)</label>
+                            <input type="email" class="form-control bg-light" value="{{ usuario.email }}" readonly 
+                                   title="O e-mail não pode ser alterado por aqui.">
+                            <small class="text-muted">Para alterar seu e-mail de acesso, contate o administrador.</small>
+                        </div>
+
+                        <div class="row mb-4 p-3 bg-light rounded mx-1">
+                            <div class="col-12 mb-2">
+                                <small class="text-uppercase text-gray-500 font-weight-bold">Nível de Acesso</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="small mb-1">GAP Vinculado:</label>
+                                <input type="text" class="form-control form-control-sm bg-white" 
+                                       value="{{ usuario.grupo.nome if usuario.grupo else 'Global / Nenhum' }}" disabled>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="small mb-1">Rancho Vinculado:</label>
+                                <input type="text" class="form-control form-control-sm bg-white" 
+                                       value="{{ usuario.avaliado.nome if usuario.avaliado else 'Nenhum' }}" disabled>
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+                        
+                        <h6 class="text-primary mb-3"><i class="fas fa-lock me-2"></i>Segurança / Trocar Senha</h6>
+                        <div class="alert alert-info py-2 small">
+                            Preencha apenas se desejar alterar sua senha atual.
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Senha Atual</label>
+                                <input type="password" name="senha_atual" class="form-control" placeholder="Senha atual...">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Nova Senha</label>
+                                <input type="password" name="nova_senha" class="form-control" placeholder="Nova senha...">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Confirmar Nova</label>
+                                <input type="password" name="confirma_senha" class="form-control" placeholder="Repita a nova...">
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end mt-3">
+                            <a href="{{ url_for('cli.index') }}" class="btn btn-secondary me-2">Voltar</a>
+                            <button type="submit" class="btn btn-primary px-4">
+                                <i class="fas fa-save me-1"></i> Salvar Alterações
+                            </button>
+                        </div>
+                    </form>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
