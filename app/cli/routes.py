@@ -4489,36 +4489,54 @@ def reabrir_aplicacao(id):
 @login_required
 def selecionar_rancho_auditoria():
     """
-    Passo 1: Selecionar o Local (Rancho)
+    Passo 1: Selecionar o Local (Rancho) - VERSÃO DEBUG
     """
+    # Se for POST (o usuário clicou em avançar)
     if request.method == 'POST':
         rancho_id = request.form.get('avaliado_id')
         if rancho_id:
-            # Redireciona para o Passo 2 (Escolher Checklist)
             return redirect(url_for('cli.escolher_questionario', avaliado_id=rancho_id))
         else:
             flash("Selecione um rancho para continuar.", "warning")
 
     try:
-        # LÓGICA DE FILTRAGEM DE GAPS E RANCHOS
+        # --- DEBUG: Vamos ver quem é o usuário ---
+        print(f"--- DEBUG AUDITORIA ---")
+        print(f"Usuário: {current_user.nome}")
+        print(f"Tipo (bruto): {current_user.tipo}")
+        print(f"Cliente ID: {current_user.cliente_id}")
         
-        # Se for Auditor ou Gestor, vê apenas o SEU GAP e SEUS Ranchos
-        if current_user.tipo.name in ['AUDITOR', 'GESTOR'] and current_user.grupo_id:
+        # Converte o tipo para string maiúscula para evitar erros de Enum vs String
+        # Isso resolve 90% dos bugs de permissão
+        tipo_str = str(current_user.tipo).upper()
+        
+        # LÓGICA DE FILTRAGEM
+        grupos = []
+        avaliados = []
+
+        # Se o tipo contiver AUDITOR ou GESTOR (ex: 'TipoUsuario.AUDITOR' ou 'auditor')
+        if 'AUDITOR' in tipo_str or 'GESTOR' in tipo_str:
+            print(">> Entrou na lógica de AUDITOR/GESTOR")
             
-            # Traz apenas o GAP do usuário (lista com 1 item)
-            grupos = Grupo.query.filter_by(
-                id=current_user.grupo_id, 
-                ativo=True
-            ).all()
-            
-            # Traz apenas ranchos desse GAP
-            avaliados = Avaliado.query.filter_by(
-                grupo_id=current_user.grupo_id, 
-                ativo=True
-            ).order_by(Avaliado.nome).all()
+            if current_user.grupo_id:
+                # Traz apenas o GAP do usuário
+                grupos = Grupo.query.filter_by(
+                    id=current_user.grupo_id, 
+                    ativo=True
+                ).all()
+                
+                # Traz ranchos desse GAP
+                avaliados = Avaliado.query.filter_by(
+                    grupo_id=current_user.grupo_id, 
+                    ativo=True
+                ).order_by(Avaliado.nome).all()
+            else:
+                print(">> ALERTA: Usuário é Auditor mas não tem grupo_id vinculado!")
+                flash("Seu usuário não está vinculado a nenhum GAP.", "warning")
             
         else:
-            # Se for Admin/SuperAdmin, vê TUDO
+            print(">> Entrou na lógica de ADMIN (Vê tudo)")
+            # Admin/SuperAdmin vê TUDO do cliente
             grupos = Grupo.query.filter_by(
                 cliente_id=current_user.cliente_id, 
                 ativo=True
@@ -4529,12 +4547,16 @@ def selecionar_rancho_auditoria():
                 ativo=True
             ).order_by(Avaliado.nome).all()
 
+        print(f"Resultados encontrados -> Grupos: {len(grupos)}, Ranchos: {len(avaliados)}")
+        print("-----------------------")
+
         return render_template_safe('cli/auditoria_selecao.html', 
-                                  grupos=grupos,      # <--- ESSENCIAL PARA O SELECT
-                                  avaliados=avaliados # <--- ESSENCIAL PARA O JAVASCRIPT
+                                  grupos=grupos,      
+                                  avaliados=avaliados 
                                   )
                                   
     except Exception as e:
+        print(f"ERRO CRÍTICO: {e}") # Imprime o erro no terminal
         flash(f"Erro ao carregar locais: {str(e)}", "danger")
         return redirect(url_for('cli.index'))
 
