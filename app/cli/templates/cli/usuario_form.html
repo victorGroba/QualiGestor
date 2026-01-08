@@ -109,7 +109,7 @@
 </div>
 
 <script>
-    // Criamos o array de objetos JSON de forma que o VS Code entenda como uma string/objeto válido
+    // Correção: Usando 'ranchos' que é o nome enviado pelo routes.py
     const todosRanchos = [
         {% for r in ranchos %}
         { 
@@ -130,14 +130,11 @@
 
         divGap.style.display = 'none';
         divRancho.style.display = 'none';
-        selectGap.removeAttribute('required');
-        selectRancho.removeAttribute('required');
-
+        
         if (tipo === 'gestor' || tipo === 'auditor') {
             divGap.style.display = 'block';
             selectGap.setAttribute('required', 'required');
             textoAjuda.innerText = "Selecione o GAP de atuação.";
-            selectRancho.value = ""; 
         } else if (tipo === 'usuario') {
             divGap.style.display = 'block';
             divRancho.style.display = 'block';
@@ -145,8 +142,6 @@
             selectRancho.setAttribute('required', 'required');
             textoAjuda.innerText = "Selecione o GAP e o Rancho específico.";
         } else {
-            selectGap.value = "";
-            selectRancho.value = "";
             textoAjuda.innerText = "Administradores possuem visão global.";
         }
     }
@@ -154,10 +149,13 @@
     function filtrarRanchos() {
         const gapId = document.getElementById('grupo_id').value;
         const selectRancho = document.getElementById('avaliado_id');
+        
         selectRancho.innerHTML = '<option value="">-- Selecione o Rancho --</option>';
 
         if (gapId) {
-            const ranchosFiltrados = todosRanchos.filter(r => r.grupo_id == gapId);
+            // Filtra os ranchos que pertencem ao GAP selecionado
+            const ranchosFiltrados = todosRanchos.filter(r => String(r.grupo_id) === String(gapId));
+            
             if (ranchosFiltrados.length > 0) {
                 ranchosFiltrados.forEach(r => {
                     const option = document.createElement('option');
@@ -170,20 +168,11 @@
                 option.text = "Nenhum rancho cadastrado neste GAP";
                 selectRancho.appendChild(option);
             }
-        } else {
-            const option = document.createElement('option');
-            option.text = "-- Selecione o GAP primeiro --";
-            selectRancho.appendChild(option);
         }
     }
 
     document.addEventListener("DOMContentLoaded", function() {
         atualizarFormulario();
-        const tipo = document.getElementById('tipo').value;
-        const gapId = document.getElementById('grupo_id').value;
-        if (tipo === 'usuario' && gapId) {
-            filtrarRanchos();
-        }
     });
 </script>
 
