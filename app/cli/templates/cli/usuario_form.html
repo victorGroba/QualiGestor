@@ -109,12 +109,12 @@
 </div>
 
 <script>
-    // Correção: Usando 'ranchos' que é o nome enviado pelo routes.py
+    // Geramos o array de ranchos protegendo os nomes contra aspas simples/duplas com |tojson
     const todosRanchos = [
         {% for r in ranchos %}
         { 
             "id": "{{ r.id }}", 
-            "nome": "{{ r.nome }}", 
+            "nome": {{ r.nome|tojson }}, 
             "grupo_id": "{{ r.grupo_id if r.grupo_id else '' }}" 
         }{% if not loop.last %},{% endif %}
         {% endfor %}
@@ -128,13 +128,17 @@
         const selectRancho = document.getElementById('avaliado_id');
         const textoAjuda = document.getElementById('textoAjuda');
 
+        // Reset padrão
         divGap.style.display = 'none';
         divRancho.style.display = 'none';
-        
+        selectGap.removeAttribute('required');
+        selectRancho.removeAttribute('required');
+
         if (tipo === 'gestor' || tipo === 'auditor') {
             divGap.style.display = 'block';
             selectGap.setAttribute('required', 'required');
             textoAjuda.innerText = "Selecione o GAP de atuação.";
+            selectRancho.value = ""; 
         } else if (tipo === 'usuario') {
             divGap.style.display = 'block';
             divRancho.style.display = 'block';
@@ -142,6 +146,8 @@
             selectRancho.setAttribute('required', 'required');
             textoAjuda.innerText = "Selecione o GAP e o Rancho específico.";
         } else {
+            selectGap.value = "";
+            selectRancho.value = "";
             textoAjuda.innerText = "Administradores possuem visão global.";
         }
     }
@@ -150,10 +156,11 @@
         const gapId = document.getElementById('grupo_id').value;
         const selectRancho = document.getElementById('avaliado_id');
         
+        // Limpa opções atuais
         selectRancho.innerHTML = '<option value="">-- Selecione o Rancho --</option>';
 
         if (gapId) {
-            // Filtra os ranchos que pertencem ao GAP selecionado
+            // Filtro robusto comparando strings para evitar erro de tipo (int vs string)
             const ranchosFiltrados = todosRanchos.filter(r => String(r.grupo_id) === String(gapId));
             
             if (ranchosFiltrados.length > 0) {
@@ -168,11 +175,22 @@
                 option.text = "Nenhum rancho cadastrado neste GAP";
                 selectRancho.appendChild(option);
             }
+        } else {
+            const option = document.createElement('option');
+            option.text = "-- Selecione o GAP primeiro --";
+            selectRancho.appendChild(option);
         }
     }
 
+    // Inicialização ao carregar a página
     document.addEventListener("DOMContentLoaded", function() {
         atualizarFormulario();
+        
+        // Se já houver um GAP selecionado (ex: erro de validação ao voltar), filtra os ranchos
+        const gapId = document.getElementById('grupo_id').value;
+        if (gapId) {
+            filtrarRanchos();
+        }
     });
 </script>
 
