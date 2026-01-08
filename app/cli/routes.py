@@ -85,6 +85,30 @@ class MockQuery:
 
 cli_bp = Blueprint('cli', __name__, template_folder='templates')
 
+
+
+
+@cli_bp.before_request
+def forcar_troca_senha_padrao():
+    """
+    Se a senha do usuário ainda for a padrão '123456', 
+    ele não consegue navegar no sistema até trocar.
+    """
+    # Só verifica se o usuário estiver logado
+    if current_user.is_authenticated:
+        
+        # VERIFICAÇÃO MÁGICA: A senha atual é '123456'?
+        # (Não precisa de campo novo no banco, testamos na hora)
+        senha_eh_padrao = check_password_hash(current_user.senha_hash, '123456')
+        
+        if senha_eh_padrao:
+            # Lista de lugares que ele PODE ir (Perfil para mudar a senha ou Sair)
+            rotas_permitidas = ['cli.perfil', 'auth.logout', 'static']
+            
+            # Se ele tentar ir para qualquer outro lugar (tipo listar avaliados)...
+            if request.endpoint and request.endpoint not in rotas_permitidas:
+                flash('Sua senha ainda é a padrão (123456). Por segurança, defina uma nova senha agora.', 'warning')
+                return redirect(url_for('cli.perfil'))
 # ===================== CORREÇÃO 2: DECORATOR ADMIN_REQUIRED ROBUSTO =====================
 
 def admin_required(f):
@@ -4575,13 +4599,11 @@ def responder_checklist(avaliado_id):
 def perfil():
     """Permite ao usuário ver seus dados e alterar a senha"""
     
-    # CORREÇÃO PRINCIPAL: Buscamos o usuário no banco pelo ID
-    # Isso garante que o SQLAlchemy saiba que deve gravar as alterações
+    # Busca o usuário no banco para garantir a gravação
     usuario_db = Usuario.query.get(current_user.id)
     
     if request.method == 'POST':
         try:
-            # Captura dados
             nome = request.form.get('nome')
             senha_atual = request.form.get('senha_atual')
             nova_senha = request.form.get('nova_senha')
@@ -4592,17 +4614,26 @@ def perfil():
                 usuario_db.nome = nome
             
             # 2. Lógica de Troca de Senha
-            # Só entra aqui se o usuário digitou algo no campo 'nova_senha'
             if nova_senha and nova_senha.strip():
                 
+                # --- NOVA PROTEÇÃO: Bloqueia senha padrão e senhas curtas ---
+                if nova_senha == '123456':
+                    flash("Por segurança, você não pode usar a senha padrão (123456). Escolha outra.", "warning")
+                    return redirect(url_for('cli.perfil'))
+                
+                if len(nova_senha) < 6:
+                    flash("A nova senha deve ter pelo menos 6 caracteres.", "warning")
+                    return redirect(url_for('cli.perfil'))
+                # -------------------------------------------------------------
+
                 # Valida se digitou a senha atual
                 if not senha_atual:
                     flash("Para alterar a senha, você precisa digitar sua senha atual.", "warning")
                     return redirect(url_for('cli.perfil'))
                 
-                # Valida se a senha atual confere com o banco
+                # Valida se a senha atual confere
                 if not check_password_hash(usuario_db.senha_hash, senha_atual):
-                    flash("A senha atual informada está incorreta. Nenhuma alteração foi feita.", "danger")
+                    flash("A senha atual informada está incorreta.", "danger")
                     return redirect(url_for('cli.perfil'))
                 
                 # Valida confirmação
@@ -4610,22 +4641,15 @@ def perfil():
                     flash("A nova senha e a confirmação não conferem.", "warning")
                     return redirect(url_for('cli.perfil'))
                 
-                # GERA O NOVO HASH E SALVA NO OBJETO DO BANCO
+                # Salva a nova senha
                 usuario_db.senha_hash = generate_password_hash(nova_senha)
                 
-                # Força o commit imediatamente para ter certeza
                 db.session.add(usuario_db)
                 db.session.commit()
                 
                 flash("Senha alterada com sucesso! Faça login novamente.", "success")
                 
-                # Opcional: Deslogar o usuário para forçar teste da nova senha
-                # from flask_login import logout_user
-                # logout_user()
-                # return redirect(url_for('auth.login'))
-                
             else:
-                # Se não mexeu na senha, salva só o nome
                 db.session.commit()
                 flash("Dados de perfil atualizados!", "success")
 
@@ -4636,7 +4660,6 @@ def perfil():
             flash(f"Erro ao salvar: {str(e)}", "danger")
 
     return render_template_safe('cli/perfil.html', usuario=usuario_db)
-
 
 
 
