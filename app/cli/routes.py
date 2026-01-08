@@ -2875,27 +2875,32 @@ def exportar_relatorio():
 
 # ===================== GESTÃO DE USUÁRIOS =====================
 
-@cli_bp.route('/usuarios')
+@cli_bp.route('/usuarios', endpoint='gerenciar_usuarios')
 @login_required
 @admin_required
 def gerenciar_usuarios():
     """Página de gestão de usuários"""
     try:
+        # Carrega usuários do cliente atual
         usuarios = Usuario.query.filter_by(
             cliente_id=current_user.cliente_id
         ).order_by(Usuario.nome).all()
         
-        # Estatísticas de usuários
+        # Estatísticas (Otimizado para usar o Enum)
         stats_usuarios = {
             'total': len(usuarios),
             'ativos': len([u for u in usuarios if u.ativo]),
-            'admins': len([u for u in usuarios if verificar_permissao_admin()]),
-            'usuarios': len([u for u in usuarios if not verificar_permissao_admin()])
+            # Consideramos Admin quem é SUPER_ADMIN ou ADMIN
+            'admins': len([u for u in usuarios if u.tipo.name in ['SUPER_ADMIN', 'ADMIN']]),
+            # O resto é operacional (Gestor, Auditor, Rancho)
+            'operacional': len([u for u in usuarios if u.tipo.name not in ['SUPER_ADMIN', 'ADMIN']])
         }
         
-        return render_template_safe('cli/usuarios.html',
+        # MUDANÇA AQUI: Apontando para o arquivo novo 'gerenciar_usuarios.html'
+        return render_template_safe('cli/gerenciar_usuarios.html',
                              usuarios=usuarios,
                              stats=stats_usuarios)
+                             
     except Exception as e:
         flash(f"Erro ao carregar usuários: {str(e)}", "danger")
         return render_template_safe('cli/index.html')
@@ -2985,6 +2990,94 @@ def novo_usuario():
         flash(f"Erro ao carregar formulário: {str(e)}", "danger")
         return redirect(url_for('cli.gerenciar_usuarios'))
 
+# --- GERENCIAMENTO DE USUÁRIOS ---
+
+@cli_bp.route('/usuario/<int:id>/editar', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def editar_usuario(id):
+    """Edita permissões, senha e vínculos do usuário"""
+    # Garante que só edita usuários do mesmo cliente (segurança)
+    usuario = Usuario.query.filter_by(id=id, cliente_id=current_user.cliente_id).first_or_404()
+    
+    # Listas para os selects
+    gaps = Grupo.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).order_by(Grupo.nome).all()
+    ranchos = Avaliado.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).order_by(Avaliado.nome).all()
+
+    if request.method == 'POST':
+        try:
+            nome = request.form.get('nome')
+            email = request.form.get('email')
+            tipo_str = request.form.get('tipo')
+            senha = request.form.get('senha') # Opcional
+            
+            # Vínculos
+            grupo_id = request.form.get('grupo_id')
+            avaliado_id = request.form.get('avaliado_id')
+
+            # Atualiza dados básicos
+            usuario.nome = nome
+            usuario.email = email
+            
+            # Atualiza Tipo (Enum)
+            try:
+                usuario.tipo = TipoUsuario[tipo_str.upper()]
+            except:
+                pass # Mantém o anterior se der erro
+
+            # Lógica de Vínculos (A Regra de Ouro)
+            if usuario.tipo in [TipoUsuario.GESTOR, TipoUsuario.AUDITOR]:
+                # Gestor/Auditor: Tem GAP, mas não tem Rancho
+                usuario.grupo_id = int(grupo_id) if grupo_id else None
+                usuario.avaliado_id = None
+                
+            elif usuario.tipo == TipoUsuario.USUARIO:
+                # Rancho: Tem GAP e Rancho
+                usuario.grupo_id = int(grupo_id) if grupo_id else None
+                usuario.avaliado_id = int(avaliado_id) if avaliado_id else None
+            else:
+                # Admins: Visão Global (sem vínculos restritivos)
+                usuario.grupo_id = None
+                usuario.avaliado_id = None
+
+            # Atualiza Senha (apenas se preenchida)
+            if senha and len(senha.strip()) > 0:
+                from werkzeug.security import generate_password_hash
+                usuario.senha_hash = generate_password_hash(senha)
+
+            db.session.commit()
+            flash(f'Usuário {nome} atualizado com sucesso.', 'success')
+            return redirect(url_for('cli.gerenciar_usuarios'))
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erro ao atualizar: {str(e)}', 'error')
+
+    return render_template_safe('cli/usuario_editar.html', usuario=usuario, gaps=gaps, ranchos=ranchos)
+
+
+@cli_bp.route('/usuario/<int:id>/excluir', methods=['POST'])
+@login_required
+@admin_required
+def excluir_usuario(id):
+    """Remove um usuário do sistema"""
+    if id == current_user.id:
+        flash("Você não pode excluir a si mesmo!", "warning")
+        return redirect(url_for('cli.gerenciar_usuarios'))
+        
+    usuario = Usuario.query.filter_by(id=id, cliente_id=current_user.cliente_id).first_or_404()
+    
+    try:
+        # Soft delete (recomendado) ou Delete real
+        # Aqui faremos delete real para limpar sua base, mas em produção use ativo=False
+        db.session.delete(usuario)
+        db.session.commit()
+        flash(f'Usuário {usuario.nome} removido.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Erro ao excluir: {str(e)}', 'error')
+        
+    return redirect(url_for('cli.gerenciar_usuarios'))
 # ===================== CONFIGURAÇÕES =====================
 
 @cli_bp.route('/configuracoes')

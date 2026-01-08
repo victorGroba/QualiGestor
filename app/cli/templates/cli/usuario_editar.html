@@ -1,0 +1,123 @@
+{% extends "base_cliq.html" %}
+
+{% block title %}Editar Usuário{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Editar Usuário: {{ usuario.nome }}</h6>
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Nome</label>
+                        <input type="text" name="nome" class="form-control" value="{{ usuario.nome }}" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">E-mail</label>
+                        <input type="email" name="email" class="form-control" value="{{ usuario.email }}" required>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Perfil</label>
+                        <select class="form-select" id="tipo" name="tipo" onchange="atualizarFormulario()">
+                            <option value="super_admin" {% if usuario.tipo.name == 'SUPER_ADMIN' %}selected{% endif %}>Super Admin</option>
+                            <option value="admin" {% if usuario.tipo.name == 'ADMIN' %}selected{% endif %}>Admin (FAB)</option>
+                            <option value="gestor" {% if usuario.tipo.name == 'GESTOR' %}selected{% endif %}>Gestor (GAP)</option>
+                            <option value="auditor" {% if usuario.tipo.name == 'AUDITOR' %}selected{% endif %}>Consultora (Auditora)</option>
+                            <option value="usuario" {% if usuario.tipo.name == 'USUARIO' %}selected{% endif %}>Rancho (Operacional)</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-4 mb-3" id="divGap">
+                        <label class="form-label text-info">Vincular ao GAP</label>
+                        <select class="form-select border-info" id="grupo_id" name="grupo_id" onchange="filtrarRanchos()">
+                            <option value="">-- Selecione --</option>
+                            {% for g in gaps %}
+                            <option value="{{ g.id }}" {% if usuario.grupo_id == g.id %}selected{% endif %}>{{ g.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-4 mb-3" id="divRancho">
+                        <label class="form-label text-success">Vincular ao Rancho</label>
+                        <select class="form-select border-success" id="avaliado_id" name="avaliado_id">
+                            <option value="">-- Selecione o GAP primeiro --</option>
+                            </select>
+                    </div>
+                </div>
+
+                <div class="alert alert-warning mt-3">
+                    <i class="fas fa-key me-2"></i><strong>Alterar Senha:</strong>
+                    <input type="password" name="senha" class="form-control d-inline-block w-50 ms-2" placeholder="Deixe em branco para manter a atual">
+                </div>
+
+                <div class="d-flex justify-content-end mt-4">
+                    <a href="{{ url_for('cli.gerenciar_usuarios') }}" class="btn btn-secondary me-2">Cancelar</a>
+                    <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Trazendo dados do backend para o JS
+    const todosRanchos = [
+        {% for r in ranchos %}
+        { "id": "{{ r.id }}", "nome": {{ r.nome|tojson }}, "grupo_id": "{{ r.grupo_id }}" },
+        {% endfor %}
+    ];
+    
+    // ID do rancho atual salvo no banco (para pré-selecionar)
+    const ranchoAtualId = "{{ usuario.avaliado_id if usuario.avaliado_id else '' }}";
+
+    function atualizarFormulario() {
+        const tipo = document.getElementById('tipo').value;
+        const divGap = document.getElementById('divGap');
+        const divRancho = document.getElementById('divRancho');
+        
+        // Regra de visibilidade
+        if (tipo === 'gestor' || tipo === 'auditor') {
+            divGap.style.display = 'block';
+            divRancho.style.display = 'none';
+        } else if (tipo === 'usuario') {
+            divGap.style.display = 'block';
+            divRancho.style.display = 'block';
+        } else {
+            divGap.style.display = 'none';
+            divRancho.style.display = 'none';
+        }
+    }
+
+    function filtrarRanchos() {
+        const gapId = document.getElementById('grupo_id').value;
+        const selectRancho = document.getElementById('avaliado_id');
+        selectRancho.innerHTML = '<option value="">-- Selecione --</option>';
+
+        if (gapId) {
+            const filtrados = todosRanchos.filter(r => String(r.grupo_id) === String(gapId));
+            filtrados.forEach(r => {
+                const opt = document.createElement('option');
+                opt.value = r.id;
+                opt.text = r.nome;
+                if (String(r.id) === String(ranchoAtualId)) {
+                    opt.selected = true;
+                }
+                selectRancho.appendChild(opt);
+            });
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        atualizarFormulario();
+        filtrarRanchos(); // Carrega os ranchos do GAP atual ao abrir a tela
+    });
+</script>
+{% endblock %}
