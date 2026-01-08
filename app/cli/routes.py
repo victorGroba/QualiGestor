@@ -8,6 +8,7 @@ from io import BytesIO
 from datetime import datetime, timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, current_app, jsonify, make_response, Response, send_from_directory, abort
 from flask_login import current_user, login_required
+from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 # from weasyprint import HTML  # COMENTAR SE DER ERRO
 from sqlalchemy import func, extract, and_, or_, desc
