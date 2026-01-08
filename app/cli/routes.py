@@ -4532,6 +4532,68 @@ def reabrir_aplicacao(id):
         return jsonify({'sucesso': False, 'erro': str(e)}), 500
     
 
+    # --- ROTAS DE AUDITORIA E CHECKLIST ---
+
+@cli_bp.route('/auditoria/nova/selecao', methods=['GET', 'POST'])
+@login_required
+def selecionar_rancho_auditoria():
+    """
+    Passo 1: Selecionar o Rancho para iniciar a auditoria.
+    Aplica as regras de visão (Consultora só vê seu GAP).
+    """
+    # 1. Query Base: Todos os ranchos do cliente
+    query = Avaliado.query.filter_by(cliente_id=current_user.cliente_id, ativo=True)
+
+    # 2. Filtro de Segurança por Perfil
+    if current_user.tipo.name in ['AUDITOR', 'GESTOR']:
+        # Se for Consultora ou Gestor, filtra pelo GAP vinculado
+        if current_user.grupo_id:
+            query = query.filter_by(grupo_id=current_user.grupo_id)
+        else:
+            # Se não tiver GAP vinculado, trava a lista (segurança)
+            query = query.filter(Avaliado.id == -1)
+            flash('Seu usuário não tem GAP vinculado. Contate o administrador.', 'warning')
+
+    elif current_user.tipo.name == 'USUARIO':
+        # Se for Rancho (Auto-avaliação), só vê ele mesmo
+        if current_user.avaliado_id:
+            query = query.filter_by(id=current_user.avaliado_id)
+        else:
+            query = query.filter(Avaliado.id == -1)
+
+    # Admins veem tudo, então a query segue sem filtro extra.
+
+    # 3. Executa a busca
+    ranchos_disponiveis = query.order_by(Avaliado.nome).all()
+
+    # 4. Processa o Formulário
+    if request.method == 'POST':
+        rancho_id = request.form.get('avaliado_id')
+        if rancho_id:
+            # Redireciona para o checklist (rota abaixo)
+            return redirect(url_for('cli.responder_checklist', avaliado_id=rancho_id))
+        else:
+            flash('Por favor, selecione um rancho.', 'warning')
+
+    return render_template_safe('cli/auditoria_selecao.html', ranchos=ranchos_disponiveis)
+
+
+@cli_bp.route('/auditoria/responder/<int:avaliado_id>', methods=['GET', 'POST'])
+@login_required
+def responder_checklist(avaliado_id):
+    """
+    Passo 2: O Checklist em si (Placeholder por enquanto).
+    Aqui entra a lógica de carregar as perguntas.
+    """
+    rancho = Avaliado.query.get_or_404(avaliado_id)
+    
+    # Segurança: Verifica se o usuário pode ver este rancho
+    if current_user.tipo.name in ['AUDITOR', 'GESTOR'] and rancho.grupo_id != current_user.grupo_id:
+        flash("Acesso negado a este rancho.", "danger")
+        return redirect(url_for('cli.selecionar_rancho_auditoria'))
+
+    return f"<h1>Iniciando auditoria no rancho: {rancho.nome}</h1><p>Aqui carregaremos as perguntas...</p>"
+
 
 
 
