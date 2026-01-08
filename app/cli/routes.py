@@ -4573,46 +4573,68 @@ def responder_checklist(avaliado_id):
 @login_required
 def perfil():
     """Permite ao usuário ver seus dados e alterar a senha"""
-    usuario = current_user
+    
+    # CORREÇÃO PRINCIPAL: Buscamos o usuário no banco pelo ID
+    # Isso garante que o SQLAlchemy saiba que deve gravar as alterações
+    usuario_db = Usuario.query.get(current_user.id)
     
     if request.method == 'POST':
         try:
+            # Captura dados
             nome = request.form.get('nome')
             senha_atual = request.form.get('senha_atual')
             nova_senha = request.form.get('nova_senha')
             confirma_senha = request.form.get('confirma_senha')
 
-            # Atualiza nome
+            # 1. Atualiza Nome
             if nome: 
-                usuario.nome = nome
+                usuario_db.nome = nome
             
-            # Atualiza senha
-            if nova_senha:
+            # 2. Lógica de Troca de Senha
+            # Só entra aqui se o usuário digitou algo no campo 'nova_senha'
+            if nova_senha and nova_senha.strip():
+                
+                # Valida se digitou a senha atual
                 if not senha_atual:
-                    flash("Para alterar a senha, informe a senha atual.", "warning")
+                    flash("Para alterar a senha, você precisa digitar sua senha atual.", "warning")
                     return redirect(url_for('cli.perfil'))
                 
-                if not check_password_hash(usuario.senha_hash, senha_atual):
-                    flash("A senha atual está incorreta.", "danger")
+                # Valida se a senha atual confere com o banco
+                if not check_password_hash(usuario_db.senha_hash, senha_atual):
+                    flash("A senha atual informada está incorreta. Nenhuma alteração foi feita.", "danger")
                     return redirect(url_for('cli.perfil'))
                 
+                # Valida confirmação
                 if nova_senha != confirma_senha:
                     flash("A nova senha e a confirmação não conferem.", "warning")
                     return redirect(url_for('cli.perfil'))
                 
-                usuario.senha_hash = generate_password_hash(nova_senha)
-                flash("Senha alterada com sucesso!", "success")
+                # GERA O NOVO HASH E SALVA NO OBJETO DO BANCO
+                usuario_db.senha_hash = generate_password_hash(nova_senha)
+                
+                # Força o commit imediatamente para ter certeza
+                db.session.add(usuario_db)
+                db.session.commit()
+                
+                flash("Senha alterada com sucesso! Faça login novamente.", "success")
+                
+                # Opcional: Deslogar o usuário para forçar teste da nova senha
+                # from flask_login import logout_user
+                # logout_user()
+                # return redirect(url_for('auth.login'))
+                
             else:
-                flash("Dados atualizados com sucesso!", "success")
+                # Se não mexeu na senha, salva só o nome
+                db.session.commit()
+                flash("Dados de perfil atualizados!", "success")
 
-            db.session.commit()
             return redirect(url_for('cli.perfil'))
 
         except Exception as e:
             db.session.rollback()
-            flash(f"Erro ao atualizar perfil: {str(e)}", "danger")
+            flash(f"Erro ao salvar: {str(e)}", "danger")
 
-    return render_template_safe('cli/perfil.html', usuario=usuario)
+    return render_template_safe('cli/perfil.html', usuario=usuario_db)
 
 
 
