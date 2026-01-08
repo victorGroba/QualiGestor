@@ -11,7 +11,7 @@
                 <div class="position-absolute top-50 start-0 w-100 translate-middle-y bg-secondary bg-opacity-25" style="height: 3px; z-index: 0;"></div>
                 
                 <div class="text-center position-relative z-1">
-                    <div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center mx-auto" style="width: 50px; height: 50px; border: 4px solid #fff;">
+                    <div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center mx-auto shadow-sm" style="width: 50px; height: 50px; border: 4px solid #fff;">
                         <i class="fas fa-check"></i>
                     </div>
                     <small class="fw-bold text-success mt-2 d-block">Local</small>
@@ -19,7 +19,7 @@
 
                 <div class="text-center position-relative z-1">
                     <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center mx-auto shadow" style="width: 50px; height: 50px; border: 4px solid #fff;">
-                        <i class="fas fa-clipboard-check"></i>
+                        <i class="fas fa-clipboard-list"></i>
                     </div>
                     <small class="fw-bold text-primary mt-2 d-block">2. Checklist</small>
                 </div>
@@ -35,7 +35,7 @@
     </div>
 
     <div class="row justify-content-center">
-        <div class="col-lg-6 col-md-8">
+        <div class="col-lg-7 col-md-9">
             <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
                 
                 <div class="card-header bg-white border-bottom border-light py-4 text-center">
@@ -50,31 +50,42 @@
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         
                         <div class="mb-4">
-                            <label for="questionario_id" class="form-label text-dark fw-bold h5 mb-3">Qual checklist aplicar?</label>
+                            <label class="form-label text-dark fw-bold h5 mb-3 d-block text-center">Qual checklist aplicar?</label>
+                            <p class="text-muted text-center small mb-4">Clique na opção desejada abaixo:</p>
                             
-                            <div class="list-group shadow-sm rounded-3">
-                                <select name="questionario_id" id="questionario_id" class="form-select form-select-lg border-primary border-opacity-25 py-3" required size="5" style="overflow-y: auto;">
-                                    {% for q in questionarios %}
-                                        <option value="{{ q.id }}" class="p-2 border-bottom border-light">
-                                            {{ q.nome }}
-                                        </option>
-                                    {% else %}
-                                        <option disabled>Nenhum questionário disponível.</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="form-text mt-2 text-muted">
-                                <i class="fas fa-info-circle me-1"></i> Selecione o modelo na lista acima.
+                            <div class="checklist-options">
+                                {% for q in questionarios %}
+                                    <div class="mb-2">
+                                        <input type="radio" class="btn-check" name="questionario_id" id="q_{{ q.id }}" value="{{ q.id }}" required>
+                                        <label class="btn btn-outline-light text-start w-100 p-3 d-flex align-items-center shadow-sm checklist-card" for="q_{{ q.id }}">
+                                            <div class="icon-wrapper me-3">
+                                                <i class="fas fa-file-alt fs-4"></i>
+                                            </div>
+                                            <div class="text-wrapper" style="flex: 1;">
+                                                <span class="fw-bold d-block text-dark text-wrap lh-sm">{{ q.nome }}</span>
+                                                <small class="text-muted">ID: {{ q.id }}</small>
+                                            </div>
+                                            <div class="check-icon ms-2">
+                                                <i class="fas fa-check-circle fs-4"></i>
+                                            </div>
+                                        </label>
+                                    </div>
+                                {% else %}
+                                    <div class="alert alert-warning text-center">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>
+                                        Nenhum questionário disponível para este cliente.
+                                    </div>
+                                {% endfor %}
                             </div>
                         </div>
 
-                        <div class="d-grid gap-3">
-                            <button type="submit" class="btn btn-success btn-lg rounded-pill shadow-sm fw-bold py-3 text-uppercase">
+                        <div class="d-grid gap-3 mt-5">
+                            <button type="submit" class="btn btn-primary btn-lg rounded-pill shadow fw-bold py-3 text-uppercase hover-scale">
                                 <i class="fas fa-rocket me-2"></i> Iniciar Auditoria
                             </button>
                             
-                            <a href="{{ url_for('cli.selecionar_rancho_auditoria') }}" class="btn btn-outline-secondary rounded-pill border-0">
-                                <i class="fas fa-arrow-left me-1"></i> Trocar Rancho
+                            <a href="{{ url_for('cli.selecionar_rancho_auditoria') }}" class="btn btn-link text-muted text-decoration-none small text-center">
+                                <i class="fas fa-arrow-left me-1"></i> Trocar Local
                             </a>
                         </div>
                     </form>
@@ -86,19 +97,42 @@
 
 <style>
     .ls-1 { letter-spacing: 1px; }
-    /* Estilizando o select para parecer uma lista bonita */
-    #questionario_id option {
-        margin-bottom: 5px;
-        border-radius: 5px;
-        cursor: pointer;
+
+    /* Estilo Base do Card de Opção */
+    .checklist-card {
+        border: 1px solid #e9ecef;
+        background-color: #f8f9fa;
+        transition: all 0.2s ease;
+        position: relative;
     }
-    #questionario_id option:checked {
-        background-color: var(--bs-primary) !important;
-        color: white;
+    
+    .checklist-card .icon-wrapper { color: #adb5bd; transition: color 0.2s; }
+    .checklist-card .check-icon { opacity: 0; transform: scale(0.5); transition: all 0.2s; color: white; }
+
+    /* Hover */
+    .checklist-card:hover {
+        background-color: #e9ecef;
+        border-color: #dee2e6;
+        transform: translateY(-2px);
     }
-    #questionario_id:focus {
+
+    /* ESTADO SELECIONADO (CHECKED) */
+    .btn-check:checked + .checklist-card {
+        background-color: var(--bs-primary);
         border-color: var(--bs-primary);
-        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.1);
+        box-shadow: 0 4px 15px rgba(13, 110, 253, 0.3) !important;
     }
+
+    .btn-check:checked + .checklist-card .text-wrapper span { color: white !important; }
+    .btn-check:checked + .checklist-card .text-wrapper small { color: rgba(255,255,255,0.7) !important; }
+    .btn-check:checked + .checklist-card .icon-wrapper { color: rgba(255,255,255,0.9); }
+    
+    /* Faz o ícone de check aparecer */
+    .btn-check:checked + .checklist-card .check-icon {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    .hover-scale:hover { transform: scale(1.02); transition: transform 0.2s; }
 </style>
 {% endblock %}
