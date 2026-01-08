@@ -4489,45 +4489,54 @@ def reabrir_aplicacao(id):
 @login_required
 def selecionar_rancho_auditoria():
     """
-    Passo 1: Selecionar o Rancho para iniciar a auditoria.
-    Aplica as regras de visão (Consultora só vê seu GAP).
+    Passo 1: Selecionar o Local (Rancho)
     """
-    # 1. Query Base: Todos os ranchos do cliente
-    query = Avaliado.query.filter_by(cliente_id=current_user.cliente_id, ativo=True)
-
-    # 2. Filtro de Segurança por Perfil
-    if current_user.tipo.name in ['AUDITOR', 'GESTOR']:
-        # Se for Consultora ou Gestor, filtra pelo GAP vinculado
-        if current_user.grupo_id:
-            query = query.filter_by(grupo_id=current_user.grupo_id)
-        else:
-            # Se não tiver GAP vinculado, trava a lista (segurança)
-            query = query.filter(Avaliado.id == -1)
-            flash('Seu usuário não tem GAP vinculado. Contate o administrador.', 'warning')
-
-    elif current_user.tipo.name == 'USUARIO':
-        # Se for Rancho (Auto-avaliação), só vê ele mesmo
-        if current_user.avaliado_id:
-            query = query.filter_by(id=current_user.avaliado_id)
-        else:
-            query = query.filter(Avaliado.id == -1)
-
-    # Admins veem tudo, então a query segue sem filtro extra.
-
-    # 3. Executa a busca
-    ranchos_disponiveis = query.order_by(Avaliado.nome).all()
-
-    # 4. Processa o Formulário
     if request.method == 'POST':
         rancho_id = request.form.get('avaliado_id')
         if rancho_id:
-            # Redireciona para o checklist (rota abaixo)
+            # Redireciona para o Passo 2 (Escolher Checklist)
             return redirect(url_for('cli.escolher_questionario', avaliado_id=rancho_id))
         else:
-            flash('Por favor, selecione um rancho.', 'warning')
+            flash("Selecione um rancho para continuar.", "warning")
 
-    return render_template_safe('cli/auditoria_selecao.html', ranchos=ranchos_disponiveis)
+    try:
+        # LÓGICA DE FILTRAGEM DE GAPS E RANCHOS
+        
+        # Se for Auditor ou Gestor, vê apenas o SEU GAP e SEUS Ranchos
+        if current_user.tipo.name in ['AUDITOR', 'GESTOR'] and current_user.grupo_id:
+            
+            # Traz apenas o GAP do usuário (lista com 1 item)
+            grupos = Grupo.query.filter_by(
+                id=current_user.grupo_id, 
+                ativo=True
+            ).all()
+            
+            # Traz apenas ranchos desse GAP
+            avaliados = Avaliado.query.filter_by(
+                grupo_id=current_user.grupo_id, 
+                ativo=True
+            ).order_by(Avaliado.nome).all()
+            
+        else:
+            # Se for Admin/SuperAdmin, vê TUDO
+            grupos = Grupo.query.filter_by(
+                cliente_id=current_user.cliente_id, 
+                ativo=True
+            ).order_by(Grupo.nome).all()
+            
+            avaliados = Avaliado.query.filter_by(
+                cliente_id=current_user.cliente_id, 
+                ativo=True
+            ).order_by(Avaliado.nome).all()
 
+        return render_template_safe('cli/auditoria_selecao.html', 
+                                  grupos=grupos,      # <--- ESSENCIAL PARA O SELECT
+                                  avaliados=avaliados # <--- ESSENCIAL PARA O JAVASCRIPT
+                                  )
+                                  
+    except Exception as e:
+        flash(f"Erro ao carregar locais: {str(e)}", "danger")
+        return redirect(url_for('cli.index'))
 
 
 
