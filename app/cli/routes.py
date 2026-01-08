@@ -4618,16 +4618,13 @@ def escolher_questionario(avaliado_id):
         
         if questionario_id:
             try:
-                # --- CORREÇÃO AQUI: Usando AplicacaoQuestionario ---
+                # Cria a aplicação no banco
                 nova_aplicacao = AplicacaoQuestionario(
-                    # Nota: Verifique se no seu model é 'aplicador_id' ou 'usuario_id'
-                    # Pelo seu código anterior parecia ser 'aplicador_id'
-                    aplicador_id=current_user.id, 
+                    aplicador_id=current_user.id,
                     avaliado_id=rancho.id,
                     questionario_id=int(questionario_id),
                     cliente_id=current_user.cliente_id,
                     data_inicio=datetime.now(),
-                    # Se der erro no Status, use a string 'em_andamento'
                     status=StatusAplicacao.EM_ANDAMENTO 
                 )
                 
@@ -4636,21 +4633,18 @@ def escolher_questionario(avaliado_id):
                 
                 flash(f"Aplicação iniciada! (ID: {nova_aplicacao.id})", "success")
                 
-                # Redireciona para a tela de responder
                 return redirect(url_for('cli.responder_aplicacao', id=nova_aplicacao.id))
                 
             except Exception as e:
                 db.session.rollback()
-                flash(f"Erro ao criar aplicação: {str(e)}", "danger")
-                # Útil para debug: imprime o erro no terminal
-                print(f"ERRO AO CRIAR APLICACAO: {e}") 
+                flash(f"Erro ao criar registro: {str(e)}", "danger")
         else:
             flash("Selecione um questionário.", "warning")
 
-    # Carrega questionários
+    # CORREÇÃO AQUI: Trocamos .titulo por .nome
     questionarios = Questionario.query.filter_by(
         cliente_id=current_user.cliente_id, 
         ativo=True
-    ).order_by(Questionario.titulo).all()
+    ).order_by(Questionario.nome).all() # <--- AQUI MUDOU
 
     return render_template_safe('cli/auditoria_passo2.html', rancho=rancho, questionarios=questionarios)
