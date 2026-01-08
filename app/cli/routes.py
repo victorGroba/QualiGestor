@@ -2141,62 +2141,13 @@ def listar_aplicacoes():
 @cli_bp.route('/nova-aplicacao', methods=['GET', 'POST'])
 @login_required
 def nova_aplicacao():
-    """Inicia uma nova aplicação de questionário"""
-    if request.method == 'POST':
-        try:
-            avaliado_id = int(request.form.get('avaliado_id'))
-            questionario_id = int(request.form.get('questionario_id'))
-            observacoes = request.form.get('observacoes', '').strip()
-            
-            # Validar permissões
-            avaliado = Avaliado.query.get_or_404(avaliado_id)
-            if avaliado.cliente_id != current_user.cliente_id:
-                flash("Avaliado não encontrado.", "error")
-                return redirect(url_for('cli.nova_aplicacao'))
-            
-            questionario = Questionario.query.get_or_404(questionario_id)
-            if questionario.cliente_id != current_user.cliente_id or not questionario.publicado:
-                flash("Questionário não disponível.", "error")
-                return redirect(url_for('cli.nova_aplicacao'))
-            
-            # Criar aplicação
-            aplicacao = AplicacaoQuestionario(
-                avaliado_id=avaliado_id,
-                questionario_id=questionario_id,
-                aplicador_id=current_user.id,
-                data_inicio=datetime.now(),
-                observacoes=observacoes,
-                status=StatusAplicacao.EM_ANDAMENTO
-            )
-            
-            db.session.add(aplicacao)
-            db.session.commit()
-            
-            log_acao(f"Iniciou aplicação do questionário: {questionario.nome}", None, "AplicacaoQuestionario", aplicacao.id)
-            flash("Aplicação iniciada com sucesso!", "success")
-            
-            return redirect(url_for('cli.responder_aplicacao', id=aplicacao.id))
-            
-        except Exception as e:
-            db.session.rollback()
-            flash(f"Erro ao iniciar aplicação: {str(e)}", "danger")
-    
-    try:
-        # GET - Mostrar formulário
-        avaliados = get_avaliados_usuario()
-        questionarios = Questionario.query.filter_by(
-            cliente_id=current_user.cliente_id,
-            ativo=True,
-            publicado=True
-        ).all()
-        
-        return render_template_safe('cli/iniciar_aplicacao.html',
-                             avaliados=avaliados,
-                             questionarios=questionarios)
-    except Exception as e:
-        flash(f"Erro ao carregar formulário: {str(e)}", "danger")
-        return redirect(url_for('cli.listar_aplicacoes'))
-
+    """
+    Rota Legada (Atalho).
+    Redireciona para o fluxo seguro de Seleção de Rancho (Passo 1).
+    Isso garante que as regras de GAP/Hierarquia sejam aplicadas.
+    """
+    # Redireciona para a tela onde filtramos os ranchos por GAP
+    return redirect(url_for('cli.selecionar_rancho_auditoria'))
 # Em app/cli/routes.py
 
 @cli_bp.route('/aplicacao/<int:id>/responder')
@@ -4571,28 +4522,14 @@ def selecionar_rancho_auditoria():
         rancho_id = request.form.get('avaliado_id')
         if rancho_id:
             # Redireciona para o checklist (rota abaixo)
-            return redirect(url_for('cli.responder_checklist', avaliado_id=rancho_id))
+            return redirect(url_for('cli.escolher_questionario', avaliado_id=rancho_id))
         else:
             flash('Por favor, selecione um rancho.', 'warning')
 
     return render_template_safe('cli/auditoria_selecao.html', ranchos=ranchos_disponiveis)
 
 
-@cli_bp.route('/auditoria/responder/<int:avaliado_id>', methods=['GET', 'POST'])
-@login_required
-def responder_checklist(avaliado_id):
-    """
-    Passo 2: O Checklist em si (Placeholder por enquanto).
-    Aqui entra a lógica de carregar as perguntas.
-    """
-    rancho = Avaliado.query.get_or_404(avaliado_id)
-    
-    # Segurança: Verifica se o usuário pode ver este rancho
-    if current_user.tipo.name in ['AUDITOR', 'GESTOR'] and rancho.grupo_id != current_user.grupo_id:
-        flash("Acesso negado a este rancho.", "danger")
-        return redirect(url_for('cli.selecionar_rancho_auditoria'))
 
-    return f"<h1>Iniciando auditoria no rancho: {rancho.nome}</h1><p>Aqui carregaremos as perguntas...</p>"
 
 @cli_bp.route('/perfil', methods=['GET', 'POST'])
 @login_required
