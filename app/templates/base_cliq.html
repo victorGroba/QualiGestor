@@ -40,7 +40,7 @@
       height: 85px;
     }
 
-    /* ==== CSS DESKTOP (PADRÃO) ==== */
+    /* ==== CSS DESKTOP ==== */
     .sidebar {
       position: fixed;
       top: 100px; 
@@ -57,7 +57,6 @@
       transform: translateX(0); 
     }
 
-    /* ==== LARGURA AUMENTADA PARA 300px ==== */
     .sidebar:hover {
       width: 300px; 
     }
@@ -103,7 +102,6 @@
       white-space: nowrap; 
     }
 
-    /* Texto escondido por padrão no desktop */
     .sidebar .nav-link span,
     .sidebar .accordion-button span {
       opacity: 0; 
@@ -112,7 +110,6 @@
       white-space: nowrap; 
     }
 
-    /* Texto aparece no desktop :hover */
     .sidebar:hover .nav-link span,
     .sidebar:hover .accordion-button span {
       opacity: 1;
@@ -120,16 +117,13 @@
       transition-delay: 0.1s; 
     }
     
-    /* Seta escondida por padrão no desktop */
     .sidebar .accordion-button::after {
       display: none;
     }
 
-    /* Seta aparece no desktop :hover */
     .sidebar:hover .accordion-button::after {
       display: inline-block;
     }
-
 
     .main-content {
       margin-left: 70px; 
@@ -137,11 +131,9 @@
       transition: margin-left 0.3s ease-in-out;
     }
 
-    /* ==== MARGEM AUMENTADA PARA 300px ==== */
     .sidebar:hover ~ .main-content {
       margin-left: 300px; 
     }
-    
     
     #sidebarToggle {
       position: fixed;
@@ -166,16 +158,6 @@
       transform: translateY(-2px);
     }
 
-    #sidebarToggle:focus {
-      outline: none;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12), 0 0 0 3px rgba(13, 110, 253, 0.25);
-    }
-
-    #sidebarToggle i {
-      transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
-      position: absolute;
-    }
-
     #sidebarToggle .icon-close {
       opacity: 0;
       transform: scale(0.8) rotate(-90deg);
@@ -192,13 +174,12 @@
     }
 
 
-    /* ==== CSS MOBILE (Sobrescreve o Desktop) ==== */
+    /* ==== CSS MOBILE ==== */
     @media (max-width: 768px) {
       .header-topbar {
         padding-left: 70px; 
       }
       
-      /* Cancela o hover do desktop */
       .sidebar:hover {
          width: 300px !important;
       }
@@ -230,7 +211,6 @@
         transform: translateX(0);
       }
       
-      /* Força o texto e setas a aparecerem no mobile */
       .sidebar .nav-link span,
       .sidebar .accordion-button span {
         opacity: 1;
@@ -242,8 +222,6 @@
         display: inline-block;
       }
     }
-    /* ==== FIM CSS MOBILE ==== */
-
 
     .sidebar .nav-link:focus,
     .sidebar .accordion-button:focus {
@@ -268,21 +246,15 @@
       opacity: 1;
       visibility: visible;
     }
-
   </style>
 
   {% block head %}{% endblock %}
 </head>
 
 <script src="https://unpkg.com/htmx.org@1.9.12"></script>
-
 <script>
   document.addEventListener('DOMContentLoaded', () => {
-    document.body.addEventListener('htmx:afterOnLoad', (evt) => {
-      // nada aqui por enquanto
-    });
-
-    // Fecha modal quando o servidor dispara evento HX-Trigger: {"closeModal": true}
+    document.body.addEventListener('htmx:afterOnLoad', (evt) => { });
     document.body.addEventListener('closeModal', () => {
       const modalEl = document.getElementById('modalTopico');
       if (modalEl) {
@@ -292,7 +264,6 @@
     });
   });
 </script>
-
 
 <body>
 
@@ -402,7 +373,6 @@
         <div id="collapseUsuarios" class="accordion-collapse collapse" data-bs-parent="#accordionSidebar">
           <div class="accordion-body">
             <a class="nav-link" href="{{ url_for('cli.gerenciar_usuarios') }}">Gerenciar Usuários</a>
-            
           </div>
         </div>
       </div>
@@ -411,19 +381,17 @@
       <a class="nav-link text-danger" href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt"></i> <span>Sair</span></a>
 
     </div>
-    
   </div>
 
   <div class="sidebar-overlay d-md-none" id="sidebarOverlay"></div>
+
   <main class="main-content">
-    <main class="main-content">
     
     <div class="container-fluid px-4 mt-3">
       {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
           {% for category, message in messages %}
             <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show shadow-sm" role="alert">
-              
               {% if category == 'success' %}
                 <i class="fas fa-check-circle me-2"></i>
               {% elif category == 'danger' or category == 'error' %}
@@ -431,7 +399,6 @@
               {% else %}
                 <i class="fas fa-info-circle me-2"></i>
               {% endif %}
-
               {{ message }}
               <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
@@ -439,34 +406,26 @@
         {% endif %}
       {% endwith %}
     </div>
-    {% block content %}
-    {% block content %}
-<script>
-    // Adicionar filtro from_json globalmente para Jinja2
-    if (typeof window.jinja_filters === 'undefined') {
-        window.jinja_filters = {};
-    }
-    window.jinja_filters.from_json = function(value) {
-        try {
-            return JSON.parse(value);
-        } catch(e) {
-            return value;
+
+    {% block content %}{% endblock %}
+    
+    <script>
+        if (typeof window.jinja_filters === 'undefined') {
+            window.jinja_filters = {};
         }
-    };
-</script>
-{% endblock %}
+        window.jinja_filters.from_json = function(value) {
+            try { return JSON.parse(value); } catch(e) { return value; }
+        };
+    </script>
   </main>
 
-
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
   <script>
     (function () {
       function getMetaToken() {
         var m = document.querySelector('meta[name="csrf-token"]');
         return m ? m.getAttribute('content') : null;
       }
-
       function injectTokenIntoForm(f, token) {
         if (!f) return;
         try {
@@ -478,96 +437,55 @@
           input.name = 'csrf_token';
           input.value = token || '';
           f.prepend(input);
-        } catch (e) {
-          console.error('Erro ao injetar CSRF no form', e);
-        }
+        } catch (e) { console.error('Erro CSRF', e); }
       }
-
       function injectAllFormsOnce() {
         var token = getMetaToken();
-        document.querySelectorAll('form').forEach(function (f) {
-          injectTokenIntoForm(f, token);
-        });
+        document.querySelectorAll('form').forEach(function (f) { injectTokenIntoForm(f, token); });
       }
-
       document.addEventListener('DOMContentLoaded', injectAllFormsOnce);
       document.body.addEventListener('htmx:afterSwap', injectAllFormsOnce);
       document.body.addEventListener('htmx:afterOnLoad', injectAllFormsOnce);
-
-      var mo = new MutationObserver(function (mutations) {
-        var token = getMetaToken();
-        mutations.forEach(function (m) {
-          m.addedNodes && m.addedNodes.forEach(function (node) {
-            if (node.nodeType !== 1) return;
-            if (node.tagName && node.tagName.toLowerCase() === 'form') {
-              injectTokenIntoForm(node, token);
-            } else {
-              var fs = node.querySelectorAll && node.querySelectorAll('form');
-              fs && fs.forEach(function (f) { injectTokenIntoForm(f, token); });
-            }
-          });
-        });
-      });
-      mo.observe(document.body, { childList: true, subtree: true });
     })();
   </script>
 
   <script>
     const sidebar = document.getElementById('sidebar');
     let closeTimeout;
-
     sidebar.addEventListener('mouseleave', () => {
-      // Verifica se não estamos no mobile
       if (window.innerWidth > 768) { 
         closeTimeout = setTimeout(() => {
           const openItems = sidebar.querySelectorAll('.accordion-collapse.show');
-          openItems.forEach(item => {
-            bootstrap.Collapse.getOrCreateInstance(item).hide();
-          });
+          openItems.forEach(item => { bootstrap.Collapse.getOrCreateInstance(item).hide(); });
         }, 300);
       }
     });
-
-    sidebar.addEventListener('mouseenter', () => {
-      if (window.innerWidth > 768) {
-        clearTimeout(closeTimeout);
-      }
-    });
+    sidebar.addEventListener('mouseenter', () => { if (window.innerWidth > 768) clearTimeout(closeTimeout); });
   </script>
+
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const sidebar = document.getElementById('sidebar');
       const sidebarToggle = document.getElementById('sidebarToggle');
       const sidebarOverlay = document.getElementById('sidebarOverlay');
-
       function closeSidebar() {
         if (sidebar && sidebar.classList.contains('show')) {
           sidebar.classList.remove('show');
           sidebarToggle.classList.remove('is-active'); 
         }
       }
-
       function toggleSidebar() {
         if (sidebar) {
           sidebar.classList.toggle('show');
           sidebarToggle.classList.toggle('is-active'); 
         }
       }
-
-      if (sidebarToggle) {
-        sidebarToggle.addEventListener('click', toggleSidebar);
-      }
-      
-      if (sidebarOverlay) {
-        sidebarOverlay.addEventListener('click', closeSidebar);
-      }
-
+      if (sidebarToggle) sidebarToggle.addEventListener('click', toggleSidebar);
+      if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeSidebar);
       if (sidebar) {
         sidebar.addEventListener('click', (e) => {
           if ( (e.target.matches('a.nav-link') || e.target.closest('a.nav-link')) && 
-               !e.target.matches('.accordion-button') && 
-               !e.target.closest('.accordion-button') ) 
-          {
+               !e.target.matches('.accordion-button') && !e.target.closest('.accordion-button') ) {
             closeSidebar();
           }
         });
@@ -578,6 +496,5 @@
   <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
   
   {% block extra_js %}{% endblock %}
-  </body>
-
+</body>
 </html>
