@@ -120,38 +120,55 @@ def admin_required(f):
 
 # ===================== CORREÇÃO 3: FUNÇÃO GET_AVALIADOS_USUARIO ROBUSTA =====================
 
+# No arquivo app/cli/routes.py
+
 def get_avaliados_usuario():
-    """Retorna avaliados disponíveis para o usuário atual - CORRIGIDO"""
+    """
+    Retorna a lista de Ranchos (Avaliados) disponíveis para o usuário.
+    Lógica Hierárquica FAB:
+    1. SUPER_ADMIN (Lab) / ADMIN (SDAB): Vê TUDO.
+    2. GESTOR (GAP) / AUDITOR (Consultora): Vê todos os Ranchos do seu GAP.
+    3. USUARIO (Rancho): Vê APENAS o seu próprio Rancho.
+    """
     try:
-        if hasattr(current_user, 'tipo'):
-            user_type = current_user.tipo
-            if hasattr(user_type, 'name'):
-                type_name = user_type.name
-            elif hasattr(user_type, 'value'):
-                type_name = user_type.value
-            else:
-                type_name = str(user_type)
-            
-            if type_name in ['ADMIN', 'SUPER_ADMIN', 'admin', 'super_admin']:
-                return Avaliado.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).all()
-            else:
-                # Usuários normais só veem avaliados de seus grupos
-                if hasattr(current_user, 'grupo_id') and current_user.grupo_id:
-                    return Avaliado.query.filter_by(
-                        cliente_id=current_user.cliente_id,
-                        grupo_id=current_user.grupo_id,
-                        ativo=True
-                    ).all()
-                else:
-                    return Avaliado.query.filter_by(
-                        cliente_id=current_user.cliente_id,
-                        ativo=True
-                    ).all()
+        # Recupera o tipo de usuário como string segura (uppercase)
+        user_type = getattr(current_user, 'tipo', 'USUARIO')
+        if hasattr(user_type, 'name'):
+            type_name = user_type.name.upper()
+        elif hasattr(user_type, 'value'):
+            type_name = str(user_type.value).upper()
         else:
-            return Avaliado.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).all()
+            type_name = str(user_type).upper()
+
+        # 1. Nível Nacional: Laboratório (Super Admin) e SDAB (Admin)
+        if type_name in ['SUPER_ADMIN', 'ADMIN']:
+            return Avaliado.query.filter_by(
+                cliente_id=current_user.cliente_id, 
+                ativo=True
+            ).order_by(Avaliado.nome).all()
+        
+        # 2. Nível Regional: Gestor do GAP e Consultora (Auditor)
+        # Filtra pelo Grupo (GAP) vinculado ao usuário
+        elif type_name in ['GESTOR', 'AUDITOR'] and current_user.grupo_id:
+            return Avaliado.query.filter_by(
+                cliente_id=current_user.cliente_id,
+                grupo_id=current_user.grupo_id,
+                ativo=True
+            ).order_by(Avaliado.nome).all()
             
+        # 3. Nível Local: Usuário do Rancho
+        # Filtra apenas o ID do próprio rancho
+        elif type_name == 'USUARIO' and current_user.avaliado_id:
+            return Avaliado.query.filter_by(
+                id=current_user.avaliado_id,
+                ativo=True
+            ).all()
+            
+        # Fallback de segurança (não retorna nada se não cair nas regras acima)
+        return []
+
     except Exception as e:
-        print(f"Erro em get_avaliados_usuario: {e}")
+        print(f"Erro ao buscar avaliados: {e}")
         return []
 
 # ===================== CORREÇÃO 4: FUNÇÃO LOG_ACAO ROBUSTA =====================
@@ -2926,50 +2943,89 @@ def gerenciar_usuarios():
 @login_required
 @admin_required
 def novo_usuario():
-    """Criar novo usuário"""
+    """Cria novo usuário com validação de hierarquia FAB"""
     if request.method == 'POST':
         try:
-            # Validar dados
+            # 1. Coleta dados do formulário
             nome = request.form.get('nome', '').strip()
             email = request.form.get('email', '').strip().lower()
-            tipo = request.form.get('tipo')
-            grupo_id = request.form.get('grupo_id')
+            tipo_str = request.form.get('tipo')
+            grupo_id = request.form.get('grupo_id')       # ID do GAP
+            avaliado_id = request.form.get('avaliado_id') # ID do Rancho
             
-            if not all([nome, email, tipo]):
-                flash('Todos os campos são obrigatórios.', 'error')
-                return render_template_safe('cli/usuario_form.html')
+            # 2. Validações Básicas
+            if not all([nome, email, tipo_str]):
+                flash('Nome, Email e Tipo são obrigatórios.', 'error')
+                return redirect(url_for('cli.novo_usuario'))
             
             # Verificar se email já existe
             if Usuario.query.filter_by(email=email).first():
                 flash('Este e-mail já está em uso.', 'error')
-                return render_template_safe('cli/usuario_form.html')
+                return redirect(url_for('cli.novo_usuario'))
+
+            # 3. VALIDAÇÃO DE VÍNCULOS (A Regra da Hierarquia)
             
-            # Criar usuário
+            # Consultora (AUDITOR) ou Gestor GAP (GESTOR) -> Obrigatório ter GAP
+            if tipo_str in ['auditor', 'gestor'] and not grupo_id:
+                flash('Para Consultoras e Gestores, é OBRIGATÓRIO selecionar o GAP.', 'warning')
+                return redirect(url_for('cli.novo_usuario'))
+
+            # Usuário Rancho (USUARIO) -> Obrigatório ter Rancho
+            if tipo_str == 'usuario' and not avaliado_id:
+                flash('Para Usuários Locais (Rancho), é OBRIGATÓRIO selecionar o Rancho.', 'warning')
+                return redirect(url_for('cli.novo_usuario'))
+
+            # 4. Criação do Usuário
             from werkzeug.security import generate_password_hash
+            
+            # Tenta converter a string do form para o Enum do banco (se usar Enum)
+            # Se seu model usa string direta, isso vai passar direto como string
+            try:
+                if 'TipoUsuario' in globals():
+                    tipo_enum = TipoUsuario[tipo_str.upper()]
+                else:
+                    tipo_enum = tipo_str 
+            except:
+                tipo_enum = tipo_str
+
             usuario = Usuario(
                 nome=nome,
                 email=email,
-                tipo=tipo,
+                tipo=tipo_enum,
                 cliente_id=current_user.cliente_id,
                 grupo_id=int(grupo_id) if grupo_id else None,
+                avaliado_id=int(avaliado_id) if avaliado_id else None,
                 senha_hash=generate_password_hash('123456'),  # Senha padrão
                 ativo=True
             )
             
+            # Se for usuário de rancho, garantimos que o grupo_id (GAP) seja o mesmo do Rancho
+            if usuario.avaliado_id:
+                rancho = Avaliado.query.get(usuario.avaliado_id)
+                if rancho:
+                    usuario.grupo_id = rancho.grupo_id
+
             db.session.add(usuario)
             db.session.commit()
             
-            log_acao(f"Criou usuário: {nome}", None, "Usuario", usuario.id)
+            log_acao(f"Criou usuário: {nome} ({tipo_str})", None, "Usuario", usuario.id)
             flash(f'Usuário {nome} criado com sucesso! Senha padrão: 123456', 'success')
             return redirect(url_for('cli.gerenciar_usuarios'))
             
         except Exception as e:
             db.session.rollback()
             flash(f'Erro ao criar usuário: {str(e)}', 'error')
+            return redirect(url_for('cli.novo_usuario'))
     
+    # GET: Carregar dados para os selects do formulário
     try:
-        grupos = Grupo.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).all()
-        return render_template_safe('cli/usuario_form.html', grupos=grupos)
+        # Carrega GAPs (Grupos)
+        gaps = Grupo.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).order_by(Grupo.nome).all()
+        
+        # Carrega Ranchos (Avaliados) - passamos todos, o JavaScript vai filtrar
+        ranchos = Avaliado.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).order_by(Avaliado.nome).all()
+        
+        return render_template_safe('cli/usuario_form.html', gaps=gaps, ranchos=ranchos)
     except Exception as e:
         flash(f"Erro ao carregar formulário: {str(e)}", "danger")
         return redirect(url_for('cli.gerenciar_usuarios'))

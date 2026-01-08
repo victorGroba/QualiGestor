@@ -37,12 +37,12 @@
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label for="nome" class="form-label font-weight-bold">Nome Completo <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="nome" name="nome" required placeholder="Ex: Sgt. Silva">
+                        <input type="text" class="form-control" id="nome" name="nome" required placeholder="Ex: Sgt. Silva" autocomplete="off">
                     </div>
 
                     <div class="col-md-6 mb-3">
                         <label for="email" class="form-label font-weight-bold">E-mail (Login) <span class="text-danger">*</span></label>
-                        <input type="email" class="form-control" id="email" name="email" required placeholder="exemplo@fab.mil.br">
+                        <input type="email" class="form-control" id="email" name="email" required placeholder="exemplo@fab.mil.br" autocomplete="off">
                     </div>
                 </div>
 
@@ -51,41 +51,48 @@
 
                 <div class="row">
                     <div class="col-md-4 mb-3">
-                        <label for="tipo" class="form-label font-weight-bold">Nível de Acesso <span class="text-danger">*</span></label>
-                        <select class="form-select" id="tipo" name="tipo" required onchange="toggleHierarquia()">
+                        <label for="tipo" class="form-label font-weight-bold">Perfil de Acesso <span class="text-danger">*</span></label>
+                        <select class="form-select" id="tipo" name="tipo" required onchange="atualizarFormulario()">
                             <option value="" selected disabled>Selecione...</option>
-                            <option value="ADMIN">Gerencial (SDAB - Visão Nacional)</option>
-                            <option value="GESTOR">Intermediário (GAP - Visão Regional)</option>
-                            <option value="USUARIO">Operacional (Rancho/OM - Visão Local)</option>
+                            
+                            <optgroup label="Administração Global">
+                                <option value="super_admin">Laboratório (Super Admin)</option>
+                                <option value="admin">SDAB / FAB (Admin)</option>
+                            </optgroup>
+                            
+                            <optgroup label="Nível Regional (GAP)">
+                                <option value="gestor">Comando GAP (Gestor)</option>
+                                <option value="auditor">Consultora (Auditora)</option>
+                            </optgroup>
+                            
+                            <optgroup label="Nível Local">
+                                <option value="usuario">Rancho (Operacional)</option>
+                            </optgroup>
                         </select>
-                        <div class="form-text small">Define o nível de visibilidade dos dados.</div>
+                        <div class="form-text small" id="textoAjuda">Selecione o perfil para ver as opções.</div>
                     </div>
 
-                    <div class="col-md-4 mb-3" id="div_grupo" style="display: none;">
-                        <label for="grupo_id" class="form-label font-weight-bold text-info">Vincular a GAP (Regional)</label>
-                        <select class="form-select border-info" id="grupo_id" name="grupo_id">
-                            <option value="">-- Selecione a GAP --</option>
-                            {% for grupo in grupos %}
-                                <option value="{{ grupo.id }}">{{ grupo.nome }}</option>
+                    <div class="col-md-4 mb-3" id="divGap" style="display: none;">
+                        <label for="grupo_id" class="form-label font-weight-bold text-info">Vincular a qual GAP?</label>
+                        <select class="form-select border-info" id="grupo_id" name="grupo_id" onchange="filtrarRanchos()">
+                            <option value="">-- Selecione o GAP --</option>
+                            {% for gap in grupos %} <option value="{{ gap.id }}">{{ gap.nome }}</option>
                             {% endfor %}
                         </select>
-                        <div class="form-text text-info">Obrigatório para nível Intermediário.</div>
+                        <div class="form-text text-info">Define a região de atuação.</div>
                     </div>
 
-                    <div class="col-md-4 mb-3" id="div_avaliado" style="display: none;">
-                        <label for="avaliado_id" class="form-label font-weight-bold text-success">Vincular a Rancho/OM</label>
+                    <div class="col-md-4 mb-3" id="divRancho" style="display: none;">
+                        <label for="avaliado_id" class="form-label font-weight-bold text-success">Vincular a qual Rancho?</label>
                         <select class="form-select border-success" id="avaliado_id" name="avaliado_id">
-                            <option value="">-- Selecione o Rancho --</option>
-                            {% for avaliado in avaliados %}
-                                <option value="{{ avaliado.id }}">{{ avaliado.nome }}</option>
-                            {% endfor %}
+                            <option value="">-- Selecione o GAP primeiro --</option>
                         </select>
-                        <div class="form-text text-success">Obrigatório para nível Operacional.</div>
+                        <div class="form-text text-success">Define o local específico.</div>
                     </div>
                 </div>
 
                 <div class="alert alert-light border mt-2">
-                    <small><i class="fas fa-info-circle text-primary"></i> <strong>Nota:</strong> A senha padrão inicial será <code>123456</code>. O usuário poderá alterá-la no primeiro acesso.</small>
+                    <small><i class="fas fa-info-circle text-primary"></i> <strong>Nota:</strong> A senha padrão inicial será <code>123456</code>.</small>
                 </div>
 
                 <div class="d-flex justify-content-end mt-4">
@@ -101,37 +108,104 @@
 </div>
 
 <script>
-    function toggleHierarquia() {
-        var tipo = document.getElementById("tipo").value;
-        var divGrupo = document.getElementById("div_grupo");
-        var divAvaliado = document.getElementById("div_avaliado");
-        var selectGrupo = document.getElementById("grupo_id");
-        var selectAvaliado = document.getElementById("avaliado_id");
+    /* Gera o array de objetos JS com dados vindos do Flask.
+       Isso permite filtrar no cliente sem recarregar a página.
+    */
+    const todosRanchos = [
+        {% for r in avaliados %}
+        { 
+            id: "{{ r.id }}", 
+            nome: "{{ r.nome }}", 
+            grupo_id: "{{ r.grupo_id if r.grupo_id else '' }}" 
+        },
+        {% endfor %}
+    ];
 
-        // Reseta visibilidade
-        divGrupo.style.display = "none";
-        divAvaliado.style.display = "none";
+    function atualizarFormulario() {
+        const tipo = document.getElementById('tipo').value;
+        const divGap = document.getElementById('divGap');
+        const divRancho = document.getElementById('divRancho');
+        const selectGap = document.getElementById('grupo_id');
+        const selectRancho = document.getElementById('avaliado_id');
+        const textoAjuda = document.getElementById('textoAjuda');
+
+        // 1. Reseta visualização
+        divGap.style.display = 'none';
+        divRancho.style.display = 'none';
         
-        // Remove obrigatoriedade HTML5 temporariamente
-        selectGrupo.removeAttribute("required");
-        selectAvaliado.removeAttribute("required");
+        // 2. Remove obrigatoriedade (para não travar o form se oculto)
+        selectGap.removeAttribute('required');
+        selectRancho.removeAttribute('required');
 
-        if (tipo === "GESTOR") { // Intermediário (GAP)
-            divGrupo.style.display = "block";
-            selectGrupo.setAttribute("required", "required");
-            selectAvaliado.value = ""; // Limpa seleção anterior
-        } 
-        else if (tipo === "USUARIO") { // Operacional (Rancho)
-            divAvaliado.style.display = "block";
-            selectAvaliado.setAttribute("required", "required");
-            selectGrupo.value = ""; // Limpa seleção anterior
+        // 3. Aplica lógica baseada no tipo selecionado
+        if (tipo === 'gestor' || tipo === 'auditor') {
+            // Nível GAP
+            divGap.style.display = 'block';
+            selectGap.setAttribute('required', 'required');
+            textoAjuda.innerText = "Selecione o GAP de atuação.";
+            
+            // Limpa seleção de rancho se houver
+            selectRancho.value = ""; 
+
+        } else if (tipo === 'usuario') {
+            // Nível Rancho (precisa de GAP + Rancho)
+            divGap.style.display = 'block';
+            divRancho.style.display = 'block';
+            
+            selectGap.setAttribute('required', 'required');
+            selectRancho.setAttribute('required', 'required');
+            textoAjuda.innerText = "Selecione o GAP e o Rancho específico.";
+            
+        } else {
+            // Admins
+            selectGap.value = "";
+            selectRancho.value = "";
+            textoAjuda.innerText = "Administradores possuem visão global.";
         }
-        // ADMIN (Gerencial) não precisa selecionar nada (vê tudo)
     }
 
-    // Executa ao carregar a página para garantir estado correto (caso haja erro de validação e retorno)
+    function filtrarRanchos() {
+        const gapId = document.getElementById('grupo_id').value;
+        const selectRancho = document.getElementById('avaliado_id');
+        
+        // Limpa opções atuais
+        selectRancho.innerHTML = '<option value="">-- Selecione o Rancho --</option>';
+
+        if (gapId) {
+            // Filtra o array JS
+            // A comparação usa == para permitir string vs int (HTML value é sempre string)
+            const ranchosFiltrados = todosRanchos.filter(r => r.grupo_id == gapId);
+            
+            if (ranchosFiltrados.length > 0) {
+                ranchosFiltrados.forEach(r => {
+                    const option = document.createElement('option');
+                    option.value = r.id;
+                    option.text = r.nome;
+                    selectRancho.appendChild(option);
+                });
+            } else {
+                const option = document.createElement('option');
+                option.text = "Nenhum rancho cadastrado neste GAP";
+                selectRancho.appendChild(option);
+            }
+        } else {
+            // Se o usuário "des-selecionar" o GAP
+            const option = document.createElement('option');
+            option.text = "-- Selecione o GAP primeiro --";
+            selectRancho.appendChild(option);
+        }
+    }
+
+    // Inicializa ao carregar (caso haja erro de validação e o form retorne preenchido)
     document.addEventListener("DOMContentLoaded", function() {
-        toggleHierarquia();
+        atualizarFormulario();
+        
+        // Opcional: Se já houver um GAP selecionado e estivermos no modo Usuario, filtra os ranchos
+        const tipo = document.getElementById('tipo').value;
+        const gapId = document.getElementById('grupo_id').value;
+        if (tipo === 'usuario' && gapId) {
+            filtrarRanchos();
+        }
     });
 </script>
 
