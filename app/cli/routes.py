@@ -569,312 +569,6 @@ def listar_questionarios():
     )
 
 
-@cli_bp.route('/questionario/novo', methods=['GET', 'POST'])
-@cli_bp.route('/novo-questionario', methods=['GET', 'POST'])
-@login_required
-def novo_questionario():
-    """Tela de criação de questionário (CLIq) – versão corrigida com debug."""
-    
-    print(f"DEBUG: Método da requisição: {request.method}")
-    
-    if request.method == 'POST':
-        print("DEBUG: Processando POST do questionário")
-        
-        # 1) Coleta os campos do formulário
-        nome = (request.form.get('nome') or '').strip()
-        descricao = (request.form.get('descricao') or '').strip()
-        
-        print(f"DEBUG: Nome recebido: '{nome}'")
-        print(f"DEBUG: Descrição recebida: '{descricao}'")
-        
-        # Campos booleanos
-        calcular_nota = request.form.get('calcular_nota') == 'on'
-        ocultar_nota = request.form.get('ocultar_nota') == 'on'
-        
-        # --- ATUALIZAÇÃO: Coletar todos os campos do seu HTML ---
-        incluir_assinatura = request.form.get('incluir_assinatura') == 'on' # <-- Adicionado do seu HTML
-        incluir_foto_capa = request.form.get('incluir_foto_capa') == 'on' # <-- Adicionado do seu HTML
-        
-        # Numéricos/opcionais
-        versao = (request.form.get('versao') or '1.0').strip()
-        modo = (request.form.get('modo') or 'Avaliado').strip()
-        base_calculo = int(request.form.get('base_calculo') or 100)
-        casas_decimais = int(request.form.get('casas_decimais') or 2)
-        modo_configuracao = (request.form.get('modo_configuracao') or 'percentual').strip()
-        
-        # --- ATUALIZAÇÃO 1: Coletar os IDs dos usuários autorizados ---
-        # Recebe a string "1,2,3" do input hidden 'usuarios_autorizados'
-        usuarios_ids_str = request.form.get('usuarios_autorizados', '')
-        print(f"DEBUG: String de IDs de usuários recebida: '{usuarios_ids_str}'")
-        # --- FIM DA ATUALIZAÇÃO 1 ---
-        
-        print(f"DEBUG: Dados coletados - versão: {versao}, modo: {modo}")
-        
-        # 2) Validação
-        erros = []
-        if not nome:
-            print("DEBUG: ERRO - Nome vazio")
-            erros.append('Nome do questionário é obrigatório.')
-        
-        # Verificar duplicidade
-        try:
-            existente = Questionario.query.filter_by(
-                nome=nome,
-                cliente_id=current_user.cliente_id,
-                ativo=True
-            ).first()
-            
-            if existente:
-                print(f"DEBUG: ERRO - Questionário '{nome}' já existe")
-                erros.append(f"Já existe um questionário ativo com o nome '{nome}'.")
-            else:
-                print("DEBUG: Nome do questionário é único, ok para continuar")
-                
-        except Exception as e:
-            print(f"DEBUG: ERRO na verificação de duplicidade: {e}")
-            erros.append(f"Erro ao verificar duplicidade: {str(e)}")
-        
-        if erros:
-            print(f"DEBUG: {len(erros)} erro(s) encontrado(s), re-renderizando formulário")
-            for erro in erros:
-                flash(erro, 'warning')
-
-            # --- ATUALIZAÇÃO 2: Precisamos carregar os usuários aqui também em caso de erro ---
-            usuarios = []
-            try:
-                usuarios = Usuario.query.filter_by(
-                    cliente_id=current_user.cliente_id, 
-                    ativo=True
-                ).order_by(Usuario.nome).all()
-            except Exception as e:
-                print(f"DEBUG: ERRO ao buscar usuários no POST (fallback de erro): {e}")
-            
-            # Passa 'usuarios' para o template poder renderizar o dropdown
-            return render_template_safe('cli/novo_questionario.html', dados=request.form, usuarios=usuarios)
-            # --- FIM DA ATUALIZAÇÃO 2 ---
-        
-        # 3) Tentar criar o questionário
-        try:
-            print("DEBUG: Tentando criar questionário no banco...")
-            
-            q = Questionario(
-                nome=nome,
-                versao=versao,
-                descricao=descricao,
-                modo=modo,
-                cliente_id=current_user.cliente_id,
-                criado_por_id=current_user.id,
-                
-                # Configurações de nota/relatório
-                calcular_nota=calcular_nota,
-                ocultar_nota_aplicacao=ocultar_nota,
-                base_calculo=base_calculo,
-                casas_decimais=casas_decimais,
-                modo_configuracao=modo_configuracao,
-                modo_exibicao_nota=ModoExibicaoNota.PERCENTUAL if 'ModoExibicaoNota' in globals() else 'percentual',
-                
-                # Campos do seu HTML
-                incluir_assinatura=incluir_assinatura,
-                incluir_foto_capa=incluir_foto_capa,
-                
-                # Status inicial
-                ativo=True,
-                publicado=False,
-                status=StatusQuestionario.RASCUNHO if 'StatusQuestionario' in globals() else 'rascunho'
-            )
-            
-            # Adiciona todos os outros campos do formulário (do seu HTML) ao objeto 'q'
-            # Isso garante que todas as opções da tela sejam salvas
-            
-            # Configurações de aplicação
-            q.anexar_documentos = request.form.get('anexar_documentos') == 'on'
-            q.capturar_geolocalizacao = request.form.get('geolocalizacao') == 'on'
-            q.restringir_avaliados = request.form.get('restricao_avaliados') == 'on'
-            q.habilitar_reincidencia = request.form.get('reincidencia') == 'on'
-            
-            # Opções de preenchimento
-            # (Seu modelo 'Questionario' não tinha 'tipo_preenchimento', 'pontuacao_ativa', etc.
-            # Se tiver, descomente as linhas abaixo)
-            # q.tipo_preenchimento = ... (lógica para preenchimento_rapido/sequencial)
-            # q.pontuacao_ativa = request.form.get('pontuacao_ativa') == 'on'
-            
-            # Configurações do relatório
-            q.exibir_nota_anterior = request.form.get('exibir_nota_anterior') == 'on'
-            q.exibir_tabela_resumo = request.form.get('exibir_tabela_de_resumo') == 'on'
-            q.exibir_limites_aceitaveis = request.form.get('exibir_limites_aceitáveis') == 'on'
-            q.exibir_data_hora = request.form.get('exibir_data/hora_início_e_fim') == 'on'
-            q.exibir_questoes_omitidas = request.form.get('exibir_questões_omitidas') == 'on'
-            q.exibir_nao_conformidade = request.form.get('exibir_relatório_não_conformidade') == 'on'
-            # q.modo_exibicao_nota = request.form.get('modo_nota_pdf') # <-- Já pego acima
-            # q.agrupamento_fotos = request.form.get('agrupamento_fotos') # <-- Adicione este campo ao seu models.py
-            
-            db.session.add(q)
-            db.session.flush()  # <-- IMPORTANTE: Isso obtém o q.id ANTES do commit
-            
-            print(f"DEBUG: Questionário ID {q.id} criado na sessão, processando usuários autorizados...")
-
-            # --- ATUALIZAÇÃO 3: Salvar os Usuários Autorizados ---
-            if 'UsuarioAutorizado' in globals() and usuarios_ids_str:
-                ids_list = usuarios_ids_str.split(',')
-                
-                for usuario_id_str in ids_list:
-                    usuario_id_str = usuario_id_str.strip()
-                    if usuario_id_str.isdigit():
-                        try:
-                            usuario_auth = UsuarioAutorizado(
-                                questionario_id=q.id,  # Associa ao novo questionário
-                                usuario_id=int(usuario_id_str) # Associa ao ID da consultora
-                            )
-                            db.session.add(usuario_auth)
-                            print(f"DEBUG: Adicionando usuário ID {usuario_id_str} ao questionário {q.id}")
-                        except Exception as e_auth:
-                            print(f"DEBUG: ERRO ao processar usuario_id {usuario_id_str}: {e_auth}")
-            elif 'UsuarioAutorizado' not in globals():
-                 print("DEBUG: ERRO - Modelo 'UsuarioAutorizado' não encontrado.")
-            else:
-                print("DEBUG: Nenhum usuário autorizado foi selecionado.")
-            # --- FIM DA ATUALIZAÇÃO 3 ---
-            
-            db.session.commit() # <-- Salva o Questionário E as associações
-            
-            print(f"DEBUG: Questionário criado com ID: {q.id}")
-            
-            log_acao(f"Criou questionário: {nome}", None, "Questionario", q.id)
-            flash('Questionário criado com sucesso!', 'success')
-            
-            print(f"DEBUG: Redirecionando para gerenciar_topicos com ID: {q.id}")
-            
-            # 4) Redirecionar para tópicos
-            return redirect(url_for('cli.gerenciar_topicos', id=q.id))
-            
-        except Exception as e:
-            print(f"DEBUG: ERRO ao criar questionário: {e}")
-            import traceback
-            traceback.print_exc()
-            
-            db.session.rollback()
-            flash(f'Erro ao criar questionário: {str(e)}', 'danger')
-
-            # --- ATUALIZAÇÃO 4: Precisamos carregar os usuários aqui também em caso de erro grave ---
-            usuarios = []
-            try:
-                usuarios = Usuario.query.filter_by(
-                    cliente_id=current_user.cliente_id, 
-                    ativo=True
-                ).order_by(Usuario.nome).all()
-            except Exception as e_user:
-                print(f"DEBUG: ERRO ao buscar usuários no POST (except): {e_user}")
-
-            # Passa 'usuarios' para o template poder renderizar o dropdown
-            return render_template_safe('cli/novo_questionario.html', dados=request.form, usuarios=usuarios)
-            # --- FIM DA ATUALIZAÇÃO 4 ---
-    
-    # GET: renderizar formulário vazio
-    print("DEBUG: Renderizando formulário GET")
-    
-    # --- ATUALIZAÇÃO 5: Buscar usuários (consultoras) para o dropdown no GET ---
-    try:
-        # Busca todos os usuários (consultoras) do mesmo cliente
-        usuarios = Usuario.query.filter_by(
-            cliente_id=current_user.cliente_id, 
-            ativo=True
-        ).order_by(Usuario.nome).all()
-        print(f"DEBUG: {len(usuarios)} usuários encontrados para o dropdown.")
-    except Exception as e:
-        print(f"DEBUG: ERRO ao buscar usuários no GET: {e}")
-        usuarios = []
-        flash("Erro ao carregar lista de usuários.", "danger")
-    # --- FIM DA ATUALIZAÇÃO 5 ---
-
-    # Passa 'usuarios' para o template
-    return render_template_safe('cli/novo_questionario.html', dados=None, usuarios=usuarios)
-
-
-
-def processar_novo_questionario():
-    """Processa a criação de novo questionário"""
-    try:
-        # Dados básicos
-        nome = request.form.get('nome', '').strip()
-        versao = request.form.get('versao', '1.0').strip()
-        descricao = request.form.get('descricao', '').strip()
-        modo = request.form.get('modo', 'Avaliado')
-        
-        if not nome:
-            flash("Nome do questionário é obrigatório.", "danger")
-            return redirect(url_for('cli.novo_questionario'))
-
-        # Verificar se já existe questionário com mesmo nome
-        questionario_existente = Questionario.query.filter_by(
-            nome=nome,
-            cliente_id=current_user.cliente_id,
-            ativo=True
-        ).first()
-        
-        if questionario_existente:
-            flash(f"Já existe um questionário com o nome '{nome}'.", "warning")
-            return redirect(url_for('cli.novo_questionario'))
-
-        # Criar questionário
-        novo_questionario = Questionario(
-            nome=nome,
-            versao=versao,
-            descricao=descricao,
-            modo=modo,
-            cliente_id=current_user.cliente_id,
-            criado_por_id=current_user.id,
-            
-            # Configurações das notas
-            calcular_nota=request.form.get('calcular_nota') == 'on',
-            ocultar_nota_aplicacao=request.form.get('ocultar_nota') == 'on',
-            base_calculo=int(request.form.get('base_calculo', 100)),
-            casas_decimais=int(request.form.get('casas_decimais', 2)),
-            modo_configuracao=request.form.get('modo_configuracao', 'percentual'),
-            modo_exibicao_nota=ModoExibicaoNota.PERCENTUAL,
-            
-            # Configurações de aplicação
-            anexar_documentos=request.form.get('anexar_documentos') == 'on',
-            capturar_geolocalizacao=request.form.get('geolocalizacao') == 'on',
-            restringir_avaliados=request.form.get('restricao_avaliados') == 'on',
-            habilitar_reincidencia=request.form.get('reincidencia') == 'on',
-            
-            # Configurações visuais
-            cor_relatorio=CorRelatorio.AZUL,
-            incluir_assinatura=request.form.get('incluir_assinatura') == 'on',
-            incluir_foto_capa=request.form.get('incluir_foto_capa') == 'on',
-            
-            # Status
-            ativo=True,
-            publicado=False,
-            status=StatusQuestionario.RASCUNHO
-        )
-
-        db.session.add(novo_questionario)
-        db.session.flush()  # Para obter o ID
-
-        # Configurar usuários autorizados se especificado
-        usuarios_autorizados = request.form.getlist('usuarios_autorizados')
-        if usuarios_autorizados and 'UsuarioAutorizado' in globals():
-            for usuario_id in usuarios_autorizados:
-                if usuario_id:
-                    usuario_auth = UsuarioAutorizado(
-                        questionario_id=novo_questionario.id,
-                        usuario_id=int(usuario_id)
-                    )
-                    db.session.add(usuario_auth)
-
-        db.session.commit()
-        
-        # Log da ação
-        log_acao(f"Criou questionário: {nome}", None, "Questionario", novo_questionario.id)
-        
-        flash(f"Questionário '{nome}' criado com sucesso!", "success")
-        return redirect(url_for('cli.gerenciar_topicos', id=novo_questionario.id))
-        
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Erro ao criar questionário: {str(e)}", "danger")
-        return redirect(url_for('cli.novo_questionario'))
 
 @cli_bp.route('/questionario/<int:id>')
 @cli_bp.route('/questionario/<int:id>/visualizar')
@@ -914,56 +608,133 @@ def visualizar_questionario(id):
         flash(f"Erro ao carregar questionário: {str(e)}", "danger")
         return redirect(url_for('cli.listar_questionarios'))
 
-@cli_bp.route('/questionario/<int:id>/editar', methods=['GET', 'POST'])
+@cli_bp.route('/questionario/novo', methods=['GET', 'POST'])
+@cli_bp.route('/novo-questionario', methods=['GET', 'POST'])
 @login_required
-def editar_questionario(id):
-    """Edita questionário existente"""
-    try:
-        questionario = Questionario.query.get_or_404(id)
-        
-        if questionario.cliente_id != current_user.cliente_id:
-            flash("Questionário não encontrado.", "error")
-            return redirect(url_for('cli.listar_questionarios'))
-        
-        if request.method == 'POST':
-            try:
-                # Atualizar dados básicos
-                questionario.nome = request.form.get('nome', '').strip()
-                questionario.versao = request.form.get('versao', '1.0').strip()
-                questionario.descricao = request.form.get('descricao', '').strip()
-                questionario.modo = request.form.get('modo', 'Avaliado')
-                
-                # Configurações das notas
-                questionario.calcular_nota = request.form.get('calcular_nota') == 'on'
-                questionario.ocultar_nota_aplicacao = request.form.get('ocultar_nota') == 'on'
-                questionario.base_calculo = int(request.form.get('base_calculo', 100))
-                questionario.casas_decimais = int(request.form.get('casas_decimais', 2))
-                
-                # Configurações visuais
-                questionario.incluir_assinatura = request.form.get('incluir_assinatura') == 'on'
-                questionario.incluir_foto_capa = request.form.get('incluir_foto_capa') == 'on'
-                
-                db.session.commit()
-                log_acao(f"Editou questionário: {questionario.nome}", None, "Questionario", id)
-                
-                flash("Questionário atualizado com sucesso!", "success")
-                return redirect(url_for('cli.visualizar_questionario', id=id))
-                
-            except Exception as e:
-                db.session.rollback()
-                flash(f"Erro ao atualizar questionário: {str(e)}", "danger")
-        
-        # GET - Carregar dados
-        usuarios = Usuario.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).all()
-        grupos = Grupo.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).all()
-        
-        return render_template_safe('cli/editar_questionario.html',
-                             questionario=questionario,
-                             usuarios=usuarios,
-                             grupos=grupos)
-    except Exception as e:
-        flash(f"Erro ao carregar questionário: {str(e)}", "danger")
+@admin_required
+def novo_questionario():
+    """
+    Cria um novo questionário.
+    Restrito apenas ao SUPER_ADMIN (Laboratório).
+    """
+    
+    # 1. TRAVA DE SEGURANÇA: Apenas Laboratório cria modelos
+    if current_user.tipo.name != 'SUPER_ADMIN':
+        flash("Permissão negada. Apenas o Laboratório pode criar novos modelos de checklist.", "danger")
         return redirect(url_for('cli.listar_questionarios'))
+
+    # Carrega usuários para o select de "Usuários Autorizados" (Consultoras)
+    try:
+        usuarios_disponiveis = Usuario.query.filter_by(
+            cliente_id=current_user.cliente_id,
+            ativo=True
+        ).order_by(Usuario.nome).all()
+    except Exception:
+        usuarios_disponiveis = []
+
+    # --- PROCESSAMENTO DO FORMULÁRIO (POST) ---
+    if request.method == 'POST':
+        try:
+            # 2. Coleta de Dados Básicos
+            nome = request.form.get('nome', '').strip()
+            descricao = request.form.get('descricao', '').strip()
+            versao = request.form.get('versao', '1.0').strip()
+            modo = request.form.get('modo', 'Avaliado') # Avaliado ou Livre
+
+            # Validação Básica
+            if not nome:
+                flash("O nome do questionário é obrigatório.", "warning")
+                return render_template_safe('cli/novo_questionario.html', usuarios=usuarios_disponiveis)
+
+            # 3. Validação de Duplicidade
+            existe = Questionario.query.filter_by(
+                nome=nome,
+                cliente_id=current_user.cliente_id,
+                ativo=True
+            ).first()
+            
+            if existe:
+                flash(f"Já existe um questionário ativo com o nome '{nome}'.", "warning")
+                return render_template_safe('cli/novo_questionario.html', usuarios=usuarios_disponiveis)
+
+            # 4. Criação do Objeto
+            novo_q = Questionario(
+                nome=nome,
+                versao=versao,
+                descricao=descricao,
+                modo=modo,
+                cliente_id=current_user.cliente_id,
+                criado_por_id=current_user.id,
+                
+                # Configurações de Nota
+                calcular_nota=(request.form.get('calcular_nota') == 'on'),
+                ocultar_nota_aplicacao=(request.form.get('ocultar_nota') == 'on'),
+                base_calculo=int(request.form.get('base_calculo', 100)),
+                casas_decimais=int(request.form.get('casas_decimais', 2)),
+                modo_configuracao=request.form.get('modo_configuracao', 'percentual'),
+                modo_exibicao_nota=ModoExibicaoNota.PERCENTUAL,
+
+                # Configurações de Aplicação
+                anexar_documentos=(request.form.get('anexar_documentos') == 'on'),
+                capturar_geolocalizacao=(request.form.get('geolocalizacao') == 'on'),
+                restringir_avaliados=(request.form.get('restricao_avaliados') == 'on'),
+                habilitar_reincidencia=(request.form.get('reincidencia') == 'on'),
+                
+                # Configurações Visuais / Relatório
+                cor_relatorio=CorRelatorio.AZUL, 
+                incluir_assinatura=(request.form.get('incluir_assinatura') == 'on'),
+                incluir_foto_capa=(request.form.get('incluir_foto_capa') == 'on'),
+                
+                # Configurações Extras de Relatório
+                exibir_nota_anterior=(request.form.get('exibir_nota_anterior') == 'on'),
+                exibir_tabela_resumo=(request.form.get('exibir_tabela_de_resumo') == 'on'),
+                exibir_limites_aceitaveis=(request.form.get('exibir_limites_aceitáveis') == 'on'),
+                exibir_data_hora=(request.form.get('exibir_data/hora_início_e_fim') == 'on'),
+                exibir_questoes_omitidas=(request.form.get('exibir_questões_omitidas') == 'on'),
+                exibir_nao_conformidade=(request.form.get('exibir_relatório_não_conformidade') == 'on'),
+
+                # Status Inicial
+                ativo=True,
+                publicado=False,
+                status=StatusQuestionario.RASCUNHO
+            )
+
+            db.session.add(novo_q)
+            db.session.flush() # Garante o ID antes do commit final
+
+            # 5. Vínculo de Usuários Autorizados (Se houver)
+            usuarios_selecionados = request.form.getlist('usuarios_autorizados')
+            
+            # Fallback se vier string separada por vírgula
+            if not usuarios_selecionados and request.form.get('usuarios_autorizados'):
+                 usuarios_selecionados = request.form.get('usuarios_autorizados').split(',')
+
+            if usuarios_selecionados and 'UsuarioAutorizado' in globals():
+                for uid in usuarios_selecionados:
+                    if uid and str(uid).strip().isdigit():
+                        u_auth = UsuarioAutorizado(
+                            questionario_id=novo_q.id,
+                            usuario_id=int(uid)
+                        )
+                        db.session.add(u_auth)
+
+            # 6. Salvar Tudo
+            db.session.commit()
+            
+            log_acao(f"Criou novo questionário: {nome}", None, "Questionario", novo_q.id)
+            flash(f"Questionário '{nome}' criado com sucesso! Agora adicione os tópicos.", "success")
+            
+            # Redireciona para a gestão de tópicos
+            return redirect(url_for('cli.gerenciar_topicos', id=novo_q.id))
+
+        except Exception as e:
+            db.session.rollback()
+            print(f"ERRO AO CRIAR QUESTIONARIO: {e}") 
+            flash(f"Erro ao salvar: {str(e)}", "danger")
+            return render_template_safe('cli/novo_questionario.html', usuarios=usuarios_disponiveis)
+
+    # --- EXIBIÇÃO DO FORMULÁRIO (GET) ---
+    return render_template_safe('cli/novo_questionario.html', usuarios=usuarios_disponiveis)
 
 @cli_bp.route('/questionario/<int:id>/duplicar', methods=['POST'])
 @login_required
@@ -4681,3 +4452,68 @@ def escolher_questionario(avaliado_id):
     ).order_by(Questionario.nome).all()
 
     return render_template_safe('cli/auditoria_passo2.html', rancho=rancho, questionarios=questionarios)
+
+@cli_bp.route('/questionario/<int:id>/excluir', methods=['POST'])
+@login_required
+@admin_required
+def excluir_questionario(id):
+    """
+    Exclui ou Inativa um questionário.
+    Restrito ao SUPER_ADMIN.
+    """
+    # 1. Busca e Segurança
+    q = Questionario.query.get_or_404(id)
+    
+    if q.cliente_id != current_user.cliente_id:
+        flash("Acesso negado.", "danger")
+        return redirect(url_for('cli.listar_questionarios'))
+
+    if current_user.tipo.name != 'SUPER_ADMIN':
+        flash("Apenas o Laboratório pode excluir questionários.", "danger")
+        return redirect(url_for('cli.listar_questionarios'))
+
+    try:
+        nome_q = q.nome
+        
+        # 2. Verifica se já existem aplicações feitas com este questionário
+        tem_aplicacoes = AplicacaoQuestionario.query.filter_by(questionario_id=id).first()
+        
+        if tem_aplicacoes:
+            # SE JÁ FOI USADO: Não exclui, apenas inativa (Soft Delete)
+            q.ativo = False
+            q.publicado = False
+            db.session.commit()
+            
+            log_acao(f"Inativou questionário (em uso): {nome_q}", None, "Questionario", id)
+            flash(f"O questionário '{nome_q}' possui auditorias realizadas e não pode ser excluído permanentemente. Ele foi INATIVADO e não aparecerá mais para novas auditorias.", "warning")
+            
+        else:
+            # SE NUNCA FOI USADO: Exclui permanentemente (Hard Delete)
+            
+            # Primeiro remove vínculos de usuários (dependência)
+            if 'UsuarioAutorizado' in globals():
+                UsuarioAutorizado.query.filter_by(questionario_id=id).delete()
+                
+            # Remove tópicos e perguntas (dependendo da configuração do cascade do seu banco)
+            # Geralmente o banco resolve, mas é bom limpar se não tiver cascade
+            # ... (Lógica de limpeza profunda se necessário) ...
+
+            db.session.delete(q)
+            db.session.commit()
+            
+            log_acao(f"Excluiu questionário permanentemente: {nome_q}", None, "Questionario", id)
+            flash(f"Questionário '{nome_q}' excluído com sucesso!", "success")
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"ERRO AO EXCLUIR: {e}")
+        # Se der erro de integridade (Foreign Key), força a inativação
+        try:
+            q.ativo = False
+            db.session.commit()
+            flash(f"Não foi possível excluir devido a vínculos, então o questionário foi inativado.", "warning")
+        except:
+            flash(f"Erro crítico ao excluir: {str(e)}", "danger")
+
+    return redirect(url_for('cli.listar_questionarios'))
+

@@ -1,6 +1,13 @@
 {% extends "base_cliq.html" %}
 
 {% block content %}
+<div id="sync-alert" class="alert alert-info d-none position-fixed top-0 start-50 translate-middle-x mt-3 shadow" style="z-index: 9999; min-width: 300px;">
+    <div class="d-flex align-items-center">
+        <div class="spinner-border spinner-border-sm me-3" role="status"></div>
+        <span id="sync-message">Sincronizando dados offline...</span>
+    </div>
+</div>
+
 <div class="container-fluid">
     <div class="row">
         <div class="col-lg-3">
@@ -16,9 +23,9 @@
                         <li><i class="far fa-clock me-2 text-muted"></i><strong>Início:</strong> {{ aplicacao.data_inicio.strftime('%d/%m/%Y %H:%M') }}</li>
                     </ul>
                     <hr>
-                    <div class="d-flex align-items-center text-success small">
-                        <i class="fas fa-sync fa-spin me-2"></i>
-                        <span>Salvamento automático ativo</span>
+                    <div id="status-conexao" class="d-flex align-items-center text-success small">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <span id="status-texto">Online - Salvamento automático ativo</span>
                     </div>
                 </div>
             </div>
@@ -235,11 +242,39 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://unpkg.com/dexie@latest/dist/dexie.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
 
 <script>
+    // Configuração do Banco de Dados Local (IndexedDB) para Fotos
+    const dbLocal = new Dexie("QualiGestorOffline");
+    dbLocal.version(1).stores({
+        fotos: '++id, pergunta_id, resposta_id, blob, nome, timestamp'
+    });
+
+    // Monitor de Conexão em tempo real
+    window.addEventListener('online', () => {
+        atualizarUIConexao(true);
+        sincronizarPendencias();
+    });
+    window.addEventListener('offline', () => {
+        atualizarUIConexao(false);
+    });
+
+    function atualizarUIConexao(online) {
+        const statusEl = document.getElementById('status-conexao');
+        const statusTxt = document.getElementById('status-texto');
+        if (online) {
+            statusEl.className = 'd-flex align-items-center text-success small';
+            statusTxt.innerText = 'Online - Salvamento automático ativo';
+        } else {
+            statusEl.className = 'd-flex align-items-center text-warning small';
+            statusTxt.innerText = 'Offline - Salvando no dispositivo';
+        }
+    }
+
     // ========================================================================
-    // 1. SALVAR RESPOSTA (Texto, Radio, Select)
+    // 1. SALVAR RESPOSTA (Híbrido: Online/Offline)
     // ========================================================================
     async function salvarResposta(inputElement, isObservacao = false) {
         const perguntaId = inputElement.dataset.perguntaId;
@@ -249,28 +284,28 @@
         let respostaValue = '';
         let observacaoValue = '';
 
-        // Identifica os valores
         if (isObservacao) {
             observacaoValue = inputElement.value;
-            // Busca a resposta atual para não sobrescrever com vazio
             const respEl = document.querySelector(`[name="resposta-${perguntaId}"]:checked`) || 
                            document.querySelector(`[name="resposta-${perguntaId}"]`);
             if(respEl) respostaValue = respEl.value;
         } else {
             respostaValue = inputElement.value;
-            // Busca obs atual
             const obsEl = document.getElementById(`obs-${perguntaId}`);
             if(obsEl) observacaoValue = obsEl.value;
         }
 
-        // Feedback Visual de "Salvando..."
         if (feedbackEl) {
             feedbackEl.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Salvando...';
             feedbackEl.className = 'form-text small text-muted';
         }
 
-        // Remove borda vermelha de erro se houver
-        inputElement.closest('.pergunta-container').classList.remove('border-danger');
+        const dadosParaSincronizar = {
+            pergunta_id: parseInt(perguntaId),
+            resposta: respostaValue,
+            observacao: observacaoValue,
+            timestamp: Date.now()
+        };
 
         try {
             const response = await fetch("{{ url_for('cli.salvar_resposta', id=aplicacao.id) }}", {
@@ -279,11 +314,7 @@
                     'Content-Type': 'application/json',
                     'X-CSRFToken': '{{ csrf_token() }}'
                 },
-                body: JSON.stringify({
-                    pergunta_id: parseInt(perguntaId),
-                    resposta: respostaValue,
-                    observacao: observacaoValue
-                })
+                body: JSON.stringify(dadosParaSincronizar)
             });
 
             const data = await response.json();
@@ -292,126 +323,171 @@
                 if (feedbackEl) {
                     feedbackEl.innerHTML = '<i class="fas fa-check me-1"></i>Salvo';
                     feedbackEl.className = 'form-text small text-success';
-                    // Some após 2s
-                    setTimeout(() => { feedbackEl.innerHTML = ''; }, 2000);
+                    setTimeout(() => { if(feedbackEl.innerText === 'Salvo') feedbackEl.innerHTML = ''; }, 2000);
                 }
-                
-                // Atualiza o ID da resposta no campo de foto (se existir)
-                // Isso permite enviar foto logo após responder sem recarregar
                 if (fotoInput && data.resposta_id) {
                     fotoInput.dataset.respostaId = data.resposta_id;
+                    // Se houver foto pendente para essa pergunta no banco local, atualiza o resposta_id dela
+                    await dbLocal.fotos.where("pergunta_id").equals(perguntaId).modify({ resposta_id: data.resposta_id });
                 }
-            } else {
-                throw new Error(data.erro || 'Erro ao processar');
-            }
+            } else { throw new Error(); }
 
         } catch (error) {
-            console.error('Erro:', error);
+            // FALHA DE CONEXÃO: Salva no LocalStorage
+            let fila = JSON.parse(localStorage.getItem('fila_respostas_offline') || '[]');
+            // Remove entrada antiga da mesma pergunta para não duplicar
+            fila = fila.filter(item => item.pergunta_id !== dadosParaSincronizar.pergunta_id);
+            fila.push(dadosParaSincronizar);
+            localStorage.setItem('fila_respostas_offline', JSON.stringify(fila));
+            
             if (feedbackEl) {
-                feedbackEl.innerHTML = '<span class="text-danger">Erro ao salvar! Tente novamente.</span>';
+                feedbackEl.innerHTML = '<i class="fas fa-hdd me-1"></i>Salvo no dispositivo (sem sinal)';
+                feedbackEl.className = 'form-text small text-warning';
             }
         }
     }
 
     // ========================================================================
-    // 2. UPLOAD DE FOTO (Mobile Optimized)
+    // 2. UPLOAD DE FOTO (Híbrido: Online/Offline)
     // ========================================================================
     async function handleFotoUpload(fileInput) {
         const perguntaId = fileInput.dataset.perguntaId;
-        const respostaId = fileInput.dataset.respostaId;
+        let respostaId = fileInput.dataset.respostaId;
         const feedbackEl = document.getElementById(`feedback-foto-${perguntaId}`);
         const previewContainer = document.getElementById(`container-preview-foto-${perguntaId}`);
+        const file = fileInput.files[0];
 
-        // Validação: Precisa ter respondido a pergunta antes (para ter um ID de resposta)
-        if (!respostaId || respostaId === '') {
-            alert("Por favor, responda a pergunta (Sim/Não, Nota, etc) antes de anexar a foto.");
-            fileInput.value = ''; // Limpa
+        if (!file) return;
+
+        // Preview imediato (funciona offline)
+        previewContainer.innerHTML = `
+            <div class="position-relative d-inline-block img-salva-container">
+                <img src="${URL.createObjectURL(file)}" class="img-thumbnail rounded" style="height: 120px; opacity: 0.7;">
+                <span class="position-absolute top-50 start-50 translate-middle badge rounded-pill bg-warning">
+                    <i class="fas fa-clock"></i> Pendente
+                </span>
+            </div>`;
+
+        // Se estiver offline OU ainda não tiver RespostaId (porque a pergunta não foi respondida)
+        if (!navigator.onLine || !respostaId) {
+            await dbLocal.fotos.add({
+                pergunta_id: perguntaId,
+                resposta_id: respostaId || null,
+                blob: file,
+                nome: file.name,
+                timestamp: Date.now()
+            });
+            if (feedbackEl) feedbackEl.innerHTML = '<i class="fas fa-hdd me-1"></i>Foto salva localmente';
             return;
         }
 
-        const file = fileInput.files[0];
-        if (!file) return;
-
-        // Feedback de envio
-        if (feedbackEl) {
-            feedbackEl.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Enviando foto (' + (file.size/1024/1024).toFixed(2) + 'MB)...';
-            feedbackEl.className = 'form-text small text-primary';
-        }
-
+        // Se estiver Online, tenta o upload normal
         const formData = new FormData();
         formData.append('foto', file);
 
         try {
+            if (feedbackEl) feedbackEl.innerHTML = 'Enviando foto...';
             const response = await fetch(`/cli/resposta/${respostaId}/upload-foto`, {
                 method: 'POST',
                 headers: { 'X-CSRFToken': '{{ csrf_token() }}' },
                 body: formData
             });
-
             const data = await response.json();
-
-            if (response.ok && data.sucesso) {
-                if (feedbackEl) {
-                    feedbackEl.innerHTML = '<i class="fas fa-check-circle me-1"></i>Foto enviada!';
-                    feedbackEl.className = 'form-text small text-success';
-                }
-                
-                // Atualiza Preview
-                // Como a URL pode demorar a propagar, usamos FileReader para mostrar a local imediatamente ou recarregamos
-                // Opção Simples: Mostrar "Imagem Salva" ou recarregar a div
-                previewContainer.innerHTML = `
-                    <div class="position-relative d-inline-block">
-                        <img src="${URL.createObjectURL(file)}" class="img-thumbnail rounded" style="height: 120px; opacity: 0.8">
-                         <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success">
-                            <i class="fas fa-check"></i> Nova
-                        </span>
-                    </div>`;
-                
-                // Remove erro visual se tivesse
-                fileInput.closest('.pergunta-container').classList.remove('border-danger');
-
-            } else {
-                throw new Error(data.erro || 'Falha no upload');
+            if (data.sucesso) {
+                feedbackEl.innerHTML = 'Foto enviada com sucesso!';
+                previewContainer.querySelector('.badge').className = 'position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success';
+                previewContainer.querySelector('.badge').innerHTML = '<i class="fas fa-check"></i>';
+                previewContainer.querySelector('img').style.opacity = '1';
             }
-
-        } catch (error) {
-            console.error(error);
-            if (feedbackEl) {
-                feedbackEl.innerHTML = `<span class="text-danger"><i class="fas fa-times"></i> ${error.message}</span>`;
-            }
-            alert("Erro ao enviar foto: " + error.message + ". Tente uma foto menor ou verifique a conexão.");
+        } catch (e) {
+            // Se falhar o upload online por instabilidade, guarda no banco local
+            await dbLocal.fotos.add({ pergunta_id: perguntaId, resposta_id: respostaId, blob: file, nome: file.name, timestamp: Date.now() });
+            feedbackEl.innerHTML = 'Conexão instável. Foto salva no dispositivo.';
         }
     }
 
     // ========================================================================
-    // 3. VALIDAÇÃO ANTES DE ENVIAR
+    // 3. SINCRONIZADOR AUTOMÁTICO
+    // ========================================================================
+    async function sincronizarPendencias() {
+        const filaTexto = JSON.parse(localStorage.getItem('fila_respostas_offline') || '[]');
+        const fotosOffline = await dbLocal.fotos.toArray();
+
+        if (filaTexto.length === 0 && fotosOffline.length === 0) return;
+
+        const alertSync = document.getElementById('sync-alert');
+        alertSync.classList.remove('d-none');
+
+        // A. Sincroniza Textos primeiro (para gerar os RespostaIds necessários para as fotos)
+        for (let item of filaTexto) {
+            try {
+                const response = await fetch("{{ url_for('cli.salvar_resposta', id=aplicacao.id) }}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
+                    body: JSON.stringify(item)
+                });
+                const data = await response.json();
+                if (data.sucesso) {
+                    // Atualiza a UI e limpa feedback
+                    const fb = document.getElementById(`feedback-${item.pergunta_id}`);
+                    if(fb) fb.innerHTML = '<i class="fas fa-check"></i> Sincronizado';
+                    
+                    // Se havia foto esperando por esse ID, atualiza o banco local de fotos
+                    await dbLocal.fotos.where("pergunta_id").equals(item.pergunta_id.toString()).modify({ resposta_id: data.resposta_id });
+                }
+            } catch (e) { console.error("Falha ao sincronizar item", item); }
+        }
+        localStorage.removeItem('fila_respostas_offline');
+
+        // B. Sincroniza Fotos
+        const fotosAtualizadas = await dbLocal.fotos.toArray();
+        for (let foto of fotosAtualizadas) {
+            if (!foto.resposta_id) continue; // Pula se ainda não tiver ID de resposta
+
+            const formData = new FormData();
+            formData.append('foto', foto.blob);
+
+            try {
+                const response = await fetch(`/cli/resposta/${foto.resposta_id}/upload-foto`, {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': '{{ csrf_token() }}' },
+                    body: formData
+                });
+                if (response.ok) {
+                    await dbLocal.fotos.delete(foto.id);
+                    const fbFoto = document.getElementById(`feedback-foto-${foto.pergunta_id}`);
+                    if(fbFoto) fbFoto.innerHTML = '<i class="fas fa-check"></i> Foto Sincronizada';
+                }
+            } catch (e) { console.error("Falha ao sincronizar foto", foto); }
+        }
+
+        document.getElementById('sync-message').innerText = "Sincronização concluída!";
+        setTimeout(() => alertSync.classList.add('d-none'), 3000);
+    }
+
+    // ========================================================================
+    // 4. VALIDAÇÃO E ASSINATURA (Preservado do seu original)
     // ========================================================================
     document.getElementById('form-finalizar').addEventListener('submit', function(e) {
         const alerta = document.getElementById('alerta-validacao');
         const listaErros = document.getElementById('alerta-validacao-lista');
         let erros = [];
 
-        // Limpa estados anteriores
         document.querySelectorAll('.pergunta-container').forEach(el => el.classList.remove('border-danger', 'bg-warning-subtle'));
 
-        // 3.1. Validação de Perguntas Obrigatórias (Texto/Radio/Select)
         document.querySelectorAll('.pergunta-container[data-obrigatoria="true"]').forEach(container => {
             const pid = container.dataset.perguntaId;
             let respondido = false;
 
-            // Checa Radio
             const radioCheck = container.querySelector(`input[type="radio"]:checked`);
             if (radioCheck) respondido = true;
 
-            // Checa Inputs Texto/Number/Date
             const textInput = container.querySelector(`input[type="text"], input[type="number"], input[type="date"], input[type="time"], textarea`);
             if (textInput && textInput.value.trim() !== '') respondido = true;
             
-            // Checa Select
             const select = container.querySelector('select');
             if (select && select.value !== '') respondido = true;
 
-            // Checa Assinatura (hidden input)
             const signInput = container.querySelector(`#resposta-input-${pid}`);
             if (signInput && signInput.value.trim() !== '') respondido = true;
 
@@ -421,69 +497,55 @@
             }
         });
 
-        // 3.2. Validação de FOTOS Obrigatórias
-        document.querySelectorAll('input[type="file"][data-obrigatoria="true"]').forEach(fileInput => {
+        // Validação de Foto Obrigatória (Considera fotos no banco local também)
+        document.querySelectorAll('input[type="file"][data-obrigatoria="true"]').forEach(async fileInput => {
             const container = fileInput.closest('.pergunta-container');
-            const temFotoSalva = container.querySelector('.img-salva-container, .badge.bg-success') !== null;
+            const temFotoServidor = container.querySelector('.img-salva-container') !== null;
             
-            // Se não selecionou arquivo AGORA e NÃO tem foto salva ANTES
-            if (fileInput.files.length === 0 && !temFotoSalva) {
+            if (fileInput.files.length === 0 && !temFotoServidor) {
                 erros.push(`Foto obrigatória ausente: "${container.querySelector('label').innerText.split('\n')[0]}"`);
                 container.classList.add('border-danger', 'bg-warning-subtle');
             }
         });
 
         if (erros.length > 0) {
-            e.preventDefault(); // Bloqueia envio
-            
+            e.preventDefault();
             listaErros.innerHTML = '';
             erros.forEach(erro => {
                 const li = document.createElement('li');
                 li.innerText = erro;
                 listaErros.appendChild(li);
             });
-
             alerta.classList.remove('d-none');
             alerta.scrollIntoView({ behavior: 'smooth', block: 'center' });
         } else {
-            // Tudo certo
-            if(!confirm("Deseja realmente finalizar a aplicação?")) {
-                e.preventDefault();
-            }
+            if(!confirm("Deseja realmente finalizar a aplicação?")) e.preventDefault();
         }
     });
 
-    // ========================================================================
-    // 4. INICIALIZAÇÃO E ASSINATURA DIGITAL
-    // ========================================================================
+    // Inicialização de Assinaturas e Listeners de Radio
     document.addEventListener('DOMContentLoaded', () => {
-        // Inicializa Signature Pads
+        atualizarUIConexao(navigator.onLine);
+        if(navigator.onLine) sincronizarPendencias();
+
         const pads = document.querySelectorAll('canvas[id^="signature-pad-"]');
         pads.forEach(canvas => {
             const pid = canvas.id.split('-')[2];
             const hiddenInput = document.getElementById(`resposta-input-${pid}`);
             const parent = canvas.parentElement;
-
-            // Ajusta tamanho do canvas para o container
             canvas.width = parent.offsetWidth;
             canvas.height = parent.offsetHeight;
-
             const pad = new SignaturePad(canvas, { backgroundColor: 'rgb(255, 255, 255)' });
 
-            // Se já tem assinatura salva, carrega
-            if (hiddenInput && hiddenInput.value) {
-                pad.fromDataURL(hiddenInput.value);
-            }
+            if (hiddenInput && hiddenInput.value) pad.fromDataURL(hiddenInput.value);
 
-            // Ao terminar traço, salva no hidden e envia
             pad.addEventListener("endStroke", () => {
                 if (!pad.isEmpty()) {
                     hiddenInput.value = pad.toDataURL();
-                    salvarResposta(hiddenInput); // Reusa a lógica de salvar
+                    salvarResposta(hiddenInput);
                 }
             });
 
-            // Botão Limpar
             const btnClear = parent.querySelector('.clear-signature-btn');
             if (btnClear) {
                 btnClear.addEventListener('click', () => {
@@ -492,79 +554,34 @@
                     salvarResposta(hiddenInput);
                 });
             }
-            
-            // Redimensionamento responsivo
-            window.addEventListener('resize', () => {
-                // Nota: Redimensionar limpa o canvas. Em prod, ideal é salvar imagem e redesenhar.
-                // Aqui mantemos simples.
-            });
+        });
+
+        // Ouvintes para regra de foto obrigatória
+        document.querySelectorAll('input[type="radio"]').forEach(radio => {
+            radio.addEventListener('change', function() { atualizarRegraFoto(this); });
+            if (radio.checked) atualizarRegraFoto(radio);
         });
     });
+
     function atualizarRegraFoto(radio) {
-        // O name do radio é "resposta-ID" (ex: resposta-105). Pegamos o ID.
-        const parts = radio.name.split('-');
-        if (parts.length < 2) return;
-        const pid = parts[1];
-
+        const pid = radio.name.split('-')[1];
         const fileInput = document.getElementById(`foto-${pid}`);
-        // Procura o label para adicionar o asterisco visual
-        // Tenta achar pelo 'for' ou pega o label próximo
-        let labelFoto = document.querySelector(`label[for="foto-${pid}"]`);
-        
-        // Fallback: se não achar pelo 'for', tenta achar dentro do container de foto
-        if (!labelFoto && fileInput) {
-            const container = fileInput.closest('.mb-2') || fileInput.parentElement;
-            if(container) labelFoto = container.querySelector('label');
-        }
-
+        let labelFoto = document.querySelector(`label[for="foto-${pid}"]`) || fileInput?.closest('.foto-container')?.querySelector('label');
         if (!fileInput) return;
 
         const valor = radio.value.toLowerCase();
-
-        // Lógica: Se for "nao" ou "nc" -> Foto Obrigatória
         if (valor === 'nao' || valor === 'nc') {
-            // 1. Ativa a flag que o seu validador (Seção 3.2) procura
             fileInput.setAttribute('data-obrigatoria', 'true');
-            
-            // 2. Feedback Visual (Texto Vermelho)
-            if (labelFoto && !labelFoto.innerHTML.includes('(Obrigatória)')) {
-                labelFoto.originalText = labelFoto.innerHTML; // Salva texto original
+            if (labelFoto && !labelFoto.innerHTML.includes('(Foto Obrigatória)')) {
                 labelFoto.innerHTML += ' <span class="text-danger fw-bold small">* (Foto Obrigatória)</span>';
             }
-            // Adiciona borda vermelha suave no input para destacar
-            fileInput.classList.add('border', 'border-danger');
-
+            fileInput.classList.add('border-danger');
         } else {
-            // 1. Remove a obrigatoriedade
             fileInput.setAttribute('data-obrigatoria', 'false');
-            
-            // 2. Remove Feedback Visual
-            if (labelFoto && labelFoto.innerHTML.includes('(Obrigatória)')) {
-                // Remove o span de erro mantendo o ícone/texto original
-                const spanErro = labelFoto.querySelector('.text-danger');
-                if(spanErro) spanErro.remove();
-            }
-            fileInput.classList.remove('border', 'border-danger');
+            const spanErro = labelFoto?.querySelector('.text-danger');
+            if(spanErro) spanErro.remove();
+            fileInput.classList.remove('border-danger');
         }
     }
-
-    // Inicializa os ouvintes (Listeners)
-    document.addEventListener("DOMContentLoaded", function() {
-        const todosRadios = document.querySelectorAll('input[type="radio"]');
-
-        todosRadios.forEach(radio => {
-            // A. Quando o usuário clica/muda a opção
-            radio.addEventListener('change', function() {
-                atualizarRegraFoto(this);
-                // Se o radio já tiver onchange="salvarResposta(this)" no HTML, 
-                // ele vai salvar e depois rodar essa regra visual. Tudo certo.
-            });
-
-            // B. Ao carregar a página (para aplicar a regra em respostas já salvas/carregadas)
-            if (radio.checked) {
-                atualizarRegraFoto(radio);
-            }
-        });
-    });
 </script>
 {% endblock %}
