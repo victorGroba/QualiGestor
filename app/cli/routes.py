@@ -4054,6 +4054,7 @@ def allowed_file(filename, allowed_extensions):
 
 @cli_bp.route('/resposta/<int:resposta_id>/upload-foto', methods=['POST'])
 @login_required
+@csrf.exempt
 def upload_foto_resposta(resposta_id):
     """Recebe upload de foto via AJAX para uma resposta específica."""
     # Log inicial
