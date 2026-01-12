@@ -246,13 +246,13 @@
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
 
 <script>
-    // Configuração do Banco de Dados Local (IndexedDB) para Fotos
+    // Configuração do Banco de Dados Local (IndexedDB)
     const dbLocal = new Dexie("QualiGestorOffline");
     dbLocal.version(1).stores({
         fotos: '++id, pergunta_id, resposta_id, blob, nome, timestamp'
     });
 
-    // Monitor de Conexão em tempo real
+    // Monitoramento de Conexão
     window.addEventListener('online', () => {
         atualizarUIConexao(true);
         sincronizarPendencias();
@@ -261,23 +261,35 @@
         atualizarUIConexao(false);
     });
 
+    // Ao carregar a página, verifica se há pendências antigas
+    document.addEventListener('DOMContentLoaded', () => {
+        atualizarUIConexao(navigator.onLine);
+        if(navigator.onLine) {
+            setTimeout(sincronizarPendencias, 1000); // Espera 1s para garantir carregamento
+        }
+        // ... (resto do seu código de assinatura e listeners permanece igual)
+        setupAssinaturasERadios(); 
+    });
+
     function atualizarUIConexao(online) {
         const statusEl = document.getElementById('status-conexao');
         const statusTxt = document.getElementById('status-texto');
-        if (online) {
-            statusEl.className = 'd-flex align-items-center text-success small';
-            statusTxt.innerText = 'Online - Salvamento automático ativo';
-        } else {
-            statusEl.className = 'd-flex align-items-center text-warning small';
-            statusTxt.innerText = 'Offline - Salvando no dispositivo';
+        if (statusEl && statusTxt) {
+            if (online) {
+                statusEl.className = 'd-flex align-items-center text-success small';
+                statusTxt.innerText = 'Online - Salvamento automático ativo';
+            } else {
+                statusEl.className = 'd-flex align-items-center text-warning small';
+                statusTxt.innerText = 'Offline - Salvando no dispositivo';
+            }
         }
     }
 
     // ========================================================================
-    // 1. SALVAR RESPOSTA (Híbrido: Online/Offline)
+    // 1. SALVAR RESPOSTA (Corrige o tipo do ID para Inteiro)
     // ========================================================================
     async function salvarResposta(inputElement, isObservacao = false) {
-        const perguntaId = inputElement.dataset.perguntaId;
+        const perguntaId = parseInt(inputElement.dataset.perguntaId); // FORÇA INTEIRO
         const feedbackEl = document.getElementById(`feedback-${perguntaId}`);
         const fotoInput = document.getElementById(`foto-${perguntaId}`);
 
@@ -301,7 +313,7 @@
         }
 
         const dadosParaSincronizar = {
-            pergunta_id: parseInt(perguntaId),
+            pergunta_id: perguntaId,
             resposta: respostaValue,
             observacao: observacaoValue,
             timestamp: Date.now()
@@ -323,20 +335,21 @@
                 if (feedbackEl) {
                     feedbackEl.innerHTML = '<i class="fas fa-check me-1"></i>Salvo';
                     feedbackEl.className = 'form-text small text-success';
-                    setTimeout(() => { if(feedbackEl.innerText === 'Salvo') feedbackEl.innerHTML = ''; }, 2000);
+                    setTimeout(() => { if(feedbackEl.innerText.includes('Salvo')) feedbackEl.innerHTML = ''; }, 2000);
                 }
                 if (fotoInput && data.resposta_id) {
                     fotoInput.dataset.respostaId = data.resposta_id;
-                    // Se houver foto pendente para essa pergunta no banco local, atualiza o resposta_id dela
-                    await dbLocal.fotos.where("pergunta_id").equals(perguntaId).modify({ resposta_id: data.resposta_id });
+                    // ATUALIZA FOTOS PENDENTES NO BANCO LOCAL (Usa filtro flexível)
+                    await dbLocal.fotos
+                        .filter(f => f.pergunta_id == perguntaId) // "==" aceita texto ou número
+                        .modify({ resposta_id: data.resposta_id });
                 }
             } else { throw new Error(); }
 
         } catch (error) {
-            // FALHA DE CONEXÃO: Salva no LocalStorage
+            // FALHA: Salva no LocalStorage
             let fila = JSON.parse(localStorage.getItem('fila_respostas_offline') || '[]');
-            // Remove entrada antiga da mesma pergunta para não duplicar
-            fila = fila.filter(item => item.pergunta_id !== dadosParaSincronizar.pergunta_id);
+            fila = fila.filter(item => item.pergunta_id !== perguntaId);
             fila.push(dadosParaSincronizar);
             localStorage.setItem('fila_respostas_offline', JSON.stringify(fila));
             
@@ -348,10 +361,10 @@
     }
 
     // ========================================================================
-    // 2. UPLOAD DE FOTO (Híbrido: Online/Offline)
+    // 2. UPLOAD DE FOTO (Agora salva ID como Inteiro)
     // ========================================================================
     async function handleFotoUpload(fileInput) {
-        const perguntaId = fileInput.dataset.perguntaId;
+        const perguntaId = parseInt(fileInput.dataset.perguntaId); // FORÇA INTEIRO
         let respostaId = fileInput.dataset.respostaId;
         const feedbackEl = document.getElementById(`feedback-foto-${perguntaId}`);
         const previewContainer = document.getElementById(`container-preview-foto-${perguntaId}`);
@@ -359,20 +372,20 @@
 
         if (!file) return;
 
-        // Preview imediato (funciona offline)
+        // Preview imediato
         previewContainer.innerHTML = `
             <div class="position-relative d-inline-block img-salva-container">
                 <img src="${URL.createObjectURL(file)}" class="img-thumbnail rounded" style="height: 120px; opacity: 0.7;">
-                <span class="position-absolute top-50 start-50 translate-middle badge rounded-pill bg-warning">
+                <span id="badge-${perguntaId}" class="position-absolute top-50 start-50 translate-middle badge rounded-pill bg-warning">
                     <i class="fas fa-clock"></i> Pendente
                 </span>
             </div>`;
 
-        // Se estiver offline OU ainda não tiver RespostaId (porque a pergunta não foi respondida)
+        // Se offline ou sem respostaId -> Salva local
         if (!navigator.onLine || !respostaId) {
             await dbLocal.fotos.add({
                 pergunta_id: perguntaId,
-                resposta_id: respostaId || null,
+                resposta_id: respostaId || null, 
                 blob: file,
                 nome: file.name,
                 timestamp: Date.now()
@@ -381,33 +394,46 @@
             return;
         }
 
-        // Se estiver Online, tenta o upload normal
+        // Tenta envio direto se tiver online e com ID
+        enviarFotoServidor(file, respostaId, perguntaId);
+    }
+
+    async function enviarFotoServidor(file, respostaId, perguntaId) {
+        const feedbackEl = document.getElementById(`feedback-foto-${perguntaId}`);
         const formData = new FormData();
-        formData.append('foto', file);
+        formData.append('foto', file, file.name); // Nome explícito ajuda
 
         try {
-            if (feedbackEl) feedbackEl.innerHTML = 'Enviando foto...';
+            if (feedbackEl) feedbackEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
             const response = await fetch(`/cli/resposta/${respostaId}/upload-foto`, {
                 method: 'POST',
                 headers: { 'X-CSRFToken': '{{ csrf_token() }}' },
                 body: formData
             });
             const data = await response.json();
+            
             if (data.sucesso) {
-                feedbackEl.innerHTML = 'Foto enviada com sucesso!';
-                previewContainer.querySelector('.badge').className = 'position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success';
-                previewContainer.querySelector('.badge').innerHTML = '<i class="fas fa-check"></i>';
-                previewContainer.querySelector('img').style.opacity = '1';
+                if (feedbackEl) feedbackEl.innerHTML = '<i class="fas fa-check-circle text-success"></i> Enviada';
+                const badge = document.getElementById(`badge-${perguntaId}`);
+                if(badge) {
+                    badge.className = 'position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success';
+                    badge.innerHTML = '<i class="fas fa-check"></i>';
+                }
+                const img = document.querySelector(`#container-preview-foto-${perguntaId} img`);
+                if(img) img.style.opacity = '1';
+                return true;
             }
         } catch (e) {
-            // Se falhar o upload online por instabilidade, guarda no banco local
+            console.error(e);
+            // Falha no envio -> Guarda no banco
             await dbLocal.fotos.add({ pergunta_id: perguntaId, resposta_id: respostaId, blob: file, nome: file.name, timestamp: Date.now() });
-            feedbackEl.innerHTML = 'Conexão instável. Foto salva no dispositivo.';
+            if (feedbackEl) feedbackEl.innerHTML = 'Salva para envio posterior.';
+            return false;
         }
     }
 
     // ========================================================================
-    // 3. SINCRONIZADOR AUTOMÁTICO
+    // 3. SINCRONIZADOR (Robustez para Texto vs Número)
     // ========================================================================
     async function sincronizarPendencias() {
         const filaTexto = JSON.parse(localStorage.getItem('fila_respostas_offline') || '[]');
@@ -416,9 +442,9 @@
         if (filaTexto.length === 0 && fotosOffline.length === 0) return;
 
         const alertSync = document.getElementById('sync-alert');
-        alertSync.classList.remove('d-none');
+        if(alertSync) alertSync.classList.remove('d-none');
 
-        // A. Sincroniza Textos primeiro (para gerar os RespostaIds necessários para as fotos)
+        // A. Sincroniza Textos
         for (let item of filaTexto) {
             try {
                 const response = await fetch("{{ url_for('cli.salvar_resposta', id=aplicacao.id) }}", {
@@ -427,82 +453,121 @@
                     body: JSON.stringify(item)
                 });
                 const data = await response.json();
+                
                 if (data.sucesso) {
-                    // Atualiza a UI e limpa feedback
+                    // Atualiza ID da resposta nas fotos pendentes correspondentes
+                    // USANDO FILTER PARA IGNORAR DIFERENÇA DE TIPO (STRING vs INT)
+                    await dbLocal.fotos
+                        .filter(f => f.pergunta_id == item.pergunta_id) 
+                        .modify({ resposta_id: data.resposta_id });
+                        
+                    // Feedback visual na tela
                     const fb = document.getElementById(`feedback-${item.pergunta_id}`);
                     if(fb) fb.innerHTML = '<i class="fas fa-check"></i> Sincronizado';
-                    
-                    // Se havia foto esperando por esse ID, atualiza o banco local de fotos
-                    await dbLocal.fotos.where("pergunta_id").equals(item.pergunta_id.toString()).modify({ resposta_id: data.resposta_id });
                 }
-            } catch (e) { console.error("Falha ao sincronizar item", item); }
+            } catch (e) { console.error("Erro sync texto", e); }
         }
+        // Limpa fila de texto após tentar enviar
         localStorage.removeItem('fila_respostas_offline');
 
-        // B. Sincroniza Fotos
+        // B. Sincroniza Fotos (Recarrega do banco pois IDs podem ter mudado)
         const fotosAtualizadas = await dbLocal.fotos.toArray();
         for (let foto of fotosAtualizadas) {
-            if (!foto.resposta_id) continue; // Pula se ainda não tiver ID de resposta
+            if (!foto.resposta_id) continue; // Se ainda não tem ID, espera próxima rodada
 
-            const formData = new FormData();
-            formData.append('foto', foto.blob);
-
-            try {
-                const response = await fetch(`/cli/resposta/${foto.resposta_id}/upload-foto`, {
-                    method: 'POST',
-                    headers: { 'X-CSRFToken': '{{ csrf_token() }}' },
-                    body: formData
-                });
-                if (response.ok) {
-                    await dbLocal.fotos.delete(foto.id);
-                    const fbFoto = document.getElementById(`feedback-foto-${foto.pergunta_id}`);
-                    if(fbFoto) fbFoto.innerHTML = '<i class="fas fa-check"></i> Foto Sincronizada';
-                }
-            } catch (e) { console.error("Falha ao sincronizar foto", foto); }
+            const enviado = await enviarFotoServidor(foto.blob, foto.resposta_id, foto.pergunta_id);
+            if (enviado) {
+                await dbLocal.fotos.delete(foto.id);
+            }
         }
 
-        document.getElementById('sync-message').innerText = "Sincronização concluída!";
-        setTimeout(() => alertSync.classList.add('d-none'), 3000);
+        if(alertSync) {
+            document.getElementById('sync-message').innerText = "Sincronização concluída!";
+            setTimeout(() => alertSync.classList.add('d-none'), 3000);
+        }
     }
 
-    // ========================================================================
-    // 4. VALIDAÇÃO E ASSINATURA (Preservado do seu original)
-    // ========================================================================
+    // Funções auxiliares (Assinatura, Radios) mantidas para organização
+    function setupAssinaturasERadios() {
+        // Inicializa Signature Pads
+        const pads = document.querySelectorAll('canvas[id^="signature-pad-"]');
+        pads.forEach(canvas => {
+            const pid = canvas.id.split('-')[2];
+            const hiddenInput = document.getElementById(`resposta-input-${pid}`);
+            const parent = canvas.parentElement;
+            canvas.width = parent.offsetWidth; 
+            canvas.height = parent.offsetHeight;
+            const pad = new SignaturePad(canvas, { backgroundColor: 'rgb(255, 255, 255)' });
+            if (hiddenInput && hiddenInput.value) pad.fromDataURL(hiddenInput.value);
+            pad.addEventListener("endStroke", () => {
+                if (!pad.isEmpty()) {
+                    hiddenInput.value = pad.toDataURL();
+                    salvarResposta(hiddenInput);
+                }
+            });
+            const btnClear = parent.querySelector('.clear-signature-btn');
+            if (btnClear) btnClear.addEventListener('click', () => {
+                pad.clear(); hiddenInput.value = ''; salvarResposta(hiddenInput);
+            });
+        });
+
+        // Regra de Foto Obrigatória
+        document.querySelectorAll('input[type="radio"]').forEach(radio => {
+            radio.addEventListener('change', function() { atualizarRegraFoto(this); });
+            if (radio.checked) atualizarRegraFoto(radio);
+        });
+    }
+
+    function atualizarRegraFoto(radio) {
+        const pid = radio.name.split('-')[1];
+        const fileInput = document.getElementById(`foto-${pid}`);
+        if (!fileInput) return;
+        const valor = radio.value.toLowerCase();
+        let label = document.querySelector(`label[for="foto-${pid}"]`) || fileInput.closest('.foto-container')?.querySelector('label');
+        
+        if (valor === 'nao' || valor === 'nc') {
+            fileInput.setAttribute('data-obrigatoria', 'true');
+            fileInput.classList.add('border-danger');
+            if(label && !label.innerText.includes('*')) {
+                label.innerHTML += ' <span class="text-danger fw-bold small">* (Foto Obrigatória)</span>';
+            }
+        } else {
+            fileInput.setAttribute('data-obrigatoria', 'false');
+            fileInput.classList.remove('border-danger');
+            if(label) {
+                const span = label.querySelector('.text-danger');
+                if(span) span.remove();
+            }
+        }
+    }
+
+    // Validação do Formulário (Mantida do original)
     document.getElementById('form-finalizar').addEventListener('submit', function(e) {
         const alerta = document.getElementById('alerta-validacao');
         const listaErros = document.getElementById('alerta-validacao-lista');
         let erros = [];
-
         document.querySelectorAll('.pergunta-container').forEach(el => el.classList.remove('border-danger', 'bg-warning-subtle'));
 
+        // Valida Obrigatórios
         document.querySelectorAll('.pergunta-container[data-obrigatoria="true"]').forEach(container => {
             const pid = container.dataset.perguntaId;
             let respondido = false;
-
-            const radioCheck = container.querySelector(`input[type="radio"]:checked`);
-            if (radioCheck) respondido = true;
-
-            const textInput = container.querySelector(`input[type="text"], input[type="number"], input[type="date"], input[type="time"], textarea`);
-            if (textInput && textInput.value.trim() !== '') respondido = true;
-            
-            const select = container.querySelector('select');
-            if (select && select.value !== '') respondido = true;
-
-            const signInput = container.querySelector(`#resposta-input-${pid}`);
-            if (signInput && signInput.value.trim() !== '') respondido = true;
-
+            if(container.querySelector('input:checked') || container.querySelector('select')?.value || container.querySelector('textarea')?.value || container.querySelector(`input[type=text]`)?.value || container.querySelector(`#resposta-input-${pid}`)?.value) {
+                respondido = true;
+            }
             if (!respondido) {
-                erros.push(`Pergunta obrigatória não respondida: "${container.querySelector('label').innerText.split('\n')[0]}"`);
+                erros.push(`Pergunta não respondida: "${container.querySelector('label').innerText.split('\n')[0]}"`);
                 container.classList.add('border-danger', 'bg-warning-subtle');
             }
         });
 
-        // Validação de Foto Obrigatória (Considera fotos no banco local também)
-        document.querySelectorAll('input[type="file"][data-obrigatoria="true"]').forEach(async fileInput => {
+        // Valida Fotos (Considera fotos locais/pendentes como válidas para não bloquear)
+        document.querySelectorAll('input[type="file"][data-obrigatoria="true"]').forEach(fileInput => {
             const container = fileInput.closest('.pergunta-container');
-            const temFotoServidor = container.querySelector('.img-salva-container') !== null;
+            const temFotoServidor = container.querySelector('.img-salva-container'); 
+            const temFotoLocal = container.querySelector('.badge.bg-warning'); // Foto pendente conta como válida
             
-            if (fileInput.files.length === 0 && !temFotoServidor) {
+            if (fileInput.files.length === 0 && !temFotoServidor && !temFotoLocal) {
                 erros.push(`Foto obrigatória ausente: "${container.querySelector('label').innerText.split('\n')[0]}"`);
                 container.classList.add('border-danger', 'bg-warning-subtle');
             }
@@ -511,77 +576,12 @@
         if (erros.length > 0) {
             e.preventDefault();
             listaErros.innerHTML = '';
-            erros.forEach(erro => {
-                const li = document.createElement('li');
-                li.innerText = erro;
-                listaErros.appendChild(li);
-            });
+            erros.forEach(e => { const li = document.createElement('li'); li.innerText = e; listaErros.appendChild(li); });
             alerta.classList.remove('d-none');
-            alerta.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            alerta.scrollIntoView({block: 'center'});
         } else {
-            if(!confirm("Deseja realmente finalizar a aplicação?")) e.preventDefault();
+             if(!confirm("Finalizar auditoria?")) e.preventDefault();
         }
     });
-
-    // Inicialização de Assinaturas e Listeners de Radio
-    document.addEventListener('DOMContentLoaded', () => {
-        atualizarUIConexao(navigator.onLine);
-        if(navigator.onLine) sincronizarPendencias();
-
-        const pads = document.querySelectorAll('canvas[id^="signature-pad-"]');
-        pads.forEach(canvas => {
-            const pid = canvas.id.split('-')[2];
-            const hiddenInput = document.getElementById(`resposta-input-${pid}`);
-            const parent = canvas.parentElement;
-            canvas.width = parent.offsetWidth;
-            canvas.height = parent.offsetHeight;
-            const pad = new SignaturePad(canvas, { backgroundColor: 'rgb(255, 255, 255)' });
-
-            if (hiddenInput && hiddenInput.value) pad.fromDataURL(hiddenInput.value);
-
-            pad.addEventListener("endStroke", () => {
-                if (!pad.isEmpty()) {
-                    hiddenInput.value = pad.toDataURL();
-                    salvarResposta(hiddenInput);
-                }
-            });
-
-            const btnClear = parent.querySelector('.clear-signature-btn');
-            if (btnClear) {
-                btnClear.addEventListener('click', () => {
-                    pad.clear();
-                    hiddenInput.value = '';
-                    salvarResposta(hiddenInput);
-                });
-            }
-        });
-
-        // Ouvintes para regra de foto obrigatória
-        document.querySelectorAll('input[type="radio"]').forEach(radio => {
-            radio.addEventListener('change', function() { atualizarRegraFoto(this); });
-            if (radio.checked) atualizarRegraFoto(radio);
-        });
-    });
-
-    function atualizarRegraFoto(radio) {
-        const pid = radio.name.split('-')[1];
-        const fileInput = document.getElementById(`foto-${pid}`);
-        let labelFoto = document.querySelector(`label[for="foto-${pid}"]`) || fileInput?.closest('.foto-container')?.querySelector('label');
-        if (!fileInput) return;
-
-        const valor = radio.value.toLowerCase();
-        if (valor === 'nao' || valor === 'nc') {
-            fileInput.setAttribute('data-obrigatoria', 'true');
-            if (labelFoto && !labelFoto.innerHTML.includes('(Foto Obrigatória)')) {
-                labelFoto.innerHTML += ' <span class="text-danger fw-bold small">* (Foto Obrigatória)</span>';
-            }
-            fileInput.classList.add('border-danger');
-        } else {
-            fileInput.setAttribute('data-obrigatoria', 'false');
-            const spanErro = labelFoto?.querySelector('.text-danger');
-            if(spanErro) spanErro.remove();
-            fileInput.classList.remove('border-danger');
-        }
-    }
 </script>
 {% endblock %}
