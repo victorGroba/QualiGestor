@@ -246,30 +246,54 @@
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
 
 <script>
-    // Configuração do Banco de Dados Local (IndexedDB)
+    // 1. Configuração do Banco de Dados Offline
     const dbLocal = new Dexie("QualiGestorOffline");
     dbLocal.version(1).stores({
         fotos: '++id, pergunta_id, resposta_id, blob, nome, timestamp'
     });
 
-    // Monitoramento de Conexão
+    // 2. Monitoramento de Conexão
     window.addEventListener('online', () => {
+        console.log("Internet voltou! Iniciando sincronização...");
         atualizarUIConexao(true);
         sincronizarPendencias();
     });
     window.addEventListener('offline', () => {
+        console.log("Sem internet. Modo offline ativado.");
         atualizarUIConexao(false);
     });
 
     // Ao carregar a página
     document.addEventListener('DOMContentLoaded', () => {
         atualizarUIConexao(navigator.onLine);
+        
+        // Verifica se há fotos pendentes visuais (restaura badges se recarregar a página)
+        restaurarBadgesPendentes();
+
         // Tenta sincronizar se tiver internet
         if(navigator.onLine) {
             setTimeout(sincronizarPendencias, 1500); 
         }
         setupAssinaturasERadios(); 
     });
+
+    async function restaurarBadgesPendentes() {
+        const pendentes = await dbLocal.fotos.toArray();
+        pendentes.forEach(foto => {
+            const container = document.getElementById(`container-preview-foto-${foto.pergunta_id}`);
+            if (container && !container.innerHTML.trim()) {
+                // Se tem foto no banco local mas não na tela, mostra preview provisório
+                const blobUrl = URL.createObjectURL(foto.blob);
+                container.innerHTML = `
+                    <div class="position-relative d-inline-block img-salva-container">
+                        <img src="${blobUrl}" class="img-thumbnail rounded" style="height: 120px; opacity: 0.7;">
+                        <span id="badge-${foto.pergunta_id}" class="position-absolute top-50 start-50 translate-middle badge rounded-pill bg-warning">
+                            <i class="fas fa-clock"></i> Pendente
+                        </span>
+                    </div>`;
+            }
+        });
+    }
 
     function atualizarUIConexao(online) {
         const statusEl = document.getElementById('status-conexao');
@@ -286,7 +310,7 @@
     }
 
     // ========================================================================
-    // 1. SALVAR RESPOSTA (Texto)
+    // 3. SALVAR RESPOSTA (TEXTO)
     // ========================================================================
     async function salvarResposta(inputElement, isObservacao = false) {
         const perguntaId = parseInt(inputElement.dataset.perguntaId); 
@@ -335,19 +359,20 @@
                     setTimeout(() => { if(feedbackEl.innerText.includes('Salvo')) feedbackEl.innerHTML = ''; }, 2000);
                 }
                 
-                // Atualiza ID da resposta para o campo de foto
-                if (fotoInput && data.resposta_id) {
-                    fotoInput.dataset.respostaId = data.resposta_id;
+                // Atualiza ID da resposta para uso futuro (fotos)
+                if (data.resposta_id) {
+                    if (fotoInput) fotoInput.dataset.respostaId = data.resposta_id;
                     
-                    // IMPORTANTE: Atualiza fotos que estavam esperando esse ID no banco local
+                    // IMPORTANTE: Atualiza fotos locais que estavam órfãs (sem resposta_id)
                     await dbLocal.fotos
                         .filter(f => f.pergunta_id == perguntaId) 
                         .modify({ resposta_id: data.resposta_id });
                 }
-            } else { throw new Error(); }
+            } else { throw new Error("Erro na resposta do servidor"); }
 
         } catch (error) {
-            // Falha: Salva no LocalStorage
+            console.warn("Falha ao salvar online, guardando offline:", error);
+            // Salva no LocalStorage
             let fila = JSON.parse(localStorage.getItem('fila_respostas_offline') || '[]');
             fila = fila.filter(item => item.pergunta_id !== perguntaId);
             fila.push(dadosParaSincronizar);
@@ -361,7 +386,7 @@
     }
 
     // ========================================================================
-    // 2. UPLOAD DE FOTO (Atualizado para passar o Nome do Arquivo)
+    // 4. UPLOAD DE FOTO (Híbrido)
     // ========================================================================
     async function handleFotoUpload(fileInput) {
         const perguntaId = parseInt(fileInput.dataset.perguntaId);
@@ -372,7 +397,7 @@
 
         if (!file) return;
 
-        // Preview imediato
+        // Preview Imediato
         previewContainer.innerHTML = `
             <div class="position-relative d-inline-block img-salva-container">
                 <img src="${URL.createObjectURL(file)}" class="img-thumbnail rounded" style="height: 120px; opacity: 0.7;">
@@ -381,32 +406,39 @@
                 </span>
             </div>`;
 
-        // Se offline ou sem ID de resposta: Salva local
+        // Se estiver offline OU a pergunta ainda não tiver ID de resposta (ainda não salvou texto)
+        // Salva no banco local
         if (!navigator.onLine || !respostaId) {
+            console.log(`Salvando foto offline para pergunta ${perguntaId}`);
             await dbLocal.fotos.add({
                 pergunta_id: perguntaId,
                 resposta_id: respostaId || null, 
                 blob: file,
-                nome: file.name, // Guarda o nome original
+                nome: file.name, 
                 timestamp: Date.now()
             });
             if (feedbackEl) feedbackEl.innerHTML = '<i class="fas fa-hdd me-1"></i>Foto salva localmente';
             return;
         }
 
-        // Tenta envio direto
+        // Se tem internet e ID, tenta enviar direto
         enviarFotoServidor(file, respostaId, perguntaId, file.name);
     }
 
-    // Função separada para envio, aceitando nome do arquivo explicitamente
-    async function enviarFotoServidor(file, respostaId, perguntaId, fileName) {
+    // ========================================================================
+    // 5. FUNÇÃO DE ENVIO (Robusta)
+    // ========================================================================
+    async function enviarFotoServidor(blobOrFile, respostaId, perguntaId, fileName) {
         const feedbackEl = document.getElementById(`feedback-foto-${perguntaId}`);
         const formData = new FormData();
         
-        // CORREÇÃO PRINCIPAL: Passa o nome do arquivo para o FormData
-        // Se file for Blob, ele não tem .name, então usamos o fileName salvo
-        const nomeFinal = fileName || file.name || "imagem.jpg";
-        formData.append('foto', file, nomeFinal);
+        // RECONSTRUÇÃO DO ARQUIVO: Garante que o Blob tenha nome e tipo corretos
+        const nomeFinal = fileName || "imagem_upload.jpg";
+        const arquivoParaEnviar = new File([blobOrFile], nomeFinal, { 
+            type: blobOrFile.type || "image/jpeg" 
+        });
+
+        formData.append('foto', arquivoParaEnviar);
 
         try {
             if (feedbackEl) feedbackEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
@@ -416,12 +448,13 @@
                 headers: { 'X-CSRFToken': '{{ csrf_token() }}' },
                 body: formData
             });
+            
             const data = await response.json();
             
             if (data.sucesso) {
                 if (feedbackEl) feedbackEl.innerHTML = '<i class="fas fa-check-circle text-success"></i> Enviada';
                 
-                // Atualiza o badge na imagem
+                // Atualiza visualmente para "Verde"
                 const badge = document.getElementById(`badge-${perguntaId}`);
                 if(badge) {
                     badge.className = 'position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success';
@@ -431,28 +464,30 @@
                 if(img) img.style.opacity = '1';
                 return true;
             } else {
-                throw new Error("Erro servidor");
+                throw new Error(data.erro || "Erro servidor");
             }
         } catch (e) {
-            console.error("Falha upload:", e);
-            // Se falhar, garante que está no banco local para tentar depois
+            console.error("Erro no upload da foto:", e);
+            
+            // Se falhou o envio, garante que ela está salva no banco local para tentar depois
             const existe = await dbLocal.fotos.where({pergunta_id: perguntaId}).count();
             if (existe === 0) {
                  await dbLocal.fotos.add({ 
                     pergunta_id: perguntaId, 
                     resposta_id: respostaId, 
-                    blob: file, 
+                    blob: blobOrFile, 
                     nome: nomeFinal, 
                     timestamp: Date.now() 
                 });
             }
-            if (feedbackEl) feedbackEl.innerHTML = '<span class="text-warning">Aguardando conexão...</span>';
+            
+            if (feedbackEl) feedbackEl.innerHTML = '<span class="text-warning">Falha no envio. Tentaremos novamente.</span>';
             return false;
         }
     }
 
     // ========================================================================
-    // 3. SINCRONIZADOR
+    // 6. SINCRONIZADOR
     // ========================================================================
     async function sincronizarPendencias() {
         const filaTexto = JSON.parse(localStorage.getItem('fila_respostas_offline') || '[]');
@@ -462,6 +497,8 @@
 
         const alertSync = document.getElementById('sync-alert');
         if(alertSync) alertSync.classList.remove('d-none');
+
+        console.log(`Sincronizando: ${filaTexto.length} textos e ${fotosOffline.length} fotos.`);
 
         // A. Sincroniza Textos primeiro
         for (let item of filaTexto) {
@@ -474,27 +511,29 @@
                 const data = await response.json();
                 
                 if (data.sucesso) {
-                    // Vincula o novo ID da resposta às fotos pendentes dessa pergunta
+                    // Atualiza o ID nas fotos pendentes desta pergunta
                     await dbLocal.fotos
                         .filter(f => f.pergunta_id == item.pergunta_id) 
                         .modify({ resposta_id: data.resposta_id });
                         
-                    // Atualiza visual do texto
                     const fb = document.getElementById(`feedback-${item.pergunta_id}`);
                     if(fb) fb.innerHTML = '<i class="fas fa-check"></i> Sincronizado';
                 }
-            } catch (e) { console.error("Erro sync texto", e); }
+            } catch (e) { console.error("Erro sync texto:", e); }
         }
         localStorage.removeItem('fila_respostas_offline');
 
-        // B. Sincroniza Fotos
-        // Recarrega do banco pois os IDs de resposta podem ter acabado de ser atualizados acima
+        // B. Sincroniza Fotos (Recarrega do banco para pegar os IDs atualizados)
         const fotosAtualizadas = await dbLocal.fotos.toArray();
         
         for (let foto of fotosAtualizadas) {
-            if (!foto.resposta_id) continue; // Se ainda não tem ID (erro no texto), pula
+            // Só tenta enviar se já tivermos o ID da resposta (criado pelo texto)
+            if (!foto.resposta_id) {
+                console.log(`Foto da pergunta ${foto.pergunta_id} ignorada: ainda sem ID de resposta.`);
+                continue; 
+            }
 
-            // Chama o envio passando explicitamente o NOME salvo
+            console.log(`Enviando foto pendente: ${foto.nome} (RespID: ${foto.resposta_id})`);
             const enviado = await enviarFotoServidor(foto.blob, foto.resposta_id, foto.pergunta_id, foto.nome);
             
             if (enviado) {
@@ -509,10 +548,9 @@
     }
 
     // ========================================================================
-    // 4. FUNÇÕES AUXILIARES (Assinatura, Radios, Validação)
+    // 7. AUXILIARES (Assinatura, Radios, Validação)
     // ========================================================================
     function setupAssinaturasERadios() {
-        // Inicializa Signature Pads
         const pads = document.querySelectorAll('canvas[id^="signature-pad-"]');
         pads.forEach(canvas => {
             const pid = canvas.id.split('-')[2];
@@ -534,7 +572,6 @@
             });
         });
 
-        // Regra de Foto Obrigatória
         document.querySelectorAll('input[type="radio"]').forEach(radio => {
             radio.addEventListener('change', function() { atualizarRegraFoto(this); });
             if (radio.checked) atualizarRegraFoto(radio);
@@ -583,7 +620,7 @@
             const container = fileInput.closest('.pergunta-container');
             const temFotoServidor = container.querySelector('.img-salva-container'); 
             const temFotoLocal = container.querySelector('.badge.bg-warning'); 
-            const temFotoSucesso = container.querySelector('.badge.bg-success'); // Importante checar se já subiu
+            const temFotoSucesso = container.querySelector('.badge.bg-success'); // Se já tiver o verde
             
             if (fileInput.files.length === 0 && !temFotoServidor && !temFotoLocal && !temFotoSucesso) {
                 erros.push(`Foto obrigatória ausente: "${container.querySelector('label').innerText.split('\n')[0]}"`);
@@ -598,7 +635,7 @@
             alerta.classList.remove('d-none');
             alerta.scrollIntoView({block: 'center'});
         } else {
-             if(!confirm("Finalizar auditoria?")) e.preventDefault();
+             if(!confirm("Deseja realmente finalizar a auditoria?")) e.preventDefault();
         }
     });
 </script>
