@@ -4549,6 +4549,7 @@ def sugerir_plano_acao():
         Problema: "{data.get('pergunta')}"
         Obs: "{data.get('observacao')}"
         Escreva um PLANO DE AÇÃO técnico e curto (imperativo).
+        IMPORTANTE: Responda APENAS com texto puro. NÃO utilize formatação Markdown (como **negrito** ou # titulos).
         """
         
         model = genai.GenerativeModel('gemini-2.0-flash')
