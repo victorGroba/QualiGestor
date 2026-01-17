@@ -1,7 +1,9 @@
 {% extends "base_cliq.html" %}
 
 {% block content %}
-<div class="container py-3 py-md-4"> <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-3 mb-md-4 gap-3">
+<div class="container py-3 py-md-4">
+    
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-3 mb-md-4 gap-3">
         <div>
             <h4 class="mb-1 text-dark fw-bold fs-5 fs-md-4">
                 <i class="fas fa-clipboard-check text-danger me-2"></i>Gestão de NCs
@@ -50,7 +52,7 @@
                             <textarea class="form-control form-control-lg shadow-sm" 
                                       id="plano-{{ item.id }}" 
                                       rows="5" 
-                                      placeholder="Descreva a ação corretiva aqui ou use a IA..."
+                                      placeholder="Descreva a ação ou pergunte à Norma o que fazer..."
                                       onblur="salvarManual({{ item.id }})">{{ item.plano_acao or '' }}</textarea>
                             
                             <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mt-3 gap-2">
@@ -63,15 +65,31 @@
                                         data-pergunta="{{ item.pergunta.texto }}"
                                         data-observacao="{{ item.observacao or '' }}"
                                         onclick="gerarPlanoIA(this)">
-                                    <span class="normal-state">
-                                        <i class="fas fa-magic me-2"></i> Gerar Sugestão com IA
+                                    
+                                    <span class="normal-state fw-bold">
+                                        <i class="fas fa-user-tie me-2"></i> Consultar a Agente IA
                                     </span>
+                                    
                                     <span class="loading-state d-none">
                                         <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                                        Criando...
+                                        A Norma está escrevendo...
                                     </span>
                                 </button>
                             </div>
+
+                            <div class="mt-2 text-end d-none d-md-block"> 
+                                <small class="text-muted fst-italic" style="font-size: 0.75rem;">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    IA generativa interpreta as observações para sugerir o plano. Valide, altere ou descarte a sugestão livremente.
+                                </small>
+                            </div>
+                            <div class="mt-2 text-center d-block d-md-none px-2">
+                                <small class="text-muted fst-italic" style="font-size: 0.7rem;">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Nosso Agente de IA interpreta as observações para sugerir o plano. Valide, altere ou descarte a sugestão livremente.
+                                </small>
+                            </div>
+
                         </div>
 
                     </div>
@@ -84,7 +102,7 @@
                         <i class="fas fa-check-circle text-success fa-4x"></i>
                     </div>
                     <h3>Tudo certo por aqui!</h3>
-                    <p class="text-muted">Nenhuma Não Conformidade encontrada.</p>
+                    <p class="text-muted">Nenhuma Não Conformidade encontrada nesta auditoria.</p>
                     <a href="{{ url_for('cli.visualizar_aplicacao', id=aplicacao.id) }}" class="btn btn-primary mt-2 w-100 w-md-auto">
                         Voltar para Auditoria
                     </a>
@@ -120,7 +138,7 @@
     
     /* Textarea mais legível */
     textarea.form-control-lg {
-        font-size: 0.95rem; /* Fonte um pouco menor para caber mais texto no celular */
+        font-size: 0.95rem; 
         line-height: 1.5;
         background-color: #fffcf5;
         min-height: 120px; /* Altura mínima segura para mobile */
@@ -169,20 +187,21 @@ async function gerarPlanoIA(btn) {
         const data = await res.json();
 
         if(data.sucesso) {
-            // === LIMPEZA AVANÇADA (Mantida da versão anterior) ===
+            // === LIMPEZA AVANÇADA PARA TEXTO CORRIDO ===
             let textoLimpo = data.sugestao
-                .replace(/\*\*/g, "")      // Remove negrito
-                .replace(/#/g, "")         // Remove headers
-                .replace(/^\d+\.\s*/gm, "") // Remove "1. ", "2. "
-                .replace(/^\-\s*/gm, "")    // Remove "- "
-                .replace(/\n/g, " ")       // Remove quebras de linha
-                .replace(/\s+/g, " ")      // Remove espaços duplos
+                .replace(/\*\*/g, "")       // Remove negrito
+                .replace(/#/g, "")          // Remove headers
+                .replace(/^\d+\.\s*/gm, "")  // Remove numeração (1. , 2.)
+                .replace(/^\-\s*/gm, "")     // Remove bullets (- )
+                .replace(/\n/g, " ")        // Remove quebras de linha (força 1 parágrafo)
+                .replace(/\s+/g, " ")       // Remove espaços duplos
                 .trim();
 
             textarea.value = textoLimpo;
             
             await salvarNoBanco(id, textoLimpo);
-            mostrarStatus(id, 'success', '<i class="fas fa-check-double"></i> Gerado!');
+            // Feedback personalizado da Norma
+            mostrarStatus(id, 'success', '<i class="fas fa-check-circle"></i> Sugestão da Norma aplicada!');
         } else {
             throw new Error(data.erro || "Erro na IA");
         }
@@ -196,7 +215,7 @@ async function gerarPlanoIA(btn) {
         loadingState.classList.add('d-none');
         textarea.classList.remove('opacity-50');
         
-        // No mobile, scroll suave até o textarea para o usuário ver o texto gerado
+        // No mobile, scroll suave até o textarea
         if(window.innerWidth < 768) {
              textarea.scrollIntoView({behavior: "smooth", block: "center"});
         }
@@ -235,14 +254,14 @@ function mostrarStatus(id, tipo, html) {
     const el = document.getElementById(`status-${id}`);
     el.innerHTML = html;
     
-    el.className = "small fw-bold transition-all mt-1"; // Margem top pequena
+    el.className = "small fw-bold transition-all mt-1"; 
     
     if(tipo === 'success') el.classList.add("text-success");
     if(tipo === 'error') el.classList.add("text-danger");
     if(tipo === 'saving') el.classList.add("text-muted");
     
     if(tipo === 'success') {
-        setTimeout(() => { el.innerHTML = ''; }, 3000);
+        setTimeout(() => { el.innerHTML = ''; }, 4000);
     }
 }
 

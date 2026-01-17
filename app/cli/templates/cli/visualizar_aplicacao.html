@@ -1,373 +1,356 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aplicação: {{ aplicacao.questionario.nome }} - QualiGestor CLIQ</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        .resultado-card {
-            border-left: 4px solid #007bff;
-        }
-        .resposta-item {
-            border-bottom: 1px solid #e9ecef;
-            padding: 15px 0;
-        }
-        .resposta-item:last-child {
-            border-bottom: none;
-        }
-        .nota-destaque {
-            font-size: 2rem;
-            font-weight: bold;
-        }
-        .status-badge {
-            font-size: 0.9rem;
-        }
-        /* ================== */
-        /* CSS ADICIONADO  */
-        /* ================== */
-        .signature-image-view {
-            border: 1px solid #dee2e6;
-            background: #fdfdfd;
-            padding: 5px;
-            max-width: 300px;
-            height: 150px;
-        }
-        .signature-image-view img {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-        }
-        /* ================== */
+{% extends "base_cliq.html" %}
 
-        @media print {
-            .no-print {
-                display: none !important;
-            }
-            .container-fluid {
-                margin: 0;
-                padding: 0;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="container-fluid">
-        <div class="row">
-            <main class="col-md-12 px-md-4">
-                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom no-print">
-                    <h1 class="h2">
-                        <i class="fas fa-clipboard-check me-2"></i>
-                        Resultado da Aplicação
-                    </h1>
-                    <div class="btn-toolbar mb-2 mb-md-0">
-                        <div class="btn-group me-2">
-                            <button onclick="window.print()" class="btn btn-outline-primary">
-                                <i class="fas fa-print me-1"></i>
-                                Imprimir
-                            </button>
-                            <a href="{{ url_for('cli.gerar_relatorio_aplicacao', id=aplicacao.id) }}" class="btn btn-danger">
-                                <i class="fas fa-file-pdf me-1"></i>
-                                Gerar Relatório
-                            </a>
-                        </div>
-                    </div>
-                </div>
+{% block content %}
+<style>
+    /* === ESTILOS VISUAIS === */
+    :root {
+        --bs-body-bg: #f4f6f8;
+    }
+    
+    /* === CARDS LIMPOS === */
+    .card-clean {
+        border: 1px solid rgba(0,0,0,0.05);
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        background: white;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+    }
+    
+    /* === RESPOSTAS (ESTILO TEXTO) === */
+    .resposta-row {
+        padding: 12px 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    .resposta-row:last-child { border-bottom: none; }
+    
+    .resp-val { font-weight: 600; font-size: 0.95rem; }
+    .resp-sim { color: #198754; } 
+    .resp-nao { color: #dc3545; } 
+    .resp-neutro { color: #6c757d; }
+
+    /* === NOTA GRANDE === */
+    .nota-display {
+        font-size: 2.5rem;
+        font-weight: 700;
+        letter-spacing: -1px;
+    }
+
+    /* === SIDEBAR FIXA (DESKTOP) === */
+    .sticky-sidebar {
+        position: -webkit-sticky;
+        position: sticky;
+        top: 90px;
+        z-index: 90;
+    }
+
+    /* === BARRA FLUTUANTE MOBILE (Fixa no Rodapé da TELA) === */
+    .mobile-action-bar {
+        position: fixed; /* Fixa na tela */
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        background: white;
+        padding: 10px 15px;
+        box-shadow: 0 -4px 15px rgba(0,0,0,0.1);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-top: 1px solid #eee;
+    }
+    
+    /* Espaço extra no final da página para o conteúdo não ficar escondido pela barra */
+    .spacer-bottom { height: 90px; }
+
+    /* Ajustes de Impressão */
+    @media print {
+        .no-print, .mobile-action-bar, .sticky-sidebar { display: none !important; }
+        .col-lg-9 { width: 100% !important; max-width: 100%; flex: 0 0 100%; }
+        .col-lg-3 { display: none; }
+        .card-clean { box-shadow: none; border: 1px solid #ccc; }
+    }
+</style>
+
+{% set nota_segura = aplicacao.nota_final if aplicacao.nota_final is not none else 0 %}
+
+<div class="mobile-action-bar d-lg-none no-print">
+    <div>
+        <small class="text-muted d-block" style="font-size: 0.65rem; text-transform: uppercase;">Nota Atual</small>
+        <span class="fw-bold fs-5 {% if nota_segura >= 70 %}text-success{% elif nota_segura >= 50 %}text-warning{% else %}text-danger{% endif %}">
+            {{ nota_segura }}%
+        </span>
+    </div>
+    
+    <div class="d-flex gap-2 align-items-center">
+        
+        {% if aplicacao.status.name != 'FINALIZADA' and aplicacao.status.value != 'finalizada' %}
+            <a href="{{ url_for('cli.responder_aplicacao', id=aplicacao.id) }}" class="btn btn-primary btn-sm shadow-sm px-3 fw-bold">
+                <i class="fas fa-play me-1"></i> Continuar
+            </a>
+        {% else %}
+            <a href="{{ url_for('cli.gerar_relatorio_aplicacao', id=aplicacao.id) }}" class="btn btn-dark btn-sm shadow-sm px-3">
+                <i class="fas fa-file-pdf me-1"></i> PDF
+            </a>
+        {% endif %}
+
+        <div class="dropup">
+            <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fas fa-ellipsis-v px-1"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow border-0 mb-2">
+                <li><h6 class="dropdown-header">Ações</h6></li>
                 
-                <nav aria-label="breadcrumb" class="no-print">
-                    <ol class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="{{ url_for('cli.index') }}">Dashboard</a></li>
-                        <li class="breadcrumb-item"><a href="{{ url_for('cli.listar_aplicacoes') }}">Aplicações</a></li>
-                        <li class="breadcrumb-item active" aria-current="page">Visualizar Aplicação</li>
-                    </ol>
-                </nav>
+                <li>
+                    <a class="dropdown-item" href="{{ url_for('cli.gerar_relatorio_aplicacao', id=aplicacao.id) }}">
+                        <i class="fas fa-file-pdf me-2 text-secondary"></i> Baixar Relatório
+                    </a>
+                </li>
+                <li>
+                    <button class="dropdown-item" onclick="compartilharResultado()">
+                        <i class="fas fa-share-alt me-2 text-info"></i> Compartilhar Link
+                    </button>
+                </li>
+                <li>
+                    <a class="dropdown-item" href="{{ url_for('cli.listar_aplicacoes') }}">
+                        <i class="fas fa-home me-2 text-secondary"></i> Voltar ao Início
+                    </a>
+                </li>
 
-                <div class="card resultado-card mb-4">
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-8">
-                                <h3>{{ aplicacao.questionario.nome }}</h3>
-                                <p class="text-muted mb-1">{{ aplicacao.questionario.descricao or 'Sem descrição' }}</p>
-                                <small class="text-muted">Versão {{ aplicacao.questionario.versao }}</small>
-                            </div>
-                            <div class="col-md-4 text-end">
-                                <div class="mb-2">
-                                    {% if aplicacao.status.name == 'FINALIZADA' or aplicacao.status.value == 'finalizada' %}
-                                    <span class="badge bg-success status-badge">
-                                        <i class="fas fa-check me-1"></i>
-                                        Finalizada
-                                    </span>
-                                    {% elif aplicacao.status.name == 'CANCELADA' or aplicacao.status.value == 'cancelada' %}
-                                    <span class="badge bg-danger status-badge">
-                                        <i class="fas fa-times me-1"></i>
-                                        Cancelada
-                                    </span>
-                                    {% else %}
-                                    <span class="badge bg-warning text-dark status-badge">
-                                        <i class="fas fa-clock me-1"></i>
-                                        Em Andamento
-                                    </span>
-                                    {% endif %}
-                                </div>
-                                {% if aplicacao.nota_final is not none %}
-                                <div class="nota-destaque text-primary">
-                                    {{ aplicacao.nota_final }}%
-                                </div>
-                                <small class="text-muted">Nota Final</small>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="row mb-4">
-                    <div class="col-md-6">
-                        <div class="card">
-                            <div class="card-header">
-                                <h6><i class="fas fa-info-circle me-1"></i>Informações da Aplicação</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="row">
-                                    <div class="col-sm-6">
-                                        <strong>Data de Início:</strong><br>
-                                        {{ aplicacao.data_inicio.strftime('%d/%m/%Y às %H:%M') }}
-                                    </div>
-                                    {% if aplicacao.data_fim %}
-                                    <div class="col-sm-6">
-                                        <strong>Data de Finalização:</strong><br>
-                                        {{ aplicacao.data_fim.strftime('%d/%m/%Y às %H:%M') }}
-                                    </div>
-                                    {% endif %}
-                                </div>
-                                
-                                {% if aplicacao.data_fim and aplicacao.data_inicio %}
-                                <div class="mt-2">
-                                    <strong>Tempo de Aplicação:</strong><br>
-                                    {{ ((aplicacao.data_fim - aplicacao.data_inicio).total_seconds() / 60) | round(0) | int }} minutos
-                                </div>
-                                {% endif %}
-                                
-                                {% if aplicacao.observacoes %}
-                                <div class="mt-3">
-                                    <strong>Observações Iniciais:</strong><br>
-                                    <em>{{ aplicacao.observacoes }}</em>
-                                </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="col-md-6">
-                        <div class="card">
-                            <div class="card-header">
-                                <h6><i class="fas fa-user me-1"></i>Dados do Avaliado</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="mb-2">
-                                    <strong>Nome:</strong><br>
-                                    {{ aplicacao.avaliado.nome }}
-                                </div>
-                                
-                                {% if aplicacao.avaliado.codigo %}
-                                <div class="mb-2">
-                                    <strong>Código:</strong><br>
-                                    {{ aplicacao.avaliado.codigo }}
-                                </div>
-                                {% endif %}
-                                
-                                {% if aplicacao.avaliado.endereco %}
-                                <div class="mb-2">
-                                    <strong>Local:</strong><br>
-                                    {{ aplicacao.avaliado.endereco }}
-                                </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-header">
-                        <h5><i class="fas fa-list-check me-1"></i>Respostas por Tópico</h5>
-                    </div>
-                    <div class="card-body">
-                        {% if topicos %}
-                        {% for topico in topicos %}
-                        <div class="mb-4">
-                            <h6 class="border-bottom pb-2 mb-3">
-                                <i class="fas fa-folder me-1"></i>
-                                {{ topico.nome }}
-                                {% if topico.descricao %}
-                                <small class="text-muted">- {{ topico.descricao }}</small>
-                                {% endif %}
-                            </h6>
-                            
-                            {% set perguntas_topico = topico.perguntas_ativas if topico.perguntas_ativas is defined else topico.perguntas %}
-                            
-                            {% if perguntas_topico %}
-                            {% for pergunta in perguntas_topico %}
-                            <div class="resposta-item">
-                                <div class="row">
-                                    <div class="col-md-8">
-                                        <strong>{{ topico.ordem }}.{{ pergunta.ordem }} - {{ pergunta.texto }}</strong>
-                                        {% if pergunta.obrigatoria %}
-                                        <span class="badge bg-danger ms-1">Obrigatória</span>
-                                        {% endif %}
-                                    </div>
-                                    <div class="col-md-4">
-                                        {% set resposta = respostas_dict.get(pergunta.id) %}
-                                        {% if resposta %}
-                                        
-                                            {% if pergunta.tipo and (pergunta.tipo.name == 'ASSINATURA' or pergunta.tipo.value == 'Assinatura Digital') %}
-                                                <div class="signature-image-view float-end">
-                                                    {% if resposta.resposta and 'data:image' in resposta.resposta %}
-                                                        <img src="{{ resposta.resposta | safe }}" alt="Assinatura">
-                                                    {% else %}
-                                                        <span style="color: #999; font-style: italic; padding: 5px;">(Assinatura não preenchida)</span>
-                                                    {% endif %}
-                                                </div>
-                                            {% else %}
-                                                <div class="text-end">
-                                                    <span class="badge bg-primary">{{ resposta.resposta or 'Sem resposta' }}</span>
-                                                    {% if resposta.observacao %}
-                                                    <br><small class="text-muted">Obs: {{ resposta.observacao }}</small>
-                                                    {% endif %}
-                                                </div>
-                                            {% endif %}
-                                        {% else %}
-                                            <div class="text-end">
-                                                <span class="badge bg-secondary">Não respondida</span>
-                                            </div>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
-                            {% endfor %}
-                            {% else %}
-                            <div class="alert alert-info">
-                                <small>Nenhuma pergunta encontrada neste tópico.</small>
-                            </div>
-                            {% endif %}
-                        </div>
-                        {% endfor %}
-                        {% else %}
-                        <div class="alert alert-warning">
-                            <h6><i class="fas fa-exclamation-triangle me-1"></i>Nenhum tópico encontrado</h6>
-                            <p>Este questionário não possui tópicos configurados.</p>
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
-
-                <div class="mt-4 no-print">
-                    <div class="d-flex gap-2 flex-wrap">
-                        <a href="{{ url_for('cli.listar_aplicacoes') }}" class="btn btn-secondary">
-                            <i class="fas fa-arrow-left me-1"></i>
-                            Voltar às Aplicações
-                        </a>
-                        
-                        {% if aplicacao.status.name != 'FINALIZADA' and aplicacao.status.value != 'finalizada' %}
-                        <a href="{{ url_for('cli.responder_aplicacao', id=aplicacao.id) }}" class="btn btn-primary">
-                            <i class="fas fa-play me-1"></i>
-                            Continuar Aplicação
-                        </a>
-                        {% endif %}
-                        
-                        {% if aplicacao.status.name == 'FINALIZADA' or aplicacao.status.value == 'finalizada' %}
-                        <a href="{{ url_for('cli.gerar_relatorio_aplicacao', id=aplicacao.id) }}" class="btn btn-danger">
-                            <i class="fas fa-file-pdf me-1"></i>
-                            Baixar PDF
-                        </a>
-                        
-                        <button class="btn btn-info" onclick="compartilharResultado()">
-                            <i class="fas fa-share me-1"></i>
-                            Compartilhar
+                {% if aplicacao.status.name == 'FINALIZADA' or aplicacao.status.value == 'finalizada' %}
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <button class="dropdown-item text-warning" onclick="reabrirAplicacao()">
+                            <i class="fas fa-lock-open me-2"></i> Reabrir Edição
                         </button>
-                        
-                        <button class="btn btn-warning" onclick="reabrirAplicacao()">
-                            <i class="fas fa-edit me-1"></i>
-                            Reabrir para Edição
+                    </li>
+                    <li>
+                        <button class="dropdown-item text-danger" onclick="excluirAplicacao()">
+                            <i class="fas fa-trash me-2"></i> Excluir Aplicação
                         </button>
-                        {% endif %}
-                        
-                        <button class="btn btn-outline-danger" onclick="excluirAplicacao()">
-                            <i class="fas fa-trash me-1"></i>
-                            Excluir
-                        </button>
-                    </div>
-                </div>
+                    </li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+</div>
 
-                <div class="d-print-block d-none mt-4 text-center">
-                    <hr>
-                    <small class="text-muted">
-                        {% set data_relatorio = aplicacao.data_fim or aplicacao.data_inicio %}
-                        Relatório gerado em {{ data_relatorio.strftime('%d/%m/%Y %H:%M') }} pelo sistema QualiGestor CLIQ
-                    </small>
-                </div>
-            </main>
+<div class="container-fluid py-4 px-md-4">
+    
+    <div class="d-flex justify-content-between align-items-center mb-4 no-print">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1 small">
+                    <li class="breadcrumb-item"><a href="{{ url_for('cli.listar_aplicacoes') }}" class="text-decoration-none text-muted">Aplicações</a></li>
+                    <li class="breadcrumb-item active">Visualizar #{{ aplicacao.id }}</li>
+                </ol>
+            </nav>
+            <h4 class="fw-bold text-dark mb-0">{{ aplicacao.questionario.nome }}</h4>
+        </div>
+        
+        <div class="d-none d-lg-block">
+            <a href="{{ url_for('cli.listar_aplicacoes') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left me-1"></i> Voltar
+            </a>
+        </div>
+        <div class="d-lg-none">
+            <a href="{{ url_for('cli.listar_aplicacoes') }}" class="btn btn-light btn-sm text-muted border">
+                <i class="fas fa-chevron-left"></i>
+            </a>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        function compartilharResultado() {
-            if (navigator.share) {
-                navigator.share({
-                    title: 'Resultado da Aplicação - {{ aplicacao.questionario.nome }}',
-                    text: 'Confira o resultado desta aplicação do QualiGestor CLIQ',
-                    url: window.location.href
-                });
-            } else {
-                const url = window.location.href;
-                navigator.clipboard.writeText(url).then(() => {
-                    alert('Link copiado para a área de transferência!');
-                });
-            }
-        }
+    <div class="row g-4">
+        
+        <div class="col-lg-9">
+            
+            <div class="card-clean p-4">
+                <div class="row g-3">
+                    <div class="col-md-4 border-end-md">
+                        <label class="small text-muted text-uppercase fw-bold">Avaliado</label>
+                        <div class="fw-bold text-dark">{{ aplicacao.avaliado.nome }}</div>
+                        <small class="text-muted">{{ aplicacao.avaliado.endereco }}</small>
+                    </div>
+                    <div class="col-md-4 border-end-md">
+                        <label class="small text-muted text-uppercase fw-bold">Período</label>
+                        <div class="text-dark">{{ aplicacao.data_inicio.strftime('%d/%m/%Y') }}</div>
+                        <small class="text-muted">
+                            {{ aplicacao.data_inicio.strftime('%H:%M') }} 
+                            {% if aplicacao.data_fim %} - {{ aplicacao.data_fim.strftime('%H:%M') }}{% endif %}
+                        </small>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="small text-muted text-uppercase fw-bold">Status</label>
+                        <div>
+                            {% if aplicacao.status.name == 'FINALIZADA' or aplicacao.status.value == 'finalizada' %}
+                                <span class="text-success fw-bold"><i class="fas fa-check-circle"></i> Finalizada</span>
+                            {% elif aplicacao.status.name == 'CANCELADA' or aplicacao.status.value == 'cancelada' %}
+                                <span class="text-danger fw-bold"><i class="fas fa-ban"></i> Cancelada</span>
+                            {% else %}
+                                <span class="text-warning fw-bold"><i class="fas fa-clock"></i> Em Andamento</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-        function reabrirAplicacao() {
-            if (confirm('Deseja reabrir esta aplicação para edição? Isso permitirá alterar as respostas.')) {
-                // Certifique-se de que a rota 'reabrir' existe no seu routes.py
-                fetch(`/cli/aplicacao/{{ aplicacao.id }}/reabrir`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.sucesso) {
-                        window.location.href = '/cli/aplicacao/{{ aplicacao.id }}/responder';
-                    } else {
-                        alert('Erro ao reabrir aplicação: ' + (data.erro || 'Erro desconhecido'));
-                    }
-                })
-                .catch(error => {
-                    console.error('Erro:', error);
-                    alert('Erro ao processar solicitação.');
-                });
-            }
-        }
+            <div class="card-clean p-4">
+                <h5 class="mb-4 fw-bold border-bottom pb-2">Detalhamento</h5>
+                
+                {% if topicos %}
+                    {% for topico in topicos %}
+                        <div class="d-flex align-items-center mt-4 mb-3">
+                            <div class="bg-primary" style="width: 4px; height: 20px; border-radius: 2px;"></div>
+                            <h6 class="fw-bold text-dark ms-2 mb-0">{{ topico.nome }}</h6>
+                        </div>
+                        
+                        {% set perguntas_topico = topico.perguntas_ativas if topico.perguntas_ativas is defined else topico.perguntas %}
+                        
+                        {% for pergunta in perguntas_topico %}
+                            {% set resposta = respostas_dict.get(pergunta.id) %}
+                            <div class="resposta-row">
+                                <div class="row align-items-start">
+                                    
+                                    <div class="col-8">
+                                        <div class="text-dark" style="font-size: 0.95rem;">
+                                            <span class="text-muted fw-bold me-1" style="font-size: 0.85rem;">{{ topico.ordem }}.{{ pergunta.ordem }}</span>
+                                            {{ pergunta.texto }}
+                                        </div>
+                                        
+                                        {% if resposta.observacao %}
+                                            <div class="mt-1 text-muted fst-italic small ms-3 border-start ps-2">
+                                                {{ resposta.observacao }}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-4 text-end">
+                                        {% if resposta %}
+                                            {% if pergunta.tipo.name == 'ASSINATURA' %}
+                                                {% if resposta.resposta and 'data:image' in resposta.resposta %}
+                                                    <span class="badge bg-light text-dark border"><i class="fas fa-pen-nib"></i> Assinado</span>
+                                                {% else %}
+                                                    <span class="text-muted small">Pendente</span>
+                                                {% endif %}
+                                            
+                                            {% else %}
+                                                {% if resposta.resposta in ['Sim', 'Conforme', '10', '100'] %}
+                                                    <span class="resp-val resp-sim"><i class="fas fa-check"></i> {{ resposta.resposta }}</span>
+                                                
+                                                {% elif resposta.resposta in ['Não', 'Não Conforme', 'NC'] %}
+                                                    <span class="resp-val resp-nao"><i class="fas fa-times"></i> {{ resposta.resposta }}</span>
+                                                
+                                                {% else %}
+                                                    <span class="resp-val resp-neutro">{{ resposta.resposta or '---' }}</span>
+                                                {% endif %}
+                                            {% endif %}
 
-        function excluirAplicacao() {
-            if (confirm('Deseja realmente excluir esta aplicação? Esta ação não pode ser desfeita.')) {
-                // CORREÇÃO: Cria um formulário e submete via POST padrão para seguir o redirecionamento do Flask
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = "{{ url_for('cli.excluir_aplicacao', id=aplicacao.id) }}";
-                document.body.appendChild(form);
-                form.submit();
-            }
-        }
+                                            {% if (resposta.fotos.count() > 0) or (resposta.caminho_foto) %}
+                                                <div class="mt-1">
+                                                    <i class="fas fa-camera text-secondary small" title="Possui evidência"></i>
+                                                </div>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted small">-</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %} {% endfor %} {% else %}
+                    <p class="text-muted text-center py-3">Nenhum dado disponível.</p>
+                {% endif %} </div>
+        </div>
 
-        // Atalhos de teclado
-        document.addEventListener('keydown', function(e) {
-            if (e.ctrlKey && e.key === 'p') {
-                e.preventDefault();
-                window.print();
-            }
-        });
-    </script>
-</body>
-</html>
+        <div class="col-lg-3 d-none d-lg-block">
+            <div class="sticky-sidebar">
+                
+                <div class="card-clean p-4 text-center">
+                    <label class="text-muted text-uppercase small fw-bold">Nota Final</label>
+                    <div class="nota-display my-2 {% if nota_segura >= 70 %}text-success{% elif nota_segura >= 50 %}text-warning{% else %}text-danger{% endif %}">
+                        {{ nota_segura }}%
+                    </div>
+                    
+                    {% if aplicacao.status.name != 'FINALIZADA' and aplicacao.status.value != 'finalizada' %}
+                        <div class="mt-3">
+                            <a href="{{ url_for('cli.responder_aplicacao', id=aplicacao.id) }}" class="btn btn-primary w-100 fw-bold shadow-sm">
+                                <i class="fas fa-play me-2"></i> Continuar
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="card-clean p-3">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('cli.gerar_relatorio_aplicacao', id=aplicacao.id) }}" class="btn btn-outline-dark">
+                            <i class="fas fa-file-pdf me-2"></i> Baixar Relatório
+                        </a>
+                        
+                        <button onclick="window.print()" class="btn btn-outline-secondary">
+                            <i class="fas fa-print me-2"></i> Imprimir
+                        </button>
+                        
+                        <button onclick="compartilharResultado()" class="btn btn-outline-info">
+                            <i class="fas fa-share-alt me-2"></i> Compartilhar
+                        </button>
+
+                        {% if aplicacao.status.name == 'FINALIZADA' or aplicacao.status.value == 'finalizada' %}
+                        <hr class="my-2">
+                        <button onclick="reabrirAplicacao()" class="btn btn-light text-warning border-warning btn-sm">
+                            <i class="fas fa-lock-open me-2"></i> Reabrir Edição
+                        </button>
+                        {% endif %}
+                        
+                        <button onclick="excluirAplicacao()" class="btn btn-light text-danger border-danger btn-sm mt-1">
+                            <i class="fas fa-trash-alt me-2"></i> Excluir
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+    
+    <div class="spacer-bottom d-lg-none"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function reabrirAplicacao() {
+        if (confirm('Deseja reabrir esta auditoria para edição?')) {
+            fetch(`/cli/aplicacao/{{ aplicacao.id }}/reabrir`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}'}
+            })
+            .then(r => r.json())
+            .then(data => {
+                if(data.sucesso) window.location.href = '/cli/aplicacao/{{ aplicacao.id }}/responder';
+                else alert('Erro: ' + (data.erro || 'Falha ao reabrir'));
+            });
+        }
+    }
+
+    function excluirAplicacao() {
+        if (confirm('ATENÇÃO: Isso apagará permanentemente a auditoria e todas as fotos.\nContinuar?')) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = "{{ url_for('cli.excluir_aplicacao', id=aplicacao.id) }}";
+            
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrf_token';
+            csrfInput.value = '{{ csrf_token() }}';
+            form.appendChild(csrfInput);
+
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+    
+    function compartilharResultado() {
+        const url = window.location.href;
+        navigator.clipboard.writeText(url).then(() => alert('Link copiado!'));
+    }
+</script>
+{% endblock %}
