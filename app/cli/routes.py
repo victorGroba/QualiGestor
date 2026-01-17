@@ -15,7 +15,7 @@ from sqlalchemy import func, extract, and_, or_, desc
 from sqlalchemy.orm import joinedload, subqueryload
 from pathlib import Path
 import urllib.parse
-
+import google.generativeai as genai
 
 from flask import request, make_response
 from collections import defaultdict
@@ -2874,107 +2874,118 @@ def configuracoes():
 @login_required
 @csrf.exempt
 def salvar_resposta(id):
-    """Salva uma resposta individual (AJAX) - COM LOGS DETALHADOS"""
-    # Adiciona um log no início da função
+    """Salva uma resposta individual (AJAX) - COM LOGS DETALHADOS E SUPORTE A PLANO DE AÇÃO"""
     current_app.logger.info(f"--- Rota /salvar-resposta chamada para app ID: {id} ---")
     try:
         aplicacao = AplicacaoQuestionario.query.get_or_404(id)
+        data = request.get_json() or {}
 
-        # Permissão
+        # 1. Verificação de Permissão
         if aplicacao.avaliado.cliente_id != current_user.cliente_id:
             current_app.logger.warning(f"[Salvar Resposta {id}] Acesso negado - Cliente diferente.")
             return jsonify({'erro': 'Acesso negado'}), 403
-        if aplicacao.status != StatusAplicacao.EM_ANDAMENTO:
-            current_app.logger.warning(f"[Salvar Resposta {id}] Aplicação não está em andamento (Status: {aplicacao.status}).")
-            return jsonify({'erro': 'Aplicação já finalizada'}), 400
 
-        data = request.get_json() or {}
+        # 2. Lógica de Segurança Inteligente (Bloqueio vs Exceção)
+        estah_finalizada = aplicacao.status != StatusAplicacao.EM_ANDAMENTO
+        
+        # Verifica se é uma operação de Plano de Ação (pela presença dos campos)
+        eh_edicao_plano = ('plano_acao' in data) or ('resposta_id' in data)
+
+        if estah_finalizada:
+            if not eh_edicao_plano:
+                # Se for auditoria fechada e NÃO for plano de ação -> BLOQUEIA
+                current_app.logger.warning(f"[Salvar Resposta {id}] Bloqueio: Tentativa de alterar resposta em app finalizada.")
+                return jsonify({'erro': 'Aplicação já finalizada. Apenas Planos de Ação podem ser editados.'}), 400
+            else:
+                # Se for auditoria fechada mas FOR plano de ação -> LIBERA (Loga a exceção)
+                current_app.logger.info(f"[Salvar Resposta {id}] Exceção de Segurança: Permitindo edição de Plano de Ação em app finalizada.")
+
+        # 3. Tratamento Especial: Atualização direta por ID da Resposta (Tela de Gestão de NCs)
+        if 'resposta_id' in data:
+            resposta = RespostaPergunta.query.get(data['resposta_id'])
+            # Garante que a resposta pertence a esta aplicação
+            if resposta and resposta.aplicacao_id == id:
+                if 'plano_acao' in data:
+                    resposta.plano_acao = str(data['plano_acao']).strip()
+                    db.session.commit()
+                    current_app.logger.info(f"[Salvar Resposta {id}] Sucesso: Plano de ação atualizado via resposta_id {resposta.id}")
+                    return jsonify({'sucesso': True, 'mensagem': 'Plano salvo'})
+        
+        # 4. Fluxo Padrão: Salvar por Pergunta ID (Tela de Checklist)
+        
+        # Se chegou aqui e a auditoria está finalizada, retornamos falso positivo para não quebrar o front,
+        # mas não salvamos dados estruturais (prevenção extra)
+        if estah_finalizada:
+             return jsonify({'sucesso': True, 'mensagem': 'Ignorado (Auditoria fechada)'})
+
         pergunta_id = data.get('pergunta_id')
         resposta_texto = (data.get('resposta') or '').strip()
         observacao = (data.get('observacao') or '').strip()
+        plano_acao_recebido = data.get('plano_acao') # Captura o plano se vier do checklist
 
-        # Adiciona logs para os dados recebidos
-        current_app.logger.info(f"[Salvar Resposta {id}] Dados recebidos: Pergunta ID={pergunta_id}, Resposta='{resposta_texto}', Observacao='{observacao}'")
+        current_app.logger.info(f"[Salvar Resposta {id}] Dados: Pergunta={pergunta_id}, Resp='{resposta_texto}', Obs='{observacao}', Plano={plano_acao_recebido}")
 
         if not pergunta_id:
-            current_app.logger.error(f"[Salvar Resposta {id}] Erro: 'pergunta_id' não recebido no JSON.")
+            current_app.logger.error(f"[Salvar Resposta {id}] Erro: 'pergunta_id' ausente.")
             return jsonify({'erro': 'ID da pergunta ausente'}), 400
 
-        pergunta = Pergunta.query.get(pergunta_id) # Usar get em vez de get_or_404 para log customizado
+        pergunta = Pergunta.query.get(pergunta_id)
         if not pergunta:
-            current_app.logger.error(f"[Salvar Resposta {id}] Erro: Pergunta com ID {pergunta_id} não encontrada no banco.")
+            current_app.logger.error(f"[Salvar Resposta {id}] Erro: Pergunta {pergunta_id} não encontrada.")
             return jsonify({'erro': f'Pergunta ID {pergunta_id} não encontrada'}), 404
 
-        current_app.logger.info(f"[Salvar Resposta {id}] Pergunta encontrada: ID={pergunta.id}, Texto='{pergunta.texto[:50]}...', Tipo={pergunta.tipo}")
-
-        # Normaliza tipo para string de comparação
+        # Normaliza tipo
         if hasattr(pergunta.tipo, 'name'): tipo = pergunta.tipo.name
         elif hasattr(pergunta.tipo, 'value'): tipo = str(pergunta.tipo.value).upper().replace(" ", "_")
         else: tipo = str(pergunta.tipo or "").upper().replace(" ", "_")
-        current_app.logger.info(f"[Salvar Resposta {id}] Tipo normalizado: {tipo}")
 
         # Busca/Cria resposta
-        resposta = RespostaPergunta.query.filter_by(
-            aplicacao_id=id,
-            pergunta_id=pergunta_id
-        ).first()
+        resposta = RespostaPergunta.query.filter_by(aplicacao_id=id, pergunta_id=pergunta_id).first()
         if not resposta:
             current_app.logger.info(f"[Salvar Resposta {id}] Criando nova entrada RespostaPergunta.")
-            resposta = RespostaPergunta(
-                aplicacao_id=id,
-                pergunta_id=pergunta_id
-            )
+            resposta = RespostaPergunta(aplicacao_id=id, pergunta_id=pergunta_id)
         else:
             current_app.logger.info(f"[Salvar Resposta {id}] Atualizando RespostaPergunta existente (ID: {resposta.id}).")
 
-
+        # Atualiza Campos
         resposta.resposta = resposta_texto
         resposta.observacao = observacao
+        
+        # Atualiza Plano de Ação (Apenas se enviado)
+        if plano_acao_recebido is not None:
+            resposta.plano_acao = str(plano_acao_recebido).strip()
+
         resposta.pontos = 0  # default inicial
 
-        # Pontuação por tipo
+        # 5. Cálculo de Pontuação (Só executa se não estiver finalizada - garantido pelo check acima)
         if tipo in ['SIM_NAO_NA', 'MULTIPLA_ESCOLHA']:
-            current_app.logger.info(f"[Salvar Resposta {id}] Buscando OpcaoPergunta para pergunta_id={pergunta_id} e texto='{resposta_texto}'")
-            opcao = OpcaoPergunta.query.filter_by(
-                pergunta_id=pergunta_id,
-                texto=resposta_texto # Atenção à correspondência exata aqui!
-            ).first()
+            opcao = OpcaoPergunta.query.filter_by(pergunta_id=pergunta_id, texto=resposta_texto).first()
             if opcao:
-                current_app.logger.info(f"[Salvar Resposta {id}] OpcaoPergunta encontrada: ID={opcao.id}, Valor={opcao.valor}, Texto='{opcao.texto}'")
                 if opcao.valor is not None:
                     peso_pergunta = pergunta.peso or 1
                     resposta.pontos = float(opcao.valor) * peso_pergunta
-                    current_app.logger.info(f"[Salvar Resposta {id}] Pontos calculados: {float(opcao.valor)} (valor) * {peso_pergunta} (peso) = {resposta.pontos}")
+                    current_app.logger.info(f"[Salvar Resposta {id}] Pontos calculados: {resposta.pontos}")
                 else:
-                    current_app.logger.warning(f"[Salvar Resposta {id}] OpcaoPergunta encontrada (ID={opcao.id}) mas 'valor' é None. Pontos serão 0.")
+                    current_app.logger.warning(f"[Salvar Resposta {id}] Opção sem valor. Pontos = 0.")
             else:
-                # Log crucial se a opção não for encontrada
-                current_app.logger.warning(f"[Salvar Resposta {id}] Nenhuma OpcaoPergunta encontrada para pergunta_id={pergunta_id} com texto='{resposta_texto}'. Pontos serão 0.")
+                current_app.logger.warning(f"[Salvar Resposta {id}] Opção não encontrada: '{resposta_texto}'. Pontos = 0.")
 
         elif tipo in ['ESCALA_NUMERICA', 'NOTA']:
             try:
                 nota = float(resposta_texto)
                 peso_pergunta = pergunta.peso or 1
                 resposta.pontos = nota * peso_pergunta
-                current_app.logger.info(f"[Salvar Resposta {id}] Pontos (Escala/Nota) calculados: {nota} (valor) * {peso_pergunta} (peso) = {resposta.pontos}")
             except ValueError:
-                current_app.logger.warning(f"[Salvar Resposta {id}] Não foi possível converter resposta '{resposta_texto}' para float (Escala/Nota). Pontos serão 0.")
                 resposta.pontos = 0
 
-        elif tipo == 'TEXTO_CURTO' or tipo == 'TEXTO_LONGO': # Adicionado TEXTO_LONGO
-            current_app.logger.info(f"[Salvar Resposta {id}] Tipo Texto. Pontos mantidos em 0.")
-            pass # mantém pontos = 0
-        else:
-            current_app.logger.info(f"[Salvar Resposta {id}] Tipo {tipo}. Pontos mantidos em 0.")
-            pass # Outros tipos por enquanto não pontuam
-
-        current_app.logger.info(f"[Salvar Resposta {id}] Preparando para salvar no DB: Resposta='{resposta.resposta}', Obs='{resposta.observacao}', Pontos={resposta.pontos}")
-        db.session.add(resposta) # Adiciona à sessão (seja novo ou existente)
-        db.session.flush() # Tenta aplicar à sessão para obter o ID se for novo
+        current_app.logger.info(f"[Salvar Resposta {id}] Salvando no DB...")
+        
+        db.session.add(resposta)
+        db.session.flush()
         resposta_id_retorno = resposta.id
-        current_app.logger.info(f"[Salvar Resposta {id}] Flush bem-sucedido. ID da Resposta (novo ou existente): {resposta_id_retorno}")
-        db.session.commit() # Tenta salvar permanentemente
-        current_app.logger.info(f"[Salvar Resposta {id}] Commit bem-sucedido!")
+        db.session.commit()
+        
+        current_app.logger.info(f"[Salvar Resposta {id}] Commit bem-sucedido! ID: {resposta_id_retorno}")
 
         return jsonify({
             'sucesso': True,
@@ -2982,14 +2993,13 @@ def salvar_resposta(id):
             'pontos': resposta.pontos or 0,
             'resposta_id': resposta_id_retorno
         })
+
     except Exception as e:
-        db.session.rollback() # Desfaz TUDO em caso de QUALQUER erro
-        # Log CRÍTICO do erro
-        current_app.logger.error(f"[Salvar Resposta {id}] ERRO AO SALVAR RESPOSTA:", exc_info=True) # exc_info=True mostra o traceback completo
+        db.session.rollback()
+        current_app.logger.error(f"[Salvar Resposta {id}] ERRO CRÍTICO: {str(e)}", exc_info=True)
         return jsonify({'erro': f'Falha interna ao salvar: {str(e)}'}), 500
     finally:
         current_app.logger.info(f"--- Rota /salvar-resposta finalizada para app ID: {id} ---")
-
 # ===================== NOTIFICAÇÕES =====================
 
 @cli_bp.route('/notificacoes')
@@ -4518,3 +4528,39 @@ def excluir_questionario(id):
 
     return redirect(url_for('cli.listar_questionarios'))
 
+
+# --- ROTAS DA IA ---
+
+@cli_bp.route('/api/ia/sugerir-plano', methods=['POST'])
+@login_required
+def sugerir_plano_acao():
+    """Gera sugestão usando Gemini Flash Latest"""
+    try:
+        data = request.get_json()
+        if not data.get('pergunta'): return jsonify({'erro': 'Dados insuficientes'}), 400
+
+        api_key = current_app.config.get('GEMINI_API_KEY')
+        if not api_key: return jsonify({'erro': 'Chave de IA não configurada'}), 500
+            
+        genai.configure(api_key=api_key)
+        
+        prompt = f"""
+        Atue como Consultor de Alimentos.
+        Problema: "{data.get('pergunta')}"
+        Obs: "{data.get('observacao')}"
+        Escreva um PLANO DE AÇÃO técnico e curto (imperativo).
+        """
+        
+        model = genai.GenerativeModel('gemini-2.0-flash')
+        response = model.generate_content(prompt)
+        
+        return jsonify({'sucesso': True, 'sugestao': response.text.strip()})
+    except Exception as e:
+        return jsonify({'sucesso': False, 'erro': str(e)}), 500
+
+@cli_bp.route('/aplicacao/<int:id>/gestao-ncs', methods=['GET'])
+@login_required
+def gerenciar_nao_conformidades(id):
+    aplicacao = AplicacaoQuestionario.query.get_or_404(id)
+    ncs = RespostaPergunta.query.filter_by(aplicacao_id=id, nao_conforme=True).options(joinedload(RespostaPergunta.pergunta)).all()
+    return render_template_safe('cli/definir_planos.html', aplicacao=aplicacao, ncs=ncs)

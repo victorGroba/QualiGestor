@@ -1,0 +1,234 @@
+{% extends "base_cliq.html" %}
+
+{% block content %}
+<div class="container py-4">
+    
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="mb-1 text-dark fw-bold">
+                <i class="fas fa-clipboard-check text-danger me-2"></i>Gestão de Não Conformidades
+            </h4>
+            <p class="text-muted mb-0">
+                Avaliado: <strong>{{ aplicacao.avaliado.nome }}</strong> 
+                <span class="badge bg-secondary ms-2">ID #{{ aplicacao.id }}</span>
+            </p>
+        </div>
+        <a href="{{ url_for('cli.visualizar_aplicacao', id=aplicacao.id) }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Voltar
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            {% if ncs %}
+                {% for item in ncs %}
+                <div class="card border-0 shadow-sm mb-4 nc-card">
+                    <div class="card-body border-start border-danger border-5 rounded-start">
+                        
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h5 class="card-title text-dark fw-bold mb-0">
+                                <span class="badge bg-danger me-2">NC</span>
+                                {{ item.pergunta.texto }}
+                            </h5>
+                            <span class="badge bg-light text-muted border">ID: {{ item.id }}</span>
+                        </div>
+
+                        <div class="bg-light p-3 rounded mb-3 border border-light">
+                            <small class="text-uppercase text-muted fw-bold" style="font-size: 0.7rem;">Observação do Auditor:</small>
+                            <div class="text-dark fst-italic mt-1">
+                                <i class="fas fa-quote-left text-muted me-2 small"></i>
+                                {{ item.observacao or 'Sem observação registrada.' }}
+                            </div>
+                        </div>
+
+                        <label class="form-label fw-bold text-success">
+                            <i class="fas fa-tools me-1"></i> Plano de Ação Corretiva
+                        </label>
+                        
+                        <div class="position-relative">
+                            <div class="input-group">
+                                <textarea class="form-control" 
+                                          id="plano-{{ item.id }}" 
+                                          rows="3" 
+                                          placeholder="Descreva a ação corretiva aqui ou use a IA..."
+                                          onblur="salvarManual({{ item.id }})">{{ item.plano_acao or '' }}</textarea>
+                                
+                                <button class="btn btn-warning d-flex align-items-center btn-ia" 
+                                        type="button"
+                                        data-id="{{ item.id }}"
+                                        data-pergunta="{{ item.pergunta.texto }}"
+                                        data-observacao="{{ item.observacao or '' }}"
+                                        onclick="gerarPlanoIA(this)">
+                                    <span class="normal-state">
+                                        <i class="fas fa-magic me-1"></i> Gerar com IA
+                                    </span>
+                                    <span class="loading-state d-none">
+                                        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                        Pensando...
+                                    </span>
+                                </button>
+                            </div>
+                            
+                            <div id="status-{{ item.id }}" class="position-absolute end-0 bottom-0 mb-n4 me-1 small fw-bold text-muted transition-all">
+                                </div>
+                        </div>
+
+                    </div>
+                </div>
+                {% endfor %}
+            
+            {% else %}
+                <div class="text-center py-5">
+                    <div class="mb-3">
+                        <i class="fas fa-check-circle text-success fa-4x"></i>
+                    </div>
+                    <h3>Tudo certo por aqui!</h3>
+                    <p class="text-muted">Nenhuma Não Conformidade foi encontrada nesta auditoria.</p>
+                    <a href="{{ url_for('cli.visualizar_aplicacao', id=aplicacao.id) }}" class="btn btn-primary mt-2">
+                        Voltar para Auditoria
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+  <div id="liveToast" class="toast align-items-center text-white bg-danger border-0" role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="d-flex">
+      <div class="toast-body" id="toastMessage">
+        Erro ao processar.
+      </div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+    </div>
+  </div>
+</div>
+
+<style>
+    /* Pequeno ajuste para o textarea focar bonito */
+    .form-control:focus {
+        border-color: #ffc107;
+        box-shadow: 0 0 0 0.25rem rgba(255, 193, 7, 0.25);
+    }
+    .nc-card {
+        transition: transform 0.2s;
+    }
+    .nc-card:hover {
+        transform: translateY(-2px);
+    }
+</style>
+
+<script>
+// Referência para o Toast do Bootstrap
+let toastEl = document.getElementById('liveToast');
+let toast = new bootstrap.Toast(toastEl);
+
+// Função da IA
+async function gerarPlanoIA(btn) {
+    // 1. Pega dados dos atributos data- (Mais seguro que passar strings na função)
+    const id = btn.getAttribute('data-id');
+    const pergunta = btn.getAttribute('data-pergunta');
+    const observacao = btn.getAttribute('data-observacao');
+    const textarea = document.getElementById(`plano-${id}`);
+
+    // 2. Trava UI (Loading)
+    const normalState = btn.querySelector('.normal-state');
+    const loadingState = btn.querySelector('.loading-state');
+    
+    btn.disabled = true;
+    normalState.classList.add('d-none');
+    loadingState.classList.remove('d-none');
+    textarea.classList.add('opacity-50'); // Efeito visual
+
+    try {
+        // 3. Chama o Backend
+        const res = await fetch("{{ url_for('cli.sugerir_plano_acao') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json', 
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({pergunta: pergunta, observacao: observacao})
+        });
+
+        const data = await res.json();
+
+        if(data.sucesso) {
+            // Efeito de digitação ou inserção direta
+            textarea.value = data.sugestao;
+            
+            // Salva automaticamente após gerar
+            await salvarNoBanco(id, data.sugestao);
+            
+            // Feedback Visual de Sucesso
+            mostrarStatus(id, 'success', '✨ Gerado e Salvo!');
+        } else {
+            throw new Error(data.erro || "Erro desconhecido na IA");
+        }
+
+    } catch (error) {
+        console.error(error);
+        mostrarErro(error.message);
+    } finally {
+        // 4. Destrava UI
+        btn.disabled = false;
+        normalState.classList.remove('d-none');
+        loadingState.classList.add('d-none');
+        textarea.classList.remove('opacity-50');
+    }
+}
+
+// Função de Salvamento Manual (onblur)
+async function salvarManual(id) {
+    const textarea = document.getElementById(`plano-${id}`);
+    const texto = textarea.value.trim();
+    
+    // Pequena otimização: não salva se não mudou nada (opcional, mas bom)
+    // Aqui vamos salvar direto para garantir.
+    
+    mostrarStatus(id, 'saving', 'Salvando...');
+    try {
+        await salvarNoBanco(id, texto);
+        mostrarStatus(id, 'success', '<i class="fas fa-check"></i> Salvo');
+    } catch (e) {
+        mostrarStatus(id, 'error', 'Erro ao salvar');
+        mostrarErro("Falha de conexão ao salvar.");
+    }
+}
+
+// Função Central de API
+async function salvarNoBanco(id, texto) {
+    const res = await fetch("{{ url_for('cli.salvar_resposta', id=aplicacao.id) }}", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json', 
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({resposta_id: id, plano_acao: texto})
+    });
+    
+    if(!res.ok) throw new Error("Erro de rede");
+    return await res.json();
+}
+
+// Helpers de Interface
+function mostrarStatus(id, tipo, html) {
+    const el = document.getElementById(`status-${id}`);
+    el.innerHTML = html;
+    
+    if(tipo === 'success') el.className = "position-absolute end-0 bottom-0 mb-n4 me-1 small fw-bold text-success";
+    if(tipo === 'error') el.className = "position-absolute end-0 bottom-0 mb-n4 me-1 small fw-bold text-danger";
+    if(tipo === 'saving') el.className = "position-absolute end-0 bottom-0 mb-n4 me-1 small fw-bold text-muted";
+    
+    // Limpa status após 3 segundos se for sucesso
+    if(tipo === 'success') {
+        setTimeout(() => { el.innerHTML = ''; }, 3000);
+    }
+}
+
+function mostrarErro(msg) {
+    document.getElementById('toastMessage').innerText = msg;
+    toast.show();
+}
+</script>
+{% endblock %}

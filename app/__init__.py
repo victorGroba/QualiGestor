@@ -60,6 +60,11 @@ def create_app() -> Flask:
     # Configurações básicas
     # -------------------------------------------------------------------------
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "chave-secreta-desenvolvimento")
+    
+    # --- CONFIGURAÇÃO DA IA (ESSENCIAL PARA O GEMINI FUNCIONAR) ---
+    app.config["GEMINI_API_KEY"] = os.getenv("GEMINI_API_KEY")
+    # --------------------------------------------------------------
+
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
     app.config["SESSION_COOKIE_SECURE"] = False  # em produção com HTTPS -> True

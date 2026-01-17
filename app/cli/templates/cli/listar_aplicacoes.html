@@ -4,7 +4,8 @@
 
 {% block content %}
 <div class="container-fluid p-4">
-    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <div
+        class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
         <h1 class="h2">
             <i class="fas fa-clipboard-check me-2"></i>
             Aplicações Realizadas
@@ -30,13 +31,14 @@
         <div class="card-header d-flex justify-content-between align-items-center">
             <h6>Todas as Aplicações</h6>
             <div class="col-md-4">
-                <input type="text" id="filtroTabela" class="form-control form-control-sm" placeholder="Filtrar aplicações...">
+                <input type="text" id="filtroTabela" class="form-control form-control-sm"
+                    placeholder="Filtrar aplicações...">
             </div>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-hover table-striped mb-0" id="tabela-aplicacoes">
-                    
+
                     <thead class="table-dark">
                         <tr>
                             <th scope="col">Avaliador</th>
@@ -47,71 +49,69 @@
                             <th scope="col" class="text-end">Ações</th>
                         </tr>
                     </thead>
-                    
+
                     <tbody>
                         {% for app in aplicacoes %}
                         <tr>
                             <td>
-                                <small>{{ app.aplicador.nome if app.aplicador else (app.usuario.nome if app.usuario else 'N/A') }}</small>
+                                <small>{{ app.aplicador.nome if app.aplicador else (app.usuario.nome if app.usuario else
+                                    'N/A') }}</small>
                             </td>
-                    
+
                             <td>
                                 {{ app.questionario.nome if app.questionario else 'N/A' }}
                                 <br>
                                 <small class="text-muted">ID: {{ app.id }}</small>
                             </td>
-                    
+
                             <td>
                                 {{ app.avaliado.nome if app.avaliado else 'N/A' }}
                             </td>
-                    
+
                             <td>
                                 {% if app.nota_final is not none %}
-                                    <span class="badge 
+                                <span class="badge 
                                         {% if app.nota_final >= 90 %} bg-success
                                         {% elif app.nota_final >= 70 %} bg-warning
                                         {% else %} bg-danger {% endif %}">
-                                        {{ '%.2f'|format(app.nota_final) }}%
-                                    </span>
+                                    {{ '%.2f'|format(app.nota_final) }}%
+                                </span>
                                 {% else %}
-                                    <span class="badge bg-secondary">N/A</span>
+                                <span class="badge bg-secondary">N/A</span>
                                 {% endif %}
                             </td>
-                            
+
                             <td>
                                 {% if app.status.name == 'FINALIZADA' or app.status.value == 'finalizada' %}
-                                    <span class="badge bg-success">Finalizada</span>
-                                    {% if app.data_fim %}
-                                    <br>
-                                    <small class="text-muted">{{ app.data_fim.strftime('%d/%m/%y') }}</small>
-                                    {% endif %}
+                                <span class="badge bg-success">Finalizada</span>
+                                {% if app.data_fim %}
+                                <br>
+                                <small class="text-muted">{{ app.data_fim.strftime('%d/%m/%y') }}</small>
+                                {% endif %}
                                 {% elif app.status.name == 'CANCELADA' or app.status.value == 'cancelada' %}
-                                    <span class="badge bg-danger">Cancelada</span>
+                                <span class="badge bg-danger">Cancelada</span>
                                 {% else %}
-                                    <span class="badge bg-warning text-dark">Em Andamento</span>
-                                    <br>
-                                    <small class="text-muted">{{ app.data_inicio.strftime('%d/%m/%y') }}</small>
+                                <span class="badge bg-warning text-dark">Em Andamento</span>
+                                <br>
+                                <small class="text-muted">{{ app.data_inicio.strftime('%d/%m/%y') }}</small>
                                 {% endif %}
                             </td>
-                    
+
                             <td class="text-end">
-                                <div class="btn-group" role="group" aria-label="Ações">
-                                    
-                                    <a href="{{ url_for('cli.visualizar_aplicacao', id=app.id) }}" class="btn btn-sm btn-outline-info" title="Visualizar">
+                                <div class="btn-group" role="group">
+
+                                    <a href="{{ url_for('cli.visualizar_aplicacao', id=app.id) }}"
+                                        class="btn btn-sm btn-info" title="Visualizar">
                                         <i class="fas fa-eye"></i>
                                     </a>
-                                    
-                                    {% if app.status.name == 'FINALIZADA' or app.status.value == 'finalizada' %}
-                                    <a href="{{ url_for('cli.gerar_relatorio_aplicacao', id=app.id) }}" class="btn btn-sm btn-outline-danger" title="PDF">
-                                        <i class="fas fa-file-pdf"></i>
+
+                                    <a href="{{ url_for('cli.gerenciar_nao_conformidades', id=app.id) }}"
+                                        class="btn btn-sm btn-warning" title="Gerar Planos de Ação (IA)">
+                                        <i class="fas fa-robot"></i>
                                     </a>
-                                    {% endif %}
-                                    
-                                    <a href="{{ url_for('cli.excluir_aplicacao', id=app.id) }}" 
-                                       class="btn btn-sm btn-outline-danger" 
-                                       title="Excluir"
-                                       onclick="return confirm('Tem certeza que deseja excluir esta aplicação? Todas as respostas serão perdidas.');">
-                                        <i class="fas fa-trash"></i>
+                                    <a href="{{ url_for('cli.exportar_relatorio', app_id=app.id) }}"
+                                        class="btn btn-sm btn-secondary" title="PDF">
+                                        <i class="fas fa-file-pdf"></i>
                                     </a>
 
                                 </div>
@@ -133,20 +133,20 @@
 </div>
 
 <script>
-document.getElementById('filtroTabela').addEventListener('keyup', function() {
-    let filter = this.value.toLowerCase();
-    let rows = document.querySelectorAll('#tabela-aplicacoes tbody tr');
-    
-    rows.forEach(row => {
-        // Ignora a linha 'Nenhuma aplicação encontrada'
-        if (row.querySelector('td[colspan="6"]')) {
-            return;
-        }
-        
-        let text = row.textContent.toLowerCase();
-        row.style.display = text.includes(filter) ? '' : 'none';
+    document.getElementById('filtroTabela').addEventListener('keyup', function () {
+        let filter = this.value.toLowerCase();
+        let rows = document.querySelectorAll('#tabela-aplicacoes tbody tr');
+
+        rows.forEach(row => {
+            // Ignora a linha 'Nenhuma aplicação encontrada'
+            if (row.querySelector('td[colspan="6"]')) {
+                return;
+            }
+
+            let text = row.textContent.toLowerCase();
+            row.style.display = text.includes(filter) ? '' : 'none';
+        });
     });
-});
 </script>
 
 {% endblock %}
