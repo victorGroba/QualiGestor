@@ -1,19 +1,17 @@
 {% extends "base_cliq.html" %}
 
 {% block content %}
-<div class="container py-4">
-    
-    <div class="d-flex justify-content-between align-items-center mb-4">
+<div class="container py-3 py-md-4"> <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-3 mb-md-4 gap-3">
         <div>
-            <h4 class="mb-1 text-dark fw-bold">
-                <i class="fas fa-clipboard-check text-danger me-2"></i>Gestão de Não Conformidades
+            <h4 class="mb-1 text-dark fw-bold fs-5 fs-md-4">
+                <i class="fas fa-clipboard-check text-danger me-2"></i>Gestão de NCs
             </h4>
-            <p class="text-muted mb-0">
+            <p class="text-muted mb-0 small">
                 Avaliado: <strong>{{ aplicacao.avaliado.nome }}</strong> 
                 <span class="badge bg-secondary ms-2">ID #{{ aplicacao.id }}</span>
             </p>
         </div>
-        <a href="{{ url_for('cli.visualizar_aplicacao', id=aplicacao.id) }}" class="btn btn-outline-secondary">
+        <a href="{{ url_for('cli.visualizar_aplicacao', id=aplicacao.id) }}" class="btn btn-outline-secondary w-100 w-md-auto">
             <i class="fas fa-arrow-left me-1"></i> Voltar
         </a>
     </div>
@@ -22,23 +20,24 @@
         <div class="col-12">
             {% if ncs %}
                 {% for item in ncs %}
-                <div class="card border-0 shadow-sm mb-5 nc-card"> <div class="card-body border-start border-danger border-5 rounded-start">
+                <div class="card border-0 shadow-sm mb-4 mb-md-5 nc-card"> 
+                    <div class="card-body border-start border-danger border-5 rounded-start p-3 p-md-4">
                         
-                        <div class="d-flex justify-content-between align-items-start mb-3">
-                            <div>
-                                <h5 class="card-title text-dark fw-bold mb-1">
-                                    <span class="badge bg-danger me-2">Não Conformidade</span>
+                        <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start mb-3 gap-2">
+                            <div class="w-100">
+                                <h5 class="card-title text-dark fw-bold mb-1 fs-6 fs-md-5">
+                                    <span class="badge bg-danger me-2">NC</span>
+                                    {{ item.pergunta.texto }}
                                 </h5>
-                                <p class="mb-0 text-dark fs-5">{{ item.pergunta.texto }}</p>
                             </div>
-                            <span class="badge bg-light text-muted border">ID: {{ item.id }}</span>
+                            <span class="badge bg-light text-muted border align-self-start align-self-sm-center">ID: {{ item.id }}</span>
                         </div>
 
-                        <div class="bg-light p-3 rounded mb-4 border border-light">
-                            <small class="text-uppercase text-muted fw-bold" style="font-size: 0.75rem;">
+                        <div class="bg-light p-3 rounded mb-3 border border-light">
+                            <small class="text-uppercase text-muted fw-bold" style="font-size: 0.7rem;">
                                 <i class="fas fa-eye me-1"></i> Observação do Auditor:
                             </small>
-                            <div class="text-dark fst-italic mt-2">
+                            <div class="text-dark fst-italic mt-1 small">
                                 {{ item.observacao or 'Sem observação registrada.' }}
                             </div>
                         </div>
@@ -50,26 +49,26 @@
                         <div class="position-relative">
                             <textarea class="form-control form-control-lg shadow-sm" 
                                       id="plano-{{ item.id }}" 
-                                      rows="6" 
-                                      style="min-height: 150px; line-height: 1.5;"
+                                      rows="5" 
                                       placeholder="Descreva a ação corretiva aqui ou use a IA..."
                                       onblur="salvarManual({{ item.id }})">{{ item.plano_acao or '' }}</textarea>
                             
-                            <div class="d-flex justify-content-between align-items-center mt-2">
-                                <div id="status-{{ item.id }}" class="small fw-bold text-muted transition-all"></div>
+                            <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mt-3 gap-2">
                                 
-                                <button class="btn btn-warning d-flex align-items-center btn-ia shadow-sm" 
+                                <div id="status-{{ item.id }}" class="small fw-bold text-muted order-2 order-md-1"></div>
+                                
+                                <button class="btn btn-warning d-flex align-items-center justify-content-center btn-ia shadow-sm w-100 w-md-auto order-1 order-md-2 py-2" 
                                         type="button"
                                         data-id="{{ item.id }}"
                                         data-pergunta="{{ item.pergunta.texto }}"
                                         data-observacao="{{ item.observacao or '' }}"
                                         onclick="gerarPlanoIA(this)">
                                     <span class="normal-state">
-                                        <i class="fas fa-magic me-2"></i> Gerar com IA
+                                        <i class="fas fa-magic me-2"></i> Gerar Sugestão com IA
                                     </span>
                                     <span class="loading-state d-none">
                                         <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                                        Gerando sugestão...
+                                        Criando...
                                     </span>
                                 </button>
                             </div>
@@ -85,8 +84,8 @@
                         <i class="fas fa-check-circle text-success fa-4x"></i>
                     </div>
                     <h3>Tudo certo por aqui!</h3>
-                    <p class="text-muted">Nenhuma Não Conformidade foi encontrada nesta auditoria.</p>
-                    <a href="{{ url_for('cli.visualizar_aplicacao', id=aplicacao.id) }}" class="btn btn-primary mt-2">
+                    <p class="text-muted">Nenhuma Não Conformidade encontrada.</p>
+                    <a href="{{ url_for('cli.visualizar_aplicacao', id=aplicacao.id) }}" class="btn btn-primary mt-2 w-100 w-md-auto">
                         Voltar para Auditoria
                     </a>
                 </div>
@@ -107,22 +106,35 @@
 </div>
 
 <style>
+    /* Ajustes Gerais */
     .form-control:focus {
         border-color: #ffc107;
         box-shadow: 0 0 0 0.25rem rgba(255, 193, 7, 0.25);
     }
+    
+    /* Card Mobile Friendly */
     .nc-card {
         transition: transform 0.2s, box-shadow 0.2s;
         border: 1px solid rgba(0,0,0,0.05) !important;
     }
-    .nc-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 .5rem 1rem rgba(0,0,0,.15)!important;
-    }
-    /* Estilo para deixar o textarea mais legível */
+    
+    /* Textarea mais legível */
     textarea.form-control-lg {
-        font-size: 1rem;
-        background-color: #fffcf5; /* Um leve tom amarelado para indicar área de escrita */
+        font-size: 0.95rem; /* Fonte um pouco menor para caber mais texto no celular */
+        line-height: 1.5;
+        background-color: #fffcf5;
+        min-height: 120px; /* Altura mínima segura para mobile */
+    }
+
+    /* Media Query para Mobile (Telas pequenas) */
+    @media (max-width: 768px) {
+        .btn-ia {
+            font-size: 1rem;
+            font-weight: bold;
+        }
+        .nc-card:hover {
+            transform: none; /* Remove efeito de hover no touch */
+        }
     }
 </style>
 
@@ -157,20 +169,22 @@ async function gerarPlanoIA(btn) {
         const data = await res.json();
 
         if(data.sucesso) {
-            // === LIMPEZA DE TEXTO ===
-            // Remove ** (negrito), # (headers) e * (marcadores de lista)
+            // === LIMPEZA AVANÇADA (Mantida da versão anterior) ===
             let textoLimpo = data.sugestao
-                .replace(/\*\*/g, '')    // Remove negritos
-                .replace(/\*/g, '-')     // Troca bullets de asterisco por traço
-                .replace(/^#+\s/gm, '')  // Remove headers do markdown (# Titulo)
+                .replace(/\*\*/g, "")      // Remove negrito
+                .replace(/#/g, "")         // Remove headers
+                .replace(/^\d+\.\s*/gm, "") // Remove "1. ", "2. "
+                .replace(/^\-\s*/gm, "")    // Remove "- "
+                .replace(/\n/g, " ")       // Remove quebras de linha
+                .replace(/\s+/g, " ")      // Remove espaços duplos
                 .trim();
 
             textarea.value = textoLimpo;
             
             await salvarNoBanco(id, textoLimpo);
-            mostrarStatus(id, 'success', '<i class="fas fa-check-double"></i> Gerado e Salvo!');
+            mostrarStatus(id, 'success', '<i class="fas fa-check-double"></i> Gerado!');
         } else {
-            throw new Error(data.erro || "Erro desconhecido na IA");
+            throw new Error(data.erro || "Erro na IA");
         }
 
     } catch (error) {
@@ -181,8 +195,11 @@ async function gerarPlanoIA(btn) {
         normalState.classList.remove('d-none');
         loadingState.classList.add('d-none');
         textarea.classList.remove('opacity-50');
-        // Auto-focus no textarea após gerar
-        textarea.focus();
+        
+        // No mobile, scroll suave até o textarea para o usuário ver o texto gerado
+        if(window.innerWidth < 768) {
+             textarea.scrollIntoView({behavior: "smooth", block: "center"});
+        }
     }
 }
 
@@ -195,8 +212,8 @@ async function salvarManual(id) {
         await salvarNoBanco(id, texto);
         mostrarStatus(id, 'success', '<i class="fas fa-check"></i> Salvo');
     } catch (e) {
-        mostrarStatus(id, 'error', 'Erro ao salvar');
-        mostrarErro("Falha de conexão ao salvar.");
+        mostrarStatus(id, 'error', 'Erro');
+        mostrarErro("Erro de conexão.");
     }
 }
 
@@ -218,15 +235,14 @@ function mostrarStatus(id, tipo, html) {
     const el = document.getElementById(`status-${id}`);
     el.innerHTML = html;
     
-    // Reset classes
-    el.className = "small fw-bold transition-all";
+    el.className = "small fw-bold transition-all mt-1"; // Margem top pequena
     
     if(tipo === 'success') el.classList.add("text-success");
     if(tipo === 'error') el.classList.add("text-danger");
     if(tipo === 'saving') el.classList.add("text-muted");
     
     if(tipo === 'success') {
-        setTimeout(() => { el.innerHTML = ''; }, 4000);
+        setTimeout(() => { el.innerHTML = ''; }, 3000);
     }
 }
 

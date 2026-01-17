@@ -4545,11 +4545,15 @@ def sugerir_plano_acao():
         genai.configure(api_key=api_key)
         
         prompt = f"""
-        Atue como Consultor de Alimentos.
+        Tarefa: Crie um plano de ação corretivo para esta Não Conformidade em alimentos.
         Problema: "{data.get('pergunta')}"
         Obs: "{data.get('observacao')}"
-        Escreva um PLANO DE AÇÃO técnico e curto (imperativo).
-        IMPORTANTE: Responda APENAS com texto puro. NÃO utilize formatação Markdown (como **negrito** ou # titulos).
+
+        REGRAS RÍGIDAS DE FORMATAÇÃO:
+        1. Responda APENAS com 1 (um) parágrafo curto.
+        2. É ESTRITAMENTE PROIBIDO usar listas, tópicos, numeração (1., 2.) ou quebras de linha.
+        3. Vá direto à solução. Não use introduções como "O plano de ação é...".
+        4. Use linguagem imperativa (Ex: "Faça isso", "Corrija aquilo").
         """
         
         model = genai.GenerativeModel('gemini-2.0-flash')
