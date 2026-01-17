@@ -8,24 +8,24 @@
     </div>
 </div>
 
-<div class="container-fluid">
+<div class="container-fluid py-3">
     <div class="row">
-        <div class="col-lg-3">
+        <div class="col-lg-3 mb-4">
             <div class="card sticky-top shadow-sm" style="top: 20px; z-index: 100;">
                 <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0"><i class="fas fa-clipboard-check me-2"></i>Aplicação</h5>
+                    <h5 class="mb-0 fs-6"><i class="fas fa-clipboard-check me-2"></i>Status da Aplicação</h5>
                 </div>
                 <div class="card-body">
                     <h6 class="card-title fw-bold text-primary">{{ aplicacao.questionario.nome }}</h6>
-                    <ul class="list-unstyled small mb-3">
-                        <li class="mb-1"><i class="fas fa-user-tag me-2 text-muted"></i><strong>Avaliado:</strong> {{ aplicacao.avaliado.nome }}</li>
-                        <li class="mb-1"><i class="fas fa-user-edit me-2 text-muted"></i><strong>Avaliador:</strong> {{ aplicacao.aplicador.nome }}</li>
-                        <li><i class="far fa-clock me-2 text-muted"></i><strong>Início:</strong> {{ aplicacao.data_inicio.strftime('%d/%m/%Y %H:%M') }}</li>
+                    <ul class="list-unstyled small mb-3 text-muted">
+                        <li class="mb-1"><i class="fas fa-store me-2"></i>{{ aplicacao.avaliado.nome }}</li>
+                        <li class="mb-1"><i class="fas fa-user me-2"></i>{{ aplicacao.aplicador.nome }}</li>
+                        <li><i class="far fa-clock me-2"></i>{{ aplicacao.data_inicio.strftime('%d/%m/%Y %H:%M') }}</li>
                     </ul>
                     <hr>
-                    <div id="status-conexao" class="d-flex align-items-center text-success small">
-                        <i class="fas fa-check-circle me-2"></i>
-                        <span id="status-texto">Online - Salvamento automático ativo</span>
+                    <div id="status-conexao" class="d-flex align-items-center text-success small fw-bold">
+                        <i class="fas fa-wifi me-2"></i>
+                        <span id="status-texto">Online</span>
                     </div>
                 </div>
             </div>
@@ -37,7 +37,7 @@
 
                 {% for topico in topicos %}
                 <div class="card mb-4 shadow-sm border-0">
-                    <div class="card-header bg-light border-bottom">
+                    <div class="card-header bg-light border-bottom py-3">
                         <h5 class="mb-0 text-dark fw-bold">{{ topico.nome }}</h5>
                         {% if topico.descricao %}
                         <p class="text-muted mb-0 small mt-1">{{ topico.descricao }}</p>
@@ -47,11 +47,12 @@
                         {% if perguntas_por_topico[topico.id] %}
                         
                             {% for pergunta in perguntas_por_topico[topico.id] %}
-                            <div class="mb-3 p-3 border rounded pergunta-container bg-white" 
+                            <div class="mb-3 p-3 border rounded pergunta-container bg-white transition-all" 
+                                 id="container-pergunta-{{ pergunta.id }}"
                                  data-pergunta-id="{{ pergunta.id }}"
                                  {% if pergunta.obrigatoria %}data-obrigatoria="true"{% endif %}>
                                 
-                                <label class="form-label fw-bold d-block mb-2">
+                                <label class="form-label fw-bold d-block mb-2 text-dark">
                                     <span class="badge bg-secondary me-1">{{ topico.ordem }}.{{ pergunta.ordem }}</span>
                                     {{ pergunta.texto }}
                                     {% if pergunta.obrigatoria %}
@@ -67,9 +68,9 @@
                                     <div class="d-flex flex-wrap gap-3"> 
                                         {% for opcao in pergunta.opcoes|sort(attribute='ordem') %}
                                         <div class="form-check form-check-inline custom-radio-lg">
-                                            <input class="form-check-input" type="radio" name="resposta-{{ pergunta.id }}"
+                                            <input class="form-check-input input-conforme" type="radio" name="resposta-{{ pergunta.id }}"
                                                 id="opcao-{{ pergunta.id }}-{{ opcao.id }}" value="{{ opcao.texto }}"
-                                                data-pergunta-id="{{ pergunta.id }}" onchange="salvarResposta(this)" 
+                                                data-pergunta-id="{{ pergunta.id }}" onchange="verificarConformidade(this)" 
                                                 {% if resposta_salva and resposta_salva.resposta==opcao.texto %}checked{% endif %}>
                                             <label class="form-check-label" for="opcao-{{ pergunta.id }}-{{ opcao.id }}">
                                                 {{ opcao.texto }}
@@ -79,8 +80,8 @@
                                     </div>
 
                                     {% elif pergunta.tipo.name == 'MULTIPLA_ESCOLHA' %}
-                                    <select class="form-select" name="resposta-{{ pergunta.id }}"
-                                        data-pergunta-id="{{ pergunta.id }}" onchange="salvarResposta(this)">
+                                    <select class="form-select input-conforme" name="resposta-{{ pergunta.id }}"
+                                        data-pergunta-id="{{ pergunta.id }}" onchange="verificarConformidade(this)">
                                         <option value="">Selecione...</option>
                                         {% for opcao in pergunta.opcoes|sort(attribute='ordem') %}
                                         <option value="{{ opcao.texto }}" {% if resposta_salva and resposta_salva.resposta==opcao.texto %}selected{% endif %}>
@@ -89,7 +90,7 @@
                                         {% endfor %}
                                     </select>
 
-                                    {% elif pergunta.tipo.name == 'NOTA' or pergunta.tipo.name == 'ESCALA_NUMERICA' or pergunta.tipo.name == 'NUMERO' %}
+                                    {% elif pergunta.tipo.name in ['NOTA', 'ESCALA_NUMERICA', 'NUMERO'] %}
                                     <input type="number" class="form-control" name="resposta-{{ pergunta.id }}"
                                         data-pergunta-id="{{ pergunta.id }}"
                                         value="{{ resposta_salva.resposta if resposta_salva else '' }}"
@@ -133,7 +134,7 @@
                                     {% endif %}
 
                                     {% else %}
-                                    <div class="alert alert-warning p-2 small">Tipo {{ pergunta.tipo.name }} não suportado neste formulário.</div>
+                                    <div class="alert alert-warning p-2 small">Tipo {{ pergunta.tipo.name }} não suportado.</div>
                                     {% endif %}
                                 </div>
 
@@ -141,57 +142,67 @@
 
                                 {% if pergunta.permite_observacao %}
                                 <div class="mt-2">
-                                    <a class="text-decoration-none small text-muted" data-bs-toggle="collapse" href="#collapseObs{{ pergunta.id }}" role="button">
+                                    <a class="text-decoration-none small text-muted link-obs-toggle" 
+                                       data-bs-toggle="collapse" 
+                                       href="#collapseObs{{ pergunta.id }}" 
+                                       id="btn-obs-{{ pergunta.id }}"
+                                       role="button">
                                         <i class="far fa-comment-alt"></i> Adicionar Observação
                                     </a>
-                                    <div class="collapse {% if resposta_salva and resposta_salva.observacao %}show{% endif %}" id="collapseObs{{ pergunta.id }}">
+                                    <div class="collapse {% if (resposta_salva and resposta_salva.observacao) %}show{% endif %}" id="collapseObs{{ pergunta.id }}">
                                         <textarea class="form-control form-control-sm mt-1" id="obs-{{ pergunta.id }}"
                                             name="observacao-{{ pergunta.id }}" data-pergunta-id="{{ pergunta.id }}"
-                                            onblur="salvarResposta(this, true)" rows="2" placeholder="Detalhes adicionais...">{{ resposta_salva.observacao if resposta_salva else '' }}</textarea>
+                                            onblur="salvarResposta(this, true)" rows="2" 
+                                            placeholder="Descreva o que houve (obrigatório se Não Conforme)...">{{ resposta_salva.observacao if resposta_salva else '' }}</textarea>
                                     </div>
                                 </div>
                                 {% endif %}
 
                                 {% if pergunta.criterio_foto != 'nenhuma' %}
-                                <div class="mt-3 p-3 border border-secondary rounded bg-light foto-container">
+                                <div class="mt-3 p-3 border border-secondary rounded bg-light foto-container" id="foto-container-{{ pergunta.id }}">
                                     <label class="form-label fw-bold text-dark mb-2 d-flex justify-content-between align-items-center">
-                                        <span>
-                                            <i class="fas fa-camera text-primary me-1"></i> Evidência Fotográfica
+                                        <span><i class="fas fa-camera text-primary me-1"></i> Evidências</span>
+                                        <span class="badge {% if pergunta.criterio_foto == 'obrigatoria' %}bg-secondary{% else %}bg-secondary{% endif %} badge-status-foto">
+                                            {% if pergunta.criterio_foto == 'obrigatoria' %}Obrigatória{% else %}Opcional{% endif %}
                                         </span>
-                                        {% if pergunta.criterio_foto == 'obrigatoria' %}
-                                            <span class="badge bg-danger">Obrigatória</span>
-                                        {% else %}
-                                            <span class="badge bg-secondary">Opcional</span>
-                                        {% endif %}
                                     </label>
 
-                                    <div class="input-group">
+                                    <div class="mb-2">
+                                        <label for="input-foto-{{ pergunta.id }}" class="btn btn-outline-primary btn-sm w-100 cursor-pointer">
+                                            <i class="fas fa-plus-circle me-1"></i> Adicionar Foto
+                                        </label>
                                         <input type="file" 
-                                               class="form-control" 
-                                               id="foto-{{ pergunta.id }}" 
-                                               name="foto-{{ pergunta.id }}" 
+                                               class="d-none" 
+                                               id="input-foto-{{ pergunta.id }}" 
                                                accept="image/*" 
                                                capture="environment"
                                                data-pergunta-id="{{ pergunta.id }}"
-                                               data-resposta-id="{{ resposta_salva.id if resposta_salva else '' }}"
                                                {% if pergunta.criterio_foto == 'obrigatoria' %}data-obrigatoria="true"{% endif %}
                                                onchange="handleFotoUpload(this)">
                                     </div>
 
-                                    <div id="feedback-foto-{{ pergunta.id }}" class="form-text small mt-1"></div>
-
-                                    <div id="container-preview-foto-{{ pergunta.id }}" class="mt-2">
-                                        {% if resposta_salva and resposta_salva.caminho_foto %}
-                                            <div class="position-relative d-inline-block img-salva-container">
-                                                <img src="{{ url_for('cli.get_foto_resposta', filename=resposta_salva.caminho_foto) }}" 
+                                    <div id="galeria-fotos-{{ pergunta.id }}" class="d-flex flex-wrap gap-2 mt-2">
+                                        
+                                        {% if resposta_salva and resposta_salva.fotos %}
+                                            {% for foto in resposta_salva.fotos %}
+                                            <div class="position-relative d-inline-block foto-item" id="foto-server-{{ foto.id }}">
+                                                <img src="{{ url_for('cli.get_foto_resposta', filename=foto.caminho) }}" 
                                                      class="img-thumbnail rounded" 
-                                                     style="height: 120px; width: auto; object-fit: cover;">
-                                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success">
-                                                    <i class="fas fa-check"></i>
-                                                </span>
+                                                     style="height: 100px; width: 100px; object-fit: cover;"
+                                                     onclick="window.open(this.src, '_blank')">
+                                                
+                                                <button type="button" 
+                                                        class="btn btn-danger btn-sm position-absolute top-0 end-0 translate-middle rounded-circle p-0 d-flex align-items-center justify-content-center shadow-sm"
+                                                        style="width: 24px; height: 24px;"
+                                                        onclick="deletarFotoServidor({{ foto.id }})">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
                                             </div>
+                                            {% endfor %}
                                         {% endif %}
+                                        
                                     </div>
+                                    <div id="feedback-foto-{{ pergunta.id }}" class="form-text small mt-1"></div>
                                 </div>
                                 {% endif %}
                                 
@@ -214,23 +225,23 @@
                     </div>
                     <div class="card-body">
                         <div class="mb-3">
-                            <label class="form-label fw-bold">Observações Gerais da Aplicação</label>
+                            <label class="form-label fw-bold">Observações Gerais</label>
                             <textarea class="form-control" name="observacoes_finais" rows="4"
                                 placeholder="Resumo geral, intercorrências ou comentários finais...">{{ aplicacao.observacoes_finais or '' }}</textarea>
                         </div>
 
-                        <div class="alert alert-danger d-none" role="alert" id="alerta-validacao">
+                        <div class="alert alert-danger d-none shadow-sm" role="alert" id="alerta-validacao">
                             <h6 class="alert-heading fw-bold"><i class="fas fa-exclamation-triangle me-2"></i>Impedimento de Envio</h6>
-                            <p class="mb-2" id="alerta-validacao-mensagem">Existem pendências obrigatórias:</p>
-                            <ul id="alerta-validacao-lista" class="mb-0 small"></ul>
+                            <p class="mb-2">Por favor, corrija os itens abaixo:</p>
+                            <ul id="alerta-validacao-lista" class="mb-0 small ps-3"></ul>
                         </div>
 
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                             <a href="{{ url_for('cli.listar_aplicacoes') }}" class="btn btn-outline-secondary me-md-2">
-                                Cancelar e Sair
+                                Cancelar
                             </a>
                             <button type="submit" class="btn btn-success btn-lg px-5">
-                                <i class="fas fa-check-circle me-2"></i> Finalizar Aplicação
+                                <i class="fas fa-check-circle me-2"></i> Finalizar Auditoria
                             </button>
                         </div>
                     </div>
@@ -246,97 +257,119 @@
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
 
 <script>
-    // 1. Configuração do Banco de Dados Offline
+    // 1. Banco de Dados Offline
     const dbLocal = new Dexie("QualiGestorOffline");
     dbLocal.version(1).stores({
-        fotos: '++id, pergunta_id, resposta_id, blob, nome, timestamp'
+        fotos: 'id, pergunta_id, resposta_id, blob, nome, timestamp' // id sem ++ para controle manual se necessario
     });
 
-    // 2. Monitoramento de Conexão
-    window.addEventListener('online', () => {
-        console.log("Internet voltou! Iniciando sincronização...");
-        atualizarUIConexao(true);
-        sincronizarPendencias();
-    });
-    window.addEventListener('offline', () => {
-        console.log("Sem internet. Modo offline ativado.");
-        atualizarUIConexao(false);
-    });
+    // 2. Conectividade
+    window.addEventListener('online', () => { atualizarUIConexao(true); sincronizarPendencias(); });
+    window.addEventListener('offline', () => { atualizarUIConexao(false); });
 
-    // Ao carregar a página
     document.addEventListener('DOMContentLoaded', () => {
         atualizarUIConexao(navigator.onLine);
-        
-        // Verifica se há fotos pendentes visuais (restaura badges se recarregar a página)
         restaurarBadgesPendentes();
-
-        // Tenta sincronizar se tiver internet
-        if(navigator.onLine) {
-            setTimeout(sincronizarPendencias, 1500); 
-        }
-        setupAssinaturasERadios(); 
+        if(navigator.onLine) setTimeout(sincronizarPendencias, 1500);
+        
+        setupAssinaturas(); 
+        
+        // Verifica conformidade inicial de todos os radios/selects marcados
+        document.querySelectorAll('.input-conforme').forEach(el => {
+            if(el.type === 'radio' && el.checked) verificarConformidade(el);
+            if(el.tagName === 'SELECT' && el.value) verificarConformidade(el);
+        });
     });
 
-    async function restaurarBadgesPendentes() {
-        const pendentes = await dbLocal.fotos.toArray();
-        pendentes.forEach(foto => {
-            const container = document.getElementById(`container-preview-foto-${foto.pergunta_id}`);
-            if (container && !container.innerHTML.trim()) {
-                // Se tem foto no banco local mas não na tela, mostra preview provisório
-                const blobUrl = URL.createObjectURL(foto.blob);
-                container.innerHTML = `
-                    <div class="position-relative d-inline-block img-salva-container">
-                        <img src="${blobUrl}" class="img-thumbnail rounded" style="height: 120px; opacity: 0.7;">
-                        <span id="badge-${foto.pergunta_id}" class="position-absolute top-50 start-50 translate-middle badge rounded-pill bg-warning">
-                            <i class="fas fa-clock"></i> Pendente
-                        </span>
-                    </div>`;
-            }
-        });
-    }
+    // ========================================================================
+    // LÓGICA DE CONFORMIDADE (Mantida)
+    // ========================================================================
+    function verificarConformidade(inputElement) {
+        salvarResposta(inputElement);
 
-    function atualizarUIConexao(online) {
-        const statusEl = document.getElementById('status-conexao');
-        const statusTxt = document.getElementById('status-texto');
-        if (statusEl && statusTxt) {
-            if (online) {
-                statusEl.className = 'd-flex align-items-center text-success small';
-                statusTxt.innerText = 'Online - Salvamento automático ativo';
-            } else {
-                statusEl.className = 'd-flex align-items-center text-warning small';
-                statusTxt.innerText = 'Offline - Salvando no dispositivo';
+        const pid = inputElement.getAttribute('data-pergunta-id');
+        const valor = inputElement.value.toLowerCase().trim();
+        const container = document.getElementById(`container-pergunta-${pid}`);
+        
+        const isNC = ['não', 'nao', '0', 'ruim', 'irregular', 'não conforme'].includes(valor);
+
+        const fotoInput = document.getElementById(`input-foto-${pid}`); // ID atualizado
+        const obsInput = document.getElementById(`obs-${pid}`);
+        const obsCollapse = document.getElementById(`collapseObs${pid}`);
+        const obsLink = document.getElementById(`btn-obs-${pid}`);
+        const fotoBadge = container.querySelector('.badge-status-foto');
+
+        if (isNC) {
+            container.classList.add('border-danger', 'border-2');
+            
+            // Foto Obrigatória
+            if (fotoInput) {
+                fotoInput.setAttribute('data-obrigatoria', 'true');
+                if (fotoBadge) {
+                    fotoBadge.className = 'badge bg-danger badge-status-foto';
+                    fotoBadge.innerText = 'Obrigatória (NC)';
+                }
+            }
+
+            // Obs Obrigatória e Visível
+            if (obsInput) {
+                obsInput.setAttribute('data-obrigatoria', 'true');
+                obsInput.placeholder = "Descreva o problema (Obrigatório para NC)...";
+                if (obsCollapse && !obsCollapse.classList.contains('show')) {
+                    new bootstrap.Collapse(obsCollapse, { toggle: true, show: true });
+                }
+                if (obsLink) obsLink.classList.add('text-danger', 'fw-bold');
+            }
+
+        } else {
+            container.classList.remove('border-danger', 'border-2');
+
+            if (fotoInput) {
+                // Assume opcional se for Conforme
+                fotoInput.setAttribute('data-obrigatoria', 'false'); 
+                if (fotoBadge) {
+                    fotoBadge.className = 'badge bg-secondary badge-status-foto';
+                    fotoBadge.innerText = 'Opcional';
+                }
+            }
+
+            if (obsInput) {
+                obsInput.setAttribute('data-obrigatoria', 'false');
+                obsInput.placeholder = "Detalhes adicionais...";
+                if (obsLink) obsLink.classList.remove('text-danger', 'fw-bold');
             }
         }
     }
 
     // ========================================================================
-    // 3. SALVAR RESPOSTA (TEXTO)
+    // SALVAR TEXTO
     // ========================================================================
     async function salvarResposta(inputElement, isObservacao = false) {
         const perguntaId = parseInt(inputElement.dataset.perguntaId); 
         const feedbackEl = document.getElementById(`feedback-${perguntaId}`);
-        const fotoInput = document.getElementById(`foto-${perguntaId}`);
+        const fotoInput = document.getElementById(`input-foto-${perguntaId}`);
 
         let respostaValue = '';
         let observacaoValue = '';
 
         if (isObservacao) {
             observacaoValue = inputElement.value;
-            const respEl = document.querySelector(`[name="resposta-${perguntaId}"]:checked`) || 
-                           document.querySelector(`[name="resposta-${perguntaId}"]`);
-            if(respEl) respostaValue = respEl.value;
+            const radio = document.querySelector(`input[name="resposta-${perguntaId}"]:checked`);
+            const select = document.querySelector(`select[name="resposta-${perguntaId}"]`);
+            const text = document.querySelector(`input[type=text][name="resposta-${perguntaId}"]`) || document.querySelector(`textarea[name="resposta-${perguntaId}"]`);
+            
+            if(radio) respostaValue = radio.value;
+            else if(select) respostaValue = select.value;
+            else if(text) respostaValue = text.value;
         } else {
             respostaValue = inputElement.value;
             const obsEl = document.getElementById(`obs-${perguntaId}`);
             if(obsEl) observacaoValue = obsEl.value;
         }
 
-        if (feedbackEl) {
-            feedbackEl.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Salvando...';
-            feedbackEl.className = 'form-text small text-muted';
-        }
+        if (feedbackEl) feedbackEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
 
-        const dadosParaSincronizar = {
+        const dados = {
             pergunta_id: perguntaId,
             resposta: respostaValue,
             observacao: observacaoValue,
@@ -344,298 +377,305 @@
         };
 
         try {
-            const response = await fetch("{{ url_for('cli.salvar_resposta', id=aplicacao.id) }}", {
+            const res = await fetch("{{ url_for('cli.salvar_resposta', id=aplicacao.id) }}", {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
-                body: JSON.stringify(dadosParaSincronizar)
+                body: JSON.stringify(dados)
             });
+            const data = await res.json();
 
-            const data = await response.json();
-
-            if (response.ok && data.sucesso) {
+            if (data.sucesso) {
                 if (feedbackEl) {
-                    feedbackEl.innerHTML = '<i class="fas fa-check me-1"></i>Salvo';
-                    feedbackEl.className = 'form-text small text-success';
-                    setTimeout(() => { if(feedbackEl.innerText.includes('Salvo')) feedbackEl.innerHTML = ''; }, 2000);
+                    feedbackEl.innerHTML = '<span class="text-success"><i class="fas fa-check"></i> Salvo</span>';
+                    setTimeout(() => feedbackEl.innerHTML = '', 2000);
                 }
-                
-                // Atualiza ID da resposta para uso futuro (fotos)
                 if (data.resposta_id) {
                     if (fotoInput) fotoInput.dataset.respostaId = data.resposta_id;
-                    
-                    // IMPORTANTE: Atualiza fotos locais que estavam órfãs (sem resposta_id)
-                    await dbLocal.fotos
-                        .filter(f => f.pergunta_id == perguntaId) 
-                        .modify({ resposta_id: data.resposta_id });
+                    await dbLocal.fotos.filter(f => f.pergunta_id == perguntaId).modify({ resposta_id: data.resposta_id });
                 }
-            } else { throw new Error("Erro na resposta do servidor"); }
-
+            } else { throw new Error(); }
         } catch (error) {
-            console.warn("Falha ao salvar online, guardando offline:", error);
-            // Salva no LocalStorage
             let fila = JSON.parse(localStorage.getItem('fila_respostas_offline') || '[]');
-            fila = fila.filter(item => item.pergunta_id !== perguntaId);
-            fila.push(dadosParaSincronizar);
+            fila = fila.filter(i => i.pergunta_id !== perguntaId);
+            fila.push(dados);
             localStorage.setItem('fila_respostas_offline', JSON.stringify(fila));
-            
-            if (feedbackEl) {
-                feedbackEl.innerHTML = '<i class="fas fa-hdd me-1"></i>Salvo no dispositivo (sem sinal)';
-                feedbackEl.className = 'form-text small text-warning';
+            if (feedbackEl) feedbackEl.innerHTML = '<span class="text-warning"><i class="fas fa-sd-card"></i> Salvo no dispositivo</span>';
+        }
+    }
+
+    // ========================================================================
+    // UPLOAD MÚLTIPLO DE FOTOS
+    // ========================================================================
+    async function handleFotoUpload(fileInput) {
+        const perguntaId = parseInt(fileInput.dataset.perguntaId);
+        let respostaId = fileInput.dataset.respostaId || document.querySelector(`[name="resposta-${perguntaId}"]`)?.dataset.respostaId;
+        
+        // Se não tiver ID da resposta, tenta salvar o texto vazio para gerar
+        if(!respostaId) {
+           await salvarResposta(document.querySelector(`[name="resposta-${perguntaId}"]`) || {value:'', dataset:{perguntaId:perguntaId}});
+           respostaId = document.querySelector(`[name="resposta-${perguntaId}"]`)?.dataset.respostaId || fileInput.dataset.respostaId;
+        }
+
+        const file = fileInput.files[0];
+        if (!file) return;
+
+        const tempId = Date.now();
+        const galeria = document.getElementById(`galeria-fotos-${perguntaId}`);
+        
+        // Preview Imediato
+        const div = document.createElement('div');
+        div.id = `foto-local-${tempId}`;
+        div.className = 'position-relative d-inline-block foto-item me-2 mb-2 fade-in';
+        div.innerHTML = `
+            <img src="${URL.createObjectURL(file)}" class="img-thumbnail rounded" style="height: 100px; width: 100px; object-fit: cover; opacity: 0.7">
+            <button onclick="deletarFotoLocal(${tempId})" type="button" class="btn btn-secondary btn-sm position-absolute top-0 end-0 translate-middle rounded-circle p-0 d-flex align-items-center justify-content-center" style="width:24px;height:24px;">
+                <i class="fas fa-times" style="font-size:10px"></i>
+            </button>
+            <span id="badge-${tempId}" class="position-absolute bottom-0 end-0 badge bg-warning p-1 border border-white">
+                <i class="fas fa-sync fa-spin"></i>
+            </span>
+        `;
+        galeria.appendChild(div);
+
+        fileInput.value = ''; // Limpa input
+
+        // Salva Localmente
+        await dbLocal.fotos.add({
+            id: tempId,
+            pergunta_id: perguntaId,
+            resposta_id: respostaId || null,
+            blob: file,
+            nome: file.name,
+            timestamp: Date.now()
+        });
+
+        // Tenta Enviar
+        if (navigator.onLine && respostaId) {
+            enviarFoto(file, respostaId, perguntaId, tempId);
+        } else {
+            const badge = document.getElementById(`badge-${tempId}`);
+            if(badge) {
+                badge.className = "position-absolute bottom-0 end-0 badge bg-warning p-1";
+                badge.innerHTML = '<i class="fas fa-sd-card"></i>';
             }
         }
     }
 
-    // ========================================================================
-    // 4. UPLOAD DE FOTO (Híbrido)
-    // ========================================================================
-    async function handleFotoUpload(fileInput) {
-        const perguntaId = parseInt(fileInput.dataset.perguntaId);
-        let respostaId = fileInput.dataset.respostaId;
-        const feedbackEl = document.getElementById(`feedback-foto-${perguntaId}`);
-        const previewContainer = document.getElementById(`container-preview-foto-${perguntaId}`);
-        const file = fileInput.files[0];
-
-        if (!file) return;
-
-        // Preview Imediato
-        previewContainer.innerHTML = `
-            <div class="position-relative d-inline-block img-salva-container">
-                <img src="${URL.createObjectURL(file)}" class="img-thumbnail rounded" style="height: 120px; opacity: 0.7;">
-                <span id="badge-${perguntaId}" class="position-absolute top-50 start-50 translate-middle badge rounded-pill bg-warning">
-                    <i class="fas fa-clock"></i> Pendente
-                </span>
-            </div>`;
-
-        // Se estiver offline OU a pergunta ainda não tiver ID de resposta (ainda não salvou texto)
-        // Salva no banco local
-        if (!navigator.onLine || !respostaId) {
-            console.log(`Salvando foto offline para pergunta ${perguntaId}`);
-            await dbLocal.fotos.add({
-                pergunta_id: perguntaId,
-                resposta_id: respostaId || null, 
-                blob: file,
-                nome: file.name, 
-                timestamp: Date.now()
-            });
-            if (feedbackEl) feedbackEl.innerHTML = '<i class="fas fa-hdd me-1"></i>Foto salva localmente';
-            return;
-        }
-
-        // Se tem internet e ID, tenta enviar direto
-        enviarFotoServidor(file, respostaId, perguntaId, file.name);
-    }
-
-    // ========================================================================
-    // 5. FUNÇÃO DE ENVIO (Robusta)
-    // ========================================================================
-    async function enviarFotoServidor(blobOrFile, respostaId, perguntaId, fileName) {
-        const feedbackEl = document.getElementById(`feedback-foto-${perguntaId}`);
+    async function enviarFoto(file, respostaId, perguntaId, tempId) {
         const formData = new FormData();
+        formData.append('foto', file);
         
-        // RECONSTRUÇÃO DO ARQUIVO: Garante que o Blob tenha nome e tipo corretos
-        const nomeFinal = fileName || "imagem_upload.jpg";
-        const arquivoParaEnviar = new File([blobOrFile], nomeFinal, { 
-            type: blobOrFile.type || "image/jpeg" 
-        });
-
-        formData.append('foto', arquivoParaEnviar);
-
         try {
-            if (feedbackEl) feedbackEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
-            
-            const response = await fetch(`/cli/resposta/${respostaId}/upload-foto`, {
+            // Adicione o /cli antes de /resposta
+const res = await fetch(`/cli/resposta/${respostaId}/upload-foto`, {
                 method: 'POST',
                 headers: { 'X-CSRFToken': '{{ csrf_token() }}' },
                 body: formData
             });
-            
-            const data = await response.json();
+            const data = await res.json();
             
             if (data.sucesso) {
-                if (feedbackEl) feedbackEl.innerHTML = '<i class="fas fa-check-circle text-success"></i> Enviada';
-                
-                // Atualiza visualmente para "Verde"
-                const badge = document.getElementById(`badge-${perguntaId}`);
-                if(badge) {
-                    badge.className = 'position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success';
-                    badge.innerHTML = '<i class="fas fa-check"></i>';
+                // Remove local e atualiza visual
+                await dbLocal.fotos.delete(tempId);
+                const el = document.getElementById(`foto-local-${tempId}`);
+                if(el) {
+                    el.innerHTML = `
+                        <img src="${URL.createObjectURL(file)}" class="img-thumbnail rounded" style="height: 100px; width: 100px; object-fit: cover;">
+                        <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0 translate-middle rounded-circle p-0 d-flex align-items-center justify-content-center shadow-sm" style="width: 24px; height: 24px;" onclick="deletarFotoServidor(${data.foto_id})">
+                            <i class="fas fa-times"></i>
+                        </button>
+                        <span class="position-absolute bottom-0 end-0 badge bg-success p-1 border border-white"><i class="fas fa-check"></i></span>
+                    `;
+                    el.id = `foto-server-${data.foto_id}`;
                 }
-                const img = document.querySelector(`#container-preview-foto-${perguntaId} img`);
-                if(img) img.style.opacity = '1';
                 return true;
-            } else {
-                throw new Error(data.erro || "Erro servidor");
             }
+            throw new Error();
         } catch (e) {
-            console.error("Erro no upload da foto:", e);
-            
-            // Se falhou o envio, garante que ela está salva no banco local para tentar depois
-            const existe = await dbLocal.fotos.where({pergunta_id: perguntaId}).count();
-            if (existe === 0) {
-                 await dbLocal.fotos.add({ 
-                    pergunta_id: perguntaId, 
-                    resposta_id: respostaId, 
-                    blob: blobOrFile, 
-                    nome: nomeFinal, 
-                    timestamp: Date.now() 
-                });
+            console.error(e);
+            const badge = document.getElementById(`badge-${tempId}`);
+            if(badge) {
+                badge.className = "position-absolute bottom-0 end-0 badge bg-danger p-1";
+                badge.innerHTML = '<i class="fas fa-exclamation"></i>';
             }
-            
-            if (feedbackEl) feedbackEl.innerHTML = '<span class="text-warning">Falha no envio. Tentaremos novamente.</span>';
             return false;
         }
     }
 
     // ========================================================================
-    // 6. SINCRONIZADOR
+    // DELETAR FOTOS
+    // ========================================================================
+    async function deletarFotoServidor(fotoId) {
+        if(!confirm('Tem certeza que deseja excluir esta evidência?')) return;
+        
+        const el = document.getElementById(`foto-server-${fotoId}`);
+        if(el) el.style.opacity = '0.5';
+
+        try {
+            // Adicione o /cli aqui também
+const res = await fetch(`/cli/foto/${fotoId}/deletar`, {
+                method: 'DELETE',
+                headers: { 'X-CSRFToken': '{{ csrf_token() }}' }
+            });
+            const data = await res.json();
+            
+            if(data.sucesso) {
+                if(el) el.remove();
+            } else {
+                alert('Erro ao excluir: ' + (data.erro || 'Desconhecido'));
+                if(el) el.style.opacity = '1';
+            }
+        } catch(e) {
+            alert('Erro de conexão ao excluir.');
+            if(el) el.style.opacity = '1';
+        }
+    }
+
+    async function deletarFotoLocal(tempId) {
+        if(!confirm("Remover esta foto pendente?")) return;
+        const el = document.getElementById(`foto-local-${tempId}`);
+        if(el) el.remove();
+        await dbLocal.fotos.delete(tempId);
+    }
+
+    // ========================================================================
+    // SINCRONIZAÇÃO
     // ========================================================================
     async function sincronizarPendencias() {
         const filaTexto = JSON.parse(localStorage.getItem('fila_respostas_offline') || '[]');
         const fotosOffline = await dbLocal.fotos.toArray();
-
         if (filaTexto.length === 0 && fotosOffline.length === 0) return;
 
         const alertSync = document.getElementById('sync-alert');
         if(alertSync) alertSync.classList.remove('d-none');
 
-        console.log(`Sincronizando: ${filaTexto.length} textos e ${fotosOffline.length} fotos.`);
-
-        // A. Sincroniza Textos primeiro
+        // 1. Textos
         for (let item of filaTexto) {
             try {
-                const response = await fetch("{{ url_for('cli.salvar_resposta', id=aplicacao.id) }}", {
+                const res = await fetch("{{ url_for('cli.salvar_resposta', id=aplicacao.id) }}", {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
                     body: JSON.stringify(item)
                 });
-                const data = await response.json();
-                
-                if (data.sucesso) {
-                    // Atualiza o ID nas fotos pendentes desta pergunta
-                    await dbLocal.fotos
-                        .filter(f => f.pergunta_id == item.pergunta_id) 
-                        .modify({ resposta_id: data.resposta_id });
-                        
-                    const fb = document.getElementById(`feedback-${item.pergunta_id}`);
-                    if(fb) fb.innerHTML = '<i class="fas fa-check"></i> Sincronizado';
+                const data = await res.json();
+                if (data.sucesso && data.resposta_id) {
+                    await dbLocal.fotos.filter(f => f.pergunta_id == item.pergunta_id).modify({ resposta_id: data.resposta_id });
                 }
-            } catch (e) { console.error("Erro sync texto:", e); }
+            } catch (e) {}
         }
         localStorage.removeItem('fila_respostas_offline');
 
-        // B. Sincroniza Fotos (Recarrega do banco para pegar os IDs atualizados)
+        // 2. Fotos (Agora com IDs reais)
         const fotosAtualizadas = await dbLocal.fotos.toArray();
-        
         for (let foto of fotosAtualizadas) {
-            // Só tenta enviar se já tivermos o ID da resposta (criado pelo texto)
-            if (!foto.resposta_id) {
-                console.log(`Foto da pergunta ${foto.pergunta_id} ignorada: ainda sem ID de resposta.`);
-                continue; 
-            }
-
-            console.log(`Enviando foto pendente: ${foto.nome} (RespID: ${foto.resposta_id})`);
-            const enviado = await enviarFotoServidor(foto.blob, foto.resposta_id, foto.pergunta_id, foto.nome);
-            
-            if (enviado) {
-                await dbLocal.fotos.delete(foto.id);
+            if (foto.resposta_id) {
+                const enviado = await enviarFoto(foto.blob, foto.resposta_id, foto.pergunta_id, foto.id);
+                // Nota: enviarFoto já deleta do banco local se der sucesso
             }
         }
 
-        if(alertSync) {
-            document.getElementById('sync-message').innerText = "Sincronização concluída!";
-            setTimeout(() => alertSync.classList.add('d-none'), 3000);
-        }
+        if(alertSync) setTimeout(() => alertSync.classList.add('d-none'), 2000);
+    }
+
+    async function restaurarBadgesPendentes() {
+        const pendentes = await dbLocal.fotos.toArray();
+        pendentes.forEach(f => {
+            const galeria = document.getElementById(`galeria-fotos-${f.pergunta_id}`);
+            // Evita duplicar se já estiver na tela (caso de reload rápido)
+            if (galeria && !document.getElementById(`foto-local-${f.id}`)) {
+                const div = document.createElement('div');
+                div.id = `foto-local-${f.id}`;
+                div.className = 'position-relative d-inline-block foto-item me-2 mb-2';
+                div.innerHTML = `
+                    <img src="${URL.createObjectURL(f.blob)}" class="img-thumbnail rounded" style="height: 100px; width: 100px; object-fit: cover; opacity: 0.6">
+                    <button onclick="deletarFotoLocal(${f.id})" type="button" class="btn btn-secondary btn-sm position-absolute top-0 end-0 translate-middle rounded-circle p-0 d-flex align-items-center justify-content-center" style="width:24px;height:24px;"><i class="fas fa-times" style="font-size:10px"></i></button>
+                    <span class="position-absolute bottom-0 end-0 badge bg-warning p-1"><i class="fas fa-clock"></i></span>
+                `;
+                galeria.appendChild(div);
+            }
+        });
     }
 
     // ========================================================================
-    // 7. AUXILIARES (Assinatura, Radios, Validação)
+    // UTILITÁRIOS E VALIDAÇÃO FINAL
     // ========================================================================
-    function setupAssinaturasERadios() {
-        const pads = document.querySelectorAll('canvas[id^="signature-pad-"]');
-        pads.forEach(canvas => {
+    function setupAssinaturas() {
+        document.querySelectorAll('canvas[id^="signature-pad-"]').forEach(canvas => {
             const pid = canvas.id.split('-')[2];
-            const hiddenInput = document.getElementById(`resposta-input-${pid}`);
-            const parent = canvas.parentElement;
-            canvas.width = parent.offsetWidth; 
-            canvas.height = parent.offsetHeight;
-            const pad = new SignaturePad(canvas, { backgroundColor: 'rgb(255, 255, 255)' });
-            if (hiddenInput && hiddenInput.value) pad.fromDataURL(hiddenInput.value);
+            const inp = document.getElementById(`resposta-input-${pid}`);
+            const pad = new SignaturePad(canvas);
+            if (inp && inp.value) pad.fromDataURL(inp.value);
             pad.addEventListener("endStroke", () => {
-                if (!pad.isEmpty()) {
-                    hiddenInput.value = pad.toDataURL();
-                    salvarResposta(hiddenInput);
-                }
+                if (!pad.isEmpty()) { inp.value = pad.toDataURL(); salvarResposta(inp); }
             });
-            const btnClear = parent.querySelector('.clear-signature-btn');
-            if (btnClear) btnClear.addEventListener('click', () => {
-                pad.clear(); hiddenInput.value = ''; salvarResposta(hiddenInput);
-            });
-        });
-
-        document.querySelectorAll('input[type="radio"]').forEach(radio => {
-            radio.addEventListener('change', function() { atualizarRegraFoto(this); });
-            if (radio.checked) atualizarRegraFoto(radio);
+            canvas.parentElement.querySelector('.clear-signature-btn').onclick = () => { pad.clear(); inp.value = ''; salvarResposta(inp); };
         });
     }
 
-    function atualizarRegraFoto(radio) {
-        const pid = radio.name.split('-')[1];
-        const fileInput = document.getElementById(`foto-${pid}`);
-        if (!fileInput) return;
-        const valor = radio.value.toLowerCase();
-        let label = document.querySelector(`label[for="foto-${pid}"]`) || fileInput.closest('.foto-container')?.querySelector('label');
-        
-        if (valor === 'nao' || valor === 'nc') {
-            fileInput.setAttribute('data-obrigatoria', 'true');
-            fileInput.classList.add('border-danger');
-            if(label && !label.innerText.includes('*')) label.innerHTML += ' <span class="text-danger fw-bold small">* (Foto Obrigatória)</span>';
+    function atualizarUIConexao(online) {
+        const txt = document.getElementById('status-texto');
+        const icon = document.getElementById('status-conexao');
+        if(online) {
+            icon.className = 'd-flex align-items-center text-success small fw-bold';
+            txt.innerText = 'Online - Sincronizado';
         } else {
-            fileInput.setAttribute('data-obrigatoria', 'false');
-            fileInput.classList.remove('border-danger');
-            if(label) { const span = label.querySelector('.text-danger'); if(span) span.remove(); }
+            icon.className = 'd-flex align-items-center text-warning small fw-bold';
+            txt.innerText = 'Offline - Salvando Localmente';
         }
     }
 
+    // VALIDAÇÃO AO ENVIAR
     document.getElementById('form-finalizar').addEventListener('submit', function(e) {
         const alerta = document.getElementById('alerta-validacao');
-        const listaErros = document.getElementById('alerta-validacao-lista');
+        const lista = document.getElementById('alerta-validacao-lista');
         let erros = [];
-        document.querySelectorAll('.pergunta-container').forEach(el => el.classList.remove('border-danger', 'bg-warning-subtle'));
 
-        // Valida Obrigatórios
-        document.querySelectorAll('.pergunta-container[data-obrigatoria="true"]').forEach(container => {
-            const pid = container.dataset.perguntaId;
-            let respondido = false;
-            if(container.querySelector('input:checked') || container.querySelector('select')?.value || container.querySelector('textarea')?.value || container.querySelector(`input[type=text]`)?.value || container.querySelector(`#resposta-input-${pid}`)?.value) {
-                respondido = true;
-            }
-            if (!respondido) {
-                erros.push(`Pergunta não respondida: "${container.querySelector('label').innerText.split('\n')[0]}"`);
-                container.classList.add('border-danger', 'bg-warning-subtle');
+        // 1. Perguntas Obrigatórias
+        document.querySelectorAll('.pergunta-container[data-obrigatoria="true"]').forEach(el => {
+            const pid = el.dataset.perguntaId;
+            const val = el.querySelector(`input[name="resposta-${pid}"]`)?.value || 
+                        el.querySelector(`textarea[name="resposta-${pid}"]`)?.value ||
+                        el.querySelector(`select[name="resposta-${pid}"]`)?.value ||
+                        el.querySelector('input:checked')?.value;
+            
+            if (!val || val === "") {
+                erros.push(`Pergunta não respondida: ${el.querySelector('label').innerText.split('\n')[0]}`);
+                el.classList.add('border-danger');
             }
         });
 
-        // Valida Fotos (Considera fotos locais/pendentes como válidas)
-        document.querySelectorAll('input[type="file"][data-obrigatoria="true"]').forEach(fileInput => {
-            const container = fileInput.closest('.pergunta-container');
-            const temFotoServidor = container.querySelector('.img-salva-container'); 
-            const temFotoLocal = container.querySelector('.badge.bg-warning'); 
-            const temFotoSucesso = container.querySelector('.badge.bg-success'); // Se já tiver o verde
+        // 2. Fotos Obrigatórias (Lógica nova para Galeria)
+        // Busca inputs de foto marcados como obrigatórios
+        document.querySelectorAll('input[type="file"][data-obrigatoria="true"]').forEach(inp => {
+            const pid = inp.dataset.perguntaId;
+            const container = inp.closest('.pergunta-container');
+            const galeria = document.getElementById(`galeria-fotos-${pid}`);
             
-            if (fileInput.files.length === 0 && !temFotoServidor && !temFotoLocal && !temFotoSucesso) {
-                erros.push(`Foto obrigatória ausente: "${container.querySelector('label').innerText.split('\n')[0]}"`);
-                container.classList.add('border-danger', 'bg-warning-subtle');
+            // Verifica se a galeria tem filhos (fotos salvas ou locais)
+            const temFoto = galeria && galeria.children.length > 0;
+
+            if (!temFoto) {
+                erros.push(`Foto obrigatória faltando em: ${container.querySelector('label').innerText.split('\n')[0]}`);
+                container.classList.add('border-danger');
+            }
+        });
+
+        // 3. Observações Obrigatórias
+        document.querySelectorAll('textarea[data-obrigatoria="true"]').forEach(obs => {
+            if (!obs.value.trim()) {
+                const container = obs.closest('.pergunta-container');
+                erros.push(`Observação obrigatória faltando em: ${container.querySelector('label').innerText.split('\n')[0]}`);
+                container.classList.add('border-danger');
             }
         });
 
         if (erros.length > 0) {
             e.preventDefault();
-            listaErros.innerHTML = '';
-            erros.forEach(e => { const li = document.createElement('li'); li.innerText = e; listaErros.appendChild(li); });
+            lista.innerHTML = erros.map(err => `<li>${err}</li>`).join('');
             alerta.classList.remove('d-none');
             alerta.scrollIntoView({block: 'center'});
         } else {
-             if(!confirm("Deseja realmente finalizar a auditoria?")) e.preventDefault();
+            if(!confirm("Tem certeza que deseja finalizar? Não será possível alterar depois.")) e.preventDefault();
         }
     });
 </script>

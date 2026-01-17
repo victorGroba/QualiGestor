@@ -30,7 +30,7 @@ try:
         AplicacaoQuestionario, RespostaPergunta, UsuarioAutorizado,
         TipoResposta, StatusQuestionario, StatusAplicacao, 
         TipoPreenchimento, ModoExibicaoNota, CorRelatorio,
-        TipoUsuario, Notificacao, LogAuditoria, ConfiguracaoCliente
+        TipoUsuario, Notificacao, LogAuditoria, ConfiguracaoCliente, FotoResposta
     )
 except ImportError as e:
     print(f"Erro de import: {e}")
@@ -4066,7 +4066,7 @@ def allowed_file(filename, allowed_extensions):
 @login_required
 @csrf.exempt
 def upload_foto_resposta(resposta_id):
-    """Recebe upload de foto via AJAX para uma resposta específica."""
+    """Recebe upload de foto via AJAX e salva na tabela de múltiplas fotos."""
     # Log inicial
     current_app.logger.info(f"Recebida requisição POST para upload_foto_resposta ID: {resposta_id}")
 
@@ -4106,14 +4106,14 @@ def upload_foto_resposta(resposta_id):
             return jsonify({'erro': 'Nome de arquivo vazio'}), 400
 
         # Verifica a extensão do arquivo
-        allowed_extensions = current_app.config.get('ALLOWED_EXTENSIONS', {'png', 'jpg', 'jpeg'}) # Default seguro
+        allowed_extensions = current_app.config.get('ALLOWED_EXTENSIONS', {'png', 'jpg', 'jpeg'})
         
-        # ***** LINHA CORRIGIDA (AGORA allowed_file existe) *****
+        # Função auxiliar de validação (certifique-se que ela existe no seu escopo ou imports)
         if foto and allowed_file(foto.filename, allowed_extensions):
 
-            # Gera um nome de arquivo seguro e único (usa 'secure_filename' e 'uuid' importados)
+            # Gera um nome de arquivo seguro e único
             original_filename = secure_filename(foto.filename)
-            extension = original_filename.rsplit('.', 1)[1].lower()
+            extension = original_filename.rsplit('.', 1)[1].lower() if '.' in original_filename else 'jpg'
             unique_filename = f"resposta_{resposta.id}_{uuid.uuid4().hex[:12]}.{extension}"
 
             # Caminho completo para salvar o arquivo
@@ -4125,51 +4125,43 @@ def upload_foto_resposta(resposta_id):
             save_path = os.path.join(upload_folder, unique_filename)
             current_app.logger.debug(f"Caminho para salvar: {save_path}")
 
-            # --- Salva o arquivo original ---
+            # --- Salva o arquivo físico ---
             try:
                  os.makedirs(upload_folder, exist_ok=True)
                  foto.save(save_path)
                  current_app.logger.info(f"Foto salva com sucesso em: {save_path} para resposta {resposta_id}")
             except Exception as save_err:
-                 current_app.logger.error(f"Erro ao salvar upload para resposta {resposta_id}: {save_err}", exc_info=True)
+                 current_app.logger.error(f"Erro ao salvar arquivo físico para resposta {resposta_id}: {save_err}", exc_info=True)
                  return jsonify({'erro': f'Erro no servidor ao salvar arquivo'}), 500
-            # ---------------------------------
-
-            # --- Opcional: Remover foto antiga se existir ---
-            if resposta.caminho_foto:
-                 try:
-                     old_path = os.path.join(upload_folder, resposta.caminho_foto)
-                     if os.path.exists(old_path):
-                         os.remove(old_path)
-                         current_app.logger.info(f"Foto antiga removida: {old_path}")
-                 except Exception as del_err:
-                     current_app.logger.error(f"Erro ao remover foto antiga {resposta.caminho_foto}: {del_err}")
-            # ---------------------------------------------
-
-            # Atualiza o caminho no banco de dados
-            resposta.caminho_foto = unique_filename
+            
+            # --- ATUALIZAÇÃO PARA MÚLTIPLAS FOTOS ---
+            # Cria o registro na nova tabela FotoResposta
+            nova_foto = FotoResposta(caminho=unique_filename, resposta_id=resposta.id)
+            db.session.add(nova_foto)
+            
+            # (Opcional) Mantém o campo antigo atualizado para compatibilidade, se quiser
+            resposta.caminho_foto = unique_filename 
+            
             db.session.commit()
-            current_app.logger.info(f"Caminho da foto '{unique_filename}' salvo no BD para resposta {resposta_id}")
+            current_app.logger.info(f"Foto registrada no banco (ID: {nova_foto.id}) para resposta {resposta_id}")
 
-            # Gera URL para a foto (se a rota 'get_foto_resposta' existir)
+            # Gera URL para a foto
             foto_url = None
-            _has_endpoint_func = globals().get('has_endpoint') or current_app.jinja_env.globals.get('has_endpoint')
-            _url_for_func = globals().get('url_for_safe') or current_app.jinja_env.globals.get('url_for_safe') or url_for
-            if callable(_has_endpoint_func) and callable(_url_for_func):
-                try:
-                    if _has_endpoint_func('cli.get_foto_resposta'):
-                         foto_url = _url_for_func('cli.get_foto_resposta', filename=unique_filename, _external=True)
-                except Exception as url_err:
-                     current_app.logger.warning(f"Erro ao gerar URL para get_foto_resposta: {url_err}")
+            try:
+                foto_url = url_for('cli.get_foto_resposta', filename=unique_filename, _external=True)
+            except Exception as url_err:
+                current_app.logger.warning(f"Erro ao gerar URL para get_foto_resposta: {url_err}")
+                # Fallback simples se url_for falhar
+                foto_url = f"/uploads/{unique_filename}" 
 
-
-            # Retorna sucesso com o nome do arquivo e URL
+            # Retorna sucesso com o ID da nova foto (importante para o botão excluir)
             return jsonify({
                 'sucesso': True,
                 'mensagem': 'Foto enviada com sucesso!',
+                'foto_id': nova_foto.id,     # ID DA FOTO NOVA (Para o botão de excluir)
                 'filename': unique_filename,
                 'url': foto_url
-                }), 200
+            }), 200
 
         else:
             current_app.logger.warning(f"Upload negado para resposta {resposta_id}: tipo de arquivo não permitido ({foto.filename})")
@@ -4178,9 +4170,39 @@ def upload_foto_resposta(resposta_id):
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Erro inesperado no upload da foto para resposta {resposta_id}: {e}", exc_info=True)
-        import traceback
-        traceback.print_exc()
-        return jsonify({'erro': f'Erro interno do servidor'}), 500
+        
+@cli_bp.route('/foto/<int:foto_id>/deletar', methods=['DELETE'])
+@login_required
+@csrf.exempt  # Importante para chamadas AJAX DELETE
+def deletar_foto(foto_id):
+    """Remove uma foto específica da galeria."""
+    try:
+        # Busca a foto na tabela nova
+        foto = FotoResposta.query.get_or_404(foto_id)
+        
+        # Verificações de segurança (opcional: checar se o user pode deletar)
+        # ...
+        
+        # Remove o arquivo físico (Opcional, mas recomendado para não encher o disco)
+        upload_folder = current_app.config.get('UPLOAD_FOLDER')
+        if upload_folder:
+            caminho_completo = os.path.join(upload_folder, foto.caminho)
+            if os.path.exists(caminho_completo):
+                try:
+                    os.remove(caminho_completo)
+                except Exception as e:
+                    current_app.logger.warning(f"Erro ao deletar arquivo físico {foto.caminho}: {e}")
+
+        # Remove do banco
+        db.session.delete(foto)
+        db.session.commit()
+        
+        return jsonify({'sucesso': True})
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erro ao deletar foto {foto_id}: {e}")
+        return jsonify({'erro': 'Erro ao excluir foto'}), 500        
 
 
 # --- ROTA AUXILIAR PARA SERVIR AS FOTOS SALVAS ---
