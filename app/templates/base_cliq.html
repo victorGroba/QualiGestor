@@ -402,12 +402,18 @@
       </div>
       {% if current_user.tipo_id == 1 or current_user.tipo.name == 'SUPER_ADMIN' %}
 
-     
+
 
       <li class="nav-item">
         <a class="nav-link" href="{{ url_for('admin.listar_clientes') }}">
           <i class="fas fa-fw fa-building"></i>
           <span>Gerenciar Clientes</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('admin.listar_grupos') }}">
+          <i class="fas fa-fw fa-layer-group"></i>
+          <span>Gerenciar Grupos</span>
         </a>
       </li>
 

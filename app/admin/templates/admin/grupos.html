@@ -1,0 +1,53 @@
+{% extends "base_cliq.html" %}
+
+{% block title %}Gerenciar Grupos{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="fas fa-layer-group text-primary me-2"></i>Todos os Grupos (Regionais)
+        </h1>
+        <a href="{{ url_for('admin.novo_grupo') }}" class="btn btn-success shadow-sm">
+            <i class="fas fa-plus fa-sm text-white-50 me-2"></i>Novo Grupo
+        </a>
+    </div>
+
+    {% include 'includes/_flash_messages.html' %}
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Grupos Cadastrados (Global)</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover" width="100%">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Nome do Grupo</th>
+                            <th>Empresa (Cliente)</th>
+                            <th width="150" class="text-center">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for grupo in grupos %}
+                        <tr>
+                            <td class="fw-bold">{{ grupo.nome }}</td>
+                            <td>
+                                <span class="badge bg-secondary">{{ grupo.cliente.nome }}</span>
+                            </td>
+                            <td class="text-center">
+                                <a href="{{ url_for('admin.editar_grupo', id=grupo.id) }}" class="btn btn-sm btn-info"><i class="fas fa-edit"></i></a>
+                                <a href="{{ url_for('admin.excluir_grupo', id=grupo.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('Tem certeza?');"><i class="fas fa-trash"></i></a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="3" class="text-center text-muted">Nenhum grupo cadastrado.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

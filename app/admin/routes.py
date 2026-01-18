@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash
-from ..models import db, Cliente, Avaliado, Usuario, TipoUsuario
+from ..models import db, Cliente, Avaliado, Usuario, TipoUsuario, Grupo
 
 # Tenta importar o decorator admin_required se ele existir no seu projeto
 try:
@@ -204,3 +204,78 @@ def excluir_avaliado(id):
         flash(f'Erro ao excluir: {str(e)}', 'danger')
         
     return redirect(url_for('admin.listar_avaliados'))
+
+
+# ==============================================================================
+# CRUD GRUPOS (DIVISÕES/REGIONAIS) - Visão Global
+# ==============================================================================
+
+@admin_bp.route('/grupos')
+@login_required
+@admin_required
+def listar_grupos():
+    """Lista todos os grupos de todos os clientes."""
+    grupos = Grupo.query.join(Cliente).order_by(Cliente.nome, Grupo.nome).all()
+    return render_template('admin/grupos.html', grupos=grupos)
+
+@admin_bp.route('/grupos/novo', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def novo_grupo():
+    """Cria um grupo vinculado a um cliente específico."""
+    clientes = Cliente.query.order_by(Cliente.nome).all()
+    
+    if request.method == 'POST':
+        try:
+            grupo = Grupo(
+                nome=request.form['nome'],
+                cliente_id=int(request.form.get('cliente_id')),
+                ativo=True
+            )
+            db.session.add(grupo)
+            db.session.commit()
+            flash('Grupo criado com sucesso!', 'success')
+            return redirect(url_for('admin.listar_grupos'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erro ao criar grupo: {str(e)}', 'danger')
+            
+    return render_template('admin/grupo_form.html', clientes=clientes)
+
+@admin_bp.route('/grupos/<int:id>/editar', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def editar_grupo(id):
+    """Edita um grupo existente."""
+    grupo = Grupo.query.get_or_404(id)
+    clientes = Cliente.query.order_by(Cliente.nome).all()
+    
+    if request.method == 'POST':
+        try:
+            grupo.nome = request.form['nome']
+            grupo.cliente_id = int(request.form.get('cliente_id'))
+            
+            db.session.commit()
+            flash('Grupo atualizado com sucesso!', 'success')
+            return redirect(url_for('admin.listar_grupos'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erro ao atualizar: {str(e)}', 'danger')
+            
+    return render_template('admin/grupo_form.html', grupo=grupo, clientes=clientes)
+
+@admin_bp.route('/grupos/<int:id>/excluir')
+@login_required
+@admin_required
+def excluir_grupo(id):
+    """Remove um grupo."""
+    try:
+        grupo = Grupo.query.get_or_404(id)
+        db.session.delete(grupo)
+        db.session.commit()
+        flash('Grupo excluído com sucesso!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Erro ao excluir: {str(e)}', 'danger')
+        
+    return redirect(url_for('admin.listar_grupos'))
