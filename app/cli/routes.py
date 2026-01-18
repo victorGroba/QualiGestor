@@ -736,6 +736,120 @@ def novo_questionario():
     # --- EXIBIÇÃO DO FORMULÁRIO (GET) ---
     return render_template_safe('cli/novo_questionario.html', usuarios=usuarios_disponiveis)
 
+# Em app/cli/routes.py
+
+@cli_bp.route('/questionario/<int:id>/editar', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def editar_questionario(id):
+    """
+    Edita as configurações gerais de um questionário existente.
+    """
+    try:
+        # 1. Busca o questionário e verifica permissão
+        questionario = Questionario.query.get_or_404(id)
+        
+        if questionario.cliente_id != current_user.cliente_id:
+            flash("Questionário não encontrado ou acesso negado.", "error")
+            return redirect(url_for('cli.listar_questionarios'))
+            
+        # Bloqueio de segurança: Apenas SUPER_ADMIN (Laboratório) edita a estrutura
+        if current_user.tipo.name != 'SUPER_ADMIN':
+            flash("Apenas o Laboratório pode editar as configurações do modelo.", "warning")
+            return redirect(url_for('cli.listar_questionarios'))
+
+        # Carrega usuários para o select de "Usuários Autorizados"
+        usuarios_disponiveis = []
+        try:
+            usuarios_disponiveis = Usuario.query.filter_by(
+                cliente_id=current_user.cliente_id,
+                ativo=True
+            ).order_by(Usuario.nome).all()
+        except Exception:
+            pass
+
+        # --- PROCESSAMENTO DO POST (SALVAR) ---
+        if request.method == 'POST':
+            try:
+                # Dados Básicos
+                questionario.nome = request.form.get('nome', '').strip()
+                questionario.descricao = request.form.get('descricao', '').strip()
+                questionario.versao = request.form.get('versao', '').strip()
+
+                if not questionario.nome:
+                    flash("O nome do questionário é obrigatório.", "warning")
+                    return render_template_safe('cli/editar_questionario.html', questionario=questionario, usuarios=usuarios_disponiveis)
+
+                # Configurações de Nota
+                questionario.calcular_nota = (request.form.get('calcular_nota') == 'on')
+                questionario.ocultar_nota_aplicacao = (request.form.get('ocultar_nota') == 'on')
+                questionario.base_calculo = int(request.form.get('base_calculo', 100))
+                questionario.casas_decimais = int(request.form.get('casas_decimais', 2))
+                
+                # Configurações de Aplicação
+                questionario.anexar_documentos = (request.form.get('anexar_documentos') == 'on')
+                questionario.capturar_geolocalizacao = (request.form.get('geolocalizacao') == 'on')
+                questionario.restringir_avaliados = (request.form.get('restricao_avaliados') == 'on')
+                questionario.habilitar_reincidencia = (request.form.get('reincidencia') == 'on')
+                
+                # Configurações Visuais / Relatório
+                questionario.incluir_assinatura = (request.form.get('incluir_assinatura') == 'on')
+                questionario.incluir_foto_capa = (request.form.get('incluir_foto_capa') == 'on')
+                
+                # Flags de Relatório (verificando existência dos atributos)
+                if hasattr(questionario, 'exibir_nota_anterior'):
+                    questionario.exibir_nota_anterior = (request.form.get('exibir_nota_anterior') == 'on')
+                if hasattr(questionario, 'exibir_tabela_resumo'):
+                    questionario.exibir_tabela_resumo = (request.form.get('exibir_tabela_de_resumo') == 'on')
+                if hasattr(questionario, 'exibir_limites_aceitaveis'):
+                    questionario.exibir_limites_aceitaveis = (request.form.get('exibir_limites_aceitáveis') == 'on')
+                if hasattr(questionario, 'exibir_data_hora'):
+                    questionario.exibir_data_hora = (request.form.get('exibir_data/hora_início_e_fim') == 'on')
+                if hasattr(questionario, 'exibir_questoes_omitidas'):
+                    questionario.exibir_questoes_omitidas = (request.form.get('exibir_questões_omitidas') == 'on')
+                if hasattr(questionario, 'exibir_nao_conformidade'):
+                    questionario.exibir_nao_conformidade = (request.form.get('exibir_relatório_não_conformidade') == 'on')
+
+                # Atualiza Usuários Autorizados
+                if 'UsuarioAutorizado' in globals():
+                    # Remove os antigos
+                    UsuarioAutorizado.query.filter_by(questionario_id=questionario.id).delete()
+                    
+                    # Adiciona os novos
+                    usuarios_selecionados = request.form.getlist('usuarios_autorizados')
+                    for uid in usuarios_selecionados:
+                        if uid and str(uid).strip().isdigit():
+                            u_auth = UsuarioAutorizado(
+                                questionario_id=questionario.id,
+                                usuario_id=int(uid)
+                            )
+                            db.session.add(u_auth)
+
+                db.session.commit()
+                log_acao(f"Editou configurações do questionário: {questionario.nome}", None, "Questionario", questionario.id)
+                
+                flash(f"Configurações de '{questionario.nome}' atualizadas com sucesso!", "success")
+                return redirect(url_for('cli.listar_questionarios'))
+
+            except Exception as e:
+                db.session.rollback()
+                flash(f"Erro ao atualizar: {str(e)}", "danger")
+        
+        # --- EXIBIÇÃO DO FORMULÁRIO (GET) ---
+        # Prepara lista de IDs autorizados para marcar no select
+        autorizados_ids = []
+        if hasattr(questionario, 'usuarios_autorizados'):
+            autorizados_ids = [u.usuario_id for u in questionario.usuarios_autorizados]
+
+        return render_template_safe('cli/editar_questionario.html', 
+                                  questionario=questionario, 
+                                  usuarios=usuarios_disponiveis,
+                                  autorizados_ids=autorizados_ids)
+
+    except Exception as e:
+        flash(f"Erro ao abrir edição: {str(e)}", "danger")
+        return redirect(url_for('cli.listar_questionarios'))
+
 @cli_bp.route('/questionario/<int:id>/duplicar', methods=['POST'])
 @login_required
 def duplicar_questionario(id):

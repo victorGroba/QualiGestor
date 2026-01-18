@@ -1,0 +1,125 @@
+{% extends "base_cliq.html" %}
+
+{% block title %}Editar Questionário{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="fas fa-edit me-2 text-warning"></i>Editar Modelo
+        </h1>
+        <a href="{{ url_for('cli.listar_questionarios') }}" class="btn btn-secondary shadow-sm">
+            <i class="fas fa-arrow-left fa-sm text-white-50 me-2"></i>Voltar
+        </a>
+    </div>
+
+    <form method="POST" action="{{ url_for('cli.editar_questionario', id=questionario.id) }}" class="needs-validation" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">Informações Básicas</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="nome" class="form-label fw-bold">Nome do Questionário *</label>
+                            <input type="text" class="form-control" id="nome" name="nome" value="{{ questionario.nome }}" required>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="versao" class="form-label">Versão</label>
+                                <input type="text" class="form-control" id="versao" name="versao" value="{{ questionario.versao }}">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Modo de Aplicação</label>
+                                <input type="text" class="form-control bg-light" value="{{ questionario.modo }}" disabled>
+                                <div class="form-text">O modo não pode ser alterado após a criação.</div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="descricao" class="form-label">Descrição / Instruções</label>
+                            <textarea class="form-control" id="descricao" name="descricao" rows="3">{{ questionario.descricao }}</textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">Cálculo de Notas</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="calcular_nota" name="calcular_nota" {% if questionario.calcular_nota %}checked{% endif %}>
+                            <label class="form-check-label fw-bold" for="calcular_nota">Habilitar Cálculo de Nota</label>
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label for="base_calculo" class="form-label">Base de Cálculo</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="base_calculo" name="base_calculo" value="{{ questionario.base_calculo|int }}">
+                                    <span class="input-group-text">pts</span>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="casas_decimais" class="form-label">Casas Decimais</label>
+                                <input type="number" class="form-control" id="casas_decimais" name="casas_decimais" value="{{ questionario.casas_decimais }}" min="0" max="4">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-info">Opções de Relatório</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="anexar_documentos" name="anexar_documentos" {% if questionario.anexar_documentos %}checked{% endif %}>
+                            <label class="form-check-label" for="anexar_documentos">Permitir Anexos</label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="geolocalizacao" name="geolocalizacao" {% if questionario.capturar_geolocalizacao %}checked{% endif %}>
+                            <label class="form-check-label" for="geolocalizacao">Capturar Geolocalização</label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="incluir_assinatura" name="incluir_assinatura" {% if questionario.incluir_assinatura %}checked{% endif %}>
+                            <label class="form-check-label" for="incluir_assinatura">Solicitar Assinatura</label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="incluir_foto_capa" name="incluir_foto_capa" {% if questionario.incluir_foto_capa %}checked{% endif %}>
+                            <label class="form-check-label" for="incluir_foto_capa">Foto de Capa</label>
+                        </div>
+                        <hr>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" name="exibir_nota_anterior" {% if questionario.exibir_nota_anterior %}checked{% endif %}>
+                            <label class="form-check-label">Exibir Nota Anterior</label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" name="exibir_tabela_de_resumo" {% if questionario.exibir_tabela_resumo %}checked{% endif %}>
+                            <label class="form-check-label">Tabela Resumo</label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" name="exibir_relatório_não_conformidade" {% if questionario.exibir_nao_conformidade %}checked{% endif %}>
+                            <label class="form-check-label">Relatório de NCs</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary btn-lg shadow-sm">
+                        <i class="fas fa-save me-2"></i>Salvar Alterações
+                    </button>
+                    <a href="{{ url_for('cli.listar_questionarios') }}" class="btn btn-light border">Cancelar</a>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
