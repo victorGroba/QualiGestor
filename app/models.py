@@ -153,45 +153,60 @@ class Avaliado(db.Model):
     aplicacoes = db.relationship('AplicacaoQuestionario', backref='avaliado', lazy='dynamic')
 
 class Usuario(db.Model, UserMixin):
-    """Usuários do sistema"""
+    """
+    Tabela de Usuários com Hierarquia Multi-Tenant (Cliente -> Grupo -> Avaliado)
+    """
     __tablename__ = "usuario"
     
     id = db.Column(db.Integer, primary_key=True)
     
-    # Dados pessoais
+    # --- DADOS PESSOAIS ---
     nome = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     senha_hash = db.Column(db.String(200), nullable=False)
     telefone = db.Column(db.String(20))
     
-    # Tipo e permissões
+    # --- PERMISSÕES ---
+    # Enum: SUPER_ADMIN, ADMIN_CLIENTE, GESTOR_GRUPO, AUDITOR, COMUM
     tipo = db.Column(SqlEnum(TipoUsuario), nullable=False, default=TipoUsuario.USUARIO)
-    
-    # Status
     ativo = db.Column(db.Boolean, default=True)
     ultimo_acesso = db.Column(db.DateTime)
     
-    # Chaves estrangeiras - HIERARQUIA SISUB
-    # SDAB (Nível Nacional - Vê tudo do cliente)
+    # --- HIERARQUIA SISUB (O CORAÇÃO DO SISTEMA) ---
+    
+    # Nível 1: CLIENTE (Ex: FAB) - Obrigatório
+    # Define a qual "Universo" o usuário pertence.
     cliente_id = db.Column(db.Integer, db.ForeignKey('cliente.id'), nullable=False)
     
-    # GAP (Nível Regional - Vê todas as OMs do grupo)
-    grupo_id = db.Column(db.Integer, db.ForeignKey('grupo.id'))
+    # Nível 2: GRUPO (Ex: GAP Galeão) - Opcional
+    # Se preenchido, o usuário só vê dados deste Grupo/Regional.
+    grupo_id = db.Column(db.Integer, db.ForeignKey('grupo.id'), nullable=True)
     
-    # RANCHO/OM (Nível Operacional - Vê apenas esta unidade)
-    avaliado_id = db.Column(db.Integer, db.ForeignKey('avaliado.id'))
+    # Nível 3: AVALIADO (Ex: Rancho Oficiais) - Opcional
+    # Se preenchido, o usuário só vê dados desta Unidade específica.
+    avaliado_id = db.Column(db.Integer, db.ForeignKey('avaliado.id'), nullable=True)
     
-    # Timestamps
+    # --- METADADOS ---
     criado_em = db.Column(db.DateTime, default=datetime.utcnow)
     
-    # Relacionamentos
+    # --- RELACIONAMENTOS (LINKS PARA O PYTHON) ---
+    
+    # Permite fazer: usuario.cliente.nome
+    cliente = db.relationship('Cliente', backref='usuarios')
+    
+    # Permite fazer: usuario.grupo.nome (Faltava isso!)
+    grupo = db.relationship('Grupo', backref='usuarios')
+    
+    # Permite fazer: usuario.avaliado.nome
+    avaliado = db.relationship('Avaliado', backref='usuarios_vinculados', foreign_keys=[avaliado_id])
+    
+    # Relacionamentos operacionais (Auditorias, Logs, etc)
     questionarios_criados = db.relationship('Questionario', backref='criador', lazy='dynamic')
     aplicacoes_realizadas = db.relationship('AplicacaoQuestionario', backref='aplicador', lazy='dynamic')
     notificacoes = db.relationship('Notificacao', backref='usuario', lazy='dynamic')
     logs = db.relationship('LogAuditoria', backref='usuario', lazy='dynamic')
     
-    # Relacionamento para acessar os dados do rancho diretamente (ex: usuario.avaliado.nome)
-    avaliado = db.relationship('Avaliado', backref='usuarios_vinculados', foreign_keys=[avaliado_id])
+    # --- MÉTODOS DE SEGURANÇA ---
 
     def check_password(self, password):
         """Verifica se a senha está correta"""
@@ -199,9 +214,12 @@ class Usuario(db.Model, UserMixin):
         return check_password_hash(self.senha_hash, password)
     
     def set_password(self, password):
-        """Define nova senha"""
+        """Criptografa e define nova senha"""
         from werkzeug.security import generate_password_hash
         self.senha_hash = generate_password_hash(password)
+
+    def __repr__(self):
+        return f'<Usuario {self.nome} - {self.email}>'
 
 # ==================== QUESTIONÁRIOS E ESTRUTURA ====================
 
