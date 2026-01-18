@@ -2799,85 +2799,109 @@ def gerenciar_usuarios():
 @admin_required
 def novo_usuario():
     """Cria novo usuário com validação de hierarquia FAB"""
-    if request.method == 'POST':
+    
+    # Imports de segurança (Melhor colocar no topo do arquivo, mas funciona aqui)
+    from werkzeug.security import generate_password_hash
+    
+    # GET: Carregar dados para o formulário
+    if request.method == 'GET':
         try:
-            # 1. Coleta dados do formulário
-            nome = request.form.get('nome', '').strip()
-            email = request.form.get('email', '').strip().lower()
-            tipo_str = request.form.get('tipo')
-            grupo_id = request.form.get('grupo_id')       # ID do GAP selecionado
-            avaliado_id = request.form.get('avaliado_id') # ID do Rancho selecionado
+            # Carrega apenas GAPs e Ranchos da empresa logada (FAB)
+            gaps = Grupo.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).order_by(Grupo.nome).all()
+            ranchos = Avaliado.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).order_by(Avaliado.nome).all()
             
-            # 2. Validações Básicas
-            if not all([nome, email, tipo_str]):
-                flash('Nome, Email e Tipo são obrigatórios.', 'error')
-                return redirect(url_for('cli.novo_usuario'))
-            
-            # Verificar se email já existe
-            if Usuario.query.filter_by(email=email).first():
-                flash('Este e-mail já está em uso.', 'error')
-                return redirect(url_for('cli.novo_usuario'))
+            # Passamos 'grupos=gaps' para bater com o HTML {% for gap in grupos %}
+            return render_template_safe('cli/usuario_form.html', grupos=gaps, ranchos=ranchos)
+        except Exception as e:
+            flash(f"Erro ao carregar formulário: {str(e)}", "danger")
+            return redirect(url_for('cli.gerenciar_usuarios'))
 
-            # 3. VALIDAÇÃO DE VÍNCULOS (Regras FAB)
-            # Consultora (AUDITOR) ou Gestor GAP (GESTOR) -> Obrigatório ter GAP
-            if tipo_str in ['auditor', 'gestor'] and not grupo_id:
-                flash('Para Consultoras e Gestores, é OBRIGATÓRIO selecionar o GAP.', 'warning')
-                return redirect(url_for('cli.novo_usuario'))
+    # POST: Processar o formulário
+    try:
+        # 1. Coleta dados
+        nome = request.form.get('nome', '').strip()
+        email = request.form.get('email', '').strip().lower()
+        tipo_str = request.form.get('tipo')
+        grupo_id = request.form.get('grupo_id')       # ID do GAP
+        avaliado_id = request.form.get('avaliado_id') # ID do Rancho
+        
+        # 2. Validações Básicas
+        if not all([nome, email, tipo_str]):
+            flash('Nome, Email e Tipo são obrigatórios.', 'warning')
+            return redirect(url_for('cli.novo_usuario'))
+        
+        if Usuario.query.filter_by(email=email).first():
+            flash('Este e-mail já está em uso.', 'warning')
+            return redirect(url_for('cli.novo_usuario'))
 
-            # Usuário Rancho (USUARIO) -> Obrigatório ter Rancho
-            if tipo_str == 'usuario' and not avaliado_id:
-                flash('Para Usuários Locais (Rancho), é OBRIGATÓRIO selecionar o Rancho.', 'warning')
-                return redirect(url_for('cli.novo_usuario'))
+        # 3. VALIDAÇÃO DE VÍNCULOS (Regras de Negócio FAB)
+        
+        # Regra A: Consultora (Auditor) e Gestor GAP precisam de um GAP definido
+        if tipo_str in ['auditor', 'gestor'] and not grupo_id:
+            flash('Para Consultoras e Gestores, é OBRIGATÓRIO selecionar o GAP.', 'warning')
+            return redirect(url_for('cli.novo_usuario'))
 
-            # 4. Criação do Usuário
-            from werkzeug.security import generate_password_hash, check_password_hash
-            
-            # Converte a string do formulário para o Enum correto
+        # Regra B: Usuário Operacional (Rancho) precisa de um Rancho definido
+        if tipo_str == 'usuario' and not avaliado_id:
+            flash('Para Usuários Locais (Rancho), é OBRIGATÓRIO selecionar o Rancho.', 'warning')
+            return redirect(url_for('cli.novo_usuario'))
+
+        # 4. Conversão Segura (HTML Value -> Python Enum)
+        # Ajuste as chaves da direita (TipoUsuario.X) conforme seu models.py exato
+        mapa_tipos = {
+            'super_admin': TipoUsuario.SUPER_ADMIN, # Se existir esse tipo
+            'admin': TipoUsuario.ADMIN_CLIENTE,     # SDAB
+            'gestor': TipoUsuario.GESTOR_GRUPO,     # GAP
+            'auditor': TipoUsuario.AUDITOR,         # Consultora
+            'usuario': TipoUsuario.USUARIO          # Rancho
+        }
+        
+        tipo_enum = mapa_tipos.get(tipo_str)
+        
+        if not tipo_enum:
+            # Fallback caso o mapeamento falhe (Tenta usar o nome em maiúsculo)
             try:
                 tipo_enum = TipoUsuario[tipo_str.upper()]
-            except:
-                tipo_enum = tipo_str
+            except KeyError:
+                flash(f"Tipo de usuário inválido: {tipo_str}", "error")
+                return redirect(url_for('cli.novo_usuario'))
 
-            usuario = Usuario(
-                nome=nome,
-                email=email,
-                tipo=tipo_enum,
-                cliente_id=current_user.cliente_id,
-                grupo_id=int(grupo_id) if grupo_id else None,
-                avaliado_id=int(avaliado_id) if avaliado_id else None,
-                senha_hash=generate_password_hash('123456'),  # Senha padrão
-                ativo=True
-            )
-            
-            # Se for usuário de rancho, garantimos que o grupo_id seja o mesmo do Rancho
-            if usuario.avaliado_id:
-                rancho = Avaliado.query.get(usuario.avaliado_id)
-                if rancho:
-                    usuario.grupo_id = rancho.grupo_id
-
-            db.session.add(usuario)
-            db.session.commit()
-            
-            log_acao(f"Criou usuário: {nome} ({tipo_str})", None, "Usuario", usuario.id)
-            flash(f'Usuário {nome} criado com sucesso! Senha padrão: 123456', 'success')
-            return redirect(url_for('cli.gerenciar_usuarios'))
-            
-        except Exception as e:
-            db.session.rollback()
-            flash(f'Erro ao criar usuário: {str(e)}', 'error')
-            return redirect(url_for('cli.novo_usuario'))
-    
-    # GET: Carregar dados para os selects do formulário
-    try:
-        # Importante: enviamos 'gaps' e 'ranchos' para bater com o JavaScript do seu HTML
-        gaps = Grupo.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).order_by(Grupo.nome).all()
-        ranchos = Avaliado.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).order_by(Avaliado.nome).all()
+        # 5. Criação do Objeto
+        usuario = Usuario(
+            nome=nome,
+            email=email,
+            tipo=tipo_enum,
+            cliente_id=current_user.cliente_id,
+            # Converte para Int se tiver valor, senão None
+            grupo_id=int(grupo_id) if grupo_id else None,
+            avaliado_id=int(avaliado_id) if avaliado_id else None,
+            senha_hash=generate_password_hash('123456'),
+            ativo=True
+        )
         
-        # Mude 'gaps=gaps' para 'grupos=gaps' para bater com o {% for gap in grupos %} do HTML
-        return render_template_safe('cli/usuario_form.html', grupos=gaps, ranchos=ranchos)
-    except Exception as e:
-        flash(f"Erro ao carregar formulário: {str(e)}", "danger")
+        # 6. Lógica de Consistência (Sua ideia foi ótima!)
+        # Se vinculou a um Rancho, garantimos que o usuário também pertença ao GAP desse Rancho
+        if usuario.avaliado_id:
+            rancho = Avaliado.query.get(usuario.avaliado_id)
+            if rancho and rancho.grupo_id:
+                usuario.grupo_id = rancho.grupo_id
+
+        db.session.add(usuario)
+        db.session.commit()
+        
+        # Tenta registrar log, se der erro no log, não quebra o cadastro
+        try:
+            log_acao(f"Criou usuário: {nome} ({tipo_str})", None, "Usuario", usuario.id)
+        except:
+            pass
+
+        flash(f'Usuário {nome} criado com sucesso! Senha padrão: 123456', 'success')
         return redirect(url_for('cli.gerenciar_usuarios'))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Erro técnico ao criar usuário: {str(e)}', 'danger')
+        return redirect(url_for('cli.novo_usuario'))
 
 # --- GERENCIAMENTO DE USUÁRIOS ---
 
