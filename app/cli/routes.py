@@ -30,7 +30,7 @@ try:
         AplicacaoQuestionario, RespostaPergunta, UsuarioAutorizado,
         TipoResposta, StatusQuestionario, StatusAplicacao, 
         TipoPreenchimento, ModoExibicaoNota, CorRelatorio,
-        TipoUsuario, Notificacao, LogAuditoria, ConfiguracaoCliente, FotoResposta
+        TipoUsuario, Notificacao, LogAuditoria, ConfiguracaoCliente, FotoResposta, CategoriaIndicador
     )
 except ImportError as e:
     print(f"Erro de import: {e}")
@@ -1088,22 +1088,42 @@ def novo_topico(id):
 @cli_bp.route('/topico/<int:topico_id>/editar', methods=['GET', 'POST'])
 @login_required
 def editar_topico(topico_id):
-    """Editar tópico existente"""
+    """
+    Editar tópico existente e vincular a categorias SDAB.
+    """
     try:
+        # 1. Busca o tópico
         topico = Topico.query.get_or_404(topico_id)
         
+        # 2. Verificação de segurança (pertence ao cliente?)
         if topico.questionario.cliente_id != current_user.cliente_id:
-            flash("Tópico não encontrado.", "error")
+            flash("Tópico não encontrado ou acesso negado.", "error")
             return redirect(url_for('cli.listar_questionarios'))
         
+        # 3. Processamento do Formulário (POST)
         if request.method == 'POST':
             try:
                 topico.nome = request.form.get('nome', '').strip()
                 topico.descricao = request.form.get('descricao', '').strip()
+                # Se tiver campo de ordem no form, atualiza também
+                if request.form.get('ordem'):
+                    topico.ordem = int(request.form.get('ordem'))
+
+                # --- NOVO: VINCULAR CATEGORIA SDAB ---
+                cat_id = request.form.get('categoria_id')
+                if cat_id and cat_id.isdigit():
+                    topico.categoria_indicador_id = int(cat_id)
+                else:
+                    topico.categoria_indicador_id = None
+                # -------------------------------------
                 
                 if not topico.nome:
                     flash("Nome do tópico é obrigatório.", "danger")
-                    return render_template_safe('cli/editar_topico.html', topico=topico)
+                    # Precisa recarregar as categorias se der erro de validação
+                    categorias = CategoriaIndicador.query.filter_by(
+                        cliente_id=current_user.cliente_id, ativo=True
+                    ).order_by(CategoriaIndicador.nome).all()
+                    return render_template_safe('cli/editar_topico.html', topico=topico, categorias=categorias)
                 
                 db.session.commit()
                 log_acao(f"Editou tópico: {topico.nome}", None, "Topico", topico_id)
@@ -1115,7 +1135,15 @@ def editar_topico(topico_id):
                 db.session.rollback()
                 flash(f"Erro ao atualizar tópico: {str(e)}", "danger")
         
-        return render_template_safe('cli/editar_topico.html', topico=topico)
+        # 4. Carregamento para Exibição (GET)
+        # Busca as categorias SDAB para preencher o select no HTML
+        categorias = CategoriaIndicador.query.filter_by(
+            cliente_id=current_user.cliente_id, 
+            ativo=True
+        ).order_by(CategoriaIndicador.nome).all()
+
+        return render_template_safe('cli/editar_topico.html', topico=topico, categorias=categorias)
+
     except Exception as e:
         flash(f"Erro ao carregar tópico: {str(e)}", "danger")
         return redirect(url_for('cli.listar_questionarios'))
@@ -2982,6 +3010,71 @@ def configuracoes():
         flash(f"Erro ao carregar configurações: {str(e)}", "danger")
         return render_template_safe('cli/index.html')
 
+
+# --- GESTÃO DE CATEGORIAS DE INDICADORES (SDAB) ---
+
+@cli_bp.route('/configuracoes/categorias', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def gerenciar_categorias():
+    """Gerencia as categorias para os gráficos do Dashboard (Infra, Higiene, etc)"""
+    try:
+        if request.method == 'POST':
+            nome = request.form.get('nome', '').strip()
+            cor = request.form.get('cor', '#4e73df')
+            ordem = int(request.form.get('ordem', 0))
+            
+            if nome:
+                nova_cat = CategoriaIndicador(
+                    nome=nome,
+                    cor=cor,
+                    ordem=ordem,
+                    cliente_id=current_user.cliente_id,
+                    ativo=True
+                )
+                db.session.add(nova_cat)
+                db.session.commit()
+                flash(f"Categoria '{nome}' criada!", "success")
+            else:
+                flash("O nome da categoria é obrigatório.", "warning")
+                
+            return redirect(url_for('cli.gerenciar_categorias'))
+
+        # Listagem
+        categorias = CategoriaIndicador.query.filter_by(
+            cliente_id=current_user.cliente_id,
+            ativo=True
+        ).order_by(CategoriaIndicador.ordem).all()
+        
+        return render_template_safe('cli/gerenciar_categorias.html', categorias=categorias)
+
+    except Exception as e:
+        flash(f"Erro ao gerenciar categorias: {str(e)}", "danger")
+        return redirect(url_for('cli.configuracoes'))
+
+@cli_bp.route('/configuracoes/categoria/<int:id>/excluir', methods=['POST'])
+@login_required
+@admin_required
+def excluir_categoria(id):
+    """Remove uma categoria de indicador"""
+    try:
+        cat = CategoriaIndicador.query.get_or_404(id)
+        if cat.cliente_id != current_user.cliente_id:
+            abort(403)
+            
+        # Desvincula tópicos antes de excluir para não dar erro
+        topicos = Topico.query.filter_by(categoria_indicador_id=id).all()
+        for t in topicos:
+            t.categoria_indicador_id = None
+            
+        db.session.delete(cat)
+        db.session.commit()
+        flash("Categoria removida.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Erro ao excluir: {str(e)}", "danger")
+        
+    return redirect(url_for('cli.gerenciar_categorias'))
 # Em app/cli/routes.py
 
 @cli_bp.route('/aplicacao/<int:id>/salvar-resposta', methods=['POST'])

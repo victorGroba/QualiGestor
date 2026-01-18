@@ -1,0 +1,108 @@
+{% extends "base_cliq.html" %}
+
+{% block title %}Categorias de Indicadores{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="fas fa-chart-pie me-2 text-info"></i>Categorias de Indicadores
+        </h1>
+        <a href="{{ url_for('cli.configuracoes') }}" class="btn btn-secondary shadow-sm">
+            <i class="fas fa-arrow-left fa-sm text-white-50 me-2"></i>Voltar
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Nova Categoria</h6>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Nome da Categoria *</label>
+                            <input type="text" name="nome" class="form-control" required placeholder="Ex: Higiene Pessoal">
+                            <div class="form-text text-muted small mt-2">
+                                <strong>Sugestões SDAB:</strong><br>
+                                - Infraestrutura<br>
+                                - Higiene pessoal<br>
+                                - Higiene dos alimentos<br>
+                                - Armazenagem<br>
+                                - Utensílios e equipamentos<br>
+                                - Lixo e descarte<br>
+                                - Pragas e vetores
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label class="form-label">Cor no Gráfico</label>
+                                <input type="color" name="cor" class="form-control form-control-color w-100" value="#4e73df">
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label class="form-label">Ordem</label>
+                                <input type="number" name="ordem" class="form-control" value="1">
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-plus me-2"></i>Adicionar
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Categorias Ativas</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th width="50">#</th>
+                                    <th>Cor</th>
+                                    <th>Nome</th>
+                                    <th width="100">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for cat in categorias %}
+                                <tr>
+                                    <td>{{ cat.ordem }}</td>
+                                    <td>
+                                        <span class="badge rounded-circle p-2" style="background-color: {{ cat.cor }};"> </span>
+                                    </td>
+                                    <td class="fw-bold">{{ cat.nome }}</td>
+                                    <td>
+                                        <form action="{{ url_for('cli.excluir_categoria', id=cat.id) }}" method="POST" onsubmit="return confirm('Tem certeza?');">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted py-4">
+                                        Nenhuma categoria cadastrada. Adicione as do SDAB ao lado.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

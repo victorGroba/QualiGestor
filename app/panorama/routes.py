@@ -628,3 +628,103 @@ def api_pareto_data():
     except Exception as e:
         print(f"Erro API Pareto: {e}") # Log no terminal
         return jsonify({'error': str(e)}), 500
+    
+    # --- ADICIONE ISTO AO FINAL DO ARQUIVO app/panorama/routes.py ---
+
+@panorama_bp.route('/api/indicadores/quantitativos')
+@login_required
+def api_indicadores_quantitativos():
+    """
+    API Específica para gráficos de Soma/Quantitativos (ex: Desperdício, Sobras em KG).
+    Diferente dos outros gráficos que mostram %, este mostra SOMA de valores.
+    """
+    try:
+        # Filtros
+        data_inicio = request.args.get('data_inicio')
+        data_fim = request.args.get('data_fim')
+        avaliado_id = request.args.get('avaliado_id', type=int)
+        
+        # ID do questionário de desperdício (Defina isso no seu config ou banco)
+        # Exemplo: O usuário seleciona o checklist de "Controle de Sobras" no filtro
+        questionario_id = request.args.get('questionario_id', type=int)
+
+        if not questionario_id:
+            return jsonify({'labels': [], 'datasets': []}) # Retorna vazio se não selecionar checklist
+
+        # Query base para buscar as respostas numéricas
+        query = db.session.query(
+            AplicacaoQuestionario.data_inicio,
+            Pergunta.texto,
+            RespostaPergunta.resposta # Aqui estará o valor em Kg (ex: "15.5")
+        ).join(RespostaPergunta).join(Pergunta)\
+         .filter(
+             AplicacaoQuestionario.questionario_id == questionario_id,
+             AplicacaoQuestionario.status == StatusAplicacao.FINALIZADA,
+             Avaliado.cliente_id == current_user.cliente_id,
+             Pergunta.tipo == 'numerico' # Importante: Só pega perguntas numéricas
+         )
+
+        # Filtros de data
+        if data_inicio:
+            query = query.filter(AplicacaoQuestionario.data_inicio >= datetime.strptime(data_inicio, '%Y-%m-%d'))
+        if data_fim:
+            dt_fim = datetime.strptime(data_fim, '%Y-%m-%d') + timedelta(days=1)
+            query = query.filter(AplicacaoQuestionario.data_inicio < dt_fim)
+        if avaliado_id:
+            query = query.filter(AplicacaoQuestionario.avaliado_id == avaliado_id)
+
+        resultados = query.order_by(AplicacaoQuestionario.data_inicio).all()
+
+        # Processamento dos dados para o Chart.js
+        # Estrutura: { 'Resto Ingesta': {'2023-10-01': 50, '2023-10-02': 45} }
+        dados_agrupados = {}
+        datas = set()
+
+        for data_app, pergunta_texto, valor_resp in resultados:
+            try:
+                valor = float(valor_resp.replace(',', '.')) # Converte string "10,5" para float 10.5
+            except (ValueError, AttributeError):
+                continue # Pula se não for número
+
+            data_str = data_app.strftime('%d/%m')
+            datas.add(data_str)
+
+            if pergunta_texto not in dados_agrupados:
+                dados_agrupados[pergunta_texto] = {}
+            
+            # Soma se tiver mais de um registro no mesmo dia (ex: almoço e jantar)
+            if data_str in dados_agrupados[pergunta_texto]:
+                dados_agrupados[pergunta_texto][data_str] += valor
+            else:
+                dados_agrupados[pergunta_texto][data_str] = valor
+
+        # Ordenar datas cronologicamente
+        labels = sorted(list(datas), key=lambda x: datetime.strptime(x + '/' + str(datetime.now().year), '%d/%m/%Y'))
+        
+        datasets = []
+        cores = ['#e74a3b', '#f6c23e', '#4e73df', '#1cc88a', '#36b9cc'] # Vermelho, Amarelo, Azul...
+        i = 0
+
+        for pergunta, valores_dia in dados_agrupados.items():
+            data_points = []
+            for dia in labels:
+                data_points.append(valores_dia.get(dia, 0)) # 0 se não tiver dado no dia
+            
+            datasets.append({
+                'label': pergunta, # Ex: "Sobra Limpa (kg)"
+                'data': data_points,
+                'borderColor': cores[i % len(cores)],
+                'backgroundColor': 'transparent',
+                'tension': 0.3,
+                'fill': False
+            })
+            i += 1
+
+        return jsonify({
+            'labels': labels,
+            'datasets': datasets
+        })
+
+    except Exception as e:
+        print(f"Erro API Quantitativos: {e}")
+        return jsonify({'error': str(e)}), 500
