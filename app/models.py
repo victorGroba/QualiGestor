@@ -191,21 +191,6 @@ class Usuario(db.Model, UserMixin):
     
     # --- RELACIONAMENTOS (LINKS PARA O PYTHON) ---
     
-    # Permite fazer: usuario.cliente.nome
-    cliente = db.relationship('Cliente', backref='usuarios')
-    
-    # Permite fazer: usuario.grupo.nome (Faltava isso!)
-    grupo = db.relationship('Grupo', backref='usuarios')
-    
-    # Permite fazer: usuario.avaliado.nome
-    avaliado = db.relationship('Avaliado', backref='usuarios_vinculados', foreign_keys=[avaliado_id])
-    
-    # Relacionamentos operacionais (Auditorias, Logs, etc)
-    questionarios_criados = db.relationship('Questionario', backref='criador', lazy='dynamic')
-    aplicacoes_realizadas = db.relationship('AplicacaoQuestionario', backref='aplicador', lazy='dynamic')
-    notificacoes = db.relationship('Notificacao', backref='usuario', lazy='dynamic')
-    logs = db.relationship('LogAuditoria', backref='usuario', lazy='dynamic')
-    
     # --- MÉTODOS DE SEGURANÇA ---
 
     def check_password(self, password):
