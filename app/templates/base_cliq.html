@@ -400,6 +400,25 @@
           </div>
         </div>
       </div>
+      {% if current_user.tipo_id == 1 or current_user.tipo.name == 'SUPER_ADMIN' %}
+
+     
+
+      <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('admin.listar_clientes') }}">
+          <i class="fas fa-fw fa-building"></i>
+          <span>Gerenciar Clientes</span>
+        </a>
+      </li>
+
+      <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('admin.listar_avaliados') }}">
+          <i class="fas fa-fw fa-store-alt"></i>
+          <span>Todas as Unidades</span>
+        </a>
+      </li>
+
+      {% endif %}
 
       <a class="nav-link mt-3" href="{{ url_for('main.painel') }}"><i class="fas fa-arrow-left"></i>
         <span>Voltar</span></a>
