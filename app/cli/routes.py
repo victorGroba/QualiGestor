@@ -1991,22 +1991,38 @@ def excluir_avaliado(id):
 @cli_bp.route('/listar-aplicacoes')
 @login_required
 def listar_aplicacoes():
-    """Lista todas as aplicações de questionário"""
+    """Lista todas as aplicações de questionário com FILTRO HIERÁRQUICO"""
     try:
-        # Filtros
+        # Filtros da URL
         avaliado_id = request.args.get('avaliado_id')
         questionario_id = request.args.get('questionario_id')
         status = request.args.get('status')
         data_inicio = request.args.get('data_inicio')
         data_fim = request.args.get('data_fim')
         
-        # Query base
+        # --- QUERY BASE BLINDADA ---
         query = AplicacaoQuestionario.query.join(Avaliado).filter(
             Avaliado.cliente_id == current_user.cliente_id
         )
+
+        # 1. BLINDAGEM DE RANCHO (Nível Operacional)
+        # Se o usuário tem um rancho fixo, ele SÓ VÊ O DELE, não importa o filtro.
+        if current_user.avaliado_id:
+            query = query.filter(AplicacaoQuestionario.avaliado_id == current_user.avaliado_id)
+
+        # 2. BLINDAGEM DE GAP (Nível Regional)
+        # Se é Gestor/Auditor de GAP, vê tudo que pertence ao GAP dele.
+        elif current_user.grupo_id:
+            query = query.filter(Avaliado.grupo_id == current_user.grupo_id)
+
+        # 3. SDAB/ADMIN (Nível Global)
+        # Continua vendo tudo (já filtrado pelo cliente_id acima)
+
+        # --- FIM DA BLINDAGEM ---
         
-        # Aplicar filtros
+        # Aplicar filtros da URL (se o usuário tiver permissão para usar filtros)
         if avaliado_id:
+            # Se for Rancho, ele já está travado no dele. Se tentar filtrar outro, vai dar vazio.
             query = query.filter(AplicacaoQuestionario.avaliado_id == avaliado_id)
         
         if questionario_id:
@@ -2027,8 +2043,11 @@ def listar_aplicacoes():
             page=page, per_page=20, error_out=False
         )
         
-        # Dados para filtros
-        avaliados = get_avaliados_usuario()
+        # Dados para filtros (Selects)
+        # A função get_avaliados_usuario() que já existe no seu código (linha 225)
+        # JÁ FAZ o filtro correto para os selects, então isso aqui está ok:
+        avaliados = get_avaliados_usuario() 
+        
         questionarios = Questionario.query.filter_by(
             cliente_id=current_user.cliente_id,
             ativo=True,
@@ -2323,23 +2342,42 @@ def excluir_aplicacao(id):
 @login_required
 def visualizar_aplicacao(id):
     """
-    Visualiza uma aplicação garantindo que itens excluídos não apareçam.
+    Visualiza uma aplicação com BLINDAGEM DE HIERARQUIA.
+    Garante que itens excluídos não apareçam e que usuários só vejam o que têm permissão.
     """
     try:
         aplicacao = AplicacaoQuestionario.query.get_or_404(id)
         
+        # --- INÍCIO DA SEGURANÇA HIERÁRQUICA ---
+        
+        # 1. Proteção Global (Mesmo Cliente/Empresa)
         if aplicacao.avaliado.cliente_id != current_user.cliente_id:
             flash("Aplicação não encontrada.", "error")
             return redirect(url_for('cli.listar_aplicacoes'))
+
+        # 2. Proteção Nível Local (Rancho)
+        # Se o usuário tem um rancho fixo (current_user.avaliado_id), 
+        # ele NÃO pode ver aplicações de IDs diferentes.
+        if current_user.avaliado_id and aplicacao.avaliado_id != current_user.avaliado_id:
+            flash("Acesso negado: Você só pode visualizar aplicações do seu Rancho.", "danger")
+            return redirect(url_for('cli.listar_aplicacoes'))
+
+        # 3. Proteção Nível Regional (GAP)
+        # Se o usuário é Gestor de GAP (current_user.grupo_id), 
+        # ele só pode ver se o rancho da aplicação pertencer ao GAP dele.
+        if current_user.grupo_id and aplicacao.avaliado.grupo_id != current_user.grupo_id:
+            flash("Acesso negado: Esta unidade não pertence ao seu GAP.", "danger")
+            return redirect(url_for('cli.listar_aplicacoes'))
+            
+        # --- FIM DA SEGURANÇA ---
         
-        # 1. Carregar Tópicos Ativos
+        # 4. Carregar Tópicos Ativos
         topicos_db = Topico.query.filter_by(
             questionario_id=aplicacao.questionario_id,
             ativo=True
         ).order_by(Topico.ordem).all()
         
-        # 2. Filtrar Perguntas Ativas Manualmente
-        # Criamos uma lista processada para passar ao template
+        # 5. Filtrar Perguntas Ativas Manualmente
         topicos_visualizacao = []
         
         for topico in topicos_db:
@@ -2355,12 +2393,12 @@ def visualizar_aplicacao(id):
                 topico.perguntas_ativas = perguntas_ativas
                 topicos_visualizacao.append(topico)
         
-        # 3. Organizar Respostas
+        # 6. Organizar Respostas
         respostas_dict = {}
         for r in aplicacao.respostas:
             respostas_dict[r.pergunta_id] = r
             
-        # 4. Estatísticas (contando apenas as ativas visíveis)
+        # 7. Estatísticas (contando apenas as ativas visíveis)
         total_perguntas_visiveis = sum(len(t.perguntas_ativas) for t in topicos_visualizacao)
         respondidas_visiveis = 0
         for t in topicos_visualizacao:
@@ -2385,7 +2423,8 @@ def visualizar_aplicacao(id):
                              stats=stats)
 
     except Exception as e:
-        print(f"Erro visualizar_aplicacao: {e}")
+        # Log de erro para debug (opcional)
+        print(f"Erro visualizar_aplicacao: {e}") 
         flash(f"Erro ao carregar aplicação: {str(e)}", "danger")
         return redirect(url_for('cli.listar_aplicacoes'))
 
