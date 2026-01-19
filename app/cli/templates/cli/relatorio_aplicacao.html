@@ -5,7 +5,7 @@
   <title>Relatório - {{ aplicacao.questionario.nome }}</title>
   <style>
     /* ==========================================================================
-       1. CONFIGURAÇÕES GERAIS
+       1. CONFIGURAÇÕES GERAIS E RESET
        ========================================================================== */
     :root {
       --text-dark: #2c3e50;
@@ -25,7 +25,6 @@
 
     html, body {
       width: 100%;
-      height: 100%;
       margin: 0;
       padding: 0;
       font-family: 'Roboto', 'Helvetica Neue', Helvetica, Arial, sans-serif;
@@ -36,32 +35,29 @@
     }
 
     /* ==========================================================================
-       2. MARGENS DE PÁGINA (Ajuste Linux/Windows)
+       2. MARGENS DE PÁGINA E CABEÇALHO/RODAPÉ FIXOS (WEASYPRINT)
        ========================================================================== */
     @page {
       size: A4;
-      margin: 0mm; 
+      margin: 0mm; /* Margem zero para permitir header full-width */
     }
 
     body {
-      /* Aumentado para 4.5cm para evitar overlap no Linux */
-      padding-top: 4.5cm;    
+      /* Padding compensa o Header e Footer fixos para o conteúdo não ficar por baixo */
+      padding-top: 3.5cm;    
       padding-bottom: 1.5cm; 
       padding-left: 1cm;     
       padding-right: 1cm;
     }
 
-    /* ==========================================================================
-       3. CABEÇALHO FIXO
-       ========================================================================== */
+    /* Cabeçalho Fixo em todas as páginas */
     .header-fixed {
       position: fixed;
       top: 0; 
       left: 0;
       width: 100%;
-      height: 3.2cm; /* Altura fixa */
+      height: 3.0cm;
       
-      /* Degradê Direto (Sem var) */
       background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
       color: white;
       
@@ -72,33 +68,22 @@
       padding-left: 1cm;
       padding-right: 1cm;
       
-      overflow: hidden;
       z-index: 1000;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
 
-    /* Lado Esquerdo: Logo + Texto */
     .header-left {
       display: flex;
       align-items: center;
-      gap: 20px; 
-      flex: 1;   
+      gap: 15px;
+      flex: 1;
     }
 
-    /* LOGO: Sem fundo branco (Transparente) */
     .header-logo {
-      height: 60px;          
+      height: 55px;          
       width: auto;           
-      max-width: 200px;      
+      max-width: 180px;      
       object-fit: contain;   
-      flex-shrink: 0; 
-      /* Sem background, sem padding, sem borda */
-    }
-
-    .header-info {
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
+      
     }
 
     .header-info h1 { 
@@ -107,7 +92,6 @@
       font-weight: 500; 
       color: #fff; 
       text-transform: uppercase; 
-      letter-spacing: 0.5px;
       line-height: 1.2;
     }
     
@@ -118,7 +102,6 @@
       color: rgba(255,255,255,0.9); 
     }
 
-    /* Lado Direito: Datas */
     .header-right { 
       text-align: right; 
       color: #fff; 
@@ -129,15 +112,13 @@
     .header-label { font-size: 7pt; text-transform: uppercase; opacity: 0.8; letter-spacing: 1px; }
     .header-value { font-size: 10pt; font-weight: 500; margin-top: 2px; }
 
-    /* ==========================================================================
-       4. RODAPÉ
-       ========================================================================== */
+    /* Rodapé Fixo em todas as páginas */
     .footer-fixed {
       position: fixed;
       bottom: 0; 
       left: 0;
       width: 100%;
-      height: 1.2cm;
+      height: 1.0cm;
       
       background-color: #f8f9fa;
       border-top: 1px solid #ecf0f1;
@@ -155,26 +136,22 @@
     .page-number:after { content: "Página " counter(page); }
 
     /* ==========================================================================
-       5. INFO GRID (Tabela Inicial)
+       3. INFO GRID (TABELA DE DADOS INICIAL)
        ========================================================================== */
     .info-grid { 
       display: table; 
       width: 100%; 
-      border-collapse: separate;
-      border-spacing: 10px 0;
-      
-      /* Correção CRÍTICA para Linux: */
-      margin-top: 0; 
+      border-collapse: collapse; /* Collapse para bordas mais limpas */
+      margin-top: 10px; 
       margin-bottom: 30px; 
-      page-break-before: avoid; /* Proíbe pular página antes disso */
       page-break-inside: avoid;
     }
     
     .info-item { 
       display: table-cell; 
       background: #fff;
-      border-bottom: 2px solid #ecf0f1;
-      padding: 5px 10px; 
+      border: 1px solid #ecf0f1;
+      padding: 8px 12px; 
       vertical-align: top;
       width: 20%;
     }
@@ -184,51 +161,47 @@
       font-size: 7pt; 
       color: #7f8c8d; 
       text-transform: uppercase; 
-      font-weight: 600;
-      letter-spacing: 0.5px;
+      font-weight: 700;
       margin-bottom: 4px;
     }
     
     .info-value { 
       display: block; 
-      font-size: 10pt; 
+      font-size: 9pt; 
       font-weight: 500; 
       color: #2c3e50; 
-      white-space: nowrap; 
-      overflow: hidden; 
-      text-overflow: ellipsis; 
     }
 
-    .info-item.score { border-bottom-color: #2c3e50; }
+    .info-item.score { background-color: #fcfcfc; border-color: #bdc3c7; }
     .info-item.score .info-value { color: #2c3e50; font-weight: 700; font-size: 12pt; }
 
     /* ==========================================================================
-       6. CONTEÚDO
+       4. ESTRUTURA DOS TÓPICOS E PERGUNTAS
        ========================================================================== */
     .topic-container { 
       margin-bottom: 25px; 
-      page-break-inside: avoid; 
+      page-break-inside: auto; 
     }
 
     .topic-header { 
-      background-color: #fdfdfd;
-      border-bottom: 1px solid #2c3e50;
-      padding: 5px 0;
+      background-color: #f0f2f5;
+      border-left: 5px solid #2c3e50;
+      padding: 8px 12px;
       margin-bottom: 15px;
       display: flex; 
       justify-content: space-between; 
-      align-items: flex-end;
+      align-items: center;
+      page-break-after: avoid; /* Mantém o título junto com a primeira pergunta */
     }
     
     .topic-title {
       font-size: 11pt;
-      font-weight: 600;
+      font-weight: 700;
       color: #2c3e50;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
     }
     
-    .topic-score { font-size: 9pt; font-weight: 500; color: #7f8c8d; }
+    .topic-score { font-size: 9pt; font-weight: 600; color: #7f8c8d; }
 
     .question-row { 
       display: flex; 
@@ -236,7 +209,7 @@
       align-items: flex-start; 
       padding: 8px 0; 
       border-bottom: 1px solid #ecf0f1; 
-      page-break-inside: avoid;
+      page-break-inside: avoid; /* Evita quebrar uma pergunta ao meio */
     }
     
     .question-row:last-child { border-bottom: none; }
@@ -244,108 +217,115 @@
     .q-text-col { flex: 1; padding-right: 15px; }
     
     .q-number { 
-      color: #7f8c8d; 
-      font-weight: 500; 
+      color: #95a5a6; 
+      font-weight: 700; 
       font-size: 8pt;
-      margin-right: 10px; 
-      display: inline-block;
-      min-width: 25px; 
+      margin-right: 8px; 
     }
     
     .q-text { font-size: 10pt; font-weight: 400; color: #2c3e50; }
 
     .q-obs { 
       display: block; 
-      margin-top: 4px; 
-      margin-left: 38px; 
+      margin-top: 5px; 
+      padding: 5px 10px;
+      background-color: #f9f9f9;
+      border-left: 2px solid #e74c3c; /* Destaque visual leve */
       font-size: 9pt; 
-      color: #666; 
+      color: #555; 
       font-style: italic;
-      background: #fcfcfc;
-      padding: 4px;
-      border-left: 2px solid #ddd;
     }
 
-    .q-status-col { min-width: 70px; text-align: right; padding-left: 10px; }
+    .q-status-col { min-width: 90px; text-align: right; }
 
     .q-status {
       font-size: 9pt;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
     }
 
     .status-conforme { color: #27ae60; }
     .status-nao { color: #c0392b; }
-    .status-na { color: #95a5a6; font-weight: 400; font-size: 8pt; }
+    .status-na { color: #95a5a6; font-size: 8pt; }
     .status-parcial { color: #e67e22; }
 
     /* ==========================================================================
-       7. GALERIA E RODAPÉ
+       5. GALERIA DE FOTOS
        ========================================================================== */
-    .signature-container { 
-      margin-top: 10px;
-      padding: 15px; 
-      border: 1px dashed #bdc3c7; 
-      background: #fff;
-      border-radius: 4px;
-      text-align: center;
-      page-break-inside: avoid;
+    .gallery-container { 
+      margin-top: 15px; 
+      padding-top: 10px; 
+      page-break-inside: avoid; 
+      border-top: 1px dashed #ecf0f1;
     }
-    
-    .signature-img { height: 60px; display: block; margin: 0 auto; mix-blend-mode: multiply; }
-
-    .gallery-container { margin-top: 15px; padding-top: 10px; page-break-inside: avoid; }
     
     .gallery-header { 
       font-size: 8pt; 
-      font-weight: 600; 
+      font-weight: 700; 
       color: #7f8c8d; 
       margin-bottom: 10px; 
       text-transform: uppercase; 
-      letter-spacing: 1px;
     }
     
-    .gallery-grid { display: block; width: 100%; }
+    .gallery-grid { 
+      display: block; 
+      width: 100%; 
+      font-size: 0; /* Remove espaços entre inline-blocks */
+    }
     
     .gallery-item { 
       display: inline-block; 
       width: 32%; 
-      margin-right: 1%;
-      margin-bottom: 12px; 
+      margin-right: 2%; /* Espaçamento relativo */
+      margin-bottom: 15px; 
       vertical-align: top;
       border: 1px solid #ecf0f1;
-      padding: 3px;
+      padding: 4px;
       background: #fff;
     }
     
+    .gallery-item:nth-child(3n) { margin-right: 0; } /* Remove margem do 3º item */
+
     .gallery-img-wrapper { 
       width: 100%; 
-      height: 120px; 
-      background: #f9f9f9; 
-      overflow: hidden;
+      height: 140px; 
+      background: #fdfdfd; 
       display: flex;
       align-items: center;
       justify-content: center;
+      overflow: hidden;
+      margin-bottom: 5px;
     }
     
-    .gallery-img-wrapper img { width: 100%; height: 100%; object-fit: cover; }
+    .gallery-img-wrapper img { 
+      width: 100%; 
+      height: 100%; 
+      object-fit: cover; 
+    }
     
     .gallery-caption { 
-      padding: 5px;
       font-size: 8pt; 
       color: #2c3e50; 
       line-height: 1.2;
       text-align: left;
+      min-height: 2.4em; /* Garante altura mínima para 2 linhas */
     }
 
+    /* ==========================================================================
+       6. ASSINATURAS E VALIDAÇÃO
+       ========================================================================== */
     .validation-block { 
-      text-align: right; 
+      text-align: center; 
       margin-top: 40px; 
       border-top: 1px solid #ecf0f1;
-      padding-top: 15px;
+      padding-top: 20px;
       page-break-inside: avoid;
     }
+
+    /* Classes auxiliares para impressão */
+    .no-break { page-break-inside: avoid; }
+    .page-break { page-break-before: always; }
+
   </style>
 </head>
 <body>
@@ -354,24 +334,26 @@
     <div class="header-left">
       {% if logo_pdf_uri %}
         <img src="{{ logo_pdf_uri }}" alt="Logo" class="header-logo">
+      {% else %}
+        <h2 style="margin:0; color:#fff;">QualiGestor</h2>
       {% endif %}
       
       <div class="header-info">
         <h1>{{ aplicacao.questionario.nome }}</h1>
-        <p>Relatório de Auditoria</p>
+        <p>Relatório de Auditoria #{{ aplicacao.id }}</p>
       </div>
     </div>
 
     <div class="header-right">
       <div class="header-label">Emissão</div>
-      <div class="header-value">{{ aplicacao.data_inicio.strftime('%d/%m/%Y') }}</div>
+      <div class="header-value">{{ data_geracao.strftime('%d/%m/%Y') }}</div>
       <div class="header-label" style="margin-top: 5px;">Hora</div>
-      <div class="header-value" style="font-weight: 400;">{{ aplicacao.data_inicio.strftime('%H:%M') }}</div>
+      <div class="header-value" style="font-weight: 400;">{{ data_geracao.strftime('%H:%M') }}</div>
     </div>
   </div>
 
   <div class="footer-fixed">
-    <div style="font-weight: 500;">QUALIGESTOR</div>
+    <div style="font-weight: 500;">QUALIGESTOR SISTEMAS</div>
     <div>{{ aplicacao.avaliado.nome }}</div>
     <div class="page-number"></div>
   </div>
@@ -382,20 +364,31 @@
       <span class="info-value">{{ aplicacao.avaliado.nome }}</span>
     </div>
     <div class="info-item">
-      <span class="info-label">Auditor</span>
-      <span class="info-value">{{ avaliador.nome if avaliador else 'N/A' }}</span>
+      <span class="info-label">Avaliador</span>
+      <span class="info-value">{{ avaliador.nome if avaliador else 'Sistema' }}</span>
     </div>
     <div class="info-item">
-      <span class="info-label">Início</span>
-      <span class="info-value">{{ aplicacao.data_inicio.strftime('%d/%m/%Y %H:%M') }}</span>
+      <span class="info-label">Data Início</span>
+      <span class="info-value">{{ aplicacao.data_inicio.strftime('%d/%m/%Y') }}</span>
     </div>
     <div class="info-item">
-      <span class="info-label">Fim</span>
-      <span class="info-value">{% if aplicacao.data_fim %}{{ aplicacao.data_fim.strftime('%d/%m/%Y %H:%M') }}{% else %}Em Andamento{% endif %}</span>
+      <span class="info-label">Duração</span>
+      <span class="info-value">
+        {% if aplicacao.data_fim %}
+          {{ ((aplicacao.data_fim - aplicacao.data_inicio).total_seconds() / 60) | round | int }} min
+        {% else %}
+          -
+        {% endif %}
+      </span>
     </div>
     <div class="info-item score">
       <span class="info-label">Nota Final</span>
-      <span class="info-value">{{ nota_final | round(2) }}%</span>
+      {% set cor_nota = '#2c3e50' %}
+      {% if nota_final >= 90 %}{% set cor_nota = '#27ae60' %}
+      {% elif nota_final >= 70 %}{% set cor_nota = '#e67e22' %}
+      {% elif nota_final < 70 %}{% set cor_nota = '#c0392b' %}
+      {% endif %}
+      <span class="info-value" style="color: {{ cor_nota }}">{{ nota_final | round(2) }}%</span>
     </div>
   </div>
 
@@ -403,70 +396,60 @@
     {% set respostas = respostas_por_topico.get(topico, []) %}
     {% set score_info = scores_por_topico.get(topico.id, {'score_percent': 0}) %}
 
+    {% if respostas %}
     <div class="topic-container">
       <div class="topic-header">
         <div class="topic-title">{{ topico.ordem }}. {{ topico.nome }}</div>
-        <div class="topic-score">{{ score_info.score_percent | round(1) }}%</div>
+        <div class="topic-score">Aderência: {{ score_info.score_percent | round(1) }}%</div>
       </div>
 
-      {% if respostas %}
-        {% for resposta in respostas|sort(attribute='pergunta.ordem') %}
+      {% for resposta in respostas|sort(attribute='pergunta.ordem') %}
+        <div class="question-row">
+          <div class="q-text-col">
+            <div>
+              <span class="q-number">{{ topico.ordem }}.{{ resposta.pergunta.ordem }}</span>
+              <span class="q-text">{{ resposta.pergunta.texto }}</span>
+            </div>
+            {% if resposta.observacao %}
+              <span class="q-obs">Obs: {{ resposta.observacao }}</span>
+            {% endif %}
+            {% if resposta.plano_acao %}
+              <span class="q-obs" style="border-left-color: #3498db; background-color: #e8f6f3;">
+                <strong>Plano de Ação:</strong> {{ resposta.plano_acao }}
+              </span>
+            {% endif %}
+          </div>
           
-          {% if resposta.pergunta.tipo.name == 'ASSINATURA' %}
-            <div class="signature-container">
-              <div style="font-size: 9pt; margin-bottom: 8px;">{{ resposta.pergunta.texto }}</div>
-              {% if resposta.resposta and 'data:image' in resposta.resposta %}
-                <img src="{{ resposta.resposta }}" alt="Assinatura" class="signature-img">
-              {% else %}
-                <div style="color:#bdc3c7; font-style:italic;">Não assinado</div>
-              {% endif %}
+          <div class="q-status-col">
+            {% set resp_val = (resposta.resposta or '')|lower %}
+            <div class="q-status 
+              {% if resp_val in ['não','nao','no','ruim','irregular','reprovado'] %}status-nao
+              {% elif resp_val in ['n.a.','na','n/a','não se aplica'] %}status-na
+              {% elif resp_val in ['parcial','regular'] %}status-parcial
+              {% else %}status-conforme{% endif %}">
+              {{ resposta.resposta or '-' }}
             </div>
-
-          {% else %}
-            <div class="question-row">
-              <div class="q-text-col">
-                <div>
-                  <span class="q-number">{{ topico.ordem }}.{{ resposta.pergunta.ordem }}</span>
-                  <span class="q-text">{{ resposta.pergunta.texto }}</span>
-                </div>
-                {% if resposta.observacao %}
-                  <span class="q-obs">Obs: {{ resposta.observacao }}</span>
-                {% endif %}
-              </div>
-              
-              <div class="q-status-col">
-                {% set resp_val = resposta.resposta|lower %}
-                <div class="q-status 
-                  {% if resp_val in ['não','nao','no','ruim','irregular'] %}status-nao
-                  {% elif resp_val in ['n.a.','na','n/a'] %}status-na
-                  {% elif resp_val == 'parcial' %}status-parcial
-                  {% else %}status-conforme{% endif %}">
-                  {{ resposta.resposta or '-' }}
-                </div>
-              </div>
-            </div>
-          {% endif %}
-        {% endfor %}
-      {% else %}
-        <div style="padding:15px; color:#bdc3c7; font-style:italic; font-size: 9pt; text-align:center;">
-          Nenhum item avaliado.
+            {% if resposta.pontos is not none and resposta.pontos > 0 %}
+              <div style="font-size: 7pt; color: #95a5a6; margin-top: 2px;">({{ resposta.pontos }} pts)</div>
+            {% endif %}
+          </div>
         </div>
-      {% endif %}
+      {% endfor %}
 
       {% set fotos = fotos_por_topico.get(topico) %}
       {% if fotos %}
         <div class="gallery-container">
-          <div class="gallery-header">Evidências Fotográficas</div>
+          <div class="gallery-header">Evidências Fotográficas - {{ topico.nome }}</div>
           <div class="gallery-grid">
-            {% for foto in fotos %}
+            {% for item in fotos %}
               <div class="gallery-item">
                 <div class="gallery-img-wrapper">
-                  <img src="{{ foto.caminho_url }}" alt="Evidência">
+                  <img src="{{ item.caminho_url }}" alt="Evidência">
                 </div>
                 <div class="gallery-caption">
-                  <strong style="color: #2c3e50;">Item {{ topico.ordem }}.{{ foto.resposta.pergunta.ordem }}</strong>
-                  {% if foto.resposta.observacao %}
-                    <br><span style="color:#7f8c8d;">{{ foto.resposta.observacao|truncate(35) }}</span>
+                  <strong>Ref: {{ item.resposta.pergunta.texto | truncate(40) }}</strong>
+                  {% if item.resposta.observacao %}
+                    <br><span style="color:#7f8c8d; font-style:italic;">{{ item.resposta.observacao | truncate(50) }}</span>
                   {% endif %}
                 </div>
               </div>
@@ -475,12 +458,13 @@
         </div>
       {% endif %}
     </div>
+    {% endif %}
   {% endfor %}
 
   {% if qr_code_url %}
     <div class="validation-block">
-      <img src="{{ qr_code_url }}" style="width:65px; height:65px;">
-      <div style="font-size:7pt; color:#95a5a6; margin-top:5px;">Autenticidade Digital</div>
+      <img src="{{ qr_code_url }}" style="width:80px; height:80px;">
+      <div style="font-size:8pt; color:#95a5a6; margin-top:5px; text-transform:uppercase;">Documento Autenticado Digitalmente</div>
     </div>
   {% endif %}
 

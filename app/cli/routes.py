@@ -276,53 +276,76 @@ def render_template_safe(template_name, **kwargs):
 
 def gerar_pdf_seguro(html_content, filename="relatorio.pdf"):
     """
-    Lê o CSS do disco e injeta o TEXTO diretamente no HTML.
-    Isso elimina qualquer erro de caminho ou permissão do WeasyPrint.
+    Gera PDF garantindo que o CSS e Imagens sejam carregados corretamente.
+    
+    Técnica:
+    1. Lê o arquivo CSS do disco (static/css/style.css).
+    2. Injeta o conteúdo do CSS diretamente na tag <style> do HTML.
+    3. Define base_url apontando para a pasta static (para imagens locais).
     """
+    from flask import current_app, make_response, flash, redirect, request, url_for
+    import os
+    import traceback
+
     try:
-        from weasyprint import HTML
-        import os
-        
-        # 1. Localiza o arquivo CSS
+        # Tenta importar o WeasyPrint aqui para não quebrar o app se não estiver instalado
+        from weasyprint import HTML, CSS
+    except ImportError:
+        current_app.logger.warning("WeasyPrint não instalado. Retornando HTML puro.")
+        flash("O sistema de PDF (WeasyPrint) não está instalado. Exibindo versão Web.", "warning")
+        return make_response(html_content)
+
+    try:
+        # --- PASSO 1: Carregar CSS do Disco ---
+        css_text = ""
+        # Monta o caminho absoluto: /var/www/.../app/static/css/style.css
         css_path = os.path.join(current_app.static_folder, 'css', 'style.css')
         
-        # 2. Lê o conteúdo do arquivo como texto puro
-        css_text = ""
         if os.path.exists(css_path):
             try:
                 with open(css_path, 'r', encoding='utf-8') as f:
                     css_text = f.read()
-                print(f"DEBUG PDF: CSS lido com sucesso ({len(css_text)} caracteres)")
+                current_app.logger.info(f"[PDF] CSS carregado com sucesso: {css_path}")
             except Exception as e:
-                print(f"ERRO PDF: Falha ao ler arquivo CSS: {e}")
+                current_app.logger.error(f"[PDF] Erro ao ler CSS: {e}")
         else:
-            print(f"ERRO PDF: Arquivo CSS não encontrado em: {css_path}")
+            current_app.logger.warning(f"[PDF] Arquivo CSS não encontrado: {css_path}")
 
-        # 3. Injeta o CSS dentro do HTML (Força Bruta)
-        # Se tiver tag <head>, coloca lá dentro. Se não, coloca no começo.
+        # --- PASSO 2: Injeção de CSS (Blindagem) ---
+        # Isso resolve problemas de permissão ou rotas onde o WeasyPrint não acha o .css
         if "</head>" in html_content:
-            html_final = html_content.replace("</head>", f"<style>{css_text}</style></head>")
+            html_final = html_content.replace("</head>", f"<style>\n{css_text}\n</style>\n</head>")
         else:
-            html_final = f"<style>{css_text}</style>\n" + html_content
+            # Se não achar </head>, insere no começo
+            html_final = f"<style>\n{css_text}\n</style>\n" + html_content
 
-        # 4. Gera o PDF usando o HTML já "temperado" com o CSS
-        # base_url=current_app.static_folder é CRUCIAL para as imagens funcionarem
-        pdf = HTML(string=html_final, base_url=current_app.static_folder).write_pdf()
+        # --- PASSO 3: Geração do PDF ---
+        # base_url=current_app.static_folder é OBRIGATÓRIO para imagens (src="img/logo.png") funcionarem
+        current_app.logger.info(f"[PDF] Iniciando renderização do WeasyPrint para: {filename}")
         
-        response = make_response(pdf)
+        pdf_bytes = HTML(string=html_final, base_url=current_app.static_folder).write_pdf()
+
+        # --- PASSO 4: Resposta ---
+        response = make_response(pdf_bytes)
         response.headers['Content-Type'] = 'application/pdf'
+        # 'inline' abre no navegador, 'attachment' força download
         response.headers['Content-Disposition'] = f'inline; filename="{filename}"'
+        
+        current_app.logger.info("[PDF] PDF gerado e enviado com sucesso.")
         return response
 
-    except ImportError:
-        flash("WeasyPrint não instalado. Mostrando HTML.", "warning")
-        return make_response(html_content)
     except Exception as e:
-        print(f"ERRO CRÍTICO PDF: {e}")
-        import traceback
-        traceback.print_exc()
-        flash(f"Erro ao gerar PDF: {str(e)}", "danger")
-        return redirect(request.referrer or url_for('cli.index'))
+        # Captura erro genérico na geração
+        current_app.logger.error(f"[PDF] ERRO CRÍTICO: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
+        
+        flash(f"Erro ao gerar o PDF. Detalhes técnicos foram registrados. Erro: {str(e)}", "danger")
+        
+        # Fallback de segurança: Redireciona para a página anterior ou mostra o HTML
+        if request.referrer:
+            return redirect(request.referrer)
+        else:
+            return make_response(html_content)
 
 # ===================== CORREÇÃO 8: FUNÇÃO AUXILIAR PARA COMPATIBILIDADE =====================
 
