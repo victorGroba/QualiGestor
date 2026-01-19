@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Plano de Ação - {{ aplicacao.id }}</title>
+  <style>
+    /* ==========================================================================
+       CONFIGURAÇÕES GERAIS (ESTILO CLEAN)
+       ========================================================================== */
+    @page {
+      size: A4;
+      margin-top: 3.5cm; margin-bottom: 2.0cm; margin-left: 1cm; margin-right: 1cm;
+      @top-center { content: element(header); width: 100%; }
+      @bottom-center { content: element(footer); width: 100%; }
+    }
+    body { font-family: 'Helvetica', sans-serif; font-size: 10pt; color: #333; padding: 0; margin: 0; }
+    
+    /* CABEÇALHO LIMPO (Fundo Branco + Borda Colorida) */
+    .header-fixed { 
+        position: running(header); 
+        width: 100%; 
+        height: 3.0cm; 
+        background: #fff; /* Fundo Branco */
+        border-bottom: 3px solid #e67e22; /* Linha Laranja (Atenção suave) */
+        color: #333; 
+        display: flex; 
+        align-items: center; 
+        justify-content: space-between; 
+        padding: 0 1cm;
+        margin-left: -1cm; margin-right: -1cm;
+    }
+    
+    /* Logo sem fundo */
+    .header-logo img { 
+        height: 60px; 
+        /* Removemos background e padding para transparência total */
+        object-fit: contain; 
+    }
+
+    .header-info { text-align: right; }
+    .header-info h1 { margin: 0; font-size: 16pt; color: #e67e22; text-transform: uppercase; } /* Título Laranja */
+    .header-info p { margin: 2px 0 0 0; font-size: 9pt; color: #777; }
+
+    /* RODAPÉ */
+    .footer-fixed { 
+        position: running(footer); 
+        width: 100%; 
+        height: 1.5cm; 
+        background: #f8f9fa; 
+        border-top: 1px solid #ddd; 
+        display: flex; 
+        align-items: center; 
+        justify-content: space-between; 
+        padding: 0 1cm; 
+        color: #999; 
+        font-size: 8pt;
+        margin-left: -1cm; margin-right: -1cm;
+    }
+    
+    /* TABELA DE AÇÃO */
+    .action-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    .action-table th { 
+        background: #f8f9fa; 
+        color: #555; 
+        text-align: left; 
+        padding: 10px; 
+        border-bottom: 2px solid #ddd; 
+        font-weight: bold; 
+        font-size: 9pt; 
+        text-transform: uppercase; 
+    }
+    .action-table td { padding: 12px 10px; border-bottom: 1px solid #eee; vertical-align: top; }
+    
+    /* Destaques */
+    .status-nc { 
+        color: #c0392b; /* Texto vermelho apenas no status */
+        font-weight: bold; 
+        font-size: 9pt;
+        white-space: nowrap;
+    }
+    .plano-box { 
+        background: #fff; 
+        border-left: 3px solid #e67e22; 
+        padding-left: 10px; 
+        color: #444; 
+    }
+
+    /* Caixa de Dados */
+    .info-box {
+        background: #fcfcfc;
+        border: 1px solid #eee;
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 4px;
+        display: table;
+        width: 100%;
+    }
+    .info-col { display: table-cell; vertical-align: middle; padding-right: 20px; }
+    .label { font-size: 8pt; color: #999; text-transform: uppercase; display: block; margin-bottom: 2px; }
+    .value { font-size: 11pt; font-weight: bold; color: #333; }
+
+    /* Assinaturas */
+    .signature-section { margin-top: 60px; display: table; width: 100%; page-break-inside: avoid; }
+    .sig-block { display: table-cell; width: 45%; text-align: center; vertical-align: bottom; }
+    .sig-line { border-top: 1px solid #ccc; width: 80%; margin: 0 auto; padding-top: 5px; font-size: 9pt; color: #555; }
+
+  </style>
+</head>
+<body>
+
+  <div class="header-fixed">
+    <div class="header-logo">
+      {% if logo_pdf_uri %}<img src="{{ logo_pdf_uri }}">{% else %}<h2>QualiGestor</h2>{% endif %}
+    </div>
+    <div class="header-info">
+      <h1>Plano de Ação Corretiva</h1>
+      <p>Gestão de Não Conformidades</p>
+    </div>
+  </div>
+
+  <div class="footer-fixed">
+    <div>QualiGestor Sistema de Gestão</div>
+    <div>Página <span style="content: counter(page)"></span></div>
+  </div>
+
+  <div class="info-box">
+    <div class="info-col" style="width: 50%">
+        <span class="label">Unidade Avaliada</span>
+        <span class="value">{{ aplicacao.avaliado.nome }}</span>
+    </div>
+    <div class="info-col" style="width: 25%">
+        <span class="label">Data Auditoria</span>
+        <span class="value">{{ aplicacao.data_inicio.strftime('%d/%m/%Y') }}</span>
+    </div>
+    <div class="info-col" style="width: 25%">
+        <span class="label">Total Pendências</span>
+        <span class="value" style="color: #c0392b">{{ respostas|length }}</span>
+    </div>
+  </div>
+
+  <h3 style="font-size: 12pt; color: #555; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 0;">
+    Registro de Inconformidades e Ações
+  </h3>
+
+  <table class="action-table">
+    <thead>
+      <tr>
+        <th width="45%">Item Auditado</th>
+        <th width="15%">Status</th>
+        <th width="40%">Ação Corretiva (Planejado)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in respostas %}
+      <tr>
+        <td>
+          <div style="font-weight: bold; color: #333; margin-bottom: 4px;">{{ item.pergunta.texto }}</div>
+          {% if item.observacao %}
+            <div style="font-size: 9pt; color: #666; font-style: italic;">
+              <span style="color: #e67e22;">Obs:</span> {{ item.observacao }}
+            </div>
+          {% endif %}
+        </td>
+        <td class="status-nc">
+            {{ item.resposta }}
+        </td>
+        <td>
+            <div class="plano-box">
+                {{ item.plano_acao or 'Aguardando definição' }}
+            </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="signature-section">
+      <div class="sig-block">
+          <div class="sig-line">Responsável pela Unidade<br><small>(Ciente e de acordo com o prazo)</small></div>
+      </div>
+      <div style="display: table-cell; width: 10%;"></div>
+      <div class="sig-block">
+          <div class="sig-line">Auditor / Consultor<br><small>(Validação)</small></div>
+      </div>
+  </div>
+
+</body>
+</html>

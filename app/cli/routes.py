@@ -4926,47 +4926,124 @@ def gerenciar_nao_conformidades(id):
 @login_required
 def lista_plano_acao():
     """
-    Lista Global de Planos de Ação AGRUPADOS POR AUDITORIA.
-    Mostra o cabeçalho da auditoria e agrupa as pendências dentro dela.
+    Tela 1: Lista apenas as AUDITORIAS que possuem planos de ação pendentes.
     """
     try:
-        # 1. Busca todas as respostas com plano de ação (respeitando a hierarquia)
-        query = RespostaPergunta.query\
-            .join(AplicacaoQuestionario)\
-            .join(Avaliado)\
-            .join(Pergunta)\
+        # Busca IDs de aplicações que têm pelo menos uma resposta com plano de ação
+        subquery = db.session.query(RespostaPergunta.aplicacao_id)\
             .filter(RespostaPergunta.plano_acao != None)\
             .filter(RespostaPergunta.plano_acao != "")\
+            .distinct()
+
+        # Busca as aplicações completas baseadas nesses IDs
+        query = AplicacaoQuestionario.query\
+            .join(Avaliado)\
+            .filter(AplicacaoQuestionario.id.in_(subquery))\
             .filter(Avaliado.cliente_id == current_user.cliente_id)
 
-        # Filtros de Segurança (Hierarquia)
-        if current_user.avaliado_id: # Nível Rancho
+        # Filtros de Hierarquia
+        if current_user.avaliado_id:
             query = query.filter(AplicacaoQuestionario.avaliado_id == current_user.avaliado_id)
-        elif current_user.grupo_id:  # Nível GAP
+        elif current_user.grupo_id:
             query = query.filter(Avaliado.grupo_id == current_user.grupo_id)
-            
-        # Ordena por data (mais recente) e depois pelo ID da aplicação (para agrupar corretamente)
-        itens_brutos = query.order_by(AplicacaoQuestionario.data_inicio.desc(), AplicacaoQuestionario.id).all()
 
-        # 2. Lógica de Agrupamento em Dicionário
-        # Estrutura: { id_aplicacao: { 'dados': obj_aplicacao, 'itens': [lista_de_respostas] } }
-        grupos = {}
-        
-        for resposta in itens_brutos:
-            app_id = resposta.aplicacao_id
-            if app_id not in grupos:
-                grupos[app_id] = {
-                    'aplicacao': resposta.aplicacao,
-                    'respostas': []
-                }
-            grupos[app_id]['respostas'].append(resposta)
+        aplicacoes_pendentes = query.order_by(AplicacaoQuestionario.data_inicio.desc()).all()
 
-        # Converte para uma lista para enviar ao template
-        lista_agrupada = list(grupos.values())
-
-        return render_template_safe('cli/plano_acao.html', auditorias=lista_agrupada)
-
+        return render_template_safe('cli/plano_acao_lista.html', aplicacoes=aplicacoes_pendentes)
     except Exception as e:
-        print(f"Erro ao agrupar planos de ação: {e}")
-        flash(f"Erro ao processar dados: {str(e)}", "danger")
+        print(f"Erro: {e}")
         return redirect(url_for('cli.index'))
+
+@cli_bp.route('/plano-de-acao/<int:aplicacao_id>')
+@login_required
+def detalhe_plano_acao(aplicacao_id):
+    """
+    Tela 2: Exibe os detalhes das pendências de UMA aplicação específica.
+    """
+    try:
+        aplicacao = AplicacaoQuestionario.query.get_or_404(aplicacao_id)
+        
+        # --- CORREÇÃO DE SEGURANÇA (Lógica Explícita) ---
+        # 1. Verifica se pertence ao mesmo cliente (Empresa)
+        if aplicacao.avaliado.cliente_id != current_user.cliente_id:
+            flash("Acesso não autorizado a esta auditoria.", "danger")
+            return redirect(url_for('cli.lista_plano_acao'))
+
+        # 2. Se for usuário de Rancho, só pode ver o SEU rancho
+        if current_user.avaliado_id and aplicacao.avaliado_id != current_user.avaliado_id:
+            flash("Você não tem permissão para ver auditorias de outra unidade.", "danger")
+            return redirect(url_for('cli.lista_plano_acao'))
+
+        # 3. Se for usuário de GAP, só pode ver ranchos do SEU GAP
+        if current_user.grupo_id and aplicacao.avaliado.grupo_id != current_user.grupo_id:
+            flash("Você não tem permissão para ver auditorias fora do seu agrupamento.", "danger")
+            return redirect(url_for('cli.lista_plano_acao'))
+        # ----------------------------------------------------
+
+        # Busca apenas as respostas com plano de ação desta aplicação
+        respostas_com_plano = RespostaPergunta.query\
+            .filter_by(aplicacao_id=aplicacao.id)\
+            .filter(RespostaPergunta.plano_acao != None)\
+            .filter(RespostaPergunta.plano_acao != "")\
+            .join(Pergunta)\
+            .order_by(Pergunta.ordem)\
+            .all()
+
+        return render_template_safe('cli/plano_acao_detalhe.html', 
+                               app=aplicacao, 
+                               respostas=respostas_com_plano)
+    except Exception as e:
+        print(f"Erro: {e}")
+        return redirect(url_for('cli.lista_plano_acao'))
+
+@cli_bp.route('/plano-de-acao/<int:aplicacao_id>/pdf')
+@login_required
+def pdf_plano_acao(aplicacao_id):
+    """
+    Gera o PDF EXCLUSIVO com apenas as Não Conformidades e Planos de Ação.
+    """
+    from pathlib import Path # Importação necessária para manipular caminhos
+    
+    try:
+        aplicacao = AplicacaoQuestionario.query.get_or_404(aplicacao_id)
+        
+        # Busca os dados (mesma lógica do detalhe)
+        respostas = RespostaPergunta.query\
+            .filter_by(aplicacao_id=aplicacao.id)\
+            .filter(RespostaPergunta.plano_acao != None)\
+            .filter(RespostaPergunta.plano_acao != "")\
+            .join(Pergunta)\
+            .order_by(Pergunta.ordem)\
+            .all()
+        
+        # --- LÓGICA DE LOGO CORRIGIDA (Remove o erro get_logo_uri) ---
+        logo_pdf_uri = None
+        try:
+            # Tenta primeiro a logo específica para PDF
+            logo_path = Path(current_app.static_folder) / 'img' / 'logo_pdf.png'
+            if logo_path.exists():
+                logo_pdf_uri = logo_path.as_uri()
+            else:
+                # Se não achar, tenta a logo padrão
+                logo_path = Path(current_app.static_folder) / 'img' / 'logo.jpg'
+                if logo_path.exists(): 
+                    logo_pdf_uri = logo_path.as_uri()
+        except Exception as e:
+            print(f"Aviso: Não foi possível carregar a logo para o PDF: {e}")
+        # -----------------------------------------------------------
+
+        # Renderiza o HTML específico do PDF de Plano de Ação
+        html_content = render_template_safe(
+            'cli/pdf_plano_acao.html',
+            aplicacao=aplicacao,
+            respostas=respostas,
+            logo_pdf_uri=logo_pdf_uri, # Passa a variável calculada acima
+            data_geracao=datetime.now()
+        )
+        
+        return gerar_pdf_seguro(html_content, filename=f"Plano_Acao_{aplicacao_id}.pdf")
+        
+    except Exception as e:
+        print(f"Erro PDF Plano: {e}")
+        flash(f"Erro ao gerar PDF: {str(e)}", "danger")
+        return redirect(url_for('cli.lista_plano_acao'))

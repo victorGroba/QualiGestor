@@ -1,0 +1,69 @@
+{% extends "base_cliq.html" %}
+{% block content %}
+<div class="container-fluid mt-4">
+    
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <a href="{{ url_for('cli.lista_plano_acao') }}" class="text-decoration-none text-secondary small">
+                <i class="fas fa-arrow-left"></i> Voltar para Lista
+            </a>
+            <h3 class="mt-1">
+                Plano de Ação: {{ app.avaliado.nome }}
+                <small class="text-muted fs-6">({{ app.data_inicio.strftime('%d/%m/%Y') }})</small>
+            </h3>
+        </div>
+        
+        <div class="btn-group">
+            <a href="{{ url_for('cli.visualizar_aplicacao', id=app.id) }}" class="btn btn-outline-secondary">
+                <i class="fas fa-file-alt me-1"></i> Relatório Completo
+            </a>
+            
+            <a href="{{ url_for('cli.pdf_plano_acao', aplicacao_id=app.id) }}" target="_blank" class="btn btn-warning text-dark fw-bold">
+                <i class="fas fa-file-pdf me-1"></i> Gerar PDF do Plano de Ação
+            </a>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-warning bg-opacity-10 border-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i> 
+            <strong>Itens Pendentes e Tratativas</strong>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="ps-4">Item / Pergunta</th>
+                            <th>Não Conformidade</th>
+                            <th>Ação Corretiva (Plano)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in respostas %}
+                        <tr>
+                            <td class="ps-4" style="width: 40%;">
+                                <div class="fw-bold text-dark">{{ item.pergunta.texto }}</div>
+                                {% if item.observacao %}
+                                    <small class="text-muted d-block mt-1 fst-italic">Obs: {{ item.observacao }}</small>
+                                {% endif %}
+                            </td>
+                            <td style="width: 15%;">
+                                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger">
+                                    {{ item.resposta }}
+                                </span>
+                            </td>
+                            <td style="width: 45%;">
+                                <div class="p-2 rounded bg-light border border-secondary border-opacity-25">
+                                    <i class="fas fa-pen me-1 text-warning"></i> {{ item.plano_acao }}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
