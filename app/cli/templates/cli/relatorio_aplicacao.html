@@ -24,7 +24,6 @@
     }
 
     html, body {
-      width: 100%;
       margin: 0;
       padding: 0;
       font-family: 'Roboto', 'Helvetica Neue', Helvetica, Arial, sans-serif;
@@ -35,27 +34,35 @@
     }
 
     /* ==========================================================================
-       2. MARGENS DE PÁGINA E CABEÇALHO/RODAPÉ FIXOS (WEASYPRINT)
+       2. MARGENS DE PÁGINA (A CORREÇÃO PRINCIPAL)
        ========================================================================== */
     @page {
       size: A4;
-      margin: 0mm; /* Margem zero para permitir header full-width */
+      /* Definimos margens REAIS. O WeasyPrint respeita isso em TODAS as páginas.
+         O conteúdo do relatório (texto) nunca entrará nessas áreas.
+      */
+      margin-top: 3.5cm;    /* Espaço reservado para o Header */
+      margin-bottom: 2.0cm; /* Espaço reservado para o Footer */
+      margin-left: 1.0cm;
+      margin-right: 1.0cm;
     }
 
     body {
-      /* Padding compensa o Header e Footer fixos para o conteúdo não ficar por baixo */
-      padding-top: 3.5cm;    
-      padding-bottom: 1.5cm; 
-      padding-left: 1cm;     
-      padding-right: 1cm;
+      /* Removemos o padding do body pois a @page já cuida do espaço */
+      padding: 0; 
     }
 
-    /* Cabeçalho Fixo em todas as páginas */
+    /* ==========================================================================
+       3. CABEÇALHO FIXO (Posicionamento Negativo)
+       ========================================================================== */
     .header-fixed {
       position: fixed;
-      top: 0; 
-      left: 0;
-      width: 100%;
+      /* Movemos o header para DENTRO da margem superior definida na @page */
+      top: -3.5cm; 
+      left: -1.0cm; /* Compensa a margem esquerda da página */
+      
+      /* Força a largura total do papel A4 */
+      width: 210mm;
       height: 3.0cm;
       
       background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
@@ -65,8 +72,9 @@
       align-items: center;
       justify-content: space-between;
       
-      padding-left: 1cm;
-      padding-right: 1cm;
+      /* Padding interno para alinhar o texto com a margem do conteúdo (1cm) */
+      padding-left: 1.0cm;
+      padding-right: 1.0cm;
       
       z-index: 1000;
     }
@@ -82,8 +90,8 @@
       height: 55px;          
       width: auto;           
       max-width: 180px;      
-      object-fit: contain;   
-      
+      object-fit: contain;
+      /* Fundo removido para transparência */
     }
 
     .header-info h1 { 
@@ -107,18 +115,24 @@
       color: #fff; 
       flex-shrink: 0; 
       margin-left: 20px;
+      /* Ajuste fino para não colar na borda direita do papel */
+      padding-right: 10px; 
     }
     
     .header-label { font-size: 7pt; text-transform: uppercase; opacity: 0.8; letter-spacing: 1px; }
     .header-value { font-size: 10pt; font-weight: 500; margin-top: 2px; }
 
-    /* Rodapé Fixo em todas as páginas */
+    /* ==========================================================================
+       4. RODAPÉ FIXO
+       ========================================================================== */
     .footer-fixed {
       position: fixed;
-      bottom: 0; 
-      left: 0;
-      width: 100%;
-      height: 1.0cm;
+      /* Movemos para a margem inferior */
+      bottom: -2.0cm; 
+      left: -1.0cm;
+      
+      width: 210mm;
+      height: 1.5cm; /* Altura suficiente para cobrir a margem */
       
       background-color: #f8f9fa;
       border-top: 1px solid #ecf0f1;
@@ -129,20 +143,20 @@
       font-size: 8pt;
       color: #7f8c8d;
       
-      padding-left: 1cm;
-      padding-right: 1cm;
+      padding-left: 1.0cm;
+      padding-right: 1.0cm;
     }
 
     .page-number:after { content: "Página " counter(page); }
 
     /* ==========================================================================
-       3. INFO GRID (TABELA DE DADOS INICIAL)
+       5. INFO GRID E CONTEÚDO
        ========================================================================== */
     .info-grid { 
       display: table; 
       width: 100%; 
-      border-collapse: collapse; /* Collapse para bordas mais limpas */
-      margin-top: 10px; 
+      border-collapse: collapse; 
+      margin-top: 0; /* Não precisa margem extra no topo pois a @page já dá */
       margin-bottom: 30px; 
       page-break-inside: avoid;
     }
@@ -175,9 +189,6 @@
     .info-item.score { background-color: #fcfcfc; border-color: #bdc3c7; }
     .info-item.score .info-value { color: #2c3e50; font-weight: 700; font-size: 12pt; }
 
-    /* ==========================================================================
-       4. ESTRUTURA DOS TÓPICOS E PERGUNTAS
-       ========================================================================== */
     .topic-container { 
       margin-bottom: 25px; 
       page-break-inside: auto; 
@@ -191,7 +202,7 @@
       display: flex; 
       justify-content: space-between; 
       align-items: center;
-      page-break-after: avoid; /* Mantém o título junto com a primeira pergunta */
+      page-break-after: avoid; 
     }
     
     .topic-title {
@@ -209,7 +220,7 @@
       align-items: flex-start; 
       padding: 8px 0; 
       border-bottom: 1px solid #ecf0f1; 
-      page-break-inside: avoid; /* Evita quebrar uma pergunta ao meio */
+      page-break-inside: avoid; 
     }
     
     .question-row:last-child { border-bottom: none; }
@@ -230,7 +241,7 @@
       margin-top: 5px; 
       padding: 5px 10px;
       background-color: #f9f9f9;
-      border-left: 2px solid #e74c3c; /* Destaque visual leve */
+      border-left: 2px solid #e74c3c; 
       font-size: 9pt; 
       color: #555; 
       font-style: italic;
@@ -249,9 +260,6 @@
     .status-na { color: #95a5a6; font-size: 8pt; }
     .status-parcial { color: #e67e22; }
 
-    /* ==========================================================================
-       5. GALERIA DE FOTOS
-       ========================================================================== */
     .gallery-container { 
       margin-top: 15px; 
       padding-top: 10px; 
@@ -270,13 +278,13 @@
     .gallery-grid { 
       display: block; 
       width: 100%; 
-      font-size: 0; /* Remove espaços entre inline-blocks */
+      font-size: 0; 
     }
     
     .gallery-item { 
       display: inline-block; 
       width: 32%; 
-      margin-right: 2%; /* Espaçamento relativo */
+      margin-right: 2%; 
       margin-bottom: 15px; 
       vertical-align: top;
       border: 1px solid #ecf0f1;
@@ -284,7 +292,7 @@
       background: #fff;
     }
     
-    .gallery-item:nth-child(3n) { margin-right: 0; } /* Remove margem do 3º item */
+    .gallery-item:nth-child(3n) { margin-right: 0; }
 
     .gallery-img-wrapper { 
       width: 100%; 
@@ -308,12 +316,9 @@
       color: #2c3e50; 
       line-height: 1.2;
       text-align: left;
-      min-height: 2.4em; /* Garante altura mínima para 2 linhas */
+      min-height: 2.4em; 
     }
 
-    /* ==========================================================================
-       6. ASSINATURAS E VALIDAÇÃO
-       ========================================================================== */
     .validation-block { 
       text-align: center; 
       margin-top: 40px; 
@@ -322,7 +327,6 @@
       page-break-inside: avoid;
     }
 
-    /* Classes auxiliares para impressão */
     .no-break { page-break-inside: avoid; }
     .page-break { page-break-before: always; }
 
