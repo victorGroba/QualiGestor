@@ -1,69 +1,124 @@
-{% extends "base_cliq.html" %}
-{% block content %}
-<div class="container-fluid mt-4">
-    
-    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-        <div>
-            <a href="{{ url_for('cli.lista_plano_acao') }}" class="text-decoration-none text-secondary small">
-                <i class="fas fa-arrow-left"></i> Voltar para Lista
-            </a>
-            <h3 class="mt-1">
-                Plano de Ação: {{ app.avaliado.nome }}
-                <small class="text-muted fs-6">({{ app.data_inicio.strftime('%d/%m/%Y') }})</small>
-            </h3>
-        </div>
-        
-        <div class="btn-group">
-            <a href="{{ url_for('cli.visualizar_aplicacao', id=app.id) }}" class="btn btn-outline-secondary">
-                <i class="fas fa-file-alt me-1"></i> Relatório Completo
-            </a>
-            
-            <a href="{{ url_for('cli.pdf_plano_acao', aplicacao_id=app.id) }}" target="_blank" class="btn btn-warning text-dark fw-bold">
-                <i class="fas fa-file-pdf me-1"></i> Gerar PDF do Plano de Ação
-            </a>
-        </div>
-    </div>
+<table class="table table-hover mb-0">
+    <thead class="bg-light">
+        <tr>
+            <th class="ps-4">Item / Pergunta</th>
+            <th>Não Conformidade</th>
+            <th>Plano (Planejado)</th>
+            <th>Execução (Realizado)</th> </tr>
+    </thead>
+    <tbody>
+        {% for item in respostas %}
+        <tr>
+            <td class="ps-4" style="width: 25%;">
+                <div class="fw-bold text-dark">{{ item.pergunta.texto }}</div>
+                {% if item.observacao %}
+                    <small class="text-muted d-block mt-1 fst-italic">Obs: {{ item.observacao }}</small>
+                {% endif %}
+            </td>
 
-    <div class="card shadow-sm border-0">
-        <div class="card-header bg-warning bg-opacity-10 border-warning">
-            <i class="fas fa-exclamation-triangle me-2"></i> 
-            <strong>Itens Pendentes e Tratativas</strong>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <thead class="bg-light">
-                        <tr>
-                            <th class="ps-4">Item / Pergunta</th>
-                            <th>Não Conformidade</th>
-                            <th>Ação Corretiva (Plano)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in respostas %}
-                        <tr>
-                            <td class="ps-4" style="width: 40%;">
-                                <div class="fw-bold text-dark">{{ item.pergunta.texto }}</div>
-                                {% if item.observacao %}
-                                    <small class="text-muted d-block mt-1 fst-italic">Obs: {{ item.observacao }}</small>
-                                {% endif %}
-                            </td>
-                            <td style="width: 15%;">
-                                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger">
-                                    {{ item.resposta }}
-                                </span>
-                            </td>
-                            <td style="width: 45%;">
-                                <div class="p-2 rounded bg-light border border-secondary border-opacity-25">
-                                    <i class="fas fa-pen me-1 text-warning"></i> {{ item.plano_acao }}
-                                </div>
-                            </td>
-                        </tr>
+            <td style="width: 10%;">
+                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger">
+                    {{ item.resposta }}
+                </span>
+            </td>
+
+            <td style="width: 30%;">
+                <div class="p-2 rounded bg-light border border-secondary border-opacity-25 small">
+                    <i class="fas fa-clipboard-list me-1 text-warning"></i> {{ item.plano_acao }}
+                </div>
+            </td>
+
+            <td style="width: 35%;">
+                
+                {% if item.status_acao == 'concluido' %}
+                    <div class="alert alert-success p-2 mb-1 small">
+                        <i class="fas fa-check-circle text-success"></i> <strong>Concluído em:</strong> 
+                        {{ item.data_conclusao.strftime('%d/%m/%Y') if item.data_conclusao else '--/--/--' }}<br>
+                        <em>"{{ item.acao_realizada }}"</em>
+                    </div>
+                    
+                    <div class="d-flex gap-1 mt-1">
+                        {% for foto in item.fotos %}
+                            {% if foto.tipo == 'correcao' %}
+                            <a href="{{ url_for('cli.get_foto_resposta', filename=foto.caminho) }}" target="_blank">
+                                <img src="{{ url_for('cli.get_foto_resposta', filename=foto.caminho) }}" 
+                                     class="img-thumbnail" style="height: 40px; width: 40px; object-fit: cover;">
+                            </a>
+                            {% endif %}
                         {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-</div>
-{% endblock %}
+                    </div>
+
+                {% else %}
+                    {% if (datetime.now() - app.data_fim).days > 30 %}
+                        <div class="badge bg-danger mb-2 w-100">
+                            <i class="fas fa-clock"></i> Atrasado (+30 dias)
+                        </div>
+                    {% endif %}
+
+                    <form action="{{ url_for('cli.registrar_acao_corretiva', resposta_id=item.id) }}" method="POST" enctype="multipart/form-data">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        
+                        <textarea name="acao_realizada" class="form-control form-control-sm mb-2" 
+                                  rows="2" placeholder="O que foi feito?" required></textarea>
+                        
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="input-group input-group-sm me-2">
+                                <input type="file" class="form-control" name="foto_correcao" disabled 
+                                       title="Implementaremos o upload AJAX ou Form normal aqui">
+                            </div>
+                            
+                            <button type="submit" class="btn btn-sm btn-success">
+                                <i class="fas fa-check"></i> Salvar
+                            </button>
+                        </div>
+                        <small class="text-muted" style="font-size: 0.7rem;">* Salve o texto primeiro para anexar fotos.</small>
+                    </form>
+                    
+                    <button class="btn btn-sm btn-outline-primary mt-1 w-100" 
+                             onclick="triggerUploadFoto({{ item.id }})">
+                         <i class="fas fa-camera"></i> Anexar Evidência da Correção
+                     </button>
+
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<script>
+function triggerUploadFoto(respostaId) {
+    // Cria um input file invisível dinamicamente
+    let input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    
+    input.onchange = function(e) {
+        let file = e.target.files[0];
+        if (!file) return;
+        
+        let formData = new FormData();
+        formData.append('foto', file);
+        
+        // Mostra loading...
+        alert("Enviando foto...");
+        
+        fetch(`/cli/acao-corretiva/upload-foto/${respostaId}`, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if(data.sucesso) {
+                alert("Foto enviada!");
+                location.reload(); // Recarrega para mostrar a foto
+            } else {
+                alert("Erro: " + data.erro);
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    };
+    
+    input.click();
+}
+</script>

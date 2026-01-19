@@ -74,6 +74,12 @@ class CorRelatorio(enum.Enum):
     ROXO = "roxo"
     CINZA = "cinza"
 
+class StatusAcao(enum.Enum):
+    """Status da Ação Corretiva"""
+    PENDENTE = "pendente"
+    CONCLUIDO = "concluido"
+    ATRASADO = "atrasado"    
+
 # ==================== MODELOS BÁSICOS ====================
 
 class Cliente(db.Model):
@@ -387,34 +393,42 @@ class RespostaPergunta(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     
-    # Dados da resposta
+    # --- DADOS DA RESPOSTA (O que foi respondido na hora) ---
     resposta = db.Column(db.Text)
     observacao = db.Column(db.Text)
     pontos = db.Column(db.Float)
 
-    # MANTENHA ESTE CAMPO (para compatibilidade com dados antigos)
+    # Campo Legado (Mantido para não quebrar fotos antigas)
     caminho_foto = db.Column(db.String(255), nullable=True)
     
-    # Metadados
+    # --- METADADOS ---
     data_resposta = db.Column(db.DateTime, default=datetime.utcnow)
     tempo_resposta = db.Column(db.Integer)
     
-    # Para não conformidades
+    # --- NÃO CONFORMIDADES (O Problema identificado) ---
     nao_conforme = db.Column(db.Boolean, default=False)
-    plano_acao = db.Column(db.Text)
-    prazo_plano_acao = db.Column(db.Date)
+    plano_acao = db.Column(db.Text)             # O que será feito (Planejamento)
+    prazo_plano_acao = db.Column(db.Date)       # Prazo estipulado
     responsavel_plano_acao = db.Column(db.String(100))
     
-    # Chaves estrangeiras
+    # --- NOVOS CAMPOS: AÇÃO CORRETIVA (A Solução executada) ---
+    # Usamos String para evitar problemas de migração com Enums.
+    # default='pendente' garante que respostas antigas não quebrem o sistema.
+    status_acao = db.Column(db.String(20), default='pendente', server_default='pendente')
+    
+    acao_realizada = db.Column(db.Text)      # Descrição do que a OM realmente fez
+    data_conclusao = db.Column(db.DateTime)  # Data/Hora de quando clicaram em "Concluir"
+
+    # --- CHAVES ESTRANGEIRAS ---
     aplicacao_id = db.Column(db.Integer, db.ForeignKey('aplicacao_questionario.id'), nullable=False)
     pergunta_id = db.Column(db.Integer, db.ForeignKey('pergunta.id'), nullable=False)
 
-    # === NOVO: RELACIONAMENTO PARA MÚLTIPLAS FOTOS ===
-    # Isso cria a "lista" de fotos dentro da resposta
+    # --- RELACIONAMENTOS ---
+    # Lista de fotos (tanto 'evidencia' quanto 'correcao')
     fotos = db.relationship('FotoResposta', backref='resposta_pai', lazy='dynamic', cascade='all, delete-orphan')
 
 
-# === NOVA CLASSE (Adicione logo abaixo da classe acima) ===
+# === NOVA CLASSE 
 class FotoResposta(db.Model):
     """Tabela para armazenar múltiplas fotos de uma resposta"""
     __tablename__ = 'foto_resposta'
@@ -423,6 +437,12 @@ class FotoResposta(db.Model):
     caminho = db.Column(db.String(255), nullable=False) # Nome do arquivo
     data_upload = db.Column(db.DateTime, default=datetime.utcnow)
     
+    # === NOVO CAMPO: TIPO DA FOTO ===
+    # Serve para diferenciar se a foto é do problema (auditoria) ou da solução (ação corretiva).
+    # Valores esperados: 'evidencia' ou 'correcao'.
+    # server_default='evidencia' garante que todas as fotos antigas sejam marcadas como evidência.
+    tipo = db.Column(db.String(20), default='evidencia', server_default='evidencia')
+
     # Chave estrangeira que liga esta foto à resposta mãe
     resposta_id = db.Column(db.Integer, db.ForeignKey('resposta_pergunta.id'), nullable=False)
 

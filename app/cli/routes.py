@@ -366,6 +366,49 @@ def verificar_permissao_admin():
         return type_name in ['ADMIN', 'SUPER_ADMIN', 'admin', 'super_admin']
     except:
         return False
+    
+
+def verificar_alertas_atraso(usuario):
+    """
+    Verifica se existem planos de ação pendentes há mais de 30 dias
+    para as unidades sob responsabilidade do usuário.
+    Gera um flash message se encontrar problemas.
+    """
+    try:
+        # Define o limite (hoje - 30 dias)
+        data_limite = datetime.now() - timedelta(days=30)
+        
+        # Query base: Respostas não conformes e pendentes em auditorias FINALIZADAS
+        # Note o filtro OR para garantir compatibilidade (pendente ou nulo)
+        query = RespostaPergunta.query.join(AplicacaoQuestionario).join(Avaliado).filter(
+            RespostaPergunta.nao_conforme == True,
+            (RespostaPergunta.status_acao == 'pendente') | (RespostaPergunta.status_acao == None),
+            AplicacaoQuestionario.status == StatusAplicacao.FINALIZADA, 
+            AplicacaoQuestionario.data_fim <= data_limite, 
+            Avaliado.cliente_id == usuario.cliente_id
+        )
+
+        # Filtro Hierárquico (Blindagem)
+        # 1. Se for Usuário de Rancho, vê só o dele
+        if usuario.avaliado_id:
+            query = query.filter(AplicacaoQuestionario.avaliado_id == usuario.avaliado_id)
+        # 2. Se for Gestor de GAP, vê só do GAP dele
+        elif usuario.grupo_id:
+            query = query.filter(Avaliado.grupo_id == usuario.grupo_id)
+        
+        # Conta as pendências atrasadas
+        total_atrasadas = query.count()
+
+        # Gera notificações se houver atrasos
+        if total_atrasadas > 0:
+            msg = f"⚠️ ATENÇÃO: Existem {total_atrasadas} ações corretivas pendentes há mais de 30 dias! Verifique os Planos de Ação."
+            flash(msg, "danger")
+            
+            # (Opcional) Criar notificação no banco se ainda não existir hoje
+            # criar_notificacao(usuario.id, "Alerta de Atraso", msg, "danger", url_for('cli.lista_plano_acao'))
+                
+    except Exception as e:
+        print(f"Erro ao verificar alertas de atraso: {e}")
 
 
 
@@ -376,6 +419,11 @@ def verificar_permissao_admin():
 @login_required
 def index():
     """Dashboard principal do CLIQ"""
+    
+    # 1. Executa a verificação de atrasos (Novo)
+    verificar_alertas_atraso(current_user)
+
+    # 2. Inicializa estatísticas
     stats = {
         'total_aplicacoes': 0,
         'aplicacoes_mes': 0,
@@ -388,6 +436,7 @@ def index():
     ultimas_aplicacoes = []
     questionarios_populares = []
 
+    # 3. Calcula as estatísticas (Código Original Mantido)
     try:
         if hasattr(current_user, 'cliente_id') and current_user.cliente_id:
             # Aplicações do cliente
@@ -443,6 +492,7 @@ def index():
             ).group_by(Questionario.id, Questionario.nome).order_by(
                 func.count(AplicacaoQuestionario.id).desc()
             ).limit(5).all()
+            
     except Exception as e:
         print(f"Erro ao carregar dashboard: {e}")
 
@@ -450,18 +500,6 @@ def index():
                          stats=stats, 
                          ultimas_aplicacoes=ultimas_aplicacoes,
                          questionarios_populares=questionarios_populares)
-
-# ===================== QUESTIONÁRIOS =====================
-
-from flask import request, flash
-from sqlalchemy import func, or_
-
-from flask import request, flash
-from sqlalchemy import func, or_
-
-# Em app/cli/routes.py
-
-# Em app/cli/routes.py
 
 @cli_bp.route('/questionarios', endpoint='listar_questionarios', methods=['GET'])
 @cli_bp.route('/listar-questionarios', methods=['GET'])
