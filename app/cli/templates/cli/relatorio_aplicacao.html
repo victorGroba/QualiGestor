@@ -5,17 +5,20 @@
   <title>Relatório - {{ aplicacao.questionario.nome }}</title>
   <style>
     /* ==========================================================================
-       1. RESET E DEFINIÇÕES GERAIS
+       1. VARIAVEIS E FONTE
        ========================================================================== */
     :root {
-      --primary-blue: #004E7C;
-      --secondary-blue: #0073AA;
-      --warning-yellow: #FFC107;
-      --danger-red: #E74C3C;
-      --neutral-gray: #7a7a7a;
-      --light-bg: #F5F6FA;
-      --text-dark: #1a1a1a;
-      --border-color: #ddd;
+      /* Cores de Texto */
+      --text-dark: #2c3e50;
+      --text-light: #7f8c8d;
+      
+      /* Cores de Status */
+      --color-conforme: #27ae60;
+      --color-nao: #c0392b;
+      --color-na: #95a5a6;
+      --color-parcial: #e67e22;
+      
+      --border-color: #ecf0f1;
     }
 
     * {
@@ -29,151 +32,328 @@
       height: 100%;
       margin: 0;
       padding: 0;
-      font-family: Arial, Helvetica, sans-serif;
-      font-size: 11px;
-      color: var(--text-dark);
+      font-family: 'Roboto', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      font-size: 10pt;
+      color: #2c3e50;
       background: #fff;
-      line-height: 1.3;
+      line-height: 1.4;
     }
 
     /* ==========================================================================
-       2. CONFIGURAÇÃO DE PÁGINA (A MÁGICA ESTÁ AQUI)
+       2. CONFIGURAÇÃO DE PÁGINA
        ========================================================================== */
     @page {
       size: A4;
-      /* 1. Definimos margens TOP e BOTTOM na @page. 
-            Isso garante que o texto comece DEPOIS dessa margem em TODAS as páginas.
-         2. Zeramos Left/Right para ter controle total via body.
-      */
-      margin-top: 3.5cm;     /* Espaço reservado para o Cabeçalho em TODAS as páginas */
-      margin-bottom: 1.5cm;  /* Espaço reservado para o Rodapé em TODAS as páginas */
-      margin-left: 0;
-      margin-right: 0;
+      margin: 0mm; /* Unidade explicita para evitar erro */
     }
 
     body {
-      /* Removemos padding-top/bottom daqui pois agora a @page controla isso. */
-      padding-top: 0;  
-      padding-bottom: 0;
-      
-      /* Mantemos apenas o espaçamento lateral do texto */
-      padding-left: 1.5cm;
-      padding-right: 1.5cm;
+      padding-top: 3.5cm;    
+      padding-bottom: 1.5cm; 
+      padding-left: 1cm;     
+      padding-right: 1cm;
     }
 
     /* ==========================================================================
-       3. CABEÇALHO FIXO
+       3. CABEÇALHO (CORRIGIDO: SEM VAR() NO GRADIENTE)
        ========================================================================== */
     .header-fixed {
       position: fixed;
-      /* No WeasyPrint, position: fixed é relativo à folha de papel física.
-         Como definimos margin-top na @page, o "conteúdo" começa lá embaixo,
-         mas o fixed: top: -3.5cm joga ele pra cima, pra dentro da margem que criamos.
-         
-         IMPORTANTE: Ajustamos o 'top' para negativo para ele subir para a área da margem.
-      */
-      top: -3.5cm; 
+      top: 0; 
       left: 0;
       width: 100%;
       height: 3cm;
       
-      background: linear-gradient(135deg, var(--primary-blue) 0%, var(--secondary-blue) 100%);
+      /* Cores HEX diretas. WeasyPrint falha com var() aqui */
+      background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
       color: white;
-      border-bottom: 4px solid var(--warning-yellow);
-      z-index: 1000;
       
       display: flex;
       align-items: center;
       justify-content: space-between;
       
-      /* Alinhamento visual com o texto do corpo */
-      padding-left: 1.5cm;
-      padding-right: 1.5cm;
+      padding-left: 1cm;
+      padding-right: 1cm;
+      
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      z-index: 1000;
     }
-
-    .header-left { display: flex; align-items: center; gap: 15px; }
 
     .header-logo {
-      height: 60px;
+      height: 55px;
       width: auto;
       object-fit: contain;
+      filter: brightness(0) invert(1);
     }
 
-    .header-info h1 { margin: 0; font-size: 18px; text-transform: uppercase; font-weight: bold; line-height: 1.1; color: #fff; }
-    .header-info p { margin: 3px 0 0 0; font-size: 11px; opacity: 0.9; font-weight: normal; }
+    .header-info h1 { 
+      margin: 0; 
+      font-size: 15pt;
+      font-weight: 500; 
+      color: #fff; 
+      text-transform: uppercase; 
+      letter-spacing: 0.5px;
+    }
+    
+    .header-info p { 
+      margin: 3px 0 0 0; 
+      font-size: 9pt; 
+      font-weight: 300;
+      color: rgba(255,255,255,0.9); 
+    }
 
-    .header-right { text-align: right; }
-    .header-label { font-size: 8px; text-transform: uppercase; opacity: 0.8; letter-spacing: 0.5px; }
-    .header-value { font-size: 12px; font-weight: bold; margin-bottom: 2px; }
+    .header-right { text-align: right; color: #fff; }
+    .header-label { font-size: 7pt; text-transform: uppercase; opacity: 0.8; letter-spacing: 1px; }
+    .header-value { font-size: 10pt; font-weight: 500; margin-top: 2px; }
 
     /* ==========================================================================
-       4. RODAPÉ FIXO
+       4. RODAPÉ
        ========================================================================== */
     .footer-fixed {
       position: fixed;
-      /* Mesmo truque: jogamos ele para a área da margem inferior */
-      bottom: -1.5cm; 
+      bottom: 0; 
       left: 0;
       width: 100%;
       height: 1.2cm;
       
-      background: var(--primary-blue);
-      color: white;
-      border-top: 3px solid var(--warning-yellow);
-      z-index: 1000;
-
+      background-color: #f8f9fa;
+      border-top: 1px solid #ecf0f1;
+      
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 1.5cm;
-      font-size: 9px;
+      font-size: 8pt;
+      color: #7f8c8d;
+      
+      padding-left: 1cm;
+      padding-right: 1cm;
     }
-
-    .footer-brand { display: flex; align-items: center; gap: 8px; font-weight: bold; }
-    .footer-logo-small { height: 16px; filter: brightness(0) invert(1); }
 
     .page-number:after { content: "Página " counter(page); }
 
     /* ==========================================================================
-       5. ESTILOS DO CONTEÚDO (Mantidos iguais)
+       5. INFO GRID (CORRIGIDO: REMOVIDO CALC())
        ========================================================================== */
-    .info-grid { display: table; width: 100%; border-collapse: separate; border-spacing: 6px 0; margin-bottom: 25px; table-layout: fixed; }
-    .info-item { display: table-cell; background: var(--primary-blue); color: white; padding: 8px; border-radius: 4px; vertical-align: middle; overflow: hidden; }
-    .info-label { display: block; font-size: 8px; opacity: 0.8; text-transform: uppercase; margin-bottom: 3px; }
-    .info-value { display: block; font-size: 11px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-    .section-title { text-align: center; color: var(--primary-blue); font-size: 14px; font-weight: bold; text-transform: uppercase; border-bottom: 2px solid var(--primary-blue); margin: 20px 0 15px 0; padding-bottom: 5px; }
-
-    .topic-container { margin-bottom: 20px; border: 1px solid #ccc; border-radius: 5px; overflow: hidden; page-break-inside: avoid; }
-    .topic-header { background: linear-gradient(90deg, var(--primary-blue), var(--secondary-blue)); color: white; padding: 8px 12px; font-weight: bold; font-size: 11px; display: flex; justify-content: space-between; align-items: center; }
-
-    .question-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 8px 12px; border-bottom: 1px solid #eee; background: #fff; }
-    .question-row:last-child { border-bottom: none; }
-    .q-text-col { flex: 1; padding-right: 15px; font-size: 11px; }
-    .q-number { color: var(--primary-blue); font-weight: bold; margin-right: 5px; }
-    .q-obs { display: block; margin-top: 5px; font-size: 10px; color: #856404; background: #fff3cd; padding: 4px 6px; border-radius: 3px; border-left: 3px solid #ffeeba; }
+    .info-grid { 
+      display: table; 
+      width: 100%; /* Largura fixa e segura */
+      margin-bottom: 30px; 
+      border-collapse: separate;
+      border-spacing: 10px 0;
+      /* Removido margin-left negativo e calc() que causavam o crash */
+    }
     
-    .q-badge { font-size: 9px; font-weight: bold; text-transform: uppercase; color: white; padding: 4px 10px; border-radius: 12px; min-width: 60px; text-align: center; white-space: nowrap; background: var(--secondary-blue); }
-    .q-badge.nao { background: var(--danger-red); }
-    .q-badge.na { background: var(--neutral-gray); }
-    .q-badge.parcial { background: var(--warning-yellow); color: #333; }
+    .info-item { 
+      display: table-cell; 
+      background: #fff;
+      border-bottom: 2px solid #ecf0f1;
+      padding: 5px 10px; 
+      vertical-align: top;
+      width: 20%;
+    }
 
-    .signature-container { padding: 15px; background: #fff; border-bottom: 1px solid #eee; page-break-inside: avoid; }
-    .signature-title { font-weight: bold; font-size: 11px; margin-bottom: 8px; color: var(--text-dark); }
-    .signature-box { border: 1px dashed #bbb; background: #fcfcfc; height: 100px; width: 100%; display: flex; align-items: center; justify-content: center; }
-    .signature-box img { max-height: 90px; max-width: 90%; object-fit: contain; }
+    .info-label { 
+      display: block; 
+      font-size: 7pt; 
+      color: #7f8c8d; 
+      text-transform: uppercase; 
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    
+    .info-value { 
+      display: block; 
+      font-size: 10pt; 
+      font-weight: 500; 
+      color: #2c3e50; 
+      white-space: nowrap; 
+      overflow: hidden; 
+      text-overflow: ellipsis; 
+    }
 
-    .gallery-container { background: #f9f9f9; padding: 10px; border-top: 1px solid #ccc; page-break-inside: avoid; }
-    .gallery-header { font-weight: bold; font-size: 10px; color: #555; margin-bottom: 8px; text-transform: uppercase; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
-    .gallery-grid { width: 100%; display: block; }
-    .gallery-item { display: inline-block; vertical-align: top; width: 48%; margin-right: 1.5%; margin-bottom: 10px; background: #fff; border: 1px solid #ddd; padding: 4px; border-radius: 3px; }
-    .gallery-item:nth-child(even) { margin-right: 0; }
-    .gallery-img-wrapper { height: 160px; width: 100%; display: flex; align-items: center; justify-content: center; background: #eee; overflow: hidden; margin-bottom: 4px; border: 1px solid #eee; }
-    .gallery-img-wrapper img { width: 100%; height: 100%; object-fit: contain; }
-    .gallery-caption { font-size: 9px; font-weight: bold; color: var(--primary-blue); line-height: 1.2; }
-    .gallery-obs { font-size: 9px; color: #666; margin-top: 2px; font-style: italic; }
+    /* Destaque Nota */
+    .info-item.score {
+      border-bottom-color: #2c3e50;
+    }
+    .info-item.score .info-value { 
+      color: #2c3e50; 
+      font-weight: 700; 
+      font-size: 12pt;
+    }
 
-    .validation-block { text-align: center; margin-top: 30px; padding: 10px; page-break-inside: avoid; }
+    /* ==========================================================================
+       6. TÓPICOS
+       ========================================================================== */
+    .topic-container { 
+      margin-bottom: 25px; 
+      page-break-inside: avoid; 
+    }
+
+    .topic-header { 
+      background-color: #fdfdfd;
+      border-bottom: 1px solid #2c3e50;
+      padding: 5px 0;
+      margin-bottom: 15px;
+      display: flex; 
+      justify-content: space-between; 
+      align-items: flex-end;
+    }
+    
+    .topic-title {
+      font-size: 11pt;
+      font-weight: 600;
+      color: #2c3e50;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .topic-score {
+      font-size: 9pt;
+      font-weight: 500;
+      color: #7f8c8d;
+    }
+
+    /* ==========================================================================
+       7. PERGUNTAS E STATUS
+       ========================================================================== */
+    .question-row { 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: flex-start; 
+      padding: 8px 0; 
+      border-bottom: 1px solid #ecf0f1; 
+    }
+    
+    .question-row:last-child { border-bottom: none; }
+
+    .q-text-col { flex: 1; padding-right: 15px; }
+    
+    .q-number { 
+      color: #7f8c8d; 
+      font-weight: 500; 
+      font-size: 8pt;
+      margin-right: 10px; 
+      display: inline-block;
+      min-width: 25px; 
+    }
+    
+    .q-text { 
+      font-size: 10pt; 
+      font-weight: 400;
+      color: #2c3e50; 
+    }
+
+    .q-obs { 
+      display: block; 
+      margin-top: 4px; 
+      margin-left: 38px; 
+      font-size: 9pt; 
+      color: #666; 
+      font-style: italic;
+      background: #fcfcfc;
+      padding: 4px;
+      border-left: 2px solid #ddd;
+    }
+
+    .q-status-col {
+      min-width: 70px;
+      text-align: right;
+      padding-left: 10px;
+    }
+
+    .q-status {
+      font-size: 9pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Cores aplicadas diretamente aqui para segurança */
+    .status-conforme { color: #27ae60; }
+    .status-nao { color: #c0392b; }
+    .status-na { color: #95a5a6; font-weight: 400; font-size: 8pt; }
+    .status-parcial { color: #e67e22; }
+
+    /* ==========================================================================
+       8. GALERIA E ASSINATURA
+       ========================================================================== */
+    .signature-container { 
+      margin-top: 10px;
+      padding: 15px; 
+      border: 1px dashed #bdc3c7; 
+      background: #fff;
+      border-radius: 4px;
+      text-align: center;
+    }
+    
+    .signature-img { 
+      height: 60px; 
+      display: block; 
+      margin: 0 auto; 
+      mix-blend-mode: multiply;
+    }
+
+    .gallery-container { 
+      margin-top: 15px; 
+      padding-top: 10px;
+    }
+    
+    .gallery-header { 
+      font-size: 8pt; 
+      font-weight: 600; 
+      color: #7f8c8d; 
+      margin-bottom: 10px; 
+      text-transform: uppercase; 
+      letter-spacing: 1px;
+    }
+    
+    .gallery-grid { 
+      display: block; 
+      width: 100%; 
+    }
+    
+    .gallery-item { 
+      display: inline-block; 
+      width: 32%; 
+      margin-right: 1%;
+      margin-bottom: 12px; 
+      vertical-align: top;
+      border: 1px solid #ecf0f1;
+      padding: 3px;
+      background: #fff;
+    }
+    
+    .gallery-img-wrapper { 
+      width: 100%; 
+      height: 120px; 
+      background: #f9f9f9; 
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .gallery-img-wrapper img { 
+      width: 100%; 
+      height: 100%; 
+      object-fit: cover; 
+    }
+    
+    .gallery-caption { 
+      padding: 5px;
+      font-size: 8pt; 
+      color: #2c3e50; 
+      line-height: 1.2;
+      text-align: left;
+    }
+
+    .validation-block { 
+      text-align: right; 
+      margin-top: 40px; 
+      border-top: 1px solid #ecf0f1;
+      padding-top: 15px;
+    }
   </style>
 </head>
 <body>
@@ -182,50 +362,49 @@
     <div class="header-left">
       {% if logo_pdf_uri %}
         <img src="{{ logo_pdf_uri }}" alt="Logo" class="header-logo">
-      {% else %}
-        <div style="width: 50px;"></div>
       {% endif %}
-
       <div class="header-info">
         <h1>{{ aplicacao.questionario.nome }}</h1>
-        <p>Relatório de Monitoramento {{ aplicacao.data_inicio.strftime('%Y') }}</p>
+        <p>Relatório de Auditoria</p>
       </div>
     </div>
 
     <div class="header-right">
-      <div>
-        <div class="header-label">EMISSÃO</div>
-        <div class="header-value">{{ aplicacao.data_inicio.strftime('%d/%m/%Y') }}</div>
-      </div>
-      <div style="margin-top: 4px;">
-        <div class="header-label">HORA</div>
-        <div class="header-value" style="font-size: 10px;">{{ aplicacao.data_inicio.strftime('%H:%M') }}</div>
-      </div>
+      <div class="header-label">Emissão</div>
+      <div class="header-value">{{ aplicacao.data_inicio.strftime('%d/%m/%Y') }}</div>
+      <div class="header-label" style="margin-top: 5px;">Hora</div>
+      <div class="header-value" style="font-weight: 400;">{{ aplicacao.data_inicio.strftime('%H:%M') }}</div>
     </div>
   </div>
 
   <div class="footer-fixed">
-    <div class="footer-brand">
-      {% if logo_pdf_uri %}
-        <img src="{{ logo_pdf_uri }}" alt="Logo" class="footer-logo-small">
-      {% endif %}
-      <span>QUALIGESTOR</span>
-    </div>
-    
-    <div style="text-align: center;">{{ aplicacao.avaliado.nome }}</div>
-    
+    <div style="font-weight: 500;">QUALIGESTOR</div>
+    <div>{{ aplicacao.avaliado.nome }}</div>
     <div class="page-number"></div>
   </div>
 
   <div class="info-grid">
-    <div class="info-item"><span class="info-label">AVALIADO</span><span class="info-value">{{ aplicacao.avaliado.nome }}</span></div>
-    <div class="info-item"><span class="info-label">AVALIADOR</span><span class="info-value">{{ avaliador.nome if avaliador else 'N/A' }}</span></div>
-    <div class="info-item"><span class="info-label">DATA INÍCIO</span><span class="info-value">{{ aplicacao.data_inicio.strftime('%d/%m/%Y %H:%M') }}</span></div>
-    <div class="info-item"><span class="info-label">DATA FIM</span><span class="info-value">{% if aplicacao.data_fim %}{{ aplicacao.data_fim.strftime('%H:%M') }}{% else %}Em andamento{% endif %}</span></div>
-    <div class="info-item" style="background: var(--secondary-blue);"><span class="info-label">NOTA FINAL</span><span class="info-value">{{ nota_final | round(2) }}%</span></div>
+    <div class="info-item">
+      <span class="info-label">Unidade Avaliada</span>
+      <span class="info-value">{{ aplicacao.avaliado.nome }}</span>
+    </div>
+    <div class="info-item">
+      <span class="info-label">Auditor</span>
+      <span class="info-value">{{ avaliador.nome if avaliador else 'N/A' }}</span>
+    </div>
+    <div class="info-item">
+      <span class="info-label">Início</span>
+      <span class="info-value">{{ aplicacao.data_inicio.strftime('%d/%m/%Y %H:%M') }}</span>
+    </div>
+    <div class="info-item">
+      <span class="info-label">Fim</span>
+      <span class="info-value">{% if aplicacao.data_fim %}{{ aplicacao.data_fim.strftime('%d/%m/%Y %H:%M') }}{% else %}Em Andamento{% endif %}</span>
+    </div>
+    <div class="info-item score">
+      <span class="info-label">Nota Final</span>
+      <span class="info-value">{{ nota_final | round(2) }}%</span>
+    </div>
   </div>
-
-  <div class="section-title">RESULTADOS DA AVALIAÇÃO</div>
 
   {% for topico in topicos_ativos %}
     {% set respostas = respostas_por_topico.get(topico, []) %}
@@ -233,8 +412,8 @@
 
     <div class="topic-container">
       <div class="topic-header">
-        <span>{{ topico.ordem }}. {{ topico.nome }}</span>
-        <span>Score: {{ score_info.score_percent | round(1) }}%</span>
+        <div class="topic-title">{{ topico.ordem }}. {{ topico.nome }}</div>
+        <div class="topic-score">{{ score_info.score_percent | round(1) }}%</div>
       </div>
 
       {% if respostas %}
@@ -242,23 +421,33 @@
           
           {% if resposta.pergunta.tipo.name == 'ASSINATURA' %}
             <div class="signature-container">
-              <div class="signature-title">{{ topico.ordem }}.{{ resposta.pergunta.ordem }} - {{ resposta.pergunta.texto }}</div>
-              <div class="signature-box">
-                {% if resposta.resposta and 'data:image' in resposta.resposta %}
-                  <img src="{{ resposta.resposta }}" alt="Assinatura">
-                {% else %}
-                  <span style="color:#999; font-style:italic;">(Não assinado)</span>
-                {% endif %}
-              </div>
+              <div style="font-size: 9pt; margin-bottom: 8px;">{{ resposta.pergunta.texto }}</div>
+              {% if resposta.resposta and 'data:image' in resposta.resposta %}
+                <img src="{{ resposta.resposta }}" alt="Assinatura" class="signature-img">
+              {% else %}
+                <div style="color:#bdc3c7; font-style:italic;">Não assinado</div>
+              {% endif %}
             </div>
+
           {% else %}
             <div class="question-row">
               <div class="q-text-col">
-                <span class="q-number">{{ topico.ordem }}.{{ resposta.pergunta.ordem }}</span> {{ resposta.pergunta.texto }}
-                {% if resposta.observacao %}<span class="q-obs"><strong>Obs:</strong> {{ resposta.observacao }}</span>{% endif %}
+                <div>
+                  <span class="q-number">{{ topico.ordem }}.{{ resposta.pergunta.ordem }}</span>
+                  <span class="q-text">{{ resposta.pergunta.texto }}</span>
+                </div>
+                {% if resposta.observacao %}
+                  <span class="q-obs">Obs: {{ resposta.observacao }}</span>
+                {% endif %}
               </div>
-              <div class="q-badge-col">
-                <div class="q-badge {% if resposta.resposta|lower in ['não','nao','no'] %}nao{% elif resposta.resposta|lower in ['n.a.','na'] %}na{% elif resposta.resposta=='Parcial' %}parcial{% endif %}">
+              
+              <div class="q-status-col">
+                {% set resp_val = resposta.resposta|lower %}
+                <div class="q-status 
+                  {% if resp_val in ['não','nao','no','ruim','irregular'] %}status-nao
+                  {% elif resp_val in ['n.a.','na','n/a'] %}status-na
+                  {% elif resp_val == 'parcial' %}status-parcial
+                  {% else %}status-conforme{% endif %}">
                   {{ resposta.resposta or '-' }}
                 </div>
               </div>
@@ -266,19 +455,27 @@
           {% endif %}
         {% endfor %}
       {% else %}
-        <div style="padding:15px; color:#999; font-style:italic; text-align:center;">Nenhuma resposta neste tópico.</div>
+        <div style="padding:15px; color:#bdc3c7; font-style:italic; font-size: 9pt; text-align:center;">
+          Nenhum item avaliado.
+        </div>
       {% endif %}
 
       {% set fotos = fotos_por_topico.get(topico) %}
       {% if fotos %}
         <div class="gallery-container">
-          <div class="gallery-header">📸 Evidências Fotográficas</div>
+          <div class="gallery-header">Evidências Fotográficas</div>
           <div class="gallery-grid">
             {% for foto in fotos %}
               <div class="gallery-item">
-                <div class="gallery-caption">{{ topico.ordem }}.{{ foto.resposta.pergunta.ordem }} - {{ foto.resposta.pergunta.texto }}</div>
-                <div class="gallery-img-wrapper"><img src="{{ foto.caminho_url }}" alt="Foto"></div>
-                {% if foto.resposta.observacao %}<div class="gallery-obs">Obs: {{ foto.resposta.observacao }}</div>{% endif %}
+                <div class="gallery-img-wrapper">
+                  <img src="{{ foto.caminho_url }}" alt="Evidência">
+                </div>
+                <div class="gallery-caption">
+                  <strong style="color: #2c3e50;">Item {{ topico.ordem }}.{{ foto.resposta.pergunta.ordem }}</strong>
+                  {% if foto.resposta.observacao %}
+                    <br><span style="color:#7f8c8d;">{{ foto.resposta.observacao|truncate(35) }}</span>
+                  {% endif %}
+                </div>
               </div>
             {% endfor %}
           </div>
@@ -289,8 +486,8 @@
 
   {% if qr_code_url %}
     <div class="validation-block">
-      <img src="{{ qr_code_url }}" style="width:80px;">
-      <div style="font-size:9px; margin-top:5px; color:#666;">Validação Digital Autenticada</div>
+      <img src="{{ qr_code_url }}" style="width:65px; height:65px;">
+      <div style="font-size:7pt; color:#95a5a6; margin-top:5px;">Autenticidade Digital</div>
     </div>
   {% endif %}
 

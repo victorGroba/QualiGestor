@@ -177,6 +177,7 @@
                                                accept="image/*" 
                                                capture="environment"
                                                data-pergunta-id="{{ pergunta.id }}"
+                                               data-criterio-original="{{ pergunta.criterio_foto }}"
                                                {% if pergunta.criterio_foto == 'obrigatoria' %}data-obrigatoria="true"{% endif %}
                                                onchange="handleFotoUpload(this)">
                                     </div>
@@ -282,7 +283,7 @@
     });
 
     // ========================================================================
-    // LÓGICA DE CONFORMIDADE (Mantida)
+    // LÓGICA DE CONFORMIDADE (Atualizada)
     // ========================================================================
     function verificarConformidade(inputElement) {
         salvarResposta(inputElement);
@@ -293,7 +294,7 @@
         
         const isNC = ['não', 'nao', '0', 'ruim', 'irregular', 'não conforme'].includes(valor);
 
-        const fotoInput = document.getElementById(`input-foto-${pid}`); // ID atualizado
+        const fotoInput = document.getElementById(`input-foto-${pid}`); 
         const obsInput = document.getElementById(`obs-${pid}`);
         const obsCollapse = document.getElementById(`collapseObs${pid}`);
         const obsLink = document.getElementById(`btn-obs-${pid}`);
@@ -302,12 +303,25 @@
         if (isNC) {
             container.classList.add('border-danger', 'border-2');
             
-            // Foto Obrigatória
+            // Foto Obrigatória - LÓGICA CORRIGIDA
             if (fotoInput) {
-                fotoInput.setAttribute('data-obrigatoria', 'true');
-                if (fotoBadge) {
-                    fotoBadge.className = 'badge bg-danger badge-status-foto';
-                    fotoBadge.innerText = 'Obrigatória (NC)';
+                // Recupera a configuração original do banco
+                const criterioOriginal = fotoInput.getAttribute('data-criterio-original');
+                
+                // SÓ torna obrigatória se o admin configurou como 'obrigatoria'
+                if (criterioOriginal === 'obrigatoria') {
+                    fotoInput.setAttribute('data-obrigatoria', 'true');
+                    if (fotoBadge) {
+                        fotoBadge.className = 'badge bg-danger badge-status-foto';
+                        fotoBadge.innerText = 'Obrigatória (NC)';
+                    }
+                } else {
+                    // Se for opcional ou nenhuma, garante que não bloqueie
+                    fotoInput.setAttribute('data-obrigatoria', 'false');
+                     if (fotoBadge) {
+                        fotoBadge.className = 'badge bg-secondary badge-status-foto';
+                        fotoBadge.innerText = 'Opcional';
+                    }
                 }
             }
 

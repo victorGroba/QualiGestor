@@ -2185,6 +2185,7 @@ def responder_aplicacao(id):
 def finalizar_aplicacao(id):
     """
     Finaliza uma aplicação e GRAVA as não conformidades para o Pareto.
+    CORRIGIDO: Validação de foto baseada em 'criterio_foto' e suporte a múltiplas fotos.
     """
     try:
         # 1. Carregamento Otimizado
@@ -2194,6 +2195,8 @@ def finalizar_aplicacao(id):
         ).get_or_404(id)
 
         # 2. Carrega Respostas em Memória
+        # Forçamos o carregamento das fotos para validar corretamente
+        # (Assume que o relacionamento 'fotos' existe em RespostaPergunta)
         respostas_list = list(aplicacao.respostas) 
         respostas_dict = {r.pergunta_id: r for r in respostas_list}
         respostas_dadas_ids = set(respostas_dict.keys())
@@ -2215,30 +2218,52 @@ def finalizar_aplicacao(id):
             return redirect(url_for('cli.visualizar_aplicacao', id=id))
 
         # --- 4. MARCAÇÃO DE NÃO CONFORMIDADES (CRUCIAL PARA O PARETO) ---
-        # Este passo estava faltando. Ele diz ao banco o que é um "Erro".
         perguntas_sem_foto = []
-        respostas_negativas = ['não', 'nao', 'no']
+        respostas_negativas = ['não', 'nao', 'no', 'irregular', 'ruim']
 
         for p in perguntas_ativas:
             if p.id in respostas_dict:
                 resp = respostas_dict[p.id]
                 resp_txt = (resp.resposta or "").strip().lower()
                 
-                # Lógica: Se a resposta for "Não", marca como Não Conforme no banco
+                # Lógica: Se a resposta for "Não" (ou equivalente), marca como Não Conforme
                 if resp_txt in respostas_negativas:
                     resp.nao_conforme = True  # <--- ISSO ALIMENTA O PARETO
                     
-                    # Validação de Foto (apenas se exigido)
-                    if p.exige_foto_se_nao_conforme and not resp.caminho_foto:
-                        topico_nome = p.topico.nome if p.topico else "Geral"
-                        perguntas_sem_foto.append(f"'{p.texto}' ({topico_nome})")
+                    # --- VALIDAÇÃO DE FOTO CORRIGIDA ---
+                    # Verifica se a configuração exige foto ('obrigatoria')
+                    criterio = getattr(p, 'criterio_foto', 'nenhuma')
+                    
+                    if criterio == 'obrigatoria':
+                        tem_foto = False
+                        
+                        # 1. Verifica campo legado (compatibilidade)
+                        if resp.caminho_foto:
+                            tem_foto = True
+                        
+                        # 2. Verifica tabela nova de fotos (se relacionamento existir)
+                        elif hasattr(resp, 'fotos'):
+                            # Verifica se tem itens na lista/query
+                            try:
+                                if hasattr(resp.fotos, 'count'): # se for lazy='dynamic'
+                                    if resp.fotos.count() > 0: tem_foto = True
+                                elif len(resp.fotos) > 0: # se for lista carregada
+                                    tem_foto = True
+                            except:
+                                pass
+                        
+                        if not tem_foto:
+                            topico_nome = p.topico.nome if p.topico else "Geral"
+                            perguntas_sem_foto.append(f"'{p.texto}' ({topico_nome})")
+                    # -----------------------------------
+                    
                 else:
                     resp.nao_conforme = False # Garante que "Sim" limpe o erro
 
         # Bloqueia se faltar foto
         if perguntas_sem_foto:
             count = len(perguntas_sem_foto)
-            flash(f"Finalização bloqueada: {count} resposta(s) 'Não' exigem foto de evidência.", "danger")
+            flash(f"Finalização bloqueada: {count} resposta(s) exigem foto de evidência.", "danger")
             for erro in perguntas_sem_foto[:3]: flash(f"- {erro}", "warning")
             return redirect(url_for('cli.responder_aplicacao', id=id))
 
@@ -2247,9 +2272,14 @@ def finalizar_aplicacao(id):
         perguntas_faltando_ids = perguntas_obrigatorias_ids - respostas_dadas_ids
 
         if perguntas_faltando_ids:
-            pendencias = [p.texto for p in perguntas_ativas if p.id in perguntas_faltando_ids][:3]
+            # Tenta pegar os nomes para exibir erro amigável
+            nomes_faltantes = [p.texto for p in perguntas_ativas if p.id in perguntas_faltando_ids]
+            pendencias = nomes_faltantes[:3]
+            
             flash(f"Faltam {len(perguntas_faltando_ids)} pergunta(s) obrigatória(s).", "warning")
             for texto in pendencias: flash(f"- {texto}", "secondary")
+            if len(nomes_faltantes) > 3: flash("...", "secondary")
+            
             return redirect(url_for('cli.responder_aplicacao', id=id))
 
         # --- 6. CÁLCULO DE NOTA ---
