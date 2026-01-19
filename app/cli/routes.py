@@ -5088,3 +5088,85 @@ def pdf_plano_acao(aplicacao_id):
         print(f"Erro PDF Plano: {e}")
         flash(f"Erro ao gerar PDF: {str(e)}", "danger")
         return redirect(url_for('cli.lista_plano_acao'))
+    
+    # app/cli/routes.py
+
+# ... (todo o seu código existente) ...
+
+# ===================== ROTAS DE AÇÃO CORRETIVA =====================
+
+@cli_bp.route('/acao-corretiva/registrar/<int:resposta_id>', methods=['POST'])
+@login_required
+def registrar_acao_corretiva(resposta_id):
+    """Salva o texto da ação corretiva tomada pela OM"""
+    try:
+        resposta = RespostaPergunta.query.get_or_404(resposta_id)
+        
+        # Verificações de segurança
+        app_quest = AplicacaoQuestionario.query.get(resposta.aplicacao_id)
+        if app_quest.avaliado.cliente_id != current_user.cliente_id:
+            flash("Acesso negado.", "danger")
+            return redirect(url_for('cli.lista_plano_acao'))
+            
+        texto_acao = request.form.get('acao_realizada')
+        
+        if texto_acao:
+            resposta.acao_realizada = texto_acao
+            resposta.data_conclusao = datetime.now()
+            # Use 'concluido' (string) ou StatusAcao.CONCLUIDO (enum) conforme seu model
+            resposta.status_acao = 'concluido' 
+            
+            db.session.commit()
+            flash("Ação corretiva registrada com sucesso!", "success")
+        else:
+            flash("Descreva a ação realizada.", "warning")
+
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Erro ao salvar: {str(e)}", "danger")
+        
+    return redirect(url_for('cli.detalhe_plano_acao', aplicacao_id=resposta.aplicacao_id))
+
+
+@cli_bp.route('/acao-corretiva/upload-foto/<int:resposta_id>', methods=['POST'])
+@login_required
+@csrf.exempt 
+def upload_foto_correcao(resposta_id):
+    """Upload específico para fotos de CORREÇÃO"""
+    try:
+        resposta = RespostaPergunta.query.get_or_404(resposta_id)
+        
+        # Segurança básica
+        app_quest = AplicacaoQuestionario.query.get(resposta.aplicacao_id)
+        if app_quest.avaliado.cliente_id != current_user.cliente_id:
+             return jsonify({'erro': 'Acesso negado'}), 403
+        
+        file = request.files.get('foto')
+        # Ajuste as extensões conforme sua config
+        allowed = {'png', 'jpg', 'jpeg', 'gif'} 
+        
+        if file and ('.' in file.filename and file.filename.rsplit('.', 1)[1].lower() in allowed):
+            filename = secure_filename(file.filename)
+            unique_name = f"correcao_{resposta.id}_{uuid.uuid4().hex[:8]}.{filename.rsplit('.', 1)[1]}"
+            
+            upload_folder = current_app.config.get('UPLOAD_FOLDER', 'app/static/img')
+            # Garante que a pasta existe
+            if not os.path.exists(upload_folder):
+                os.makedirs(upload_folder)
+                
+            file.save(os.path.join(upload_folder, unique_name))
+            
+            nova_foto = FotoResposta(
+                caminho=unique_name, 
+                resposta_id=resposta.id,
+                tipo='correcao'
+            )
+            db.session.add(nova_foto)
+            db.session.commit()
+            
+            return jsonify({'sucesso': True})
+            
+    except Exception as e:
+        return jsonify({'erro': str(e)}), 500
+    
+    return jsonify({'erro': 'Erro no upload'}), 400
