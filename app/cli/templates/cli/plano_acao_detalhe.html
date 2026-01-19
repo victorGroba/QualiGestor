@@ -1,94 +1,156 @@
-<table class="table table-hover mb-0">
-    <thead class="bg-light">
-        <tr>
-            <th class="ps-4">Item / Pergunta</th>
-            <th>Não Conformidade</th>
-            <th>Plano (Planejado)</th>
-            <th>Execução (Realizado)</th> </tr>
-    </thead>
-    <tbody>
-        {% for item in respostas %}
-        <tr>
-            <td class="ps-4" style="width: 25%;">
-                <div class="fw-bold text-dark">{{ item.pergunta.texto }}</div>
-                {% if item.observacao %}
-                    <small class="text-muted d-block mt-1 fst-italic">Obs: {{ item.observacao }}</small>
-                {% endif %}
-            </td>
+{% extends "base_cliq.html" %}
 
-            <td style="width: 10%;">
-                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger">
-                    {{ item.resposta }}
-                </span>
-            </td>
+{% block content %}
+<div class="container-fluid mt-4">
+    
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <a href="{{ url_for('cli.lista_plano_acao') }}" class="text-decoration-none text-secondary small">
+                <i class="fas fa-arrow-left"></i> Voltar para Lista
+            </a>
+            <h3 class="mt-1">
+                Plano de Ação: {{ app.avaliado.nome }}
+                <small class="text-muted fs-6">({{ app.data_inicio.strftime('%d/%m/%Y') }})</small>
+            </h3>
+        </div>
+        
+        <div class="btn-group">
+            <a href="{{ url_for('cli.visualizar_aplicacao', id=app.id) }}" class="btn btn-outline-secondary">
+                <i class="fas fa-file-alt me-1"></i> Relatório Completo
+            </a>
+            
+            <a href="{{ url_for('cli.pdf_plano_acao', aplicacao_id=app.id) }}" target="_blank" class="btn btn-warning text-dark fw-bold">
+                <i class="fas fa-file-pdf me-1"></i> Gerar PDF
+            </a>
+        </div>
+    </div>
 
-            <td style="width: 30%;">
-                <div class="p-2 rounded bg-light border border-secondary border-opacity-25 small">
-                    <i class="fas fa-clipboard-list me-1 text-warning"></i> {{ item.plano_acao }}
-                </div>
-            </td>
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-warning bg-opacity-10 border-warning py-3">
+            <h5 class="mb-0 text-dark">
+                <i class="fas fa-exclamation-triangle me-2 text-warning"></i> 
+                Itens Pendentes e Tratativas
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light table-light">
+                        <tr>
+                            <th class="ps-4 py-3" style="width: 30%;">Item / Pergunta</th>
+                            <th class="py-3" style="width: 15%;">Situação</th>
+                            <th class="py-3" style="width: 25%;">Plano (Planejado)</th>
+                            <th class="py-3" style="width: 30%;">Execução (Realizado)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in respostas %}
+                        <tr>
+                            <td class="ps-4">
+                                <div class="fw-bold text-dark">{{ item.pergunta.texto }}</div>
+                                {% if item.observacao %}
+                                    <small class="text-muted d-block mt-1 fst-italic">Obs: {{ item.observacao }}</small>
+                                {% endif %}
+                            </td>
 
-            <td style="width: 35%;">
-                
-                {% if item.status_acao == 'concluido' %}
-                    <div class="alert alert-success p-2 mb-1 small">
-                        <i class="fas fa-check-circle text-success"></i> <strong>Concluído em:</strong> 
-                        {{ item.data_conclusao.strftime('%d/%m/%Y') if item.data_conclusao else '--/--/--' }}<br>
-                        <em>"{{ item.acao_realizada }}"</em>
-                    </div>
-                    
-                    <div class="d-flex gap-1 mt-1">
-                        {% for foto in item.fotos %}
-                            {% if foto.tipo == 'correcao' %}
-                            <a href="{{ url_for('cli.get_foto_resposta', filename=foto.caminho) }}" target="_blank">
-                                <img src="{{ url_for('cli.get_foto_resposta', filename=foto.caminho) }}" 
-                                     class="img-thumbnail" style="height: 40px; width: 40px; object-fit: cover;">
-                            </a>
-                            {% endif %}
+                            <td>
+                                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger px-3 py-2">
+                                    {{ item.resposta }}
+                                </span>
+                            </td>
+
+                            <td>
+                                <div class="p-2 rounded bg-light border border-secondary border-opacity-25 small">
+                                    <i class="fas fa-clipboard-list me-1 text-warning"></i> {{ item.plano_acao }}
+                                </div>
+                            </td>
+
+                            <td>
+                                {% if item.status_acao == 'concluido' or item.status_acao == 'CONCLUIDO' %}
+                                    <div class="alert alert-success p-2 mb-1 small border-success">
+                                        <div class="d-flex align-items-center mb-1">
+                                            <i class="fas fa-check-circle text-success me-2"></i> 
+                                            <strong>Realizado:</strong>
+                                        </div>
+                                        <div class="mb-1">
+                                            <em>"{{ item.acao_realizada }}"</em>
+                                        </div>
+                                        {% if item.data_conclusao %}
+                                        <div class="text-end text-muted" style="font-size: 0.75rem;">
+                                            {{ item.data_conclusao.strftime('%d/%m/%Y %H:%M') }}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="d-flex gap-2 mt-2 flex-wrap">
+                                        {% for foto in item.fotos %}
+                                            {% if foto.tipo == 'correcao' %}
+                                            <a href="{{ url_for('cli.get_foto_resposta', filename=foto.caminho) }}" target="_blank" class="text-decoration-none">
+                                                <img src="{{ url_for('cli.get_foto_resposta', filename=foto.caminho) }}" 
+                                                     class="img-thumbnail border-success" 
+                                                     style="height: 60px; width: 60px; object-fit: cover;"
+                                                     title="Ver evidência">
+                                            </a>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </div>
+
+                                {% else %}
+                                    {% if (datetime.now() - app.data_fim).days > 30 %}
+                                        <div class="badge bg-danger mb-2 w-100 py-2">
+                                            <i class="fas fa-clock me-1"></i> Atrasado (+30 dias)
+                                        </div>
+                                    {% endif %}
+
+                                    <div class="card card-body bg-light border p-2">
+                                        <form action="{{ url_for('cli.registrar_acao_corretiva', resposta_id=item.id) }}" method="POST">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            
+                                            <label class="form-label small fw-bold mb-1">O que foi feito?</label>
+                                            <textarea name="acao_realizada" class="form-control form-control-sm mb-2" 
+                                                      rows="2" placeholder="Descreva a correção..." required></textarea>
+                                            
+                                            <div class="d-grid gap-2">
+                                                <button type="submit" class="btn btn-sm btn-success">
+                                                    <i class="fas fa-save me-1"></i> Concluir Ação
+                                                </button>
+                                                
+                                                <button type="button" class="btn btn-sm btn-outline-primary" 
+                                                        onclick="triggerUploadFoto({{ item.id }})">
+                                                    <i class="fas fa-camera me-1"></i> Anexar Foto
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                    
+                                    <div id="preview-fotos-{{ item.id }}" class="d-flex gap-1 mt-2">
+                                        {% for foto in item.fotos %}
+                                            {% if foto.tipo == 'correcao' %}
+                                                <img src="{{ url_for('cli.get_foto_resposta', filename=foto.caminho) }}" 
+                                                     class="img-thumbnail" style="height: 40px;">
+                                            {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </td>
+                        </tr>
                         {% endfor %}
-                    </div>
-
-                {% else %}
-                    {% if (datetime.now() - app.data_fim).days > 30 %}
-                        <div class="badge bg-danger mb-2 w-100">
-                            <i class="fas fa-clock"></i> Atrasado (+30 dias)
-                        </div>
-                    {% endif %}
-
-                    <form action="{{ url_for('cli.registrar_acao_corretiva', resposta_id=item.id) }}" method="POST" enctype="multipart/form-data">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        
-                        <textarea name="acao_realizada" class="form-control form-control-sm mb-2" 
-                                  rows="2" placeholder="O que foi feito?" required></textarea>
-                        
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div class="input-group input-group-sm me-2">
-                                <input type="file" class="form-control" name="foto_correcao" disabled 
-                                       title="Implementaremos o upload AJAX ou Form normal aqui">
-                            </div>
-                            
-                            <button type="submit" class="btn btn-sm btn-success">
-                                <i class="fas fa-check"></i> Salvar
-                            </button>
-                        </div>
-                        <small class="text-muted" style="font-size: 0.7rem;">* Salve o texto primeiro para anexar fotos.</small>
-                    </form>
-                    
-                    <button class="btn btn-sm btn-outline-primary mt-1 w-100" 
-                             onclick="triggerUploadFoto({{ item.id }})">
-                         <i class="fas fa-camera"></i> Anexar Evidência da Correção
-                     </button>
-
-                {% endif %}
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+                    </tbody>
+                </table>
+            </div>
+            
+            {% if not respostas %}
+            <div class="text-center py-5 text-muted">
+                <i class="fas fa-check-circle fa-3x mb-3 text-success"></i>
+                <p class="mb-0">Não há planos de ação pendentes nesta auditoria.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
 
 <script>
 function triggerUploadFoto(respostaId) {
-    // Cria um input file invisível dinamicamente
     let input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
@@ -100,8 +162,7 @@ function triggerUploadFoto(respostaId) {
         let formData = new FormData();
         formData.append('foto', file);
         
-        // Mostra loading...
-        alert("Enviando foto...");
+        alert("Enviando foto, aguarde...");
         
         fetch(`/cli/acao-corretiva/upload-foto/${respostaId}`, {
             method: 'POST',
@@ -110,15 +171,31 @@ function triggerUploadFoto(respostaId) {
         .then(response => response.json())
         .then(data => {
             if(data.sucesso) {
-                alert("Foto enviada!");
-                location.reload(); // Recarrega para mostrar a foto
+                location.reload(); 
             } else {
-                alert("Erro: " + data.erro);
+                alert("Erro: " + (data.erro || "Falha no upload"));
             }
         })
-        .catch(error => console.error('Error:', error));
+        .catch(error => {
+            console.error('Error:', error);
+            alert("Erro de conexão.");
+        });
     };
     
     input.click();
 }
 </script>
+
+<style>
+    .img-thumbnail {
+        background-color: #fff;
+        border: 1px solid #dee2e6;
+        border-radius: 0.25rem;
+        padding: 0.25rem;
+    }
+    .badge {
+        font-weight: 500;
+    }
+</style>
+
+{% endblock %}
