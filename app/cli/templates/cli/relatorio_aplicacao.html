@@ -36,15 +36,14 @@
     }
 
     /* ==========================================================================
-       2. CONFIGURAÇÃO DE PÁGINA (Ajuste para evitar Pulo de Página)
+       2. CONFIGURAÇÃO DE PÁGINA
        ========================================================================== */
     @page {
       size: A4;
-      margin: 0mm; /* Margens zeradas para o cabeçalho encostar na borda */
+      margin: 0mm; 
     }
 
     body {
-      /* Aumentei levemente para 4cm para garantir que o cabeçalho não empurre o conteúdo */
       padding-top: 4cm;    
       padding-bottom: 1.5cm; 
       padding-left: 1cm;     
@@ -59,41 +58,39 @@
       top: 0; 
       left: 0;
       width: 100%;
-      height: 3.2cm; /* Altura fixa definida */
+      height: 3.2cm;
       
       background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
       color: white;
       
       display: flex;
       align-items: center;
-      justify-content: space-between; /* Separa Esquerda e Direita */
+      justify-content: space-between;
       
       padding-left: 1cm;
       padding-right: 1cm;
       
-      overflow: hidden; /* Garante que nada estoure a altura */
+      overflow: hidden;
       z-index: 1000;
       box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
 
-    /* Container da Esquerda: Logo + Texto */
+    /* Container da Esquerda */
     .header-left {
       display: flex;
       align-items: center;
-      gap: 20px; /* Espaço Físico entre Logo e Texto */
-      flex: 1;   /* Ocupa o espaço disponível */
+      gap: 20px; 
+      flex: 1;   
     }
 
+    /* AJUSTE DA LOGO: Sem fundo branco, sem padding extra */
     .header-logo {
       height: 60px;          
       width: auto;           
       max-width: 200px;      
       object-fit: contain;   
-      
-      background-color: #fff; 
-      padding: 5px;           
-      border-radius: 4px;     
-      flex-shrink: 0; /* Impede a logo de ser esmagada */
+      flex-shrink: 0; 
+      /* Removido background-color, padding, border-radius e shadow */
     }
 
     .header-info {
@@ -104,7 +101,7 @@
 
     .header-info h1 { 
       margin: 0; 
-      font-size: 14pt; /* Ajustado para caber melhor */
+      font-size: 14pt; 
       font-weight: 500; 
       color: #fff; 
       text-transform: uppercase; 
@@ -119,11 +116,11 @@
       color: rgba(255,255,255,0.9); 
     }
 
-    /* Container da Direita: Datas */
+    /* Container da Direita */
     .header-right { 
       text-align: right; 
       color: #fff; 
-      flex-shrink: 0; /* Impede a data de quebrar */
+      flex-shrink: 0; 
       margin-left: 20px;
     }
     
@@ -156,7 +153,7 @@
     .page-number:after { content: "Página " counter(page); }
 
     /* ==========================================================================
-       5. INFO GRID (Tabela de Dados)
+       5. INFO GRID
        ========================================================================== */
     .info-grid { 
       display: table; 
@@ -164,7 +161,7 @@
       margin-bottom: 30px; 
       border-collapse: separate;
       border-spacing: 10px 0;
-      page-break-inside: avoid; /* Evita quebra logo no inicio */
+      page-break-inside: avoid;
     }
     
     .info-item { 
@@ -200,7 +197,7 @@
     .info-item.score .info-value { color: #2c3e50; font-weight: 700; font-size: 12pt; }
 
     /* ==========================================================================
-       6. CONTEÚDO (Tópicos e Perguntas)
+       6. CONTEÚDO
        ========================================================================== */
     .topic-container { 
       margin-bottom: 25px; 
