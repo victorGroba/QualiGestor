@@ -157,47 +157,54 @@ class Usuario(db.Model, UserMixin):
     Tabela de Usuários com Hierarquia Multi-Tenant (Cliente -> Grupo -> Avaliado)
     """
     __tablename__ = "usuario"
-    
+
     id = db.Column(db.Integer, primary_key=True)
-    
+
     # --- DADOS PESSOAIS ---
     nome = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     senha_hash = db.Column(db.String(200), nullable=False)
     telefone = db.Column(db.String(20))
-    
+
     # --- PERMISSÕES ---
     # Enum: SUPER_ADMIN, ADMIN_CLIENTE, GESTOR_GRUPO, AUDITOR, COMUM
     tipo = db.Column(SqlEnum(TipoUsuario), nullable=False, default=TipoUsuario.USUARIO)
     ativo = db.Column(db.Boolean, default=True)
     ultimo_acesso = db.Column(db.DateTime)
-    
+
     # --- HIERARQUIA SISUB (O CORAÇÃO DO SISTEMA) ---
-    
+
     # Nível 1: CLIENTE (Ex: FAB) - Obrigatório
-    # Define a qual "Universo" o usuário pertence.
     cliente_id = db.Column(db.Integer, db.ForeignKey('cliente.id'), nullable=False)
-    
+
     # Nível 2: GRUPO (Ex: GAP Galeão) - Opcional
-    # Se preenchido, o usuário só vê dados deste Grupo/Regional.
     grupo_id = db.Column(db.Integer, db.ForeignKey('grupo.id'), nullable=True)
-    
+
     # Nível 3: AVALIADO (Ex: Rancho Oficiais) - Opcional
-    # Se preenchido, o usuário só vê dados desta Unidade específica.
     avaliado_id = db.Column(db.Integer, db.ForeignKey('avaliado.id'), nullable=True)
-    
+
     # --- METADADOS ---
     criado_em = db.Column(db.DateTime, default=datetime.utcnow)
-    
+
     # --- RELACIONAMENTOS (LINKS PARA O PYTHON) ---
-    
+
+    # 1. CLIENTE: NÃO PRECISA DEFINIR AQUI (Já existe na classe Cliente como backref='usuarios')
+    # cliente = db.relationship('Cliente', backref='usuarios')
+
+    # 2. GRUPO: NÃO PRECISA DEFINIR AQUI (Já existe na classe Grupo como backref='usuarios')
+    # grupo = db.relationship('Grupo', backref='usuarios')
+
+    # 3. AVALIADO: ESSE PRECISA! (A classe Avaliado não tinha vinculo com usuário)
+    # Cria o link u.avaliado e cria a lista rancho.usuarios_vinculados
+    avaliado = db.relationship('Avaliado', backref='usuarios_vinculados')
+
     # --- MÉTODOS DE SEGURANÇA ---
 
     def check_password(self, password):
         """Verifica se a senha está correta"""
         from werkzeug.security import check_password_hash
         return check_password_hash(self.senha_hash, password)
-    
+
     def set_password(self, password):
         """Criptografa e define nova senha"""
         from werkzeug.security import generate_password_hash
@@ -205,7 +212,6 @@ class Usuario(db.Model, UserMixin):
 
     def __repr__(self):
         return f'<Usuario {self.nome} - {self.email}>'
-
 # ==================== QUESTIONÁRIOS E ESTRUTURA ====================
 
 class Questionario(db.Model):
