@@ -4920,15 +4920,17 @@ def gerenciar_nao_conformidades(id):
 
 # --- Adicione no final do arquivo app/cli/routes.py ---
 
+# app/cli/routes.py
+
 @cli_bp.route('/planos-de-acao')
 @login_required
 def lista_plano_acao():
     """
-    Lista global de Planos de Ação pendentes com BLINDAGEM HIERÁRQUICA.
-    Garante que cada nível (Rancho, GAP, SDAB) veja apenas o que lhe é permitido.
+    Lista Global de Planos de Ação AGRUPADOS POR AUDITORIA.
+    Mostra o cabeçalho da auditoria e agrupa as pendências dentro dela.
     """
     try:
-        # 1. Query Base: Busca respostas com plano de ação preenchido da empresa atual
+        # 1. Busca todas as respostas com plano de ação (respeitando a hierarquia)
         query = RespostaPergunta.query\
             .join(AplicacaoQuestionario)\
             .join(Avaliado)\
@@ -4937,24 +4939,34 @@ def lista_plano_acao():
             .filter(RespostaPergunta.plano_acao != "")\
             .filter(Avaliado.cliente_id == current_user.cliente_id)
 
-        # 2. BLINDAGEM DE HIERARQUIA (A Segurança que você pediu)
-        
-        # Nível Rancho: Se o usuário é de um rancho específico, TRAVA a busca nesse rancho.
-        if current_user.avaliado_id:
+        # Filtros de Segurança (Hierarquia)
+        if current_user.avaliado_id: # Nível Rancho
             query = query.filter(AplicacaoQuestionario.avaliado_id == current_user.avaliado_id)
-            
-        # Nível GAP: Se não é rancho, mas é de um GAP, TRAVA a busca nos ranchos desse GAP.
-        elif current_user.grupo_id:
+        elif current_user.grupo_id:  # Nível GAP
             query = query.filter(Avaliado.grupo_id == current_user.grupo_id)
             
-        # Nível SDAB/Admin: Se passar direto pelos ifs acima, vê tudo (Query Base).
+        # Ordena por data (mais recente) e depois pelo ID da aplicação (para agrupar corretamente)
+        itens_brutos = query.order_by(AplicacaoQuestionario.data_inicio.desc(), AplicacaoQuestionario.id).all()
 
-        # 3. Executa a busca ordenando do mais recente para o mais antigo
-        itens = query.order_by(AplicacaoQuestionario.data_inicio.desc()).all()
+        # 2. Lógica de Agrupamento em Dicionário
+        # Estrutura: { id_aplicacao: { 'dados': obj_aplicacao, 'itens': [lista_de_respostas] } }
+        grupos = {}
+        
+        for resposta in itens_brutos:
+            app_id = resposta.aplicacao_id
+            if app_id not in grupos:
+                grupos[app_id] = {
+                    'aplicacao': resposta.aplicacao,
+                    'respostas': []
+                }
+            grupos[app_id]['respostas'].append(resposta)
 
-        return render_template_safe('cli/plano_acao.html', itens=itens)
+        # Converte para uma lista para enviar ao template
+        lista_agrupada = list(grupos.values())
+
+        return render_template_safe('cli/plano_acao.html', auditorias=lista_agrupada)
 
     except Exception as e:
-        print(f"Erro ao listar planos de ação: {e}")
-        flash(f"Erro ao carregar planos de ação: {str(e)}", "danger")
+        print(f"Erro ao agrupar planos de ação: {e}")
+        flash(f"Erro ao processar dados: {str(e)}", "danger")
         return redirect(url_for('cli.index'))
