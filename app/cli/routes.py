@@ -4914,3 +4914,47 @@ def gerenciar_nao_conformidades(id):
     aplicacao = AplicacaoQuestionario.query.get_or_404(id)
     ncs = RespostaPergunta.query.filter_by(aplicacao_id=id, nao_conforme=True).options(joinedload(RespostaPergunta.pergunta)).all()
     return render_template_safe('cli/definir_planos.html', aplicacao=aplicacao, ncs=ncs)
+
+
+# --- Adicione isso ao final do arquivo app/cli/routes.py ---
+
+# --- Adicione no final do arquivo app/cli/routes.py ---
+
+@cli_bp.route('/planos-de-acao')
+@login_required
+def lista_plano_acao():
+    """
+    Lista global de Planos de Ação pendentes com BLINDAGEM HIERÁRQUICA.
+    Garante que cada nível (Rancho, GAP, SDAB) veja apenas o que lhe é permitido.
+    """
+    try:
+        # 1. Query Base: Busca respostas com plano de ação preenchido da empresa atual
+        query = RespostaPergunta.query\
+            .join(AplicacaoQuestionario)\
+            .join(Avaliado)\
+            .join(Pergunta)\
+            .filter(RespostaPergunta.plano_acao != None)\
+            .filter(RespostaPergunta.plano_acao != "")\
+            .filter(Avaliado.cliente_id == current_user.cliente_id)
+
+        # 2. BLINDAGEM DE HIERARQUIA (A Segurança que você pediu)
+        
+        # Nível Rancho: Se o usuário é de um rancho específico, TRAVA a busca nesse rancho.
+        if current_user.avaliado_id:
+            query = query.filter(AplicacaoQuestionario.avaliado_id == current_user.avaliado_id)
+            
+        # Nível GAP: Se não é rancho, mas é de um GAP, TRAVA a busca nos ranchos desse GAP.
+        elif current_user.grupo_id:
+            query = query.filter(Avaliado.grupo_id == current_user.grupo_id)
+            
+        # Nível SDAB/Admin: Se passar direto pelos ifs acima, vê tudo (Query Base).
+
+        # 3. Executa a busca ordenando do mais recente para o mais antigo
+        itens = query.order_by(AplicacaoQuestionario.data_inicio.desc()).all()
+
+        return render_template_safe('cli/plano_acao.html', itens=itens)
+
+    except Exception as e:
+        print(f"Erro ao listar planos de ação: {e}")
+        flash(f"Erro ao carregar planos de ação: {str(e)}", "danger")
+        return redirect(url_for('cli.index'))
