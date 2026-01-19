@@ -5027,9 +5027,12 @@ def detalhe_plano_acao(aplicacao_id):
             .order_by(Pergunta.ordem)\
             .all()
 
+        # ADICIONEI 'datetime=datetime' AQUI EMBAIXO vvv
         return render_template_safe('cli/plano_acao_detalhe.html', 
                                app=aplicacao, 
-                               respostas=respostas_com_plano)
+                               respostas=respostas_com_plano,
+                               datetime=datetime) 
+                               
     except Exception as e:
         print(f"Erro: {e}")
         return redirect(url_for('cli.lista_plano_acao'))
