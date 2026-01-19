@@ -361,10 +361,10 @@ class AplicacaoQuestionario(db.Model):
     pontos_totais = db.Column(db.Float)
     
     # Observações e comentários
-    observacoes = db.Column(db.Text)  # Observações iniciais
-    observacoes_finais = db.Column(db.Text)  # Observações ao finalizar
+    observacoes = db.Column(db.Text)
+    observacoes_finais = db.Column(db.Text)
     
-    # Dados de localização (se capturado)
+    # Dados de localização
     latitude = db.Column(db.String(50))
     longitude = db.Column(db.String(50))
     endereco_capturado = db.Column(db.String(255))
@@ -374,6 +374,10 @@ class AplicacaoQuestionario(db.Model):
     avaliado_id = db.Column(db.Integer, db.ForeignKey('avaliado.id'), nullable=False)
     aplicador_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
     
+    # --- ADICIONE ESTA LINHA ---
+    aplicador = db.relationship('Usuario', foreign_keys=[aplicador_id])
+    # ---------------------------
+
     # Relacionamentos
     respostas = db.relationship('RespostaPergunta', backref='aplicacao', lazy='dynamic', cascade='all, delete-orphan')
 
