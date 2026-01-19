@@ -2888,11 +2888,11 @@ def novo_usuario():
         # 4. Conversão Segura (HTML Value -> Python Enum)
         # Ajuste as chaves da direita (TipoUsuario.X) conforme seu models.py exato
         mapa_tipos = {
-            'super_admin': TipoUsuario.SUPER_ADMIN, # Se existir esse tipo
-            'admin': TipoUsuario.ADMIN_CLIENTE,     # SDAB
-            'gestor': TipoUsuario.GESTOR_GRUPO,     # GAP
-            'auditor': TipoUsuario.AUDITOR,         # Consultora
-            'usuario': TipoUsuario.USUARIO          # Rancho
+            'super_admin': TipoUsuario.SUPER_ADMIN,
+            'admin': TipoUsuario.ADMIN,      
+            'gestor': TipoUsuario.GESTOR,    
+            'auditor': TipoUsuario.AUDITOR,  
+            'usuario': TipoUsuario.USUARIO
         }
         
         tipo_enum = mapa_tipos.get(tipo_str)

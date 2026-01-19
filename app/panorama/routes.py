@@ -12,6 +12,25 @@ from ..models import (
 )
 
 
+def aplicar_filtro_hierarquia(query, model_avaliado=Avaliado):
+    """
+    Função Auxiliar: Aplica automaticamente a blindagem de dados.
+    Quem é Rancho só vê Rancho. Quem é GAP só vê GAP.
+    """
+    # 1. Filtro Global (Sempre aplicado) - Garante que é da mesma empresa
+    query = query.filter(model_avaliado.cliente_id == current_user.cliente_id)
+
+    # 2. Filtro Local (Se for usuário de Rancho)
+    if current_user.avaliado_id:
+        query = query.filter(model_avaliado.id == current_user.avaliado_id)
+
+    # 3. Filtro Regional (Se for Gestor de GAP)
+    elif current_user.grupo_id:
+        query = query.filter(model_avaliado.grupo_id == current_user.grupo_id)
+        
+    return query
+
+
 panorama_bp = Blueprint('panorama', __name__, template_folder='templates')
 
 @panorama_bp.route('/')
@@ -24,14 +43,15 @@ def index():
 @panorama_bp.route('/dashboard')
 @login_required
 def dashboard():
-    """Dashboard principal com dados reais"""
+    """Dashboard principal com dados reais BLINDADOS POR HIERARQUIA"""
+    
     # Período padrão: últimos 30 dias
     data_fim = datetime.now()
     data_inicio = data_fim - timedelta(days=30)
 
-    # Aplicar filtros se fornecidos
-    avaliado_id = request.args.get('avaliado_id', type=int)  # Era loja_id
-    questionario_id = request.args.get('questionario_id', type=int)  # Era formulario_id
+    # Filtros da URL
+    avaliado_id = request.args.get('avaliado_id', type=int)
+    questionario_id = request.args.get('questionario_id', type=int)
     grupo_id = request.args.get('grupo_id', type=int)
     periodo = request.args.get('periodo', '30')
 
@@ -43,15 +63,24 @@ def dashboard():
     elif periodo == '365':
         data_inicio = data_fim - timedelta(days=365)
 
-    # Query base para aplicações do cliente (era auditorias)
-    query = AplicacaoQuestionario.query.join(Avaliado).filter(
-        Avaliado.cliente_id == current_user.cliente_id,
+    # --- INÍCIO DA QUERY BLINDADA ---
+    # 1. Cria a base da busca
+    query = AplicacaoQuestionario.query.join(Avaliado)
+
+    # 2. APLICA A SEGURANÇA (O Segredo)
+    # Isso garante que Rancho só vê Rancho e GAP só vê GAP
+    query = aplicar_filtro_hierarquia(query, Avaliado)
+
+    # 3. Aplica filtros de data e status
+    query = query.filter(
         AplicacaoQuestionario.data_inicio >= data_inicio,
         AplicacaoQuestionario.data_inicio <= data_fim,
-        AplicacaoQuestionario.status == StatusAplicacao.FINALIZADA  # Era StatusAuditoria.CONCLUIDA
+        AplicacaoQuestionario.status == StatusAplicacao.FINALIZADA
     )
 
-    # Aplicar filtros
+    # 4. Filtros da URL (Opcionais)
+    # Nota: Se o usuário tentar forçar um ID que não é dele na URL, 
+    # o filtro de hierarquia acima já vai ter bloqueado, resultando em vazio.
     if avaliado_id:
         query = query.filter(AplicacaoQuestionario.avaliado_id == avaliado_id)
     if questionario_id:
@@ -59,26 +88,38 @@ def dashboard():
     if grupo_id:
         query = query.filter(Avaliado.grupo_id == grupo_id)
 
-    aplicacoes = query.all()  # Era auditorias
+    aplicacoes = query.all()
+    # --- FIM DA QUERY ---
 
-    # Calcular métricas
+    # Calcular métricas e gráficos
     metricas = calcular_metricas_dashboard(aplicacoes)
 
-    # Dados para gráficos
     graficos = {
         'evolucao_pontuacao': gerar_grafico_evolucao(aplicacoes),
-        'pontuacao_por_avaliado': gerar_grafico_avaliados(aplicacoes),  # Era por_loja
-        'pontuacao_por_questionario': gerar_grafico_questionarios(aplicacoes),  # Era por_formulario
+        'pontuacao_por_avaliado': gerar_grafico_avaliados(aplicacoes),
+        'pontuacao_por_questionario': gerar_grafico_questionarios(aplicacoes),
         'distribuicao_notas': gerar_grafico_distribuicao(aplicacoes),
-        'ranking_avaliados': gerar_ranking_avaliados(aplicacoes),  # Era ranking_lojas
+        'ranking_avaliados': gerar_ranking_avaliados(aplicacoes),
         'top_nao_conformidades': gerar_top_nao_conformidades(aplicacoes)
     }
 
-    # Opções para filtros
+    # --- FILTROS PARA OS SELECTS (Também precisam ser blindados) ---
+    
+    # 1. Lista de Avaliados (Ranchos)
+    # Só mostramos na lista os ranchos que o usuário tem permissão de ver
+    query_avaliados = Avaliado.query.filter_by(cliente_id=current_user.cliente_id, ativo=True)
+    query_avaliados = aplicar_filtro_hierarquia(query_avaliados)
+    
+    # 2. Lista de Grupos (GAPs)
+    query_grupos = Grupo.query.filter_by(cliente_id=current_user.cliente_id, ativo=True)
+    # Se for Gestor de GAP, só vê o seu próprio grupo na lista
+    if current_user.grupo_id:
+        query_grupos = query_grupos.filter(Grupo.id == current_user.grupo_id)
+
     filtros = {
-        'avaliados': Avaliado.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).all(),  # Era lojas
-        'questionarios': Questionario.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).all(),  # Era formularios
-        'grupos': Grupo.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).all()
+        'avaliados': query_avaliados.order_by(Avaliado.nome).all(),
+        'questionarios': Questionario.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).all(),
+        'grupos': query_grupos.order_by(Grupo.nome).all()
     }
 
     return render_template(
@@ -87,8 +128,8 @@ def dashboard():
         graficos=graficos,
         filtros=filtros,
         filtros_aplicados={
-            'avaliado_id': avaliado_id,  # Era loja_id
-            'questionario_id': questionario_id,  # Era formulario_id
+            'avaliado_id': avaliado_id,
+            'questionario_id': questionario_id,
             'grupo_id': grupo_id,
             'periodo': periodo
         }
