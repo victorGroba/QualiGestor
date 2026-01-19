@@ -8,16 +8,12 @@
        1. VARIAVEIS E FONTE
        ========================================================================== */
     :root {
-      /* Cores de Texto */
       --text-dark: #2c3e50;
       --text-light: #7f8c8d;
-      
-      /* Cores de Status */
       --color-conforme: #27ae60;
       --color-nao: #c0392b;
       --color-na: #95a5a6;
       --color-parcial: #e67e22;
-      
       --border-color: #ecf0f1;
     }
 
@@ -40,69 +36,97 @@
     }
 
     /* ==========================================================================
-       2. CONFIGURAÇÃO DE PÁGINA
+       2. CONFIGURAÇÃO DE PÁGINA (Ajuste para evitar Pulo de Página)
        ========================================================================== */
     @page {
       size: A4;
-      margin: 0mm; /* Unidade explicita para evitar erro */
+      margin: 0mm; /* Margens zeradas para o cabeçalho encostar na borda */
     }
 
     body {
-      padding-top: 3.5cm;    
+      /* Aumentei levemente para 4cm para garantir que o cabeçalho não empurre o conteúdo */
+      padding-top: 4cm;    
       padding-bottom: 1.5cm; 
       padding-left: 1cm;     
       padding-right: 1cm;
     }
 
     /* ==========================================================================
-       3. CABEÇALHO (CORRIGIDO: SEM VAR() NO GRADIENTE)
+       3. CABEÇALHO (Layout Flexbox Rígido)
        ========================================================================== */
     .header-fixed {
       position: fixed;
       top: 0; 
       left: 0;
       width: 100%;
-      height: 3cm;
+      height: 3.2cm; /* Altura fixa definida */
       
-      /* Cores HEX diretas. WeasyPrint falha com var() aqui */
       background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
       color: white;
       
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: space-between; /* Separa Esquerda e Direita */
       
       padding-left: 1cm;
       padding-right: 1cm;
       
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      overflow: hidden; /* Garante que nada estoure a altura */
       z-index: 1000;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    /* Container da Esquerda: Logo + Texto */
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 20px; /* Espaço Físico entre Logo e Texto */
+      flex: 1;   /* Ocupa o espaço disponível */
     }
 
     .header-logo {
-      height: 55px;
-      width: auto;
-      object-fit: contain;
-      filter: brightness(0) invert(1);
+      height: 60px;          
+      width: auto;           
+      max-width: 200px;      
+      object-fit: contain;   
+      
+      background-color: #fff; 
+      padding: 5px;           
+      border-radius: 4px;     
+      flex-shrink: 0; /* Impede a logo de ser esmagada */
+    }
+
+    .header-info {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
     }
 
     .header-info h1 { 
       margin: 0; 
-      font-size: 15pt;
+      font-size: 14pt; /* Ajustado para caber melhor */
       font-weight: 500; 
       color: #fff; 
       text-transform: uppercase; 
       letter-spacing: 0.5px;
+      line-height: 1.2;
     }
     
     .header-info p { 
-      margin: 3px 0 0 0; 
+      margin: 2px 0 0 0; 
       font-size: 9pt; 
       font-weight: 300;
       color: rgba(255,255,255,0.9); 
     }
 
-    .header-right { text-align: right; color: #fff; }
+    /* Container da Direita: Datas */
+    .header-right { 
+      text-align: right; 
+      color: #fff; 
+      flex-shrink: 0; /* Impede a data de quebrar */
+      margin-left: 20px;
+    }
+    
     .header-label { font-size: 7pt; text-transform: uppercase; opacity: 0.8; letter-spacing: 1px; }
     .header-value { font-size: 10pt; font-weight: 500; margin-top: 2px; }
 
@@ -132,15 +156,15 @@
     .page-number:after { content: "Página " counter(page); }
 
     /* ==========================================================================
-       5. INFO GRID (CORRIGIDO: REMOVIDO CALC())
+       5. INFO GRID (Tabela de Dados)
        ========================================================================== */
     .info-grid { 
       display: table; 
-      width: 100%; /* Largura fixa e segura */
+      width: 100%; 
       margin-bottom: 30px; 
       border-collapse: separate;
       border-spacing: 10px 0;
-      /* Removido margin-left negativo e calc() que causavam o crash */
+      page-break-inside: avoid; /* Evita quebra logo no inicio */
     }
     
     .info-item { 
@@ -172,18 +196,11 @@
       text-overflow: ellipsis; 
     }
 
-    /* Destaque Nota */
-    .info-item.score {
-      border-bottom-color: #2c3e50;
-    }
-    .info-item.score .info-value { 
-      color: #2c3e50; 
-      font-weight: 700; 
-      font-size: 12pt;
-    }
+    .info-item.score { border-bottom-color: #2c3e50; }
+    .info-item.score .info-value { color: #2c3e50; font-weight: 700; font-size: 12pt; }
 
     /* ==========================================================================
-       6. TÓPICOS
+       6. CONTEÚDO (Tópicos e Perguntas)
        ========================================================================== */
     .topic-container { 
       margin-bottom: 25px; 
@@ -208,21 +225,15 @@
       letter-spacing: 0.5px;
     }
     
-    .topic-score {
-      font-size: 9pt;
-      font-weight: 500;
-      color: #7f8c8d;
-    }
+    .topic-score { font-size: 9pt; font-weight: 500; color: #7f8c8d; }
 
-    /* ==========================================================================
-       7. PERGUNTAS E STATUS
-       ========================================================================== */
     .question-row { 
       display: flex; 
       justify-content: space-between; 
       align-items: flex-start; 
       padding: 8px 0; 
       border-bottom: 1px solid #ecf0f1; 
+      page-break-inside: avoid;
     }
     
     .question-row:last-child { border-bottom: none; }
@@ -238,11 +249,7 @@
       min-width: 25px; 
     }
     
-    .q-text { 
-      font-size: 10pt; 
-      font-weight: 400;
-      color: #2c3e50; 
-    }
+    .q-text { font-size: 10pt; font-weight: 400; color: #2c3e50; }
 
     .q-obs { 
       display: block; 
@@ -256,11 +263,7 @@
       border-left: 2px solid #ddd;
     }
 
-    .q-status-col {
-      min-width: 70px;
-      text-align: right;
-      padding-left: 10px;
-    }
+    .q-status-col { min-width: 70px; text-align: right; padding-left: 10px; }
 
     .q-status {
       font-size: 9pt;
@@ -269,14 +272,13 @@
       letter-spacing: 0.5px;
     }
 
-    /* Cores aplicadas diretamente aqui para segurança */
     .status-conforme { color: #27ae60; }
     .status-nao { color: #c0392b; }
     .status-na { color: #95a5a6; font-weight: 400; font-size: 8pt; }
     .status-parcial { color: #e67e22; }
 
     /* ==========================================================================
-       8. GALERIA E ASSINATURA
+       7. GALERIA E OUTROS
        ========================================================================== */
     .signature-container { 
       margin-top: 10px;
@@ -285,19 +287,12 @@
       background: #fff;
       border-radius: 4px;
       text-align: center;
+      page-break-inside: avoid;
     }
     
-    .signature-img { 
-      height: 60px; 
-      display: block; 
-      margin: 0 auto; 
-      mix-blend-mode: multiply;
-    }
+    .signature-img { height: 60px; display: block; margin: 0 auto; mix-blend-mode: multiply; }
 
-    .gallery-container { 
-      margin-top: 15px; 
-      padding-top: 10px;
-    }
+    .gallery-container { margin-top: 15px; padding-top: 10px; page-break-inside: avoid; }
     
     .gallery-header { 
       font-size: 8pt; 
@@ -308,10 +303,7 @@
       letter-spacing: 1px;
     }
     
-    .gallery-grid { 
-      display: block; 
-      width: 100%; 
-    }
+    .gallery-grid { display: block; width: 100%; }
     
     .gallery-item { 
       display: inline-block; 
@@ -334,11 +326,7 @@
       justify-content: center;
     }
     
-    .gallery-img-wrapper img { 
-      width: 100%; 
-      height: 100%; 
-      object-fit: cover; 
-    }
+    .gallery-img-wrapper img { width: 100%; height: 100%; object-fit: cover; }
     
     .gallery-caption { 
       padding: 5px;
@@ -353,16 +341,20 @@
       margin-top: 40px; 
       border-top: 1px solid #ecf0f1;
       padding-top: 15px;
+      page-break-inside: avoid;
     }
   </style>
 </head>
 <body>
+
+  <div style="height: 1px; width: 100%; visibility: hidden;"></div>
 
   <div class="header-fixed">
     <div class="header-left">
       {% if logo_pdf_uri %}
         <img src="{{ logo_pdf_uri }}" alt="Logo" class="header-logo">
       {% endif %}
+      
       <div class="header-info">
         <h1>{{ aplicacao.questionario.nome }}</h1>
         <p>Relatório de Auditoria</p>
