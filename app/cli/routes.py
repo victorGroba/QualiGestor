@@ -2052,38 +2052,37 @@ def excluir_avaliado(id):
 @cli_bp.route('/listar-aplicacoes')
 @login_required
 def listar_aplicacoes():
-    """Lista todas as aplicações de questionário com FILTRO HIERÁRQUICO"""
+    """Lista todas as aplicações de questionário com FILTRO HIERÁRQUICO e PAGINAÇÃO"""
     try:
-        # Filtros da URL
-        avaliado_id = request.args.get('avaliado_id')
-        questionario_id = request.args.get('questionario_id')
+        # 1. Captura de Filtros (com conversão de tipo segura do Flask)
+        avaliado_id = request.args.get('avaliado_id', type=int)
+        questionario_id = request.args.get('questionario_id', type=int)
         status = request.args.get('status')
         data_inicio = request.args.get('data_inicio')
         data_fim = request.args.get('data_fim')
-        
-        # --- QUERY BASE BLINDADA ---
+        page = request.args.get('page', 1, type=int)
+
+        # 2. Query Base (Filtrada pelo Cliente)
         query = AplicacaoQuestionario.query.join(Avaliado).filter(
             Avaliado.cliente_id == current_user.cliente_id
         )
 
-        # 1. BLINDAGEM DE RANCHO (Nível Operacional)
-        # Se o usuário tem um rancho fixo, ele SÓ VÊ O DELE, não importa o filtro.
+        # 3. Blindagem de Hierarquia (Regras FAB)
+        
+        # Nível 1: Usuário de Rancho (vê apenas o seu)
         if current_user.avaliado_id:
             query = query.filter(AplicacaoQuestionario.avaliado_id == current_user.avaliado_id)
+            # Força o filtro visual para coincidir com a permissão (trava o select no HTML)
+            avaliado_id = current_user.avaliado_id 
 
-        # 2. BLINDAGEM DE GAP (Nível Regional)
-        # Se é Gestor/Auditor de GAP, vê tudo que pertence ao GAP dele.
+        # Nível 2: Gestor/Auditor de GAP (vê apenas do seu GAP)
         elif current_user.grupo_id:
             query = query.filter(Avaliado.grupo_id == current_user.grupo_id)
 
-        # 3. SDAB/ADMIN (Nível Global)
-        # Continua vendo tudo (já filtrado pelo cliente_id acima)
+        # 3. SDAB/ADMIN (Vê tudo - já filtrado por cliente_id no passo 2)
 
-        # --- FIM DA BLINDAGEM ---
-        
-        # Aplicar filtros da URL (se o usuário tiver permissão para usar filtros)
+        # 4. Aplicação dos Filtros Dinâmicos (vindos do formulário)
         if avaliado_id:
-            # Se for Rancho, ele já está travado no dele. Se tentar filtrar outro, vai dar vazio.
             query = query.filter(AplicacaoQuestionario.avaliado_id == avaliado_id)
         
         if questionario_id:
@@ -2092,44 +2091,56 @@ def listar_aplicacoes():
         if status:
             query = query.filter(AplicacaoQuestionario.status == status)
         
+        # Tratamento seguro de datas
         if data_inicio:
-            query = query.filter(AplicacaoQuestionario.data_inicio >= datetime.strptime(data_inicio, '%Y-%m-%d'))
+            try:
+                dt_inicio = datetime.strptime(data_inicio, '%Y-%m-%d')
+                query = query.filter(AplicacaoQuestionario.data_inicio >= dt_inicio)
+            except ValueError:
+                pass # Ignora se a data for inválida
         
         if data_fim:
-            query = query.filter(AplicacaoQuestionario.data_inicio <= datetime.strptime(data_fim + ' 23:59:59', '%Y-%m-%d %H:%M:%S'))
-        
-        # Paginação
-        page = request.args.get('page', 1, type=int)
+            try:
+                # Ajusta para o final do dia (23:59:59) para pegar tudo daquele dia
+                dt_fim = datetime.strptime(data_fim, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
+                query = query.filter(AplicacaoQuestionario.data_inicio <= dt_fim)
+            except ValueError:
+                pass
+
+        # 5. Paginação e Ordenação
+        # Ordena por data de início decrescente (mais recentes primeiro)
         aplicacoes = query.order_by(AplicacaoQuestionario.data_inicio.desc()).paginate(
             page=page, per_page=20, error_out=False
         )
         
-        # Dados para filtros (Selects)
-        # A função get_avaliados_usuario() que já existe no seu código (linha 225)
-        # JÁ FAZ o filtro correto para os selects, então isso aqui está ok:
+        # 6. Dados para os Selects de Filtro
+        # Reutiliza a função de segurança existente para listar apenas avaliados permitidos
         avaliados = get_avaliados_usuario() 
         
         questionarios = Questionario.query.filter_by(
             cliente_id=current_user.cliente_id,
-            ativo=True,
-            publicado=True
-        ).all()
+            ativo=True
+        ).order_by(Questionario.nome).all()
         
+        # 7. Renderização com Contexto de Filtros
+        # Passamos 'filtros' para manter o estado dos inputs no HTML após a busca
         return render_template_safe('cli/listar_aplicacoes.html',
                              aplicacoes=aplicacoes,
                              avaliados=avaliados,
                              questionarios=questionarios,
                              filtros={
-                                 'avaliado_id': int(avaliado_id) if avaliado_id else None,
-                                 'questionario_id': int(questionario_id) if questionario_id else None,
+                                 'avaliado_id': avaliado_id,
+                                 'questionario_id': questionario_id,
                                  'status': status,
                                  'data_inicio': data_inicio,
                                  'data_fim': data_fim
                              })
-    except Exception as e:
-        flash(f"Erro ao carregar aplicações: {str(e)}", "danger")
-        return render_template_safe('cli/index.html')
 
+    except Exception as e:
+        # Log do erro no console para debug
+        print(f"Erro em listar_aplicacoes: {e}")
+        flash(f"Erro ao carregar lista de aplicações: {str(e)}", "danger")
+        return render_template_safe('cli/index.html')
 @cli_bp.route('/aplicacao/nova', methods=['GET', 'POST'])
 @cli_bp.route('/nova-aplicacao', methods=['GET', 'POST'])
 @login_required
