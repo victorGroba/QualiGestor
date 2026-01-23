@@ -386,6 +386,10 @@ class AplicacaoQuestionario(db.Model):
 
     # Relacionamentos
     respostas = db.relationship('RespostaPergunta', backref='aplicacao', lazy='dynamic', cascade='all, delete-orphan')
+    
+    assinatura_imagem = db.Column(db.String(255)) 
+    assinatura_responsavel = db.Column(db.String(200))
+    cargo_responsavel = db.Column(db.String(100))
 
 class RespostaPergunta(db.Model):
     """Respostas dadas às perguntas durante uma aplicação"""
