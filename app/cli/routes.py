@@ -4939,15 +4939,24 @@ def sugerir_plano_acao():
         genai.configure(api_key=api_key)
         
         prompt = f"""
-        Tarefa: Crie um plano de ação corretivo para esta Não Conformidade em alimentos.
-        Problema: "{data.get('pergunta')}"
-        Obs: "{data.get('observacao')}"
+        Atue como um Consultor Sênior em Segurança Alimentar. Sua tarefa é redigir a Ação Corretiva para uma não conformidade identificada em auditoria.
+        
+        CONTEXTO:
+        - Item Auditado: "{data.get('pergunta')}"
+        - Observação do Auditor (O problema real): "{data.get('observacao')}"
 
-        REGRAS RÍGIDAS DE FORMATAÇÃO:
-        1. Responda APENAS com 1 (um) parágrafo curto.
-        2. É ESTRITAMENTE PROIBIDO usar listas, tópicos, numeração (1., 2.) ou quebras de linha.
-        3. Vá direto à solução. Não use introduções como "O plano de ação é...".
-        4. Use linguagem imperativa (Ex: "Faça isso", "Corrija aquilo").
+        DIRETRIZES DE ESTILO E TOM:
+        1. NATURALIDADE TÉCNICA: O texto deve parecer escrito por um humano técnico. Evite clichês de IA como "É crucial que...", "Recomenda-se...", "O plano consiste em...".
+        2. CONEXÃO DIRETA: Use os mesmos termos e objetos citados na 'Observação'. Se a observação fala sobre "pia entupida", a ação deve falar sobre "desobstrução da pia", e não "conserto do equipamento".
+        3. IMPERATIVO PROFISSIONAL: Use verbos de ação direta (Ex: Adequar, Substituir, Treinar, Higienizar), mas mantenha a fluidez de uma frase natural.
+        4. ESPECIFICIDADE: Não dê soluções genéricas. A solução deve resolver EXATAMENTE o detalhe apontado na observação.
+
+        REGRAS DE FORMATAÇÃO:
+        - Apenas 1 parágrafo curto e objetivo.
+        - Sem listas, tópicos ou quebras de linha.
+        - Texto corrido, formal e direto.
+
+        Gere a Ação Corretiva agora:
         """
         
         model = genai.GenerativeModel('gemini-2.0-flash')
