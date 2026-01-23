@@ -25,15 +25,36 @@
                 <div class="card border-0 shadow-sm mb-4 mb-md-5 nc-card"> 
                     <div class="card-body border-start border-danger border-5 rounded-start p-3 p-md-4">
                         
+                        <div class="mb-2">
+                            <span class="badge bg-light text-dark border fw-normal">
+                                <i class="fas fa-folder-open me-1 text-muted"></i> 
+                                {{ item.pergunta.topico.nome }}
+                            </span>
+                        </div>
+
                         <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start mb-3 gap-2">
                             <div class="w-100">
                                 <h5 class="card-title text-dark fw-bold mb-1 fs-6 fs-md-5">
                                     <span class="badge bg-danger me-2">NC</span>
+                                    <span class="text-secondary me-1">#{{ item.pergunta.ordem }}</span>
                                     {{ item.pergunta.texto }}
                                 </h5>
                             </div>
-                            <span class="badge bg-light text-muted border align-self-start align-self-sm-center">ID: {{ item.id }}</span>
                         </div>
+
+                        {% if item.caminho_foto %}
+                        <div class="mb-3 p-2 bg-light rounded text-center border">
+                            <div class="d-flex align-items-center mb-2">
+                                <small class="text-muted fw-bold">
+                                    <i class="fas fa-camera me-1"></i> Evidência Fotográfica:
+                                </small>
+                            </div>
+                            <img src="{{ url_for('cli.get_foto_resposta', filename=item.caminho_foto) }}" 
+                                 class="img-fluid rounded shadow-sm border bg-white p-1" 
+                                 style="max-height: 300px; width: auto;" 
+                                 alt="Evidência da Não Conformidade">
+                        </div>
+                        {% endif %}
 
                         <div class="bg-light p-3 rounded mb-3 border border-light">
                             <small class="text-uppercase text-muted fw-bold" style="font-size: 0.7rem;">
@@ -52,7 +73,7 @@
                             <textarea class="form-control form-control-lg shadow-sm" 
                                       id="plano-{{ item.id }}" 
                                       rows="5" 
-                                      placeholder="Descreva a ação ou pergunte à Norma o que fazer..."
+                                      placeholder="Descreva a ação ou solicite sugestão à IA..."
                                       onblur="salvarManual({{ item.id }})">{{ item.plano_acao or '' }}</textarea>
                             
                             <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mt-3 gap-2">
@@ -67,12 +88,12 @@
                                         onclick="gerarPlanoIA(this)">
                                     
                                     <span class="normal-state fw-bold">
-                                        <i class="fas fa-user-tie me-2"></i> Consultar a Agente IA
+                                        <i class="fas fa-magic me-2"></i> Gerar plano de ação com base na descrição
                                     </span>
                                     
                                     <span class="loading-state d-none">
                                         <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                                        A Norma está escrevendo...
+                                        Gerando sugestão...
                                     </span>
                                 </button>
                             </div>
@@ -86,7 +107,7 @@
                             <div class="mt-2 text-center d-block d-md-none px-2">
                                 <small class="text-muted fst-italic" style="font-size: 0.7rem;">
                                     <i class="fas fa-info-circle me-1"></i>
-                                    Nosso Agente de IA interpreta as observações para sugerir o plano. Valide, altere ou descarte a sugestão livremente.
+                                    IA generativa interpreta as observações para sugerir o plano. Valide, altere ou descarte a sugestão livremente.
                                 </small>
                             </div>
 
@@ -147,7 +168,7 @@
     /* Media Query para Mobile (Telas pequenas) */
     @media (max-width: 768px) {
         .btn-ia {
-            font-size: 1rem;
+            font-size: 0.9rem; /* Levemente menor para caber texto longo */
             font-weight: bold;
         }
         .nc-card:hover {
@@ -201,7 +222,7 @@ async function gerarPlanoIA(btn) {
             
             await salvarNoBanco(id, textoLimpo);
             // Feedback personalizado da Norma
-            mostrarStatus(id, 'success', '<i class="fas fa-check-circle"></i> Sugestão da Norma aplicada!');
+            mostrarStatus(id, 'success', '<i class="fas fa-check-circle"></i> Sugestão aplicada!');
         } else {
             throw new Error(data.erro || "Erro na IA");
         }

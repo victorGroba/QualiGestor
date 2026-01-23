@@ -4957,13 +4957,35 @@ def sugerir_plano_acao():
     except Exception as e:
         return jsonify({'sucesso': False, 'erro': str(e)}), 500
 
+# Em app/cli/routes.py
+
 @cli_bp.route('/aplicacao/<int:id>/gestao-ncs', methods=['GET'])
 @login_required
 def gerenciar_nao_conformidades(id):
     aplicacao = AplicacaoQuestionario.query.get_or_404(id)
-    ncs = RespostaPergunta.query.filter_by(aplicacao_id=id, nao_conforme=True).options(joinedload(RespostaPergunta.pergunta)).all()
-    return render_template_safe('cli/definir_planos.html', aplicacao=aplicacao, ncs=ncs)
+    
+    # Validação de segurança básica (igual às outras rotas)
+    if aplicacao.avaliado.cliente_id != current_user.cliente_id:
+        flash("Acesso negado.", "error")
+        return redirect(url_for('cli.listar_aplicacoes'))
 
+    # Query Corrigida:
+    # 1. Faz JOIN com Pergunta e Topico para ter acesso aos dados de ordenação
+    # 2. Ordena por Tópico.ordem -> Pergunta.ordem (Ordem do Checklist)
+    ncs = RespostaPergunta.query\
+        .join(Pergunta)\
+        .join(Topico)\
+        .filter(
+            RespostaPergunta.aplicacao_id == id, 
+            RespostaPergunta.nao_conforme == True
+        )\
+        .options(
+            joinedload(RespostaPergunta.pergunta).joinedload(Pergunta.topico)
+        )\
+        .order_by(Topico.ordem, Pergunta.ordem)\
+        .all()
+
+    return render_template_safe('cli/definir_planos.html', aplicacao=aplicacao, ncs=ncs)
 
 # --- Adicione isso ao final do arquivo app/cli/routes.py ---
 
