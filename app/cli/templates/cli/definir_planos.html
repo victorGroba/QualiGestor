@@ -28,7 +28,7 @@
                         <div class="mb-2">
                             <span class="badge bg-light text-dark border fw-normal">
                                 <i class="fas fa-folder-open me-1 text-muted"></i> 
-                                {{ item.pergunta.topico.nome }}
+                                {{ item.pergunta.topico.ordem }}. {{ item.pergunta.topico.nome }}
                             </span>
                         </div>
 
@@ -38,7 +38,7 @@
                                     <span class="badge bg-danger me-2">NC</span>
                                     
                                     <span class="text-secondary fw-bold me-1">
-                                        {{ item.pergunta.ordem }}.
+                                        {{ item.pergunta.topico.ordem }}.{{ item.pergunta.ordem }}
                                     </span>
                                     {{ item.pergunta.texto }}
                                 </h5>
@@ -168,7 +168,7 @@
         min-height: 120px; /* Altura mínima segura para mobile */
     }
 
-    /* Media Query para Mobile (Telas pequenas) */
+    /* Media Query para Mobile */
     @media (max-width: 768px) {
         .btn-ia {
             font-size: 0.9rem;
@@ -211,20 +211,19 @@ async function gerarPlanoIA(btn) {
         const data = await res.json();
 
         if(data.sucesso) {
-            // === LIMPEZA AVANÇADA PARA TEXTO CORRIDO ===
+            // === LIMPEZA AVANÇADA ===
             let textoLimpo = data.sugestao
-                .replace(/\*\*/g, "")       // Remove negrito
-                .replace(/#/g, "")          // Remove headers
-                .replace(/^\d+\.\s*/gm, "")  // Remove numeração (1. , 2.)
-                .replace(/^\-\s*/gm, "")     // Remove bullets (- )
-                .replace(/\n/g, " ")        // Remove quebras de linha (força 1 parágrafo)
-                .replace(/\s+/g, " ")       // Remove espaços duplos
+                .replace(/\*\*/g, "")
+                .replace(/#/g, "")
+                .replace(/^\d+\.\s*/gm, "")
+                .replace(/^\-\s*/gm, "")
+                .replace(/\n/g, " ")
+                .replace(/\s+/g, " ")
                 .trim();
 
             textarea.value = textoLimpo;
             
             await salvarNoBanco(id, textoLimpo);
-            // Feedback personalizado
             mostrarStatus(id, 'success', '<i class="fas fa-check-circle"></i> Sugestão aplicada!');
         } else {
             throw new Error(data.erro || "Erro na IA");
@@ -239,7 +238,6 @@ async function gerarPlanoIA(btn) {
         loadingState.classList.add('d-none');
         textarea.classList.remove('opacity-50');
         
-        // No mobile, scroll suave até o textarea
         if(window.innerWidth < 768) {
              textarea.scrollIntoView({behavior: "smooth", block: "center"});
         }
