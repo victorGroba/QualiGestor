@@ -1,0 +1,232 @@
+{% extends "base_cliq.html" %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3>📋 Revisão de Entrega & Planos de Ação</h3>
+        <span class="badge bg-warning text-dark">Em Revisão</span>
+    </div>
+
+    <div class="alert alert-info shadow-sm">
+        <i class="fas fa-user-secret"></i> <strong>Modo Consultor:</strong> Esta tela é exclusiva para você preparar os Planos de Ação e revisar os textos antes de chamar o responsável para assinar.
+    </div>
+
+    <div class="card shadow-sm mb-4 border-0">
+        <div class="card-header bg-danger text-white">
+            <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Não Conformidades ({{ ncs|length }})</h5>
+        </div>
+        <div class="card-body bg-light">
+            {% if not ncs %}
+                <div class="text-center py-5">
+                    <i class="fas fa-check-circle fa-4x text-success mb-3"></i>
+                    <h4>Nenhuma não conformidade encontrada!</h4>
+                    <p class="text-muted">Você pode prosseguir diretamente para a assinatura.</p>
+                </div>
+            {% else %}
+                {% for nc in ncs %}
+                <div class="card mb-3 border shadow-sm" id="nc-row-{{ nc.id }}">
+                    <div class="card-body">
+                        <h6 class="fw-bold text-dark mb-1">{{ nc.pergunta.texto }}</h6>
+                        <p class="text-muted small mb-2">
+                            <i class="fas fa-search me-1"></i> Observação Original: <em>{{ nc.observacao or 'Sem observação' }}</em>
+                        </p>
+                        
+                        <div class="row g-2">
+                            <div class="col-md-12">
+                                <label class="form-label small fw-bold text-primary">Plano de Ação (O que será feito?)</label>
+                                <div class="input-group">
+                                    <textarea class="form-control" id="plano_acao_{{ nc.id }}" rows="2" placeholder="Descreva a ação corretiva...">{{ nc.plano_acao or '' }}</textarea>
+                                    <button class="btn btn-outline-primary" type="button" onclick="gerarPlanoIA({{ nc.id }}, `{{ nc.pergunta.texto|escape }}`, `{{ nc.observacao|escape }}`)">
+                                        <i class="fas fa-magic"></i> IA
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-end mt-2">
+                            <span id="msg-salvo-{{ nc.id }}" class="text-success small me-2" style="display:none; transition: all 0.5s;">
+                                <i class="fas fa-check"></i> Salvo
+                            </span>
+                            <button class="btn btn-sm btn-success" onclick="salvarPlano({{ nc.id }})">
+                                <i class="fas fa-save"></i> Salvar Item
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+            <h5 class="card-title">Tudo pronto?</h5>
+            <p class="card-text text-muted">Ao clicar abaixo, a tela de assinatura será aberta para o responsável.</p>
+            <button type="button" class="btn btn-dark btn-lg py-3 px-5" data-bs-toggle="modal" data-bs-target="#modalAssinatura">
+                <i class="fas fa-file-signature me-2"></i> Coletar Assinatura e Finalizar
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalAssinatura" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title">Finalização da Auditoria</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <p class="lead mb-4">Eu, abaixo assinado, estou ciente dos apontamentos realizados nesta auditoria.</p>
+                
+                <form action="{{ url_for('cli.assinar_finalizar', id=aplicacao.id) }}" method="POST" id="formFinalizar" onsubmit="return prepararAssinatura(event)">
+                    
+                    <div class="row mb-3 text-start">
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label fw-bold">Nome do Responsável</label>
+                            <input type="text" name="nome_responsavel" class="form-control" required placeholder="Ex: Tenente Silva" value="{{ aplicacao.avaliado.responsavel or '' }}">
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label fw-bold">Cargo/Função</label>
+                            <input type="text" name="cargo_responsavel" class="form-control" placeholder="Ex: Gestor do Rancho">
+                        </div>
+                    </div>
+
+                    <div class="border border-2 border-dark rounded mb-3 position-relative" style="background-color: #fff;">
+                        <canvas id="signature-pad" style="width: 100%; height: 250px; touch-action: none; display: block;"></canvas>
+                        <div class="text-muted small position-absolute bottom-0 start-50 translate-middle-x mb-2" style="pointer-events: none;">
+                            Assine aqui (dedo ou caneta)
+                        </div>
+                    </div>
+
+                    <input type="hidden" name="assinatura_base64" id="assinatura_base64">
+
+                    <div class="d-flex justify-content-between mt-4">
+                        <button type="button" class="btn btn-outline-danger" onclick="limparAssinatura()">
+                            <i class="fas fa-eraser"></i> Limpar Assinatura
+                        </button>
+                        <button type="submit" class="btn btn-success px-5 fw-bold">
+                            <i class="fas fa-check-circle me-2"></i> Confirmar e Encerrar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+<script>
+    // --- LÓGICA DA ASSINATURA ---
+    var canvas = document.getElementById('signature-pad');
+    var signaturePad = new SignaturePad(canvas, {
+        backgroundColor: 'rgba(255, 255, 255, 0)',
+        penColor: "rgb(0, 0, 0)"
+    });
+
+    function resizeCanvas() {
+        var ratio = Math.max(window.devicePixelRatio || 1, 1);
+        canvas.width = canvas.offsetWidth * ratio;
+        canvas.height = canvas.offsetHeight * ratio;
+        canvas.getContext("2d").scale(ratio, ratio);
+        // signaturePad.clear(); // Não limpar ao redimensionar se possível, ou salvar dados antes
+    }
+    
+    // Ajusta o canvas quando o modal abre (importante para renderizar corretamente)
+    var modalAssinatura = document.getElementById('modalAssinatura');
+    modalAssinatura.addEventListener('shown.bs.modal', function () {
+        resizeCanvas();
+    });
+
+    function limparAssinatura() {
+        signaturePad.clear();
+    }
+
+    function prepararAssinatura(event) {
+        if (signaturePad.isEmpty()) {
+            alert("Por favor, insira a assinatura do responsável no quadro.");
+            event.preventDefault();
+            return false;
+        }
+        var dataUrl = signaturePad.toDataURL("image/png");
+        document.getElementById('assinatura_base64').value = dataUrl;
+        return true;
+    }
+
+    // --- LÓGICA DE SALVAR PLANO INDIVIDUALMENTE ---
+    async function salvarPlano(id) {
+        const texto = document.getElementById('plano_acao_' + id).value;
+        const btn = event.target;
+        const msg = document.getElementById('msg-salvo-' + id);
+        
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+        try {
+            // Usa a rota genérica que já criamos
+            const response = await fetch("{{ url_for('cli.salvar_resposta', id=aplicacao.id) }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    resposta_id: id,
+                    plano_acao: texto
+                })
+            });
+            
+            const data = await response.json();
+            
+            if(data.sucesso) {
+                msg.style.display = 'inline-block';
+                setTimeout(() => { msg.style.display = 'none'; }, 2000);
+            } else {
+                alert('Erro: ' + (data.erro || 'Desconhecido'));
+            }
+        } catch (e) {
+            alert('Erro de conexão');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    }
+
+    // --- LÓGICA DA IA ---
+    async function gerarPlanoIA(id, pergunta, observacao) {
+        const btn = event.target.closest('button');
+        const textarea = document.getElementById('plano_acao_' + id);
+        
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+        try {
+            const response = await fetch('/cli/api/ia/sugerir-plano', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({ pergunta: pergunta, observacao: observacao })
+            });
+            
+            const data = await response.json();
+            
+            if(data.sucesso) {
+                // Efeito de digitação (opcional, mas legal)
+                textarea.value = data.sugestao;
+                // Salva automaticamente após gerar
+                salvarPlano(id);
+            } else {
+                alert('Erro na IA: ' + data.erro);
+            }
+        } catch (e) {
+            alert('Erro de conexão com a IA.');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+    }
+</script>
+{% endblock %}

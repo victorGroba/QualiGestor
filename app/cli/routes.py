@@ -2154,25 +2154,30 @@ def nova_aplicacao():
     return redirect(url_for('cli.selecionar_rancho_auditoria'))
 # Em app/cli/routes.py
 
-@cli_bp.route('/aplicacao/<int:id>/responder')
+@cli_bp.route('/aplicacao/<int:id>/responder', methods=['GET', 'POST'])
 @login_required
-def responder_aplicacao(id):
-    """Interface para responder aplicação - ATUALIZADA E CORRIGIDA (v2)"""
+def responder_aplicacao(id, modo_assinatura=False):
+    """
+    Interface Principal de Coleta.
+    - modo_assinatura=False: Modo normal de preenchimento.
+    - modo_assinatura=True: Modo final para coletar assinaturas (chamado pela rota /fase-assinatura).
+    """
     try:
         aplicacao = AplicacaoQuestionario.query.get_or_404(id)
 
-        # ... (Verificações de permissão e status como antes) ...
+        # 1. Validação de Segurança
         if aplicacao.avaliado.cliente_id != current_user.cliente_id:
             flash("Aplicação não encontrada.", "error")
             return redirect(url_for('cli.listar_aplicacoes'))
+        
+        # 2. Validação de Status (Se já finalizada, só visualiza)
         if aplicacao.status != StatusAplicacao.EM_ANDAMENTO:
-            flash("Esta aplicação já foi finalizada ou cancelada.", "warning")
+            flash("Esta aplicação já foi finalizada.", "warning")
             return redirect(url_for('cli.visualizar_aplicacao', id=id))
-        # --------------------------------------------------------
 
-        # --- CORREÇÃO: Carregamento em etapas para evitar erro do lazy='dynamic' ---
+        # --- CARREGAMENTO OTIMIZADO DE DADOS (Sua correção aplicada) ---
 
-        # 1. Carregar tópicos ativos do questionário
+        # 3. Carregar tópicos ativos
         topicos = Topico.query.filter(
             Topico.questionario_id == aplicacao.questionario_id,
             Topico.ativo == True
@@ -2180,20 +2185,16 @@ def responder_aplicacao(id):
 
         if not topicos:
              flash("Este questionário não possui tópicos ativos.", "warning")
-             # Permite finalizar mesmo se não houver tópicos/perguntas
+             # Retorna vazio mas funcional
              return render_template_safe(
                 'cli/responder_aplicacao.html',
-                aplicacao=aplicacao,
-                topicos=[],
-                perguntas_por_topico={},
-                respostas_existentes={}
+                aplicacao=aplicacao, topicos=[], perguntas_por_topico={}, respostas_existentes={},
+                modo_assinatura=modo_assinatura
             )
 
         topico_ids = [t.id for t in topicos]
 
-        # 2. Carregar todas as perguntas ativas para esses tópicos
-        #    --- ESTA É A LINHA CORRIGIDA ---
-        #    Removido o .options(joinedload(Pergunta.opcoes)) para evitar o erro
+        # 4. Carregar perguntas ativas (Evitando lazy load errors)
         perguntas_ativas = Pergunta.query.filter(
             Pergunta.topico_id.in_(topico_ids),
             Pergunta.ativo == True
@@ -2201,39 +2202,44 @@ def responder_aplicacao(id):
         
         perguntas_ativas_ids = [p.id for p in perguntas_ativas]
 
-        # 3. Carregar todas as respostas existentes para ESTA aplicação
+        # 5. Carregar respostas existentes
         respostas_lista = []
-        if perguntas_ativas_ids: # Só busca respostas se houver perguntas
+        if perguntas_ativas_ids:
             respostas_lista = RespostaPergunta.query.filter(
                 RespostaPergunta.aplicacao_id == aplicacao.id,
                 RespostaPergunta.pergunta_id.in_(perguntas_ativas_ids)
             ).all()
         
-        # 4. Organizar perguntas por tópico (para o template)
-        perguntas_por_topico = {}
+        # 6. Organizar dados para o Template
+        perguntas_por_topico = {t.id: [] for t in topicos}
         for p in perguntas_ativas:
-            if p.topico_id not in perguntas_por_topico:
-                perguntas_por_topico[p.topico_id] = []
-            perguntas_por_topico[p.topico_id].append(p)
+            if p.topico_id in perguntas_por_topico:
+                perguntas_por_topico[p.topico_id].append(p)
         
-        # 5. Organizar respostas por ID da pergunta (para o template)
         respostas_map = {r.pergunta_id: r for r in respostas_lista}
-        # --------------------------------------------------------------------------
 
-        current_app.logger.debug(f"Renderizando responder_aplicacao para ID {id}. Respostas encontradas: {len(respostas_map)}")
+        # 7. Renderizar Template passando o Modo
+        current_app.logger.debug(f"Renderizando app {id}. Modo Assinatura: {modo_assinatura}")
 
         return render_template_safe(
             'cli/responder_aplicacao.html',
             aplicacao=aplicacao,
-            topicos=topicos, # Passa a lista de tópicos
-            perguntas_por_topico=perguntas_por_topico, # <--- DICIONÁRIO CORRETO
-            respostas_existentes=respostas_map # Passa o mapa de respostas
+            topicos=topicos,
+            perguntas_por_topico=perguntas_por_topico,
+            respostas_existentes=respostas_map,
+            modo_assinatura=modo_assinatura  # <--- VARIÁVEL CHAVE PARA O NOVO FLUXO
         )
+
     except Exception as e:
-        # Este log de erro é o que você está vendo no console
-        current_app.logger.error(f"Erro ao carregar aplicação {id} para responder: {e}", exc_info=True)
-        flash(f"Erro ao carregar aplicação para responder: {str(e)}", "danger")
+        current_app.logger.error(f"Erro ao carregar aplicação {id}: {e}", exc_info=True)
+        flash(f"Erro ao carregar aplicação: {str(e)}", "danger")
         return redirect(url_for('cli.listar_aplicacoes'))
+    
+@cli_bp.route('/aplicacao/<int:id>/fase-assinatura')
+@login_required
+def fase_assinatura(id):
+    """Rota intermediária que reabre o checklist no Modo Assinatura."""
+    return responder_aplicacao(id, modo_assinatura=True)
 
 
 # Em app/cli/routes.py
@@ -2252,12 +2258,15 @@ def responder_aplicacao(id):
 
 # ... (outras rotas) ...
 
-@cli_bp.route('/aplicacao/<int:id>/finalizar', methods=['POST'])
+@cli_bp.route('/aplicacao/<int:id>/concluir-coleta', methods=['POST'])
 @login_required
-def finalizar_aplicacao(id):
+def concluir_coleta(id):
     """
-    Finaliza uma aplicação e GRAVA as não conformidades para o Pareto.
-    CORRIGIDO: Validação de foto baseada em 'criterio_foto' e suporte a múltiplas fotos.
+    Fase 1: Encerra a coleta técnica.
+    - Valida obrigatórias (EXCETO ASSINATURAS).
+    - Valida fotos.
+    - Calcula nota prévia.
+    - Redireciona para a Gestão de NCs (não finaliza status).
     """
     try:
         # 1. Carregamento Otimizado
@@ -2267,8 +2276,6 @@ def finalizar_aplicacao(id):
         ).get_or_404(id)
 
         # 2. Carrega Respostas em Memória
-        # Forçamos o carregamento das fotos para validar corretamente
-        # (Assume que o relacionamento 'fotos' existe em RespostaPergunta)
         respostas_list = list(aplicacao.respostas) 
         respostas_dict = {r.pergunta_id: r for r in respostas_list}
         respostas_dadas_ids = set(respostas_dict.keys())
@@ -2280,7 +2287,7 @@ def finalizar_aplicacao(id):
             Pergunta.ativo.is_(True)
         ).all()
 
-        # Validações Básicas
+        # Validações Básicas de Segurança
         if aplicacao.avaliado.cliente_id != current_user.cliente_id:
             flash("Aplicação não encontrada.", "error")
             return redirect(url_for('cli.listar_aplicacoes'))
@@ -2289,7 +2296,29 @@ def finalizar_aplicacao(id):
             flash("Esta aplicação já foi finalizada.", "warning")
             return redirect(url_for('cli.visualizar_aplicacao', id=id))
 
-        # --- 4. MARCAÇÃO DE NÃO CONFORMIDADES (CRUCIAL PARA O PARETO) ---
+        # --- 4. VALIDAÇÃO DE OBRIGATÓRIAS (COM A NOVA LÓGICA) ---
+        # AQUI ESTÁ A MUDANÇA: Ignoramos perguntas do tipo ASSINATURA nesta etapa
+        perguntas_obrigatorias_ids = {
+            p.id for p in perguntas_ativas 
+            if p.obrigatoria and p.tipo.name != 'ASSINATURA' 
+        }
+        
+        perguntas_faltando_ids = perguntas_obrigatorias_ids - respostas_dadas_ids
+
+        if perguntas_faltando_ids:
+            # Busca os textos das perguntas para mostrar erro amigável
+            nomes_faltantes = [p.texto for p in perguntas_ativas if p.id in perguntas_faltando_ids]
+            pendencias = nomes_faltantes[:3] # Mostra só as 3 primeiras
+            
+            flash(f"Faltam {len(perguntas_faltando_ids)} pergunta(s) obrigatória(s) para avançar.", "warning")
+            for texto in pendencias: 
+                flash(f"- {texto}", "secondary")
+            if len(nomes_faltantes) > 3:
+                flash("...", "secondary")
+                
+            return redirect(url_for('cli.responder_aplicacao', id=id))
+
+        # --- 5. MARCAÇÃO DE NÃO CONFORMIDADES & VALIDAÇÃO DE FOTOS ---
         perguntas_sem_foto = []
         respostas_negativas = ['não', 'nao', 'no', 'irregular', 'ruim']
 
@@ -2298,63 +2327,40 @@ def finalizar_aplicacao(id):
                 resp = respostas_dict[p.id]
                 resp_txt = (resp.resposta or "").strip().lower()
                 
-                # Lógica: Se a resposta for "Não" (ou equivalente), marca como Não Conforme
+                # Se resposta for negativa, marca NC
                 if resp_txt in respostas_negativas:
-                    resp.nao_conforme = True  # <--- ISSO ALIMENTA O PARETO
+                    resp.nao_conforme = True
                     
-                    # --- VALIDAÇÃO DE FOTO CORRIGIDA ---
-                    # Verifica se a configuração exige foto ('obrigatoria')
+                    # Validação de Foto (se configurada como obrigatória)
                     criterio = getattr(p, 'criterio_foto', 'nenhuma')
-                    
                     if criterio == 'obrigatoria':
                         tem_foto = False
-                        
-                        # 1. Verifica campo legado (compatibilidade)
-                        if resp.caminho_foto:
+                        # Verifica legado ou tabela nova
+                        if resp.caminho_foto: 
                             tem_foto = True
-                        
-                        # 2. Verifica tabela nova de fotos (se relacionamento existir)
                         elif hasattr(resp, 'fotos'):
-                            # Verifica se tem itens na lista/query
                             try:
-                                if hasattr(resp.fotos, 'count'): # se for lazy='dynamic'
+                                if hasattr(resp.fotos, 'count'):
                                     if resp.fotos.count() > 0: tem_foto = True
-                                elif len(resp.fotos) > 0: # se for lista carregada
+                                elif len(resp.fotos) > 0:
                                     tem_foto = True
-                            except:
-                                pass
+                            except: pass
                         
                         if not tem_foto:
                             topico_nome = p.topico.nome if p.topico else "Geral"
                             perguntas_sem_foto.append(f"'{p.texto}' ({topico_nome})")
-                    # -----------------------------------
-                    
                 else:
-                    resp.nao_conforme = False # Garante que "Sim" limpe o erro
+                    resp.nao_conforme = False # Limpa NC se corrigiu
 
-        # Bloqueia se faltar foto
+        # Bloqueia se faltar foto em NC obrigatória
         if perguntas_sem_foto:
             count = len(perguntas_sem_foto)
-            flash(f"Finalização bloqueada: {count} resposta(s) exigem foto de evidência.", "danger")
-            for erro in perguntas_sem_foto[:3]: flash(f"- {erro}", "warning")
+            flash(f"Bloqueado: {count} resposta(s) 'Não Conforme' exigem foto de evidência.", "danger")
+            for erro in perguntas_sem_foto[:3]: 
+                flash(f"- {erro}", "warning")
             return redirect(url_for('cli.responder_aplicacao', id=id))
 
-        # --- 5. VALIDAÇÃO DE OBRIGATÓRIAS ---
-        perguntas_obrigatorias_ids = {p.id for p in perguntas_ativas if p.obrigatoria}
-        perguntas_faltando_ids = perguntas_obrigatorias_ids - respostas_dadas_ids
-
-        if perguntas_faltando_ids:
-            # Tenta pegar os nomes para exibir erro amigável
-            nomes_faltantes = [p.texto for p in perguntas_ativas if p.id in perguntas_faltando_ids]
-            pendencias = nomes_faltantes[:3]
-            
-            flash(f"Faltam {len(perguntas_faltando_ids)} pergunta(s) obrigatória(s).", "warning")
-            for texto in pendencias: flash(f"- {texto}", "secondary")
-            if len(nomes_faltantes) > 3: flash("...", "secondary")
-            
-            return redirect(url_for('cli.responder_aplicacao', id=id))
-
-        # --- 6. CÁLCULO DE NOTA ---
+        # --- 6. CÁLCULO DE NOTA (Parcial) ---
         if aplicacao.questionario.calcular_nota:
             pontos_obtidos = 0.0
             pontos_maximos = 0.0
@@ -2362,14 +2368,14 @@ def finalizar_aplicacao(id):
             for p in perguntas_ativas:
                 peso = float(p.peso or 0)
                 if peso <= 0: continue
-
+                
                 resp = respostas_dict.get(p.id)
                 
-                # Ignora N.A. no cálculo
+                # Ignora N.A.
                 is_na = False
                 tipo_str = str(p.tipo.name if hasattr(p.tipo, 'name') else p.tipo).upper()
                 if 'SIM_NAO' in tipo_str and resp:
-                    if (resp.resposta or "").strip().upper() in ["N.A.", "N/A", "NA"]:
+                    if (resp.resposta or "").strip().upper() in ["N.A.", "N/A", "NA"]: 
                         is_na = True
                 
                 if is_na: continue
@@ -2388,26 +2394,142 @@ def finalizar_aplicacao(id):
             else:
                 aplicacao.nota_final = 0.0
 
-        # --- 7. EFETIVAÇÃO ---
-        aplicacao.data_fim = datetime.now()
-        aplicacao.status = StatusAplicacao.FINALIZADA
-        aplicacao.observacoes_finais = request.form.get('observacoes_finais', '')
+        # --- 7. SALVAR E REDIRECIONAR PARA REVISÃO ---
+        db.session.commit()
 
-        db.session.add(aplicacao)
-        db.session.commit() # Salva o status DA APLICAÇÃO e o status DAS RESPOSTAS
-
-        log_acao(f"Finalizou: {aplicacao.questionario.nome}", 
-                 {"nota": aplicacao.nota_final, "app_id": id}, 
-                 "AplicacaoQuestionario", id)
+        flash("Coleta concluída! Agora revise as Não Conformidades.", "info")
         
-        flash("Aplicação finalizada com sucesso! Dados computados para relatórios.", "success")
-        return redirect(url_for('cli.visualizar_aplicacao', id=id))
+        # Redireciona para a tela de Planos de Ação (onde haverá o botão para ir às assinaturas)
+        return redirect(url_for('cli.gerenciar_nao_conformidades', id=id))
 
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Erro finalizar app {id}: {e}", exc_info=True)
-        flash(f"Erro ao finalizar: {str(e)}", "danger")
+        current_app.logger.error(f"Erro concluir coleta {id}: {e}", exc_info=True)
+        flash(f"Erro ao processar: {str(e)}", "danger")
         return redirect(url_for('cli.responder_aplicacao', id=id))
+
+@cli_bp.route('/aplicacao/<int:id>/revisar-entrega', methods=['GET'])
+@login_required
+def revisar_entrega(id):
+    """
+    Tela intermediária: Auditora revisa NCs, usa IA e prepara a entrega.
+    """
+    aplicacao = AplicacaoQuestionario.query.get_or_404(id)
+    
+    if aplicacao.avaliado.cliente_id != current_user.cliente_id:
+        flash("Acesso negado.", "danger")
+        return redirect(url_for('cli.listar_aplicacoes'))
+    
+    # Busca NCs ordenadas pelo checklist para facilitar a leitura
+    ncs = RespostaPergunta.query\
+        .join(Pergunta).join(Topico)\
+        .filter(RespostaPergunta.aplicacao_id == id, RespostaPergunta.nao_conforme == True)\
+        .order_by(Topico.ordem, Pergunta.ordem)\
+        .all()
+        
+    return render_template_safe('cli/revisar_entrega.html', aplicacao=aplicacao, ncs=ncs)
+
+
+@cli_bp.route('/aplicacao/<int:id>/finalizar-definitivo', methods=['POST'])
+@login_required
+def finalizar_definitivamente(id):
+    try:
+        aplicacao = AplicacaoQuestionario.query.get_or_404(id)
+        
+        # Validação: Agora as assinaturas SÃO obrigatórias
+        perguntas_assinatura = Pergunta.query.join(Topico).filter(
+            Topico.questionario_id == aplicacao.questionario_id,
+            Pergunta.tipo == TipoResposta.ASSINATURA,
+            Pergunta.obrigatoria == True,
+            Pergunta.ativo == True
+        ).all()
+        
+        respostas_ids = {r.pergunta_id for r in aplicacao.respostas if r.resposta}
+        
+        faltando = [p.texto for p in perguntas_assinatura if p.id not in respostas_ids]
+        
+        if faltando:
+            flash(f"Para finalizar definitivamente, é obrigatório coletar: {', '.join(faltando)}", "danger")
+            return redirect(url_for('cli.fase_assinatura', id=id))
+
+        # TUDO CERTO: FINALIZA
+        aplicacao.status = StatusAplicacao.FINALIZADA
+        aplicacao.data_fim = datetime.now()
+        aplicacao.observacoes_finais = request.form.get('observacoes_finais', aplicacao.observacoes_finais)
+        
+        db.session.commit()
+        log_acao(f"Finalização Definitiva: {aplicacao.questionario.nome}", None, "Aplicacao", id)
+        
+        flash("Auditoria finalizada com sucesso! Documento gerado.", "success")
+        return redirect(url_for('cli.visualizar_aplicacao', id=id))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Erro ao finalizar: {e}", "danger")
+        return redirect(url_for('cli.fase_assinatura', id=id))
+
+@cli_bp.route('/aplicacao/<int:id>/assinar-finalizar', methods=['POST'])
+@login_required
+def assinar_finalizar(id):
+    """
+    Recebe a assinatura, salva a imagem e FINALIZA a auditoria.
+    """
+    try:
+        aplicacao = AplicacaoQuestionario.query.get_or_404(id)
+        
+        # 1. Dados do Formulário
+        nome_resp = request.form.get('nome_responsavel')
+        cargo_resp = request.form.get('cargo_responsavel')
+        assinatura_b64 = request.form.get('assinatura_base64') # Vem do Canvas JS
+        
+        if not assinatura_b64:
+            flash("A assinatura é obrigatória para finalizar.", "warning")
+            # Redireciona de volta para a mesma tela de planos
+            return redirect(url_for('cli.gerenciar_nao_conformidades', id=id))
+
+        # 2. Processar e Salvar a Imagem
+        import base64
+        import os
+        import uuid
+        
+        # Remove o cabeçalho 'data:image/png;base64,' se existir
+        if ',' in assinatura_b64:
+            img_data = assinatura_b64.split(',')[1]
+        else:
+            img_data = assinatura_b64
+
+        filename = f"assinatura_app_{id}_{uuid.uuid4().hex[:8]}.png"
+        
+        upload_folder = current_app.config.get('UPLOAD_FOLDER')
+        if not upload_folder:
+            raise Exception("Pasta de upload não configurada")
+            
+        caminho_completo = os.path.join(upload_folder, filename)
+        
+        with open(caminho_completo, "wb") as fh:
+            fh.write(base64.b64decode(img_data))
+            
+        # 3. Atualizar Banco de Dados
+        aplicacao.assinatura_imagem = filename
+        aplicacao.assinatura_responsavel = nome_resp
+        aplicacao.cargo_responsavel = cargo_resp
+        
+        # AGORA SIM: FINALIZA!
+        aplicacao.status = StatusAplicacao.FINALIZADA
+        aplicacao.data_fim = datetime.now()
+        
+        db.session.commit()
+        
+        log_acao(f"Auditoria assinada e finalizada por {nome_resp}", None, "Aplicacao", id)
+        
+        flash("Auditoria finalizada e assinada com sucesso!", "success")
+        return redirect(url_for('cli.visualizar_aplicacao', id=id))
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erro ao salvar assinatura: {e}")
+        flash(f"Erro ao salvar assinatura: {str(e)}", "danger")
+        return redirect(url_for('cli.gerenciar_nao_conformidades', id=id))
 
 @cli_bp.route('/aplicacao/<int:id>/excluir', methods=['GET', 'POST'])
 @login_required
@@ -5085,18 +5207,22 @@ def detalhe_plano_acao(aplicacao_id):
         print(f"Erro: {e}")
         return redirect(url_for('cli.lista_plano_acao'))
 
+# Em app/cli/routes.py
+
 @cli_bp.route('/plano-de-acao/<int:aplicacao_id>/pdf')
 @login_required
 def pdf_plano_acao(aplicacao_id):
     """
-    Gera o PDF EXCLUSIVO com apenas as Não Conformidades e Planos de Ação.
+    Gera o PDF do Plano de Ação com a assinatura EMBUTIDA (Base64)
+    para garantir que apareça independente de permissões de pasta.
     """
-    from pathlib import Path # Importação necessária para manipular caminhos
+    import base64
+    import os
     
     try:
         aplicacao = AplicacaoQuestionario.query.get_or_404(aplicacao_id)
         
-        # Busca os dados (mesma lógica do detalhe)
+        # 1. Busca os dados
         respostas = RespostaPergunta.query\
             .filter_by(aplicacao_id=aplicacao.id)\
             .filter(RespostaPergunta.plano_acao != None)\
@@ -5105,38 +5231,37 @@ def pdf_plano_acao(aplicacao_id):
             .order_by(Pergunta.ordem)\
             .all()
         
-        # --- LÓGICA DE LOGO CORRIGIDA (Remove o erro get_logo_uri) ---
-        logo_pdf_uri = None
-        try:
-            # Tenta primeiro a logo específica para PDF
-            logo_path = Path(current_app.static_folder) / 'img' / 'logo_pdf.png'
-            if logo_path.exists():
-                logo_pdf_uri = logo_path.as_uri()
+        # 2. Prepara a Assinatura (A MÁGICA ACONTECE AQUI)
+        assinatura_b64 = None
+        if aplicacao.assinatura_imagem:
+            # Monta o caminho completo do arquivo
+            caminho_arquivo = os.path.join(current_app.config['UPLOAD_FOLDER'], aplicacao.assinatura_imagem)
+            
+            # Verifica se existe e converte para texto
+            if os.path.exists(caminho_arquivo):
+                with open(caminho_arquivo, "rb") as img_file:
+                    encoded_string = base64.b64encode(img_file.read()).decode('utf-8')
+                    assinatura_b64 = f"data:image/png;base64,{encoded_string}"
             else:
-                # Se não achar, tenta a logo padrão
-                logo_path = Path(current_app.static_folder) / 'img' / 'logo.jpg'
-                if logo_path.exists(): 
-                    logo_pdf_uri = logo_path.as_uri()
-        except Exception as e:
-            print(f"Aviso: Não foi possível carregar a logo para o PDF: {e}")
-        # -----------------------------------------------------------
+                current_app.logger.warning(f"Imagem de assinatura não encontrada no disco: {caminho_arquivo}")
 
-        # Renderiza o HTML específico do PDF de Plano de Ação
+        # 3. Renderiza o HTML passando a string da imagem
         html_content = render_template_safe(
             'cli/pdf_plano_acao.html',
             aplicacao=aplicacao,
             respostas=respostas,
-            logo_pdf_uri=logo_pdf_uri, # Passa a variável calculada acima
-            data_geracao=datetime.now()
+            data_geracao=datetime.now(),
+            assinatura_uri=assinatura_b64, # <--- Agora vai a imagem codificada
+            assinatura_responsavel=aplicacao.assinatura_responsavel,
+            cargo_responsavel=aplicacao.cargo_responsavel
         )
         
         return gerar_pdf_seguro(html_content, filename=f"Plano_Acao_{aplicacao_id}.pdf")
         
     except Exception as e:
-        print(f"Erro PDF Plano: {e}")
+        current_app.logger.error(f"Erro PDF Plano: {e}")
         flash(f"Erro ao gerar PDF: {str(e)}", "danger")
-        return redirect(url_for('cli.lista_plano_acao'))
-    
+        return redirect(url_for('cli.visualizar_aplicacao', id=aplicacao_id))
     # app/cli/routes.py
 
 # ... (todo o seu código existente) ...

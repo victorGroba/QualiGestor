@@ -13,9 +13,19 @@
                 <span class="badge bg-secondary ms-2">ID #{{ aplicacao.id }}</span>
             </p>
         </div>
-        <a href="{{ url_for('cli.visualizar_aplicacao', id=aplicacao.id) }}" class="btn btn-outline-secondary w-100 w-md-auto">
-            <i class="fas fa-arrow-left me-1"></i> Voltar
+        <a href="{{ url_for('cli.responder_aplicacao', id=aplicacao.id) }}" class="btn btn-outline-secondary w-100 w-md-auto">
+            <i class="fas fa-arrow-left me-1"></i> Voltar ao Checklist
         </a>
+    </div>
+
+    <div class="alert alert-info shadow-sm mb-4">
+        <div class="d-flex">
+            <div class="me-3"><i class="fas fa-user-secret fa-2x"></i></div>
+            <div>
+                <h6 class="alert-heading fw-bold mb-1">Etapa de Curadoria</h6>
+                <p class="mb-0 small">Revise as Não Conformidades abaixo e use a IA para gerar os Planos de Ação. Quando terminar a revisão, clique em <strong>"Ir para Assinaturas"</strong> no final da página para retornar ao checklist e formalizar a entrega.</p>
+            </div>
+        </div>
     </div>
 
     <div class="row">
@@ -36,7 +46,6 @@
                             <div class="w-100">
                                 <h5 class="card-title text-dark fw-bold mb-1 fs-6 fs-md-5">
                                     <span class="badge bg-danger me-2">NC</span>
-                                    
                                     <span class="text-secondary fw-bold me-1">
                                         {{ item.pergunta.topico.ordem }}.{{ item.pergunta.ordem }}
                                     </span>
@@ -54,7 +63,7 @@
                             </div>
                             <img src="{{ url_for('cli.get_foto_resposta', filename=item.caminho_foto) }}" 
                                  class="img-fluid rounded shadow-sm border bg-white p-1" 
-                                 style="max-height: 300px; width: auto;" 
+                                 style="max-height: 250px; width: auto;" 
                                  alt="Evidência da Não Conformidade">
                         </div>
                         {% endif %}
@@ -75,7 +84,7 @@
                         <div class="position-relative">
                             <textarea class="form-control form-control-lg shadow-sm" 
                                       id="plano-{{ item.id }}" 
-                                      rows="5" 
+                                      rows="4" 
                                       placeholder="Descreva a ação ou solicite sugestão à IA..."
                                       onblur="salvarManual({{ item.id }})">{{ item.plano_acao or '' }}</textarea>
                             
@@ -91,29 +100,15 @@
                                         onclick="gerarPlanoIA(this)">
                                     
                                     <span class="normal-state fw-bold">
-                                        <i class="fas fa-magic me-2"></i> Gerar plano de ação com base na descrição
+                                        <i class="fas fa-magic me-2"></i> Sugerir com IA
                                     </span>
                                     
                                     <span class="loading-state d-none">
                                         <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                                        Gerando sugestão...
+                                        Gerando...
                                     </span>
                                 </button>
                             </div>
-
-                            <div class="mt-2 text-end d-none d-md-block"> 
-                                <small class="text-muted fst-italic" style="font-size: 0.75rem;">
-                                    <i class="fas fa-info-circle me-1"></i>
-                                    Nosso sistema interpreta as observações do Consultor para sugerir o plano. Valide, altere ou descarte a sugestão livremente.
-                                </small>
-                            </div>
-                            <div class="mt-2 text-center d-block d-md-none px-2">
-                                <small class="text-muted fst-italic" style="font-size: 0.7rem;">
-                                    <i class="fas fa-info-circle me-1"></i>
-                                    Nosso sistema interpreta as observações para sugerir o plano. Valide, altere ou descarte a sugestão livremente.
-                                </small>
-                            </div>
-
                         </div>
 
                     </div>
@@ -127,20 +122,29 @@
                     </div>
                     <h3>Tudo certo por aqui!</h3>
                     <p class="text-muted">Nenhuma Não Conformidade encontrada nesta auditoria.</p>
-                    <a href="{{ url_for('cli.visualizar_aplicacao', id=aplicacao.id) }}" class="btn btn-primary mt-2 w-100 w-md-auto">
-                        Voltar para Auditoria
-                    </a>
                 </div>
             {% endif %}
         </div>
     </div>
+
+    <div class="card border-0 shadow-lg mt-4 bg-dark text-white">
+        <div class="card-body p-4 text-center">
+            <h5 class="fw-bold mb-2">Revisão Concluída?</h5>
+            <p class="text-white-50 mb-3">Se os Planos de Ação estão prontos, avance para a coleta de assinaturas no checklist.</p>
+            
+            <a href="{{ url_for('cli.fase_assinatura', id=aplicacao.id) }}" class="btn btn-success btn-lg px-5 py-3 fw-bold rounded-pill shadow">
+                <i class="fas fa-file-signature me-2"></i> Ir para Assinaturas
+            </a>
+        </div>
+    </div>
+
 </div>
 
 <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
-  <div id="liveToast" class="toast align-items-center text-white bg-danger border-0" role="alert" aria-live="assertive" aria-atomic="true">
+  <div id="liveToast" class="toast align-items-center text-white bg-primary border-0" role="alert" aria-live="assertive" aria-atomic="true">
     <div class="d-flex">
       <div class="toast-body" id="toastMessage">
-        Erro ao processar.
+        Processando...
       </div>
       <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
     </div>
@@ -165,7 +169,7 @@
         font-size: 0.95rem; 
         line-height: 1.5;
         background-color: #fffcf5;
-        min-height: 120px; /* Altura mínima segura para mobile */
+        min-height: 120px;
     }
 
     /* Media Query para Mobile */
@@ -175,14 +179,17 @@
             font-weight: bold;
         }
         .nc-card:hover {
-            transform: none; /* Remove efeito de hover no touch */
+            transform: none;
         }
     }
 </style>
 
 <script>
+// Inicialização do Toast
 let toastEl = document.getElementById('liveToast');
 let toast = new bootstrap.Toast(toastEl);
+
+// --- LÓGICA DA IA E SALVAMENTO ---
 
 async function gerarPlanoIA(btn) {
     const id = btn.getAttribute('data-id');
@@ -211,7 +218,7 @@ async function gerarPlanoIA(btn) {
         const data = await res.json();
 
         if(data.sucesso) {
-            // === LIMPEZA AVANÇADA ===
+            // === LIMPEZA DE FORMATAÇÃO MARKDOWN ===
             let textoLimpo = data.sugestao
                 .replace(/\*\*/g, "")
                 .replace(/#/g, "")
@@ -238,6 +245,7 @@ async function gerarPlanoIA(btn) {
         loadingState.classList.add('d-none');
         textarea.classList.remove('opacity-50');
         
+        // Em mobile, foca no campo
         if(window.innerWidth < 768) {
              textarea.scrollIntoView({behavior: "smooth", block: "center"});
         }
@@ -254,7 +262,7 @@ async function salvarManual(id) {
         mostrarStatus(id, 'success', '<i class="fas fa-check"></i> Salvo');
     } catch (e) {
         mostrarStatus(id, 'error', 'Erro');
-        mostrarErro("Erro de conexão.");
+        mostrarErro("Erro de conexão ao salvar.");
     }
 }
 
@@ -289,6 +297,9 @@ function mostrarStatus(id, tipo, html) {
 
 function mostrarErro(msg) {
     document.getElementById('toastMessage').innerText = msg;
+    const toastElem = document.getElementById('liveToast');
+    toastElem.classList.remove('bg-primary');
+    toastElem.classList.add('bg-danger');
     toast.show();
 }
 </script>
