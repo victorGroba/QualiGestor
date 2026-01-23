@@ -4925,10 +4925,12 @@ def excluir_questionario(id):
 
 # --- ROTAS DA IA ---
 
+# Em app/cli/routes.py
+
 @cli_bp.route('/api/ia/sugerir-plano', methods=['POST'])
 @login_required
 def sugerir_plano_acao():
-    """Gera sugestão usando Gemini Flash Latest"""
+    """Gera sugestão usando Gemini Flash Latest com Prompt Refinado (v3)"""
     try:
         data = request.get_json()
         if not data.get('pergunta'): return jsonify({'erro': 'Dados insuficientes'}), 400
@@ -4938,26 +4940,30 @@ def sugerir_plano_acao():
             
         genai.configure(api_key=api_key)
         
+        # --- PROMPT V3: Foco Cirúrgico e Contextual ---
         prompt = f"""
-        Atue como um Consultor Sênior em Segurança Alimentar. Sua tarefa é redigir a Ação Corretiva para uma não conformidade identificada em auditoria.
+        Atue como um Consultor Técnico em Segurança de Alimentos. Redija a Ação Corretiva para a Não Conformidade abaixo.
         
-        CONTEXTO:
-        - Item Auditado: "{data.get('pergunta')}"
-        - Observação do Auditor (O problema real): "{data.get('observacao')}"
+        CONTEXTO DA AUDITORIA:
+        - Requisito Auditado: "{data.get('pergunta')}"
+        - O que o Auditor viu (Observação): "{data.get('observacao')}"
 
-        DIRETRIZES DE ESTILO E TOM:
-        1. NATURALIDADE TÉCNICA: O texto deve parecer escrito por um humano técnico. Evite clichês de IA como "É crucial que...", "Recomenda-se...", "O plano consiste em...".
-        2. CONEXÃO DIRETA: Use os mesmos termos e objetos citados na 'Observação'. Se a observação fala sobre "pia entupida", a ação deve falar sobre "desobstrução da pia", e não "conserto do equipamento".
-        3. IMPERATIVO PROFISSIONAL: Use verbos de ação direta (Ex: Adequar, Substituir, Treinar, Higienizar), mas mantenha a fluidez de uma frase natural.
-        4. ESPECIFICIDADE: Não dê soluções genéricas. A solução deve resolver EXATAMENTE o detalhe apontado na observação.
+        OBJETIVO:
+        Criar um comando técnico e direto para resolver EXATAMENTE o problema pontual descrito, sem generalizações.
 
-        REGRAS DE FORMATAÇÃO:
-        - Apenas 1 parágrafo curto e objetivo.
-        - Sem listas, tópicos ou quebras de linha.
-        - Texto corrido, formal e direto.
+        REGRAS DE OURO (ESCOPO E TOM):
+        1. FOCO CIRÚRGICO: Resolva apenas o defeito citado. Se a observação fala de "uma tela rasgada", mande consertar "a tela rasgada". NÃO mande "inspecionar as outras" (o auditor já fez isso).
+        2. SEM REDUNDÂNCIA: Não peça para "criar planilhas", "monitorar" ou "fazer levantamentos", a menos que o problema seja falta de registro. Foque na ação física (trocar, limpar, consertar).
+        3. VOCABULÁRIO CONECTADO: Use os mesmos substantivos da observação. Se o auditor escreveu "janela do estoque", use "janela do estoque" na ação.
+        4. IMPERATIVO TÉCNICO: Comece com verbos fortes (Substituir, Adequar, Instalar, Higienizar).
+        5. FORMATO: Um único parágrafo curto. Sem listas. Sem introduções ("A ação deve ser...").
 
-        Gere a Ação Corretiva agora:
+        Exemplo Bom: "Substituir imediatamente a tela milimetrada danificada da janela, garantindo a vedação completa contra pragas conforme exigido."
+        Exemplo Ruim: "Verificar todas as janelas e trocar as telas se necessário." (Errado: o auditor já verificou).
+
+        Gere a ação corretiva agora:
         """
+        # ------------------------
         
         model = genai.GenerativeModel('gemini-2.0-flash')
         response = model.generate_content(prompt)
