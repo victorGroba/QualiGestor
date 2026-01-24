@@ -1,319 +1,295 @@
 {% extends "base_cliq.html" %}
 
 {% block content %}
-<div id="sync-alert" class="alert alert-info d-none position-fixed top-0 start-50 translate-middle-x mt-3 shadow" style="z-index: 9999; min-width: 300px;">
-    <div class="d-flex align-items-center">
-        <div class="spinner-border spinner-border-sm me-3" role="status"></div>
-        <span id="sync-message">Sincronizando dados offline...</span>
+<div class="toast-container position-fixed top-0 start-50 translate-middle-x p-3" style="z-index: 9999;">
+    <div id="liveToast" class="toast align-items-center text-white bg-info border-0" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body">
+                <i class="fas fa-sync fa-spin me-2"></i> <span id="sync-message">Sincronizando...</span>
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
     </div>
 </div>
 
-<div class="container-fluid py-3">
-    <div class="row">
-        <div class="col-lg-3 mb-4">
-            <div class="card sticky-top shadow-sm" style="top: 20px; z-index: 100;">
-                <div class="card-header {{ 'bg-success' if modo_assinatura else 'bg-primary' }} text-white">
-                    <h5 class="mb-0 fs-6">
+<div class="container-fluid py-4 pb-5">
+    <div class="row g-4">
+        
+        <div class="col-lg-3">
+            <div class="card shadow-sm border-0 sticky-top" style="top: 20px; z-index: 100;">
+                <div class="card-header py-3 {{ 'bg-success' if modo_assinatura else 'bg-dark' }} text-white">
+                    <h5 class="mb-0 fs-6 fw-bold">
                         {% if modo_assinatura %}
-                            <i class="fas fa-file-signature me-2"></i>Fase de Assinatura
+                            <i class="fas fa-file-signature me-2"></i>Assinatura
                         {% else %}
-                            <i class="fas fa-clipboard-check me-2"></i>Status da Aplicação
+                            <i class="fas fa-clipboard-check me-2"></i>Auditoria
                         {% endif %}
                     </h5>
                 </div>
-                <div class="card-body">
-                    <h6 class="card-title fw-bold text-primary">{{ aplicacao.questionario.nome }}</h6>
-                    <ul class="list-unstyled small mb-3 text-muted">
-                        <li class="mb-1"><i class="fas fa-store me-2"></i>{{ aplicacao.avaliado.nome }}</li>
-                        <li class="mb-1"><i class="fas fa-user me-2"></i>{{ aplicacao.aplicador.nome if aplicacao.aplicador else 'Desconhecido' }}</li>
-                        <li><i class="far fa-clock me-2"></i>{{ aplicacao.data_inicio.strftime('%d/%m/%Y %H:%M') }}</li>
-                    </ul>
-                    <hr>
-                    <div id="status-conexao" class="d-flex align-items-center text-success small fw-bold">
-                        <i class="fas fa-wifi me-2"></i>
-                        <span id="status-texto">Online</span>
+                <div class="card-body bg-white">
+                    <h6 class="card-title fw-bold text-dark mb-1">{{ aplicacao.questionario.nome }}</h6>
+                    <p class="text-muted small mb-3">{{ aplicacao.avaliado.nome }}</p>
+                    
+                    <div class="d-flex align-items-center text-muted small mb-3">
+                        <i class="far fa-clock me-2"></i> 
+                        <span>{{ aplicacao.data_inicio.strftime('%d/%m %H:%M') }}</span>
                     </div>
+
+                    <hr class="my-3">
+                    
+                    <div id="status-conexao" class="alert alert-light border d-flex align-items-center justify-content-center py-2 mb-3">
+                        <i class="fas fa-spinner fa-spin me-2"></i> <span class="fw-bold" style="font-size: 0.85rem;">Carregando...</span>
+                    </div>
+
+                    <button type="button" class="btn btn-outline-primary w-100 fw-bold mb-2" id="btn-offline-sync" onclick="baixarParaOffline()">
+                        <i class="fas fa-download me-2"></i> Baixar Offline
+                    </button>
                 </div>
             </div>
         </div>
 
         <div class="col-lg-9">
-            <form id="form-finalizar" 
-                  action="{{ url_for('cli.finalizar_definitivamente', id=aplicacao.id) if modo_assinatura else url_for('cli.concluir_coleta', id=aplicacao.id) }}" 
-                  method="POST" enctype="multipart/form-data">
-                
+            <form id="form-finalizar"
+                action="{{ url_for('cli.finalizar_definitivamente', id=aplicacao.id) if modo_assinatura else url_for('cli.concluir_coleta', id=aplicacao.id) }}"
+                method="POST" enctype="multipart/form-data">
+
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-                {% for topico in topicos %}
-                <div class="card mb-4 shadow-sm border-0">
-                    <div class="card-header bg-light border-bottom py-3">
-                        <h5 class="mb-0 text-dark fw-bold">{{ topico.nome }}</h5>
-                        {% if topico.descricao %}
-                        <p class="text-muted mb-0 small mt-1">{{ topico.descricao }}</p>
-                        {% endif %}
-                    </div>
-                    <div class="card-body p-2 p-md-3">
-                        {% if perguntas_por_topico[topico.id] %}
-                        
-                            {% for pergunta in perguntas_por_topico[topico.id] %}
-                            
-                            {% set eh_assinatura = (pergunta.tipo.name == 'ASSINATURA') %}
-                            {% set deve_validar = (pergunta.obrigatoria and (not eh_assinatura or modo_assinatura)) %}
-
-                            <div class="mb-3 p-3 border rounded pergunta-container bg-white transition-all" 
-                                 id="container-pergunta-{{ pergunta.id }}"
-                                 data-pergunta-id="{{ pergunta.id }}"
-                                 data-tipo="{{ pergunta.tipo.name }}"
-                                 {% if deve_validar %}data-obrigatoria="true"{% endif %}>
-                                
-                                <label class="form-label fw-bold d-block mb-2 text-dark">
-                                    <span class="badge bg-secondary me-1">{{ topico.ordem }}.{{ pergunta.ordem }}</span>
-                                    {{ pergunta.texto }}
-                                    {% if pergunta.obrigatoria %}
-                                        <span class="text-danger" title="Obrigatório">*</span>
-                                    {% endif %}
-                                </label>
-                                
-                                {% set resposta_salva = respostas_existentes.get(pergunta.id) %}
-
-                                <div class="resposta-wrapper">
-                                    
-                                    {% if pergunta.tipo.name == 'SIM_NAO_NA' %}
-                                    <div class="d-flex flex-wrap gap-3"> 
-                                        {% for opcao in pergunta.opcoes|sort(attribute='ordem') %}
-                                        <div class="form-check form-check-inline custom-radio-lg">
-                                            <input class="form-check-input input-conforme" type="radio" name="resposta-{{ pergunta.id }}"
-                                                id="opcao-{{ pergunta.id }}-{{ opcao.id }}" value="{{ opcao.texto }}"
-                                                data-pergunta-id="{{ pergunta.id }}" onchange="verificarConformidade(this)" 
-                                                {% if resposta_salva and resposta_salva.resposta==opcao.texto %}checked{% endif %}>
-                                            <label class="form-check-label" for="opcao-{{ pergunta.id }}-{{ opcao.id }}">
-                                                {{ opcao.texto }}
-                                            </label>
-                                        </div>
-                                        {% endfor %}
-                                    </div>
-
-                                    {% elif pergunta.tipo.name == 'MULTIPLA_ESCOLHA' %}
-                                    <select class="form-select input-conforme" name="resposta-{{ pergunta.id }}"
-                                        data-pergunta-id="{{ pergunta.id }}" onchange="verificarConformidade(this)">
-                                        <option value="">Selecione...</option>
-                                        {% for opcao in pergunta.opcoes|sort(attribute='ordem') %}
-                                        <option value="{{ opcao.texto }}" {% if resposta_salva and resposta_salva.resposta==opcao.texto %}selected{% endif %}>
-                                            {{ opcao.texto }}
-                                        </option>
-                                        {% endfor %}
-                                    </select>
-
-                                    {% elif pergunta.tipo.name in ['NOTA', 'ESCALA_NUMERICA', 'NUMERO'] %}
-                                    <input type="number" class="form-control" name="resposta-{{ pergunta.id }}"
-                                        data-pergunta-id="{{ pergunta.id }}"
-                                        value="{{ resposta_salva.resposta if resposta_salva else '' }}"
-                                        onblur="salvarResposta(this)" step="any">
-
-                                    {% elif pergunta.tipo.name == 'TEXTO_CURTO' %}
-                                    <input type="text" class="form-control" name="resposta-{{ pergunta.id }}"
-                                        data-pergunta-id="{{ pergunta.id }}"
-                                        value="{{ resposta_salva.resposta if resposta_salva else '' }}"
-                                        onblur="salvarResposta(this)">
-
-                                    {% elif pergunta.tipo.name == 'TEXTO_LONGO' %}
-                                    <textarea class="form-control" rows="3" name="resposta-{{ pergunta.id }}"
-                                        data-pergunta-id="{{ pergunta.id }}"
-                                        onblur="salvarResposta(this)">{{ resposta_salva.resposta if resposta_salva else '' }}</textarea>
-
-                                    {% elif pergunta.tipo.name == 'DATA' %}
-                                    <input type="date" class="form-control" name="resposta-{{ pergunta.id }}"
-                                           data-pergunta-id="{{ pergunta.id }}" value="{{ resposta_salva.resposta if resposta_salva else '' }}" onblur="salvarResposta(this)">
-
-                                    {% elif pergunta.tipo.name == 'HORA' %}
-                                    <input type="time" class="form-control" name="resposta-{{ pergunta.id }}"
-                                           data-pergunta-id="{{ pergunta.id }}" value="{{ resposta_salva.resposta if resposta_salva else '' }}" onblur="salvarResposta(this)">
-
-                                    {% elif pergunta.tipo.name == 'ASSINATURA' %}
-                                    <div class="card bg-light border text-center p-3">
-                                        <label class="small text-muted mb-2">Toque abaixo para assinar:</label>
-                                        
-                                        <div id="preview-box-{{ pergunta.id }}" 
-                                             class="mb-3 d-flex justify-content-center align-items-center rounded bg-white" 
-                                             style="min-height: 120px; border: 2px dashed #dee2e6; overflow: hidden;">
-                                            
-                                            {% if resposta_salva and resposta_salva.resposta %}
-                                                <img src="{{ resposta_salva.resposta }}" id="img-preview-{{ pergunta.id }}" style="max-height: 110px; max-width: 100%;">
-                                                <span id="placeholder-{{ pergunta.id }}" class="text-muted small d-none">Nenhuma assinatura</span>
-                                            {% else %}
-                                                <img src="" id="img-preview-{{ pergunta.id }}" style="max-height: 110px; max-width: 100%; display: none;">
-                                                <span id="placeholder-{{ pergunta.id }}" class="text-muted small">Nenhuma assinatura</span>
-                                            {% endif %}
-                                        </div>
-
-                                        <input type="hidden" name="resposta-{{ pergunta.id }}" id="resposta-input-{{ pergunta.id }}"
-                                               data-pergunta-id="{{ pergunta.id }}" 
-                                               value="{{ resposta_salva.resposta if resposta_salva else '' }}">
-
-                                        <button type="button" class="btn btn-outline-primary w-100 py-2" 
-                                                onclick="abrirModalAssinatura({{ pergunta.id }}, '{{ pergunta.texto|escape }}')">
-                                            <i class="fas fa-pen-nib me-2"></i> Abrir Painel de Assinatura
-                                        </button>
-                                    </div>
-                                    {% else %}
-                                    <div class="alert alert-warning p-2 small">Tipo {{ pergunta.tipo.name }} não suportado.</div>
-                                    {% endif %}
-                                </div>
-
-                                <div id="feedback-{{ pergunta.id }}" class="form-text small mt-1" style="min-height: 20px;"></div>
-
-                                {% if pergunta.permite_observacao %}
-                                <div class="mt-2">
-                                    <a class="text-decoration-none small text-muted link-obs-toggle" 
-                                       data-bs-toggle="collapse" 
-                                       href="#collapseObs{{ pergunta.id }}" 
-                                       id="btn-obs-{{ pergunta.id }}"
-                                       role="button">
-                                        <i class="far fa-comment-alt"></i> Adicionar Observação
-                                    </a>
-                                    <div class="collapse {% if (resposta_salva and resposta_salva.observacao) %}show{% endif %}" id="collapseObs{{ pergunta.id }}">
-                                        <textarea class="form-control form-control-sm mt-1" id="obs-{{ pergunta.id }}"
-                                            name="observacao-{{ pergunta.id }}" data-pergunta-id="{{ pergunta.id }}"
-                                            onblur="salvarResposta(this, true)" rows="2" 
-                                            placeholder="Descreva o que houve (obrigatório se Não Conforme)...">{{ resposta_salva.observacao if resposta_salva else '' }}</textarea>
-                                    </div>
-                                </div>
-                                {% endif %}
-
-                                {% if pergunta.criterio_foto != 'nenhuma' %}
-                                <div class="mt-3 p-3 border border-secondary rounded bg-light foto-container" id="foto-container-{{ pergunta.id }}">
-                                    <label class="form-label fw-bold text-dark mb-2 d-flex justify-content-between align-items-center">
-                                        <span><i class="fas fa-camera text-primary me-1"></i> Evidências</span>
-                                        <span class="badge {% if pergunta.criterio_foto == 'obrigatoria' %}bg-secondary{% else %}bg-secondary{% endif %} badge-status-foto">
-                                            {% if pergunta.criterio_foto == 'obrigatoria' %}Obrigatória{% else %}Opcional{% endif %}
+                <div class="accordion" id="accordionTopicos">
+                    {% for topico in topicos %}
+                    <div class="accordion-item border-0 shadow-sm mb-3 rounded overflow-hidden">
+                        <h2 class="accordion-header" id="heading-{{ topico.id }}">
+                            <button class="accordion-button collapsed py-3 bg-white" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#collapse-{{ topico.id }}">
+                                <div class="d-flex w-100 justify-content-between align-items-center me-3">
+                                    <div>
+                                        <span class="fw-bold text-dark" style="font-size: 1.05rem;">
+                                            {{ topico.ordem }}. {{ topico.nome }}
                                         </span>
-                                    </label>
-
-                                    <div class="mb-2">
-                                        <label for="input-foto-{{ pergunta.id }}" class="btn btn-outline-primary btn-sm w-100 cursor-pointer">
-                                            <i class="fas fa-plus-circle me-1"></i> Adicionar Foto
-                                        </label>
-                                        <input type="file" 
-                                               class="d-none" 
-                                               id="input-foto-{{ pergunta.id }}" 
-                                               accept="image/*" 
-                                               capture="environment"
-                                               data-pergunta-id="{{ pergunta.id }}"
-                                               data-criterio-original="{{ pergunta.criterio_foto }}"
-                                               {% if pergunta.criterio_foto == 'obrigatoria' %}data-obrigatoria="true"{% endif %}
-                                               onchange="handleFotoUpload(this)">
-                                    </div>
-
-                                    <div id="galeria-fotos-{{ pergunta.id }}" class="d-flex flex-wrap gap-2 mt-2">
-                                        
-                                        {% if resposta_salva and resposta_salva.fotos %}
-                                            {% for foto in resposta_salva.fotos %}
-                                            <div class="position-relative d-inline-block foto-item" id="foto-server-{{ foto.id }}">
-                                                <img src="{{ url_for('cli.get_foto_resposta', filename=foto.caminho) }}" 
-                                                     class="img-thumbnail rounded" 
-                                                     style="height: 100px; width: 100px; object-fit: cover;"
-                                                     onclick="window.open(this.src, '_blank')">
-                                                
-                                                <button type="button" 
-                                                        class="btn btn-danger btn-sm position-absolute top-0 end-0 translate-middle rounded-circle p-0 d-flex align-items-center justify-content-center shadow-sm"
-                                                        style="width: 24px; height: 24px;"
-                                                        onclick="deletarFotoServidor({{ foto.id }})">
-                                                    <i class="fas fa-times"></i>
-                                                </button>
-                                            </div>
-                                            {% endfor %}
+                                        {% if topico.descricao %}
+                                            <div class="text-muted small mt-1 fw-normal">{{ topico.descricao }}</div>
                                         {% endif %}
-                                        
                                     </div>
-                                    <div id="feedback-foto-{{ pergunta.id }}" class="form-text small mt-1"></div>
+                                    <span class="badge bg-secondary badge-progresso rounded-pill" id="badge-topico-{{ topico.id }}">0/0</span>
                                 </div>
-                                {% endif %}
+                            </button>
+                        </h2>
+
+                        <div id="collapse-{{ topico.id }}" class="accordion-collapse collapse" data-bs-parent="#accordionTopicos">
+                            <div class="accordion-body bg-light pt-4 pb-2">
                                 
+                                {% if perguntas_por_topico[topico.id] %}
+                                    {% for pergunta in perguntas_por_topico[topico.id] %}
+                                        {% set eh_assinatura = (pergunta.tipo.name == 'ASSINATURA') %}
+                                        {% set deve_validar = (pergunta.obrigatoria and (not eh_assinatura or modo_assinatura)) %}
+                                        {% set resposta_salva = respostas_existentes.get(pergunta.id) %}
+                                        
+                                        <div class="card mb-3 border-0 shadow-sm question-card" 
+                                             id="container-pergunta-{{ pergunta.id }}" 
+                                             data-pergunta-id="{{ pergunta.id }}"
+                                             data-topico-id="{{ topico.id }}"
+                                             data-obrigatoria="{{ 'true' if deve_validar else 'false' }}">
+                                            
+                                            <div class="card-body p-3">
+                                                <div class="d-flex justify-content-between mb-2">
+                                                    <label class="form-label fw-bold text-dark mb-0 w-100">
+                                                        <span class="badge bg-secondary me-2">{{ topico.ordem }}.{{ pergunta.ordem }}</span>
+                                                        {{ pergunta.texto }}
+                                                        {% if pergunta.obrigatoria %}<span class="text-danger ms-1">*</span>{% endif %}
+                                                    </label>
+                                                </div>
+
+                                                <div class="resposta-wrapper ms-1">
+                                                    {% if pergunta.tipo.name == 'SIM_NAO_NA' %}
+                                                        <div class="btn-group w-100" role="group">
+                                                            {% for opcao in pergunta.opcoes|sort(attribute='ordem') %}
+                                                                <input type="radio" class="btn-check input-conforme input-progresso" 
+                                                                    name="resposta-{{ pergunta.id }}" 
+                                                                    id="opcao-{{ pergunta.id }}-{{ opcao.id }}" 
+                                                                    value="{{ opcao.texto }}"
+                                                                    data-pergunta-id="{{ pergunta.id }}"
+                                                                    onchange="verificarConformidade(this)" 
+                                                                    {% if resposta_salva and resposta_salva.resposta == opcao.texto %}checked{% endif %}>
+                                                                <label class="btn btn-outline-secondary" for="opcao-{{ pergunta.id }}-{{ opcao.id }}">
+                                                                    {{ opcao.texto }}
+                                                                </label>
+                                                            {% endfor %}
+                                                        </div>
+
+                                                    {% elif pergunta.tipo.name == 'MULTIPLA_ESCOLHA' %}
+                                                        <select class="form-select input-conforme input-progresso" name="resposta-{{ pergunta.id }}"
+                                                            data-pergunta-id="{{ pergunta.id }}" onchange="verificarConformidade(this)">
+                                                            <option value="">Selecione...</option>
+                                                            {% for opcao in pergunta.opcoes|sort(attribute='ordem') %}
+                                                            <option value="{{ opcao.texto }}" {% if resposta_salva and resposta_salva.resposta == opcao.texto %}selected{% endif %}>
+                                                                {{ opcao.texto }}
+                                                            </option>
+                                                            {% endfor %}
+                                                        </select>
+
+                                                    {% elif pergunta.tipo.name in ['NOTA', 'ESCALA_NUMERICA', 'NUMERO'] %}
+                                                        <input type="number" class="form-control input-progresso" name="resposta-{{ pergunta.id }}"
+                                                            data-pergunta-id="{{ pergunta.id }}"
+                                                            value="{{ resposta_salva.resposta if resposta_salva else '' }}"
+                                                            onblur="salvarResposta(this); atualizarProgressoGlobal();" step="any">
+
+                                                    {% elif pergunta.tipo.name == 'TEXTO_CURTO' %}
+                                                        <input type="text" class="form-control input-progresso" name="resposta-{{ pergunta.id }}"
+                                                            data-pergunta-id="{{ pergunta.id }}"
+                                                            value="{{ resposta_salva.resposta if resposta_salva else '' }}"
+                                                            onblur="salvarResposta(this); atualizarProgressoGlobal();">
+
+                                                    {% elif pergunta.tipo.name == 'TEXTO_LONGO' %}
+                                                        <textarea class="form-control input-progresso" rows="3" name="resposta-{{ pergunta.id }}"
+                                                            data-pergunta-id="{{ pergunta.id }}"
+                                                            onblur="salvarResposta(this); atualizarProgressoGlobal();">{{ resposta_salva.resposta if resposta_salva else '' }}</textarea>
+
+                                                    {% elif pergunta.tipo.name == 'DATA' %}
+                                                        <input type="date" class="form-control input-progresso" name="resposta-{{ pergunta.id }}"
+                                                            data-pergunta-id="{{ pergunta.id }}"
+                                                            value="{{ resposta_salva.resposta if resposta_salva else '' }}"
+                                                            onblur="salvarResposta(this); atualizarProgressoGlobal();">
+
+                                                    {% elif pergunta.tipo.name == 'ASSINATURA' %}
+                                                        <div class="border rounded p-3 text-center bg-light">
+                                                            <div id="preview-box-{{ pergunta.id }}" class="mb-3 d-flex justify-content-center align-items-center bg-white border rounded" style="min-height: 100px;">
+                                                                {% if resposta_salva and resposta_salva.resposta %}
+                                                                    <img src="{{ resposta_salva.resposta }}" id="img-preview-{{ pergunta.id }}" style="max-height: 90px; max-width: 100%;">
+                                                                    <span id="placeholder-{{ pergunta.id }}" class="d-none text-muted small">Assinado</span>
+                                                                {% else %}
+                                                                    <img src="" id="img-preview-{{ pergunta.id }}" style="max-height: 90px; max-width: 100%; display: none;">
+                                                                    <span id="placeholder-{{ pergunta.id }}" class="text-muted small"><i class="fas fa-signature fa-2x mb-2 d-block"></i>Toque para assinar</span>
+                                                                {% endif %}
+                                                            </div>
+                                                            <input type="hidden" name="resposta-{{ pergunta.id }}" id="resposta-input-{{ pergunta.id }}" 
+                                                                   class="input-progresso" data-pergunta-id="{{ pergunta.id }}"
+                                                                   value="{{ resposta_salva.resposta if resposta_salva else '' }}">
+                                                            
+                                                            <button type="button" class="btn btn-dark w-100" 
+                                                                    onclick="abrirModalAssinatura({{ pergunta.id }}, '{{ pergunta.texto|escape }}')">
+                                                                <i class="fas fa-pen-nib me-2"></i> Assinar
+                                                            </button>
+                                                        </div>
+                                                    {% endif %}
+                                                </div>
+
+                                                <div id="feedback-{{ pergunta.id }}" class="text-end mt-1" style="height: 18px; font-size: 0.7rem;"></div>
+
+                                                <div class="bg-light rounded p-2 mt-2 border border-dotted">
+                                                    
+                                                    {% if pergunta.permite_observacao %}
+                                                    <div class="mb-2">
+                                                        <a class="text-decoration-none text-muted fw-bold" style="font-size: 0.8rem; cursor: pointer;"
+                                                            data-bs-toggle="collapse" href="#collapseObs{{ pergunta.id }}" id="btn-obs-{{ pergunta.id }}">
+                                                            <i class="far fa-comment-alt me-1"></i> Observação
+                                                        </a>
+                                                        <div class="collapse {% if (resposta_salva and resposta_salva.observacao) %}show{% endif %}" id="collapseObs{{ pergunta.id }}">
+                                                            <textarea class="form-control form-control-sm mt-1" id="obs-{{ pergunta.id }}"
+                                                                name="observacao-{{ pergunta.id }}" data-pergunta-id="{{ pergunta.id }}"
+                                                                onblur="salvarResposta(this, true)" rows="2"
+                                                                placeholder="Detalhes...">{{ resposta_salva.observacao if resposta_salva else '' }}</textarea>
+                                                        </div>
+                                                    </div>
+                                                    {% endif %}
+
+                                                    {% if pergunta.criterio_foto != 'nenhuma' %}
+                                                    <div>
+                                                        <div class="d-flex justify-content-between align-items-center">
+                                                            <span class="text-muted fw-bold" style="font-size: 0.8rem;">
+                                                                <i class="fas fa-camera me-1"></i> Fotos
+                                                                <span class="badge {% if pergunta.criterio_foto == 'obrigatoria' %}bg-secondary{% else %}bg-light text-dark border{% endif %} badge-status-foto ms-1">
+                                                                    {{ 'Obrigatória' if pergunta.criterio_foto == 'obrigatoria' else 'Opcional' }}
+                                                                </span>
+                                                            </span>
+                                                            <label for="input-foto-{{ pergunta.id }}" class="btn btn-sm btn-outline-primary py-0" style="font-size: 0.8rem;">
+                                                                <i class="fas fa-plus me-1"></i>
+                                                            </label>
+                                                            <input type="file" class="d-none" id="input-foto-{{ pergunta.id }}"
+                                                                accept="image/*" capture="environment" 
+                                                                data-pergunta-id="{{ pergunta.id }}"
+                                                                data-criterio-original="{{ pergunta.criterio_foto }}" 
+                                                                {% if pergunta.criterio_foto=='obrigatoria' %}data-obrigatoria="true"{% endif %}
+                                                                onchange="handleFotoUpload(this)">
+                                                        </div>
+                                                        
+                                                        <div id="galeria-fotos-{{ pergunta.id }}" class="d-flex gap-2 overflow-auto py-2" style="white-space: nowrap;">
+                                                            {% if resposta_salva and resposta_salva.fotos %}
+                                                                {% for foto in resposta_salva.fotos %}
+                                                                <div class="position-relative d-inline-block" id="foto-server-{{ foto.id }}" style="width: 70px; height: 70px; flex-shrink: 0;">
+                                                                    <img src="{{ url_for('cli.get_foto_resposta', filename=foto.caminho) }}" 
+                                                                         class="rounded w-100 h-100 border" style="object-fit: cover; cursor: pointer;"
+                                                                         onclick="window.open(this.src, '_blank')">
+                                                                    <button type="button" class="btn btn-danger btn-sm p-0 position-absolute top-0 end-0 translate-middle rounded-circle shadow-sm"
+                                                                        style="width: 20px; height: 20px; font-size: 10px; z-index: 10;"
+                                                                        onclick="deletarFotoServidor({{ foto.id }})"><i class="fas fa-times"></i></button>
+                                                                </div>
+                                                                {% endfor %}
+                                                            {% endif %}
+                                                        </div>
+                                                    </div>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="text-center py-3 text-muted">Nenhuma pergunta.</div>
+                                {% endif %}
                             </div>
-                            {% endfor %}
-
-                        {% else %}
-                        <div class="text-center py-4 text-muted">
-                            <i class="fas fa-inbox fa-2x mb-2"></i>
-                            <p>Nenhuma pergunta neste tópico.</p>
                         </div>
-                        {% endif %}
                     </div>
+                    {% endfor %}
                 </div>
-                {% endfor %}
 
-                <div class="card mb-5 shadow-sm border-0" id="card-conclusao">
-                    <div class="card-header {{ 'bg-success' if modo_assinatura else 'bg-secondary' }} text-white">
-                        <h5 class="mb-0">
-                            {% if modo_assinatura %}
-                                <i class="fas fa-file-signature me-2"></i>Assinatura e Encerramento
-                            {% else %}
-                                <i class="fas fa-step-forward me-2"></i>Conclusão da Coleta
-                            {% endif %}
-                        </h5>
-                    </div>
-                    <div class="card-body">
+                <div class="card shadow border-0 mt-4 mb-5" id="card-conclusao">
+                    <div class="card-body p-4">
+                        <h5 class="card-title fw-bold mb-3">Finalização</h5>
                         <div class="mb-3">
-                            <label class="form-label fw-bold">Observações Gerais</label>
-                            <textarea class="form-control" name="observacoes_finais" rows="4"
-                                placeholder="Resumo geral, intercorrências ou comentários preliminares...">{{ aplicacao.observacoes_finais or '' }}</textarea>
+                            <label class="form-label text-muted small fw-bold text-uppercase">Observações Gerais</label>
+                            <textarea class="form-control bg-light" name="observacoes_finais" rows="3">{{ aplicacao.observacoes_finais or '' }}</textarea>
                         </div>
 
-                        <div class="alert alert-danger d-none shadow-sm" role="alert" id="alerta-validacao">
-                            <h6 class="alert-heading fw-bold"><i class="fas fa-exclamation-triangle me-2"></i>Impedimento de Envio</h6>
-                            <p class="mb-2">Por favor, corrija os itens abaixo:</p>
+                        <div class="alert alert-danger d-none shadow-sm" id="alerta-validacao">
+                            <h6 class="alert-heading fw-bold"><i class="fas fa-exclamation-triangle me-2"></i>Pendências</h6>
                             <ul id="alerta-validacao-lista" class="mb-0 small ps-3"></ul>
                         </div>
 
-                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                            <a href="{{ url_for('cli.listar_aplicacoes') }}" class="btn btn-outline-secondary me-md-2">
-                                Cancelar
-                            </a>
-                            
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                            <a href="{{ url_for('cli.listar_aplicacoes') }}" class="btn btn-outline-secondary px-4">Voltar</a>
                             {% if modo_assinatura %}
-                                <button type="submit" class="btn btn-success btn-lg px-5 w-100">
-                                    <i class="fas fa-check-double me-2"></i> Finalizar Definitivamente
-                                </button>
+                            <button type="submit" class="btn btn-success btn-lg px-5 fw-bold">
+                                <i class="fas fa-check-double me-2"></i> Encerrar
+                            </button>
                             {% else %}
-                                <button type="submit" class="btn btn-primary btn-lg px-5">
-                                    <i class="fas fa-arrow-right me-2"></i> Concluir Coleta e Revisar
-                                </button>
+                            <button type="submit" class="btn btn-primary btn-lg px-5 fw-bold">
+                                <i class="fas fa-paper-plane me-2"></i> Concluir
+                            </button>
                             {% endif %}
                         </div>
                     </div>
                 </div>
+
             </form>
         </div>
     </div>
 </div>
 
-<div class="modal fade" id="modalAssinaturaUnico" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content">
+<div class="modal fade" id="modalAssinaturaUnico" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
             <div class="modal-header bg-dark text-white">
-                <h5 class="modal-title">
-                    <i class="fas fa-file-signature me-2"></i>Assinar: <span id="titulo-modal-assinatura"></span>
-                </h5>
+                <h6 class="modal-title">Assinatura</h6>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body p-0 bg-light" style="position: relative;">
-                <canvas id="canvas-unico" style="width: 100%; height: 350px; touch-action: none; display: block;"></canvas>
-                
-                <div class="text-center text-muted small position-absolute bottom-0 w-100 mb-2 pe-none">
-                    Assine na área acima (Dedo ou Caneta)
-                </div>
-            </div>
-            <div class="modal-footer justify-content-between">
-                <button type="button" class="btn btn-outline-danger" onclick="limparCanvasAtual()">
-                    <i class="fas fa-eraser"></i> Limpar
-                </button>
-                <button type="button" class="btn btn-success px-4" onclick="confirmarAssinaturaModal()">
-                    <i class="fas fa-check me-2"></i> Confirmar Assinatura
-                </button>
+            <div class="modal-body bg-light p-0"><canvas id="canvas-unico" style="width: 100%; height: 250px; background: #fff;"></canvas></div>
+            <div class="modal-footer justify-content-between bg-white">
+                <button type="button" class="btn btn-outline-danger btn-sm" onclick="limparCanvasAtual()">Limpar</button>
+                <button type="button" class="btn btn-success btn-sm px-4" onclick="confirmarAssinaturaModal()">Confirmar</button>
             </div>
         </div>
     </div>
 </div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -321,487 +297,355 @@
 <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
 
 <script>
-    // 1. Banco de Dados Offline
-    const dbLocal = new Dexie("QualiGestorOffline");
+    // =========================================================================
+    // 1. BANCO DE DADOS OFFLINE (Dexie.js)
+    // =========================================================================
+    const dbLocal = new Dexie("QualiGestorDB");
     dbLocal.version(1).stores({
         fotos: 'id, pergunta_id, resposta_id, blob, nome, timestamp'
     });
 
-    // 2. Variáveis de Assinatura
     let signaturePadGlobal = null;
     let currentPerguntaId = null;
-    const modalElement = document.getElementById('modalAssinaturaUnico');
-    const bsModal = new bootstrap.Modal(modalElement);
     
-    // Variável que vem do Python para saber em qual fase estamos
+    // Elemento do Modal
+    const modalElement = document.getElementById('modalAssinaturaUnico');
+    const modalAssinatura = new bootstrap.Modal(modalElement);
+    
     const MODO_ASSINATURA = {{ 'true' if modo_assinatura else 'false' }};
+    const APLICACAO_ID = {{ aplicacao.id }};
 
-    // 3. Inicialização
-    window.addEventListener('online', () => { atualizarUIConexao(true); sincronizarPendencias(); });
-    window.addEventListener('offline', () => { atualizarUIConexao(false); });
-
-    document.addEventListener('DOMContentLoaded', () => {
-        atualizarUIConexao(navigator.onLine);
-        restaurarBadgesPendentes();
-        if(navigator.onLine) setTimeout(sincronizarPendencias, 1500);
+    // =========================================================================
+    // 2. INICIALIZAÇÃO
+    // =========================================================================
+    document.addEventListener('DOMContentLoaded', async () => {
+        initCanvas();
+        reconhecerRespostasExistentes();
+        await restaurarEstadoOffline();
+        atualizarProgressoGlobal();
         
-        // --- Setup do Canvas Único ---
-        const canvas = document.getElementById('canvas-unico');
-        signaturePadGlobal = new SignaturePad(canvas, {
-            backgroundColor: 'rgba(255, 255, 255, 1)', 
-            penColor: "rgb(0, 0, 0)",
-            velocityFilterWeight: 0.7
-        });
-
-        modalElement.addEventListener('shown.bs.modal', () => {
-            resizeCanvas();
-            // Carrega assinatura anterior se houver
-            const inputAtual = document.getElementById(`resposta-input-${currentPerguntaId}`);
-            if (inputAtual && inputAtual.value) {
-                signaturePadGlobal.fromDataURL(inputAtual.value);
-            }
-        });
-
-        // Verifica conformidade inicial
-        document.querySelectorAll('.input-conforme').forEach(el => {
-            if(el.type === 'radio' && el.checked) verificarConformidade(el);
-            if(el.tagName === 'SELECT' && el.value) verificarConformidade(el);
-        });
-
-        // Se estiver no modo assinatura, rola para o final automaticamente
+        // --- AQUI ESTÁ A CORREÇÃO: AUTO-SCROLL ---
         if (MODO_ASSINATURA) {
             setTimeout(() => {
                 const conclusao = document.getElementById('card-conclusao');
-                if(conclusao) conclusao.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }, 600);
+                if (conclusao) {
+                    conclusao.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    // Pisca o card para chamar atenção
+                    conclusao.classList.add('border-primary');
+                    setTimeout(() => conclusao.classList.remove('border-primary'), 2000);
+                }
+            }, 800); // Pequeno delay para garantir que tudo carregou
         }
+        // -----------------------------------------
+
+        window.addEventListener('online',  () => { updateStatusConexao(true); sincronizarPendencias(); });
+        window.addEventListener('offline', () => updateStatusConexao(false));
+        updateStatusConexao(navigator.onLine);
+        if(navigator.onLine) sincronizarPendencias();
     });
 
-    // ========================================================================
-    // FUNÇÕES DE ASSINATURA (MODAL)
-    // ========================================================================
-    window.abrirModalAssinatura = function(perguntaId, tituloPergunta) {
-        currentPerguntaId = perguntaId;
-        document.getElementById('titulo-modal-assinatura').innerText = tituloPergunta;
-        signaturePadGlobal.clear();
-        bsModal.show();
-    };
+    // Recalcula o tamanho do Canvas assim que o Modal abre completamente
+    modalElement.addEventListener('shown.bs.modal', function () {
+        resizeCanvas();
+    });
 
     function resizeCanvas() {
         const canvas = document.getElementById('canvas-unico');
-        const ratio = Math.max(window.devicePixelRatio || 1, 1);
-        canvas.width = canvas.offsetWidth * ratio;
-        canvas.height = canvas.offsetHeight * ratio;
-        canvas.getContext("2d").scale(ratio, ratio);
+        if (canvas) {
+            const ratio = Math.max(window.devicePixelRatio || 1, 1);
+            canvas.width = canvas.offsetWidth * ratio;
+            canvas.height = canvas.offsetHeight * ratio;
+            canvas.getContext("2d").scale(ratio, ratio);
+            if(signaturePadGlobal) signaturePadGlobal.clear();
+        }
     }
 
-    window.limparCanvasAtual = function() {
-        signaturePadGlobal.clear();
-    };
+    function reconhecerRespostasExistentes() {
+        document.querySelectorAll('.question-card').forEach(card => {
+            const radio = card.querySelector('input[type="radio"]:checked');
+            const text = card.querySelector('input[type="text"], input[type="number"], input[type="date"], textarea, select');
+            const hidden = card.querySelector('input[type="hidden"]'); // Assinatura
+            
+            if (radio || (text && text.value.trim() !== '') || (hidden && hidden.value !== '')) {
+                card.classList.remove('border', 'border-danger');
+                let inputValido = radio || text || hidden;
+                aplicarRegraConformidade(inputValido);
+            }
+        });
+    }
 
-    window.confirmarAssinaturaModal = function() {
-        if (signaturePadGlobal.isEmpty()) {
-            if(!confirm("Deseja confirmar sem assinatura (em branco)?")) return;
-            salvarDadosAssinatura('');
-        } else {
-            const dataUrl = signaturePadGlobal.toDataURL("image/png");
-            salvarDadosAssinatura(dataUrl);
+    function updateStatusConexao(online) {
+        const div = document.getElementById('status-conexao');
+        const btn = document.getElementById('btn-offline-sync');
+        if (div) {
+            div.className = online ? 'alert alert-success border py-2 mb-3' : 'alert alert-warning border py-2 mb-3';
+            div.innerHTML = online ? '<i class="fas fa-wifi me-2"></i><span class="fw-bold small">Online</span>' : '<i class="fas fa-cloud-download-alt me-2"></i><span class="fw-bold small">Offline</span>';
+            if(btn) btn.disabled = !online;
         }
-        bsModal.hide();
-    };
+    }
 
-    function salvarDadosAssinatura(dataUrl) {
-        const input = document.getElementById(`resposta-input-${currentPerguntaId}`);
-        const imgPreview = document.getElementById(`img-preview-${currentPerguntaId}`);
-        const placeholder = document.getElementById(`placeholder-${currentPerguntaId}`);
+    function atualizarProgressoGlobal() {
+        document.querySelectorAll('.accordion-item').forEach(item => {
+            const inputs = item.querySelectorAll('.input-progresso');
+            const totalGrupos = new Set();
+            let respondidas = 0;
+            inputs.forEach(inp => {
+                totalGrupos.add(inp.name);
+                if ((inp.type === 'radio' && inp.checked) || (inp.type !== 'radio' && inp.value && inp.value.trim() !== '')) respondidas++;
+            });
+            const total = totalGrupos.size;
+            const badge = item.querySelector('.badge-progresso');
+            if(badge) {
+                badge.innerText = `${respondidas}/${total}`;
+                badge.className = (respondidas >= total && total > 0) ? 'badge bg-success rounded-pill badge-progresso' : 'badge bg-secondary rounded-pill badge-progresso';
+                if(respondidas >= total && total > 0) badge.innerHTML = '<i class="fas fa-check"></i>';
+            }
+        });
+    }
 
-        input.value = dataUrl;
-
-        if (dataUrl) {
-            imgPreview.src = dataUrl;
-            imgPreview.style.display = 'block';
-            placeholder.classList.add('d-none');
-        } else {
-            imgPreview.src = '';
-            imgPreview.style.display = 'none';
-            placeholder.classList.remove('d-none');
-        }
+    function verificarConformidade(input) {
         salvarResposta(input);
+        aplicarRegraConformidade(input);
+        atualizarProgressoGlobal();
     }
 
-    // ========================================================================
-    // LÓGICA DE CONFORMIDADE
-    // ========================================================================
-    function verificarConformidade(inputElement) {
-        salvarResposta(inputElement);
-
-        const pid = inputElement.getAttribute('data-pergunta-id');
-        const valor = inputElement.value.toLowerCase().trim();
+    function aplicarRegraConformidade(input) {
+        const pid = input.dataset.perguntaId;
         const container = document.getElementById(`container-pergunta-${pid}`);
-        
-        const isNC = ['não', 'nao', '0', 'ruim', 'irregular', 'não conforme'].includes(valor);
+        if(!container) return;
 
-        const fotoInput = document.getElementById(`input-foto-${pid}`); 
-        const obsInput = document.getElementById(`obs-${pid}`);
+        const val = input.value.toLowerCase().trim();
+        const isNC = ['não', 'nao', '0', 'ruim', 'irregular', 'não conforme'].includes(val);
+        const fotoInput = document.getElementById(`input-foto-${pid}`);
         const obsCollapse = document.getElementById(`collapseObs${pid}`);
-        const obsLink = document.getElementById(`btn-obs-${pid}`);
-        const fotoBadge = container.querySelector('.badge-status-foto');
 
         if (isNC) {
-            container.classList.add('border-danger', 'border-2');
-            
-            // Foto Obrigatória
-            if (fotoInput) {
-                const criterioOriginal = fotoInput.getAttribute('data-criterio-original');
-                
-                if (criterioOriginal === 'obrigatoria') {
-                    fotoInput.setAttribute('data-obrigatoria', 'true');
-                    if (fotoBadge) {
-                        fotoBadge.className = 'badge bg-danger badge-status-foto';
-                        fotoBadge.innerText = 'Obrigatória (NC)';
-                    }
-                } else {
-                    fotoInput.setAttribute('data-obrigatoria', 'false');
-                     if (fotoBadge) {
-                        fotoBadge.className = 'badge bg-secondary badge-status-foto';
-                        fotoBadge.innerText = 'Opcional';
-                    }
-                }
-            }
-
-            // Obs Obrigatória
-            if (obsInput) {
-                obsInput.setAttribute('data-obrigatoria', 'true');
-                obsInput.placeholder = "Descreva o problema (Obrigatório para NC)...";
-                if (obsCollapse && !obsCollapse.classList.contains('show')) {
-                    new bootstrap.Collapse(obsCollapse, { toggle: true, show: true });
-                }
-                if (obsLink) obsLink.classList.add('text-danger', 'fw-bold');
-            }
-
+            container.classList.add('border-start', 'border-4', 'border-danger'); 
+            if (fotoInput && fotoInput.dataset.criterioOriginal === 'obrigatoria') fotoInput.dataset.obrigatoria = 'true';
+            if (obsCollapse) new bootstrap.Collapse(obsCollapse, { show: true });
         } else {
-            container.classList.remove('border-danger', 'border-2');
-
-            if (fotoInput) {
-                fotoInput.setAttribute('data-obrigatoria', 'false'); 
-                if (fotoBadge) {
-                    fotoBadge.className = 'badge bg-secondary badge-status-foto';
-                    fotoBadge.innerText = 'Opcional';
-                }
-            }
-
-            if (obsInput) {
-                obsInput.setAttribute('data-obrigatoria', 'false');
-                obsInput.placeholder = "Detalhes adicionais...";
-                if (obsLink) obsLink.classList.remove('text-danger', 'fw-bold');
-            }
+            container.classList.remove('border-start', 'border-4', 'border-danger');
+            if (fotoInput) fotoInput.dataset.obrigatoria = 'false';
         }
     }
 
-    // ========================================================================
-    // SALVAR TEXTO
-    // ========================================================================
-    async function salvarResposta(inputElement, isObservacao = false) {
-        const perguntaId = parseInt(inputElement.dataset.perguntaId); 
-        const feedbackEl = document.getElementById(`feedback-${perguntaId}`);
-        const fotoInput = document.getElementById(`input-foto-${perguntaId}`);
-
-        let respostaValue = '';
-        let observacaoValue = '';
-
-        if (isObservacao) {
-            observacaoValue = inputElement.value;
-            const radio = document.querySelector(`input[name="resposta-${perguntaId}"]:checked`);
-            const select = document.querySelector(`select[name="resposta-${perguntaId}"]`);
-            const text = document.querySelector(`input[type=text][name="resposta-${perguntaId}"]`) || document.querySelector(`textarea[name="resposta-${perguntaId}"]`);
+    document.getElementById('form-finalizar').addEventListener('submit', function(e) {
+        let erros = [];
+        let primeiroErroElemento = null;
+        
+        document.querySelectorAll('.question-card[data-obrigatoria="true"]').forEach(card => {
+            let valido = false;
+            const pid = card.dataset.perguntaId;
             
-            if(radio) respostaValue = radio.value;
-            else if(select) respostaValue = select.value;
-            else if(text) respostaValue = text.value;
-        } else {
-            respostaValue = inputElement.value;
-            const obsEl = document.getElementById(`obs-${perguntaId}`);
-            if(obsEl) observacaoValue = obsEl.value;
-        }
+            if (card.querySelector('input[type="radio"]:checked')) valido = true;
+            const textInput = card.querySelector('input[type="text"], input[type="number"], input[type="date"], textarea, select, input[type="hidden"]');
+            if (textInput && textInput.value.trim() !== '') valido = true;
 
-        if (feedbackEl) feedbackEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+            const fotoInput = document.getElementById(`input-foto-${pid}`);
+            if (fotoInput && fotoInput.dataset.obrigatoria === 'true') {
+                const galeria = document.getElementById(`galeria-fotos-${pid}`);
+                const temFoto = galeria && (galeria.querySelectorAll('img').length > 0);
+                if (!temFoto) valido = false;
+            }
 
-        const dados = {
-            pergunta_id: perguntaId,
-            resposta: respostaValue,
-            observacao: observacaoValue,
-            timestamp: Date.now()
-        };
-
-        try {
-            const res = await fetch("{{ url_for('cli.salvar_resposta', id=aplicacao.id) }}", {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
-                body: JSON.stringify(dados)
-            });
-            const data = await res.json();
-
-            if (data.sucesso) {
-                if (feedbackEl) {
-                    feedbackEl.innerHTML = '<span class="text-success"><i class="fas fa-check"></i> Salvo</span>';
-                    setTimeout(() => feedbackEl.innerHTML = '', 2000);
-                }
-                if (data.resposta_id) {
-                    if (fotoInput) fotoInput.dataset.respostaId = data.resposta_id;
-                    await dbLocal.fotos.filter(f => f.pergunta_id == perguntaId).modify({ resposta_id: data.resposta_id });
-                }
-            } else { throw new Error(); }
-        } catch (error) {
-            let fila = JSON.parse(localStorage.getItem('fila_respostas_offline') || '[]');
-            fila = fila.filter(i => i.pergunta_id !== perguntaId);
-            fila.push(dados);
-            localStorage.setItem('fila_respostas_offline', JSON.stringify(fila));
-            if (feedbackEl) feedbackEl.innerHTML = '<span class="text-warning"><i class="fas fa-sd-card"></i> Salvo no dispositivo</span>';
-        }
-    }
-
-    // ========================================================================
-    // UPLOAD MÚLTIPLO DE FOTOS
-    // ========================================================================
-    async function handleFotoUpload(fileInput) {
-        const perguntaId = parseInt(fileInput.dataset.perguntaId);
-        let respostaId = fileInput.dataset.respostaId || document.querySelector(`[name="resposta-${perguntaId}"]`)?.dataset.respostaId;
-        
-        if(!respostaId) {
-           await salvarResposta(document.querySelector(`[name="resposta-${perguntaId}"]`) || {value:'', dataset:{perguntaId:perguntaId}});
-           respostaId = document.querySelector(`[name="resposta-${perguntaId}"]`)?.dataset.respostaId || fileInput.dataset.respostaId;
-        }
-
-        const file = fileInput.files[0];
-        if (!file) return;
-
-        const tempId = Date.now();
-        const galeria = document.getElementById(`galeria-fotos-${perguntaId}`);
-        
-        const div = document.createElement('div');
-        div.id = `foto-local-${tempId}`;
-        div.className = 'position-relative d-inline-block foto-item me-2 mb-2 fade-in';
-        div.innerHTML = `
-            <img src="${URL.createObjectURL(file)}" class="img-thumbnail rounded" style="height: 100px; width: 100px; object-fit: cover; opacity: 0.7">
-            <button onclick="deletarFotoLocal(${tempId})" type="button" class="btn btn-secondary btn-sm position-absolute top-0 end-0 translate-middle rounded-circle p-0 d-flex align-items-center justify-content-center" style="width:24px;height:24px;">
-                <i class="fas fa-times" style="font-size:10px"></i>
-            </button>
-            <span id="badge-${tempId}" class="position-absolute bottom-0 end-0 badge bg-warning p-1 border border-white">
-                <i class="fas fa-sync fa-spin"></i>
-            </span>
-        `;
-        galeria.appendChild(div);
-
-        fileInput.value = '';
-
-        await dbLocal.fotos.add({
-            id: tempId,
-            pergunta_id: perguntaId,
-            resposta_id: respostaId || null,
-            blob: file,
-            nome: file.name,
-            timestamp: Date.now()
+            if(!valido) {
+                const labelFull = card.querySelector('label').innerText;
+                const labelLimp = labelFull.replace(/\*/g, '').trim(); 
+                erros.push(labelLimp);
+                card.classList.add('border', 'border-danger');
+                if (!primeiroErroElemento) primeiroErroElemento = card;
+            } else {
+                card.classList.remove('border', 'border-danger');
+            }
         });
 
-        if (navigator.onLine && respostaId) {
-            enviarFoto(file, respostaId, perguntaId, tempId);
-        } else {
-            const badge = document.getElementById(`badge-${tempId}`);
-            if(badge) {
-                badge.className = "position-absolute bottom-0 end-0 badge bg-warning p-1";
-                badge.innerHTML = '<i class="fas fa-sd-card"></i>';
+        if(erros.length > 0) {
+            e.preventDefault();
+            const lista = document.getElementById('alerta-validacao-lista');
+            lista.innerHTML = '';
+            erros.slice(0, 5).forEach(err => lista.innerHTML += `<li>${err}</li>`);
+            if(erros.length > 5) lista.innerHTML += `<li>+ ${erros.length - 5} pendências...</li>`;
+            
+            const alerta = document.getElementById('alerta-validacao');
+            alerta.classList.remove('d-none');
+
+            if (primeiroErroElemento) {
+                const topicoId = primeiroErroElemento.dataset.topicoId;
+                const collapse = document.getElementById(`collapse-${topicoId}`);
+                if(collapse) {
+                    new bootstrap.Collapse(collapse, { show: true });
+                    setTimeout(() => {
+                        primeiroErroElemento.scrollIntoView({behavior: 'smooth', block: 'center'});
+                    }, 300);
+                } else {
+                    primeiroErroElemento.scrollIntoView({behavior: 'smooth', block: 'center'});
+                }
             }
+        } else {
+            if(!confirm("Deseja realmente finalizar?")) e.preventDefault();
         }
+    });
+
+    async function restaurarEstadoOffline() {
+        const fila = JSON.parse(localStorage.getItem('fila_respostas') || '[]');
+        fila.forEach(item => {
+            const pid = item.pergunta_id;
+            const inputTxt = document.querySelector(`[name="resposta-${pid}"]:not([type="radio"])`);
+            if(inputTxt) { inputTxt.value = item.resposta; aplicarRegraConformidade(inputTxt); }
+            if(item.resposta) {
+                const radio = document.querySelector(`input[name="resposta-${pid}"][value="${item.resposta}"]`);
+                if(radio) { radio.checked = true; aplicarRegraConformidade(radio); }
+            }
+            if(item.observacao) {
+                const obs = document.getElementById(`obs-${pid}`);
+                if(obs) obs.value = item.observacao;
+            }
+        });
+        try {
+            const fotos = await dbLocal.fotos.toArray();
+            fotos.forEach(f => {
+                const g = document.getElementById(`galeria-fotos-${f.pergunta_id}`);
+                if(g && !document.getElementById(`foto-local-${f.id}`)) {
+                    const d = document.createElement('div'); d.id=`foto-local-${f.id}`;
+                    d.className='position-relative d-inline-block flex-shrink-0'; d.style.width='70px'; d.style.height='70px';
+                    d.innerHTML=`<img src="${URL.createObjectURL(f.blob)}" class="rounded w-100 h-100 border border-warning" style="object-fit:cover;">`;
+                    g.appendChild(d);
+                }
+            });
+        } catch(e){}
     }
 
-    async function enviarFoto(file, respostaId, perguntaId, tempId) {
-        const formData = new FormData();
-        formData.append('foto', file);
+    async function salvarResposta(input, isObs=false) {
+        const pid = input.dataset.perguntaId;
+        const fb = document.getElementById(`feedback-${pid}`);
+        let resp='', obs='';
+        if(isObs) {
+            obs = input.value;
+            const r = document.querySelector(`input[name="resposta-${pid}"]:checked`) || document.querySelector(`[name="resposta-${pid}"]:not([type="radio"])`);
+            if(r) resp = r.value;
+        } else {
+            resp = input.value;
+            const o = document.getElementById(`obs-${pid}`);
+            if(o) obs = o.value;
+        }
+        if(fb) fb.innerHTML = '<i class="fas fa-spinner fa-spin text-muted"></i>';
         
         try {
-            const res = await fetch(`/cli/resposta/${respostaId}/upload-foto`, {
-                method: 'POST',
-                headers: { 'X-CSRFToken': '{{ csrf_token() }}' },
-                body: formData
+            const res = await fetch("{{ url_for('cli.salvar_resposta', id=aplicacao.id) }}", {
+                method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token() }}'},
+                body:JSON.stringify({pergunta_id:pid, resposta:resp, observacao:obs, timestamp:Date.now()})
             });
-            const data = await res.json();
-            
-            if (data.sucesso) {
-                await dbLocal.fotos.delete(tempId);
-                const el = document.getElementById(`foto-local-${tempId}`);
-                if(el) {
-                    el.innerHTML = `
-                        <img src="${URL.createObjectURL(file)}" class="img-thumbnail rounded" style="height: 100px; width: 100px; object-fit: cover;">
-                        <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0 translate-middle rounded-circle p-0 d-flex align-items-center justify-content-center shadow-sm" style="width: 24px; height: 24px;" onclick="deletarFotoServidor(${data.foto_id})">
-                            <i class="fas fa-times"></i>
-                        </button>
-                        <span class="position-absolute bottom-0 end-0 badge bg-success p-1 border border-white"><i class="fas fa-check"></i></span>
-                    `;
-                    el.id = `foto-server-${data.foto_id}`;
+            if(res.ok) {
+                const d = await res.json();
+                if(fb) fb.innerHTML = '<i class="fas fa-check text-success"></i>';
+                setTimeout(()=>fb.innerHTML='',2000);
+                if(d.resposta_id) {
+                    const fi = document.getElementById(`input-foto-${pid}`);
+                    if(fi) fi.dataset.respostaId = d.resposta_id;
                 }
-                return true;
-            }
-            throw new Error();
-        } catch (e) {
-            console.error(e);
-            const badge = document.getElementById(`badge-${tempId}`);
-            if(badge) {
-                badge.className = "position-absolute bottom-0 end-0 badge bg-danger p-1";
-                badge.innerHTML = '<i class="fas fa-exclamation"></i>';
-            }
-            return false;
-        }
-    }
-
-    async function deletarFotoServidor(fotoId) {
-        if(!confirm('Tem certeza que deseja excluir esta evidência?')) return;
-        const el = document.getElementById(`foto-server-${fotoId}`);
-        if(el) el.style.opacity = '0.5';
-
-        try {
-            const res = await fetch(`/cli/foto/${fotoId}/deletar`, {
-                method: 'DELETE',
-                headers: { 'X-CSRFToken': '{{ csrf_token() }}' }
-            });
-            const data = await res.json();
-            
-            if(data.sucesso) {
-                if(el) el.remove();
-            } else {
-                alert('Erro ao excluir: ' + (data.erro || 'Desconhecido'));
-                if(el) el.style.opacity = '1';
-            }
+            } else throw new Error();
         } catch(e) {
-            alert('Erro de conexão ao excluir.');
-            if(el) el.style.opacity = '1';
+            let f = JSON.parse(localStorage.getItem('fila_respostas')||'[]');
+            f = f.filter(i=>i.pergunta_id!=pid);
+            f.push({pergunta_id:pid, resposta:resp, observacao:obs, timestamp:Date.now()});
+            localStorage.setItem('fila_respostas', JSON.stringify(f));
+            if(fb) fb.innerHTML = '<i class="fas fa-save text-warning"></i>';
         }
     }
 
-    async function deletarFotoLocal(tempId) {
-        if(!confirm("Remover esta foto pendente?")) return;
-        const el = document.getElementById(`foto-local-${tempId}`);
-        if(el) el.remove();
-        await dbLocal.fotos.delete(tempId);
+    async function handleFotoUpload(input) {
+        const file = input.files[0]; if(!file) return;
+        input.value='';
+        const pid=input.dataset.perguntaId; const tid=Date.now();
+        const g=document.getElementById(`galeria-fotos-${pid}`);
+        const d=document.createElement('div'); d.id=`foto-local-${tid}`;
+        d.className='position-relative d-inline-block flex-shrink-0'; d.style.width='70px'; d.style.height='70px';
+        d.innerHTML=`<img src="${URL.createObjectURL(file)}" class="rounded w-100 h-100 border border-primary" style="object-fit:cover;opacity:0.6"><div class="position-absolute top-50 start-50 translate-middle"><i class="fas fa-spinner fa-spin text-primary"></i></div>`;
+        g.appendChild(d);
+        
+        await dbLocal.fotos.add({id:tid, pergunta_id:pid, blob:file, nome:file.name, timestamp:Date.now(), resposta_id:input.dataset.respostaId||null});
+        
+        if(navigator.onLine) enviarFoto(file, pid, tid, input.dataset.respostaId, d);
+        else {
+            d.querySelector('img').classList.replace('border-primary','border-warning');
+            d.querySelector('div.position-absolute').innerHTML='<i class="fas fa-clock text-warning"></i>';
+        }
+    }
+
+    async function enviarFoto(file, pid, tid, rid, div) {
+        if(!rid) { div.querySelector('div.position-absolute').innerHTML='<i class="fas fa-hourglass-half text-warning"></i>'; return; }
+        const fd=new FormData(); fd.append('foto', file);
+        try {
+            const r=await fetch(`/cli/resposta/${rid}/upload-foto`,{method:'POST',headers:{'X-CSRFToken':'{{ csrf_token() }}'},body:fd});
+            if(r.ok) {
+                const d=await r.json();
+                if(d.sucesso) {
+                    await dbLocal.fotos.delete(tid);
+                    div.outerHTML=`<div class="position-relative d-inline-block flex-shrink-0" id="foto-server-${d.foto_id}" style="width:70px;height:70px;"><img src="${URL.createObjectURL(file)}" class="rounded w-100 h-100 border border-success" style="object-fit:cover;" onclick="window.open(this.src)"><button type="button" class="btn btn-danger btn-sm p-0 position-absolute top-0 end-0 translate-middle rounded-circle shadow-sm" style="width:20px;height:20px;font-size:10px;" onclick="deletarFotoServidor(${d.foto_id})"><i class="fas fa-times"></i></button></div>`;
+                }
+            } else throw new Error();
+        } catch(e) { div.querySelector('div.position-absolute').innerHTML='<i class="fas fa-wifi text-danger"></i>'; }
+    }
+
+    async function baixarParaOffline() {
+        const b=document.getElementById('btn-offline-sync'); b.disabled=true; b.innerHTML='<i class="fas fa-spinner fa-spin"></i>';
+        try {
+            const c=await caches.open('qualigestor-dynamic-v2'); await c.add(window.location.href);
+            b.classList.replace('btn-outline-primary','btn-success'); b.innerHTML='<i class="fas fa-check"></i> Salvo';
+        } catch(e){ alert('Erro ao salvar'); b.innerHTML='Tentar'; b.disabled=false; }
     }
 
     async function sincronizarPendencias() {
-        const filaTexto = JSON.parse(localStorage.getItem('fila_respostas_offline') || '[]');
-        const fotosOffline = await dbLocal.fotos.toArray();
-        if (filaTexto.length === 0 && fotosOffline.length === 0) return;
-
-        const alertSync = document.getElementById('sync-alert');
-        if(alertSync) alertSync.classList.remove('d-none');
-
-        for (let item of filaTexto) {
-            try {
-                const res = await fetch("{{ url_for('cli.salvar_resposta', id=aplicacao.id) }}", {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
-                    body: JSON.stringify(item)
-                });
-                const data = await res.json();
-                if (data.sucesso && data.resposta_id) {
-                    await dbLocal.fotos.filter(f => f.pergunta_id == item.pergunta_id).modify({ resposta_id: data.resposta_id });
-                }
-            } catch (e) {}
+        if(!navigator.onLine) return;
+        let f=JSON.parse(localStorage.getItem('fila_respostas')||'[]');
+        if(f.length>0) {
+            const t=new bootstrap.Toast(document.getElementById('liveToast')); t.show();
+            for(let i of f) { try{ await fetch("{{ url_for('cli.salvar_resposta', id=aplicacao.id) }}", {method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token() }}'},body:JSON.stringify(i)}); }catch(e){} }
+            localStorage.removeItem('fila_respostas');
         }
-        localStorage.removeItem('fila_respostas_offline');
-
-        const fotosAtualizadas = await dbLocal.fotos.toArray();
-        for (let foto of fotosAtualizadas) {
-            if (foto.resposta_id) {
-                await enviarFoto(foto.blob, foto.resposta_id, foto.pergunta_id, foto.id);
-            }
-        }
-
-        if(alertSync) setTimeout(() => alertSync.classList.add('d-none'), 2000);
-    }
-
-    async function restaurarBadgesPendentes() {
-        const pendentes = await dbLocal.fotos.toArray();
-        pendentes.forEach(f => {
-            const galeria = document.getElementById(`galeria-fotos-${f.pergunta_id}`);
-            if (galeria && !document.getElementById(`foto-local-${f.id}`)) {
-                const div = document.createElement('div');
-                div.id = `foto-local-${f.id}`;
-                div.className = 'position-relative d-inline-block foto-item me-2 mb-2';
-                div.innerHTML = `
-                    <img src="${URL.createObjectURL(f.blob)}" class="img-thumbnail rounded" style="height: 100px; width: 100px; object-fit: cover; opacity: 0.6">
-                    <button onclick="deletarFotoLocal(${f.id})" type="button" class="btn btn-secondary btn-sm position-absolute top-0 end-0 translate-middle rounded-circle p-0 d-flex align-items-center justify-content-center" style="width:24px;height:24px;"><i class="fas fa-times" style="font-size:10px"></i></button>
-                    <span class="position-absolute bottom-0 end-0 badge bg-warning p-1"><i class="fas fa-clock"></i></span>
-                `;
-                galeria.appendChild(div);
-            }
-        });
-    }
-
-    function atualizarUIConexao(online) {
-        const txt = document.getElementById('status-texto');
-        const icon = document.getElementById('status-conexao');
-        if(online) {
-            icon.className = 'd-flex align-items-center text-success small fw-bold';
-            txt.innerText = 'Online - Sincronizado';
-        } else {
-            icon.className = 'd-flex align-items-center text-warning small fw-bold';
-            txt.innerText = 'Offline - Salvando Localmente';
+        const fs=await dbLocal.fotos.toArray();
+        for(let ft of fs) {
+            let rid=ft.resposta_id;
+            if(!rid) { const i=document.getElementById(`input-foto-${ft.pergunta_id}`); if(i&&i.dataset.respostaId) rid=i.dataset.respostaId; }
+            if(rid) { const d=document.createElement('div'); d.innerHTML='<div></div>'; await enviarFoto(ft.blob, ft.pergunta_id, ft.id, rid, d); }
         }
     }
 
-    // VALIDAÇÃO E ENVIO
-    document.getElementById('form-finalizar').addEventListener('submit', function(e) {
-        const alerta = document.getElementById('alerta-validacao');
-        const lista = document.getElementById('alerta-validacao-lista');
-        let erros = [];
-
-        // 1. Perguntas Obrigatórias
-        document.querySelectorAll('.pergunta-container[data-obrigatoria="true"]').forEach(el => {
-            const pid = el.dataset.perguntaId;
-            const val = el.querySelector(`input[name="resposta-${pid}"]`)?.value || 
-                        el.querySelector(`textarea[name="resposta-${pid}"]`)?.value ||
-                        el.querySelector(`select[name="resposta-${pid}"]`)?.value ||
-                        el.querySelector('input:checked')?.value;
-            
-            if (!val || val === "") {
-                erros.push(`Pergunta não respondida: ${el.querySelector('label').innerText.split('\n')[0]}`);
-                el.classList.add('border-danger');
-            }
-        });
-
-        // 2. Fotos Obrigatórias
-        document.querySelectorAll('input[type="file"][data-obrigatoria="true"]').forEach(inp => {
-            const pid = inp.dataset.perguntaId;
-            const container = inp.closest('.pergunta-container');
-            const galeria = document.getElementById(`galeria-fotos-${pid}`);
-            const temFoto = galeria && galeria.children.length > 0;
-
-            if (!temFoto) {
-                erros.push(`Foto obrigatória faltando em: ${container.querySelector('label').innerText.split('\n')[0]}`);
-                container.classList.add('border-danger');
-            }
-        });
-
-        // 3. Observações Obrigatórias
-        document.querySelectorAll('textarea[data-obrigatoria="true"]').forEach(obs => {
-            if (!obs.value.trim()) {
-                const container = obs.closest('.pergunta-container');
-                erros.push(`Observação obrigatória faltando em: ${container.querySelector('label').innerText.split('\n')[0]}`);
-                container.classList.add('border-danger');
-            }
-        });
-
-        if (erros.length > 0) {
-            e.preventDefault();
-            lista.innerHTML = erros.map(err => `<li>${err}</li>`).join('');
-            alerta.classList.remove('d-none');
-            alerta.scrollIntoView({block: 'center'});
-        } else {
-            // MENSAGEM DIFERENTE DEPENDENDO DA FASE
-            let msg = MODO_ASSINATURA 
-                ? "Confirma a Assinatura e a Finalização DEFINITIVA desta auditoria?" 
-                : "Confirma o encerramento da coleta? Você irá para a etapa de Revisão.";
-                
-            if(!confirm(msg)) e.preventDefault();
+    function initCanvas(){ 
+        const c=document.getElementById('canvas-unico'); 
+        if(c){ 
+            signaturePadGlobal=new SignaturePad(c,{backgroundColor:'rgb(255,255,255)'}); 
+            // O resize é chamado também na inicialização
+            resizeCanvas();
         }
-    });
+    }
+    
+    window.abrirModalAssinatura=(pid,t)=>{ 
+        currentPerguntaId=pid; 
+        if(signaturePadGlobal) signaturePadGlobal.clear(); 
+        modalAssinatura.show(); 
+    };
+    
+    window.confirmarAssinaturaModal=()=>{ 
+        if(signaturePadGlobal.isEmpty()){alert('Assine.');return;} 
+        const d=signaturePadGlobal.toDataURL(); 
+        const input = document.getElementById(`resposta-input-${currentPerguntaId}`);
+        input.value=d; 
+        
+        const img = document.getElementById(`img-preview-${currentPerguntaId}`);
+        if(img) {
+            img.src=d; 
+            img.style.display='block'; 
+        }
+        
+        const ph = document.getElementById(`placeholder-${currentPerguntaId}`);
+        if(ph) ph.classList.add('d-none');
+        
+        salvarResposta(input); 
+        modalAssinatura.hide(); 
+    };
+    
+    window.limparCanvasAtual=()=>signaturePadGlobal.clear();
+    window.deletarFotoServidor=async(id)=>{ if(!confirm('Apagar?'))return; document.getElementById(`foto-server-${id}`).remove(); fetch(`/cli/foto/${id}/deletar`,{method:'DELETE',headers:{'X-CSRFToken':'{{ csrf_token() }}'}}); };
 </script>
 {% endblock %}

@@ -117,7 +117,7 @@ def create_app() -> Flask:
     # -------------------------------------------------------------------------
     # Helpers para templates
     # -------------------------------------------------------------------------
-    try:
+   
         from .utils.helpers import opcao_pergunta_por_id  # type: ignore
 
         @app.context_processor
@@ -126,10 +126,7 @@ def create_app() -> Flask:
                 opcao_pergunta_por_id=opcao_pergunta_por_id,
                 allowed_file=allowed_file
             )
-    except Exception:
-        @app.context_processor
-        def inject_custom_functions():
-            return dict(allowed_file=allowed_file)
+    
 
     # Helpers de navegação globais
     def has_endpoint(name: str) -> bool:
