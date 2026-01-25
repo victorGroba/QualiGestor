@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qualigestor-dynamic-v3'; // Subi a versão
+const CACHE_NAME = 'qualigestor-dynamic-v5'; // Subi a versão
 
 // 1. Arquivos CRÍTICOS (Se falhar, o app não funciona offline)
 const CRITICAL_ASSETS = [
