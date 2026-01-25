@@ -245,7 +245,7 @@
                                                 {% endif %}
                                             {% endif %}
 
-                                            {% if (resposta.fotos.count() > 0) or (resposta.caminho_foto) %}
+                                            {% if (resposta.fotos|length > 0) or (resposta.caminho_foto) %}
                                                 <div class="mt-1">
                                                     <i class="fas fa-camera text-secondary small" title="Possui evidência"></i>
                                                 </div>
