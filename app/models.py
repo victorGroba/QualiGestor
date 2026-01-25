@@ -429,7 +429,7 @@ class RespostaPergunta(db.Model):
 
     # --- RELACIONAMENTOS ---
     # Lista de fotos (tanto 'evidencia' quanto 'correcao')
-    fotos = db.relationship('FotoResposta', backref='resposta_pai', lazy='dynamic', cascade='all, delete-orphan')
+    fotos = db.relationship('FotoResposta', backref='resposta_pai', lazy='select', cascade='all, delete-orphan')
 
 
 # === NOVA CLASSE 

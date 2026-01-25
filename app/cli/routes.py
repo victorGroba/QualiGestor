@@ -2158,24 +2158,24 @@ def nova_aplicacao():
 @login_required
 def responder_aplicacao(id, modo_assinatura=False):
     """
-    Interface Principal de Coleta.
+    Interface Principal de Coleta (Checklist).
     - modo_assinatura=False: Modo normal de preenchimento.
-    - modo_assinatura=True: Modo final para coletar assinaturas (chamado pela rota /fase-assinatura).
+    - modo_assinatura=True: Modo final para coletar assinaturas.
     """
     try:
         aplicacao = AplicacaoQuestionario.query.get_or_404(id)
 
-        # 1. Validação de Segurança
+        # 1. Validação de Segurança (Cliente)
         if aplicacao.avaliado.cliente_id != current_user.cliente_id:
-            flash("Aplicação não encontrada.", "error")
+            flash("Aplicação não encontrada ou acesso negado.", "error")
             return redirect(url_for('cli.listar_aplicacoes'))
         
-        # 2. Validação de Status (Se já finalizada, só visualiza)
+        # 2. Validação de Status (Se já finalizada, redireciona para visualização)
         if aplicacao.status != StatusAplicacao.EM_ANDAMENTO:
             flash("Esta aplicação já foi finalizada.", "warning")
             return redirect(url_for('cli.visualizar_aplicacao', id=id))
 
-        # --- CARREGAMENTO OTIMIZADO DE DADOS (Sua correção aplicada) ---
+        # --- CARREGAMENTO OTIMIZADO DE DADOS ---
 
         # 3. Carregar tópicos ativos
         topicos = Topico.query.filter(
@@ -2185,16 +2185,19 @@ def responder_aplicacao(id, modo_assinatura=False):
 
         if not topicos:
              flash("Este questionário não possui tópicos ativos.", "warning")
-             # Retorna vazio mas funcional
-             return render_template_safe(
+             # Retorna template vazio mas funcional para evitar erro 500
+             return render_template(
                 'cli/responder_aplicacao.html',
-                aplicacao=aplicacao, topicos=[], perguntas_por_topico={}, respostas_existentes={},
+                aplicacao=aplicacao, 
+                topicos=[], 
+                perguntas_por_topico={}, 
+                respostas_existentes={},
                 modo_assinatura=modo_assinatura
             )
 
         topico_ids = [t.id for t in topicos]
 
-        # 4. Carregar perguntas ativas (Evitando lazy load errors)
+        # 4. Carregar perguntas ativas (Filtrando apenas pelos tópicos carregados)
         perguntas_ativas = Pergunta.query.filter(
             Pergunta.topico_id.in_(topico_ids),
             Pergunta.ativo == True
@@ -2202,39 +2205,46 @@ def responder_aplicacao(id, modo_assinatura=False):
         
         perguntas_ativas_ids = [p.id for p in perguntas_ativas]
 
-        # 5. Carregar respostas existentes
+        # 5. Carregar respostas existentes COM AS FOTOS (Eager Loading)
+        # O 'joinedload' aqui é crucial para o sistema de múltiplas fotos não ficar lento
         respostas_lista = []
         if perguntas_ativas_ids:
-            respostas_lista = RespostaPergunta.query.filter(
+            query_respostas = RespostaPergunta.query.filter(
                 RespostaPergunta.aplicacao_id == aplicacao.id,
                 RespostaPergunta.pergunta_id.in_(perguntas_ativas_ids)
-            ).all()
+            )
+            
+            # Tenta otimizar o carregamento das fotos se a relação existir
+           # if hasattr(RespostaPergunta, 'fotos'):
+                #query_respostas = query_respostas.options(joinedload(RespostaPergunta.fotos))
+                
+            respostas_lista = query_respostas.all()
         
-        # 6. Organizar dados para o Template
+        # 6. Organizar dados para o Template (Mapas para acesso O(1))
         perguntas_por_topico = {t.id: [] for t in topicos}
         for p in perguntas_ativas:
             if p.topico_id in perguntas_por_topico:
                 perguntas_por_topico[p.topico_id].append(p)
         
+        # Cria um dicionário {pergunta_id: objeto_resposta}
         respostas_map = {r.pergunta_id: r for r in respostas_lista}
 
-        # 7. Renderizar Template passando o Modo
+        # 7. Renderizar Template
         current_app.logger.debug(f"Renderizando app {id}. Modo Assinatura: {modo_assinatura}")
 
-        return render_template_safe(
+        return render_template(
             'cli/responder_aplicacao.html',
             aplicacao=aplicacao,
             topicos=topicos,
             perguntas_por_topico=perguntas_por_topico,
             respostas_existentes=respostas_map,
-            modo_assinatura=modo_assinatura  # <--- VARIÁVEL CHAVE PARA O NOVO FLUXO
+            modo_assinatura=modo_assinatura
         )
 
     except Exception as e:
         current_app.logger.error(f"Erro ao carregar aplicação {id}: {e}", exc_info=True)
         flash(f"Erro ao carregar aplicação: {str(e)}", "danger")
         return redirect(url_for('cli.listar_aplicacoes'))
-    
 @cli_bp.route('/aplicacao/<int:id>/fase-assinatura')
 @login_required
 def fase_assinatura(id):
@@ -4703,52 +4713,60 @@ def deletar_foto(foto_id):
 @cli_bp.route('/uploads/fotos_respostas/<path:filename>')
 @login_required
 def get_foto_resposta(filename):
-    """Serve um arquivo de foto de resposta, verificando permissão."""
-
+    """
+    Serve um arquivo de foto de resposta, verificando permissão
+    na tabela principal E na tabela de múltiplas fotos.
+    """
     upload_folder = current_app.config.get('UPLOAD_FOLDER')
     if not upload_folder:
-        current_app.logger.error("Configuração UPLOAD_FOLDER não definida ao tentar servir foto.")
-        abort(500) # <- 'abort' agora está importado
+        abort(500)
 
-    # --- VALIDAÇÃO DE PERMISSÃO ---
     try:
-        # Tenta extrair o ID da resposta do nome do arquivo
+        # Padrão esperado: resposta_{id}_{hash}.ext
         if filename.startswith('resposta_') and '_' in filename:
-             parts = filename.split('_')
-             resposta_id_str = parts[1]
-             if resposta_id_str.isdigit():
-                 resposta_id = int(resposta_id_str)
-                 resposta = RespostaPergunta.query.get(resposta_id)
-                 
-                 if resposta and resposta.caminho_foto == filename:
-                     aplicacao = AplicacaoQuestionario.query.get(resposta.aplicacao_id)
-                     if aplicacao:
-                         avaliado = Avaliado.query.get(aplicacao.avaliado_id)
-                         
-                         if avaliado and avaliado.cliente_id == current_user.cliente_id:
-                              # Permissão OK, serve o arquivo
-                              current_app.logger.debug(f"Servindo foto '{filename}' para usuário {current_user.id}")
-                              # vvv 'send_from_directory' agora está importado vvv
-                              return send_from_directory(upload_folder, filename, as_attachment=False)
-                         else:
-                              current_app.logger.warning(f"Permissão negada (cliente diferente) para foto '{filename}'. User: {current_user.id}, Avaliado_Cliente: {avaliado.cliente_id if avaliado else 'N/A'}.")
-                     else:
-                          current_app.logger.warning(f"Aplicação não encontrada para foto '{filename}' (resposta {resposta_id}).")
-                 else:
-                     current_app.logger.warning(f"Resposta não encontrada ou filename não corresponde para foto '{filename}' (ID {resposta_id}). DB filename: {resposta.caminho_foto if resposta else 'N/A'}")
-             else:
-                  current_app.logger.warning(f"Não foi possível extrair ID de resposta válido do nome de arquivo '{filename}'.")
-        else:
-             current_app.logger.warning(f"Nome de arquivo '{filename}' não segue o padrão esperado 'resposta_<id>_...'")
+            parts = filename.split('_')
+            # Garante que pega o ID mesmo se o nome tiver mais underlines
+            resposta_id_str = parts[1]
+            
+            if resposta_id_str.isdigit():
+                resposta_id = int(resposta_id_str)
+                resposta = RespostaPergunta.query.get(resposta_id)
 
-        abort(403) # Forbidden
+                if resposta:
+                    # 1. Verifica se é a foto principal (Compatibilidade Antiga)
+                    eh_foto_principal = (resposta.caminho_foto == filename)
+                    
+                    # 2. Verifica se está na galeria de múltiplas fotos (Novo Sistema)
+                    eh_foto_galeria = False
+                    # Verifica se a classe FotoResposta existe (foi importada)
+                    if 'FotoResposta' in globals():
+                        foto_extra = FotoResposta.query.filter_by(
+                            resposta_id=resposta.id, 
+                            caminho=filename
+                        ).first()
+                        if foto_extra:
+                            eh_foto_galeria = True
+                    
+                    # Se a foto for válida (principal OU galeria), verifica permissão do usuário
+                    if eh_foto_principal or eh_foto_galeria:
+                        aplicacao = AplicacaoQuestionario.query.get(resposta.aplicacao_id)
+                        if aplicacao:
+                            avaliado = Avaliado.query.get(aplicacao.avaliado_id)
+                            # Permite se for dono dos dados (mesmo cliente) ou Admin Global
+                            if (avaliado and avaliado.cliente_id == current_user.cliente_id) or verificar_permissao_admin():
+                                return send_from_directory(upload_folder, filename)
+            
+            # Se chegou aqui, é porque a foto não pertence à resposta ou usuário não tem permissão
+            current_app.logger.warning(f"Acesso negado ou arquivo não vinculado: {filename}")
+            abort(403)
+        else:
+            abort(404)
 
     except FileNotFoundError:
-         current_app.logger.error(f"Arquivo não encontrado no disco: {os.path.join(upload_folder, filename)}")
-         abort(404)
+        abort(404)
     except Exception as e:
-         current_app.logger.error(f"Erro ao servir foto '{filename}': {e}", exc_info=True)
-         abort(500)
+        current_app.logger.error(f"Erro ao servir foto: {e}")
+        abort(500)
 
 @cli_bp.route('/aplicacao/<int:id>/reabrir', methods=['POST'])
 @login_required

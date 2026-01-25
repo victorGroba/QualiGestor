@@ -26,3 +26,7 @@ app/cli/QualiGestor/
 instance/uploads/
 simular_atraso.py
 node_modules/
+
+# Ignorar backups de banco
+backup_producao.sql
+*.sql

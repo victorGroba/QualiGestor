@@ -1,53 +1,90 @@
-const CACHE_NAME = 'qualigestor-dynamic-v2'; // Versão nova para forçar atualização
-const STATIC_ASSETS = [
+const CACHE_NAME = 'qualigestor-dynamic-v3'; // Subi a versão
+
+// 1. Arquivos CRÍTICOS (Se falhar, o app não funciona offline)
+const CRITICAL_ASSETS = [
     '/static/css/dashboard.css',
-    '/static/js/sidebar.js', // Se existir
-    'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css',
-    'https://unpkg.com/dexie@latest/dist/dexie.js',
     '/static/img/logo.jpg',
-    '/cli/listar-aplicacoes' // Cacheia a lista inicial também
+    // Não inclua rotas dinâmicas (ex: /cli/...) aqui na instalação!
+    // Deixe elas serem cacheadas na hora que o usuário navega (Runtime Caching).
+];
+
+// 2. Arquivos OPCIONAIS (Se falhar, o app continua funcionando)
+const OPTIONAL_ASSETS = [
+    '/static/js/sidebar.js',
+    'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css',
+    'https://unpkg.com/dexie@latest/dist/dexie.js'
 ];
 
 self.addEventListener('install', event => {
-    self.skipWaiting(); // Ativa imediatamente sem esperar fechar o navegador
+    self.skipWaiting();
+    
     event.waitUntil(
-        caches.open(CACHE_NAME).then(cache => cache.addAll(STATIC_ASSETS))
+        caches.open(CACHE_NAME).then(async cache => {
+            // Instala os críticos (Obrigatório)
+            await cache.addAll(CRITICAL_ASSETS);
+            
+            // Tenta instalar os opcionais um por um (Não quebra se falhar)
+            for (let url of OPTIONAL_ASSETS) {
+                try {
+                    await cache.add(url);
+                } catch (err) {
+                    console.log(`[SW] Aviso: Não foi possível cachear ${url} na instalação.`);
+                }
+            }
+        })
     );
 });
 
 self.addEventListener('activate', event => {
-    event.waitUntil(self.clients.claim()); // Assume o controle das páginas abertas
+    event.waitUntil(
+        caches.keys().then(keys => {
+            return Promise.all(
+                keys.map(key => {
+                    if (key !== CACHE_NAME) {
+                        return caches.delete(key);
+                    }
+                })
+            );
+        }).then(() => self.clients.claim())
+    );
 });
 
 self.addEventListener('fetch', event => {
     const request = event.request;
 
-    // 1. Lógica para PÁGINAS HTML (Navegação)
-    // Tenta pegar da rede primeiro (para ter o dado mais fresco),
-    // se falhar (offline), pega a cópia salva no cache.
+    // Apenas requisições GET
+    if (request.method !== 'GET') return;
+
+    // 1. Estratégia para HTML (Navegação): Network First -> Cache
     if (request.mode === 'navigate') {
         event.respondWith(
             fetch(request)
                 .then(response => {
-                    // Se a rede funcionou, salva uma cópia nova no cache para o futuro
                     const responseClone = response.clone();
                     caches.open(CACHE_NAME).then(cache => cache.put(request, responseClone));
                     return response;
                 })
                 .catch(() => {
-                    // Se a rede falhou, entrega o que tiver no cofre
                     return caches.match(request).then(response => {
                         if (response) return response;
-                        // Opcional: retornar uma página de "Você está offline" genérica
+                        return new Response('<h1>Você está offline</h1><p>Recarregue quando tiver conexão.</p>', {
+                            headers: { 'Content-Type': 'text/html' }
+                        });
                     });
                 })
         );
         return;
     }
 
-    // 2. Lógica para Arquivos Estáticos (CSS, JS, Imagens)
-    // Tenta o cache primeiro (mais rápido), se não tiver, vai na rede.
+    // 2. Estratégia para Estáticos (CSS, JS, Img): Cache First -> Network
     event.respondWith(
-        caches.match(request).then(response => response || fetch(request))
+        caches.match(request).then(response => {
+            return response || fetch(request).then(networkResponse => {
+                return caches.open(CACHE_NAME).then(cache => {
+                    cache.put(request, networkResponse.clone());
+                    return networkResponse;
+                });
+            });
+        })
     );
 });
