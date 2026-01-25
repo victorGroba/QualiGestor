@@ -215,7 +215,7 @@
                                                         <div id="galeria-fotos-{{ pergunta.id }}" class="d-flex gap-2 overflow-auto py-2" style="white-space: nowrap;">
                                                             {% if resposta_salva and resposta_salva.fotos %}
                                                                 {% for foto in resposta_salva.fotos %}
-                                                                <div class="position-relative d-inline-block" id="foto-server-{{ foto.id }}" style="width: 70px; height: 70px; flex-shrink: 0;">
+                                                                <div class="position-relative d-inline-block flex-shrink-0 me-2" id="foto-server-{{ foto.id }}" style="width: 70px; height: 70px;">
                                                                     <img src="{{ url_for('cli.get_foto_resposta', filename=foto.caminho) }}" 
                                                                          class="rounded w-100 h-100 border" style="object-fit: cover; cursor: pointer;"
                                                                          onclick="window.open(this.src, '_blank')">
@@ -301,33 +301,24 @@
     const MODO_ASSINATURA = {{ 'true' if modo_assinatura else 'false' }};
     const CSRF_TOKEN = '{{ csrf_token() }}';
 
-    // =========================================================================
     // 1. BANCO DE DADOS OFFLINE (Dexie.js) - COM ISOLAMENTO POR APLICAÇÃO
-    // =========================================================================
-    // Atualizei a versão para 2 para forçar atualização da estrutura se necessário
     const dbLocal = new Dexie("QualiGestorDB");
     dbLocal.version(2).stores({
-        // Adicionei 'aplicacao_id' ao índice para podermos filtrar corretamente
         fotos: 'id, aplicacao_id, pergunta_id, resposta_id, blob, nome, timestamp'
     });
 
     let signaturePadGlobal = null;
     let currentPerguntaId = null;
-    
-    // Elemento do Modal
     const modalElement = document.getElementById('modalAssinaturaUnico');
     const modalAssinatura = new bootstrap.Modal(modalElement);
-    
-    // =========================================================================
+
     // 2. INICIALIZAÇÃO
-    // =========================================================================
     document.addEventListener('DOMContentLoaded', async () => {
         initCanvas();
-        reconhecerRespostasExistentes(); // Reconhece o que veio do servidor (HTML renderizado)
+        reconhecerRespostasExistentes(); // Reconhece o que veio do servidor
         await restaurarEstadoOffline();  // Reconhece o que o usuário digitou mas não subiu
         atualizarProgressoGlobal();
         
-        // Auto-scroll se for assinatura
         if (MODO_ASSINATURA) {
             setTimeout(() => {
                 const conclusao = document.getElementById('card-conclusao');
@@ -342,11 +333,9 @@
         window.addEventListener('offline', () => updateStatusConexao(false));
         updateStatusConexao(navigator.onLine);
         
-        // Se estiver online ao abrir, tenta sincronizar o que estava pendente desta aplicação
         if(navigator.onLine) sincronizarPendencias();
     });
 
-    // Ajuste do Canvas
     modalElement.addEventListener('shown.bs.modal', function () { resizeCanvas(); });
     function resizeCanvas() {
         const canvas = document.getElementById('canvas-unico');
@@ -363,12 +352,11 @@
         document.querySelectorAll('.question-card').forEach(card => {
             const radio = card.querySelector('input[type="radio"]:checked');
             const text = card.querySelector('input[type="text"], input[type="number"], input[type="date"], textarea, select');
-            const hidden = card.querySelector('input[type="hidden"]'); // Assinatura
+            const hidden = card.querySelector('input[type="hidden"]'); 
             
             if (radio || (text && text.value.trim() !== '') || (hidden && hidden.value !== '')) {
                 card.classList.remove('border', 'border-danger');
-                let inputValido = radio || text || hidden;
-                aplicarRegraConformidade(inputValido);
+                aplicarRegraConformidade(radio || text || hidden);
             }
         });
     }
@@ -379,7 +367,6 @@
         if (div) {
             div.className = online ? 'alert alert-success border py-2 mb-3' : 'alert alert-warning border py-2 mb-3';
             div.innerHTML = online ? '<i class="fas fa-wifi me-2"></i><span class="fw-bold small">Online - Sincronizado</span>' : '<i class="fas fa-cloud-download-alt me-2"></i><span class="fw-bold small">Modo Offline Ativo</span>';
-            // O botão de baixar só fica habilitado se tiver online, para garantir o download inicial
             if(btn) {
                 if(online) {
                     btn.disabled = false;
@@ -437,7 +424,6 @@
         }
     }
 
-    // Validação do Formulário ao Submeter
     document.getElementById('form-finalizar').addEventListener('submit', function(e) {
         let erros = [];
         let primeiroErroElemento = null;
@@ -493,31 +479,18 @@
         }
     });
 
-    // =========================================================================
-    // 3. LÓGICA DE PERSISTÊNCIA E SINCRONIZAÇÃO (CORRIGIDA)
-    // =========================================================================
-
-    // Chave única para esta aplicação no LocalStorage
+    // 3. LÓGICA DE PERSISTÊNCIA E SINCRONIZAÇÃO
     const STORAGE_KEY = `fila_respostas_${APLICACAO_ID}`;
 
     async function restaurarEstadoOffline() {
-        // 1. Restaura Textos/Opções do LocalStorage ESPECÍFICO desta aplicação
         const fila = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-        
         fila.forEach(item => {
             const pid = item.pergunta_id;
-            // Só restaura se pertencer à pergunta atual (embora a chave já filtre a app, segurança extra)
             const inputTxt = document.querySelector(`[name="resposta-${pid}"]:not([type="radio"])`);
-            if(inputTxt) { 
-                inputTxt.value = item.resposta; 
-                aplicarRegraConformidade(inputTxt); 
-            }
+            if(inputTxt) { inputTxt.value = item.resposta; aplicarRegraConformidade(inputTxt); }
             if(item.resposta) {
                 const radio = document.querySelector(`input[name="resposta-${pid}"][value="${item.resposta}"]`);
-                if(radio) { 
-                    radio.checked = true; 
-                    aplicarRegraConformidade(radio); 
-                }
+                if(radio) { radio.checked = true; aplicarRegraConformidade(radio); }
             }
             if(item.observacao) {
                 const obs = document.getElementById(`obs-${pid}`);
@@ -525,24 +498,28 @@
             }
         });
 
-        // 2. Restaura Fotos do Dexie (Filtrando por APLICACAO_ID)
         try {
-            // Filtra fotos que pertencem a ESTA aplicação
             const fotos = await dbLocal.fotos.where('aplicacao_id').equals(APLICACAO_ID).toArray();
-            
             fotos.forEach(f => {
                 const g = document.getElementById(`galeria-fotos-${f.pergunta_id}`);
-                // Verifica se já não existe na tela (evita duplicar com o que veio do servidor)
                 if(g && !document.getElementById(`foto-local-${f.id}`)) {
                     const d = document.createElement('div'); d.id=`foto-local-${f.id}`;
-                    d.className='position-relative d-inline-block flex-shrink-0'; d.style.width='70px'; d.style.height='70px';
-                    d.innerHTML=`<img src="${URL.createObjectURL(f.blob)}" class="rounded w-100 h-100 border border-warning" style="object-fit:cover;">`;
+                    d.className='position-relative d-inline-block flex-shrink-0 me-2'; d.style.width='70px'; d.style.height='70px';
+                    // ADICIONEI O BOTÃO DE DELETAR AQUI TAMBÉM NA RESTAURAÇÃO
+                    d.innerHTML=`
+                        <img src="${URL.createObjectURL(f.blob)}" class="rounded w-100 h-100 border border-warning" style="object-fit:cover;">
+                        <div class="position-absolute top-50 start-50 translate-middle status-icon">
+                            <i class="fas fa-clock text-warning"></i>
+                        </div>
+                        <button type="button" class="btn btn-danger btn-sm p-0 position-absolute top-0 end-0 translate-middle rounded-circle shadow-sm" 
+                                style="width:20px;height:20px;font-size:10px;z-index:10;" onclick="deletarFotoLocal(${f.id})">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    `;
                     g.appendChild(d);
                 }
             });
-        } catch(e){
-            console.error("Erro ao restaurar fotos:", e);
-        }
+        } catch(e){ console.error("Erro ao restaurar fotos:", e); }
     }
 
     async function salvarResposta(input, isObs=false) {
@@ -563,7 +540,6 @@
         if(fb) fb.innerHTML = '<i class="fas fa-spinner fa-spin text-muted"></i>';
         
         try {
-            // Tenta salvar no servidor
             const res = await fetch("{{ url_for('cli.salvar_resposta', id=aplicacao.id) }}", {
                 method:'POST', 
                 headers:{'Content-Type':'application/json','X-CSRFToken': CSRF_TOKEN},
@@ -578,13 +554,9 @@
                     const fi = document.getElementById(`input-foto-${pid}`);
                     if(fi) fi.dataset.respostaId = d.resposta_id;
                 }
-                // Se salvou no servidor, podemos remover da fila local (opcional, mas bom pra limpeza)
                 removerDaFilaLocal(pid);
-            } else {
-                throw new Error();
-            }
+            } else { throw new Error(); }
         } catch(e) {
-            // Se falhar (Offline), salva no LocalStorage específico
             salvarFilaLocal({pergunta_id:pid, resposta:resp, observacao:obs, timestamp:Date.now()});
             if(fb) fb.innerHTML = '<i class="fas fa-save text-warning" title="Salvo no dispositivo"></i>';
         }
@@ -592,7 +564,6 @@
 
     function salvarFilaLocal(obj) {
         let f = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-        // Remove entrada anterior da mesma pergunta
         f = f.filter(i => i.pergunta_id != obj.pergunta_id);
         f.push(obj);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(f));
@@ -601,10 +572,7 @@
     function removerDaFilaLocal(pid) {
         let f = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
         const novoF = f.filter(i => i.pergunta_id != pid);
-        // Só atualiza se mudou algo (evita writes desnecessários)
-        if (f.length !== novoF.length) {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(novoF));
-        }
+        if (f.length !== novoF.length) localStorage.setItem(STORAGE_KEY, JSON.stringify(novoF));
     }
 
     async function handleFotoUpload(input) {
@@ -612,19 +580,27 @@
         input.value='';
         
         const pid = input.dataset.perguntaId; 
-        const tid = Date.now(); // ID temporário
+        const tid = Date.now(); 
         const g = document.getElementById(`galeria-fotos-${pid}`);
         
-        // Preview Imediato
+        // NOVA ESTRUTURA COM BOTÃO DE DELETAR
         const d = document.createElement('div'); d.id=`foto-local-${tid}`;
-        d.className='position-relative d-inline-block flex-shrink-0'; d.style.width='70px'; d.style.height='70px';
-        d.innerHTML=`<img src="${URL.createObjectURL(file)}" class="rounded w-100 h-100 border border-primary" style="object-fit:cover;opacity:0.6"><div class="position-absolute top-50 start-50 translate-middle"><i class="fas fa-spinner fa-spin text-primary"></i></div>`;
+        d.className='position-relative d-inline-block flex-shrink-0 me-2'; d.style.width='70px'; d.style.height='70px';
+        d.innerHTML=`
+            <img src="${URL.createObjectURL(file)}" class="rounded w-100 h-100 border border-primary" style="object-fit:cover;opacity:0.6">
+            <div class="position-absolute top-50 start-50 translate-middle status-icon">
+                <i class="fas fa-spinner fa-spin text-primary"></i>
+            </div>
+            <button type="button" class="btn btn-danger btn-sm p-0 position-absolute top-0 end-0 translate-middle rounded-circle shadow-sm" 
+                    style="width:20px;height:20px;font-size:10px;z-index:10;" onclick="deletarFotoLocal(${tid})">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
         g.appendChild(d);
         
-        // Salva no Dexie (COM APLICACAO_ID)
         await dbLocal.fotos.add({
             id: tid, 
-            aplicacao_id: APLICACAO_ID, // <-- Importante!
+            aplicacao_id: APLICACAO_ID, 
             pergunta_id: pid, 
             blob: file, 
             nome: file.name, 
@@ -636,98 +612,77 @@
             enviarFoto(file, pid, tid, input.dataset.respostaId, d);
         } else {
             d.querySelector('img').classList.replace('border-primary','border-warning');
-            d.querySelector('div.position-absolute').innerHTML='<i class="fas fa-clock text-warning"></i>';
+            d.querySelector('.status-icon').innerHTML='<i class="fas fa-clock text-warning"></i>';
         }
     }
 
+    // NOVA FUNÇÃO PARA DELETAR FOTO LOCAL
+    window.deletarFotoLocal = async (id) => {
+        if(!confirm('Remover esta foto (não enviada)?')) return;
+        
+        // Remove do DOM
+        const el = document.getElementById(`foto-local-${id}`);
+        if(el) el.remove();
+        
+        // Remove do Dexie
+        await dbLocal.fotos.delete(id);
+    };
+
     async function enviarFoto(file, pid, tid, rid, div) {
         if(!rid) { 
-            // Se não tem ID da resposta ainda (ex: acabou de responder offline), espera a sincronização
-            div.querySelector('div.position-absolute').innerHTML='<i class="fas fa-hourglass-half text-warning"></i>'; 
+            div.querySelector('.status-icon').innerHTML='<i class="fas fa-hourglass-half text-warning"></i>'; 
             return; 
         }
         
-        const fd = new FormData(); 
-        fd.append('foto', file);
+        const fd = new FormData(); fd.append('foto', file);
         
         try {
             const r = await fetch(`/cli/resposta/${rid}/upload-foto`, {
-                method:'POST',
-                headers:{'X-CSRFToken': CSRF_TOKEN},
-                body:fd
+                method:'POST', headers:{'X-CSRFToken': CSRF_TOKEN}, body:fd
             });
             
             if(r.ok) {
                 const d = await r.json();
                 if(d.sucesso) {
-                    await dbLocal.fotos.delete(tid); // Remove do Dexie se subiu com sucesso
-                    div.outerHTML=`<div class="position-relative d-inline-block flex-shrink-0" id="foto-server-${d.foto_id}" style="width:70px;height:70px;"><img src="${URL.createObjectURL(file)}" class="rounded w-100 h-100 border border-success" style="object-fit:cover;" onclick="window.open(this.src)"><button type="button" class="btn btn-danger btn-sm p-0 position-absolute top-0 end-0 translate-middle rounded-circle shadow-sm" style="width:20px;height:20px;font-size:10px;" onclick="deletarFotoServidor(${d.foto_id})"><i class="fas fa-times"></i></button></div>`;
+                    await dbLocal.fotos.delete(tid); 
+                    div.outerHTML=`<div class="position-relative d-inline-block flex-shrink-0 me-2" id="foto-server-${d.foto_id}" style="width:70px;height:70px;"><img src="${URL.createObjectURL(file)}" class="rounded w-100 h-100 border border-success" style="object-fit:cover;" onclick="window.open(this.src)"><button type="button" class="btn btn-danger btn-sm p-0 position-absolute top-0 end-0 translate-middle rounded-circle shadow-sm" style="width:20px;height:20px;font-size:10px;" onclick="deletarFotoServidor(${d.foto_id})"><i class="fas fa-times"></i></button></div>`;
                 }
-            } else {
-                throw new Error();
-            }
+            } else { throw new Error(); }
         } catch(e) { 
-            div.querySelector('div.position-absolute').innerHTML='<i class="fas fa-wifi text-danger"></i>'; 
+            div.querySelector('.status-icon').innerHTML='<i class="fas fa-wifi text-danger"></i>'; 
         }
     }
 
-    // =========================================================================
-    // 4. FUNÇÃO "BAIXAR PARA OFFLINE" (ROBUSTA v5)
-    // =========================================================================
+    // 4. FUNÇÃO "BAIXAR PARA OFFLINE" (CACHE ESPECÍFICO)
     async function baixarParaOffline() {
         const btn = document.getElementById('btn-offline-sync');
         const originalHtml = btn.innerHTML;
-        
-        // Trava o botão e mostra loading
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
 
         try {
-            // 1. NOME DO CACHE (TEM QUE SER IGUAL AO DO SERVICE WORKER)
-            const CACHE_NAME_HTML = 'qualigestor-dynamic-v5'; // Atualizado para v5
-
-            // 2. Abre o cache
+            const CACHE_NAME_HTML = 'qualigestor-dynamic-v5'; 
             const cache = await caches.open(CACHE_NAME_HTML);
-
-            // 3. Busca a página manualmente para garantir que pegamos a versão nova
             console.log("Tentando baixar:", window.location.href);
             
-            // 'cache: reload' força o navegador a ir na rede buscar a versão mais nova
             const response = await fetch(window.location.href, {
-                method: 'GET',
-                cache: 'reload', 
-                headers: { 'Cache-Control': 'no-cache' }
+                method: 'GET', cache: 'reload', headers: { 'Cache-Control': 'no-cache' }
             });
 
-            // Verifica se o servidor respondeu OK (200)
-            if (!response.ok) {
-                throw new Error(`Servidor respondeu com erro: ${response.status} ${response.statusText}`);
-            }
+            if (!response.ok) throw new Error(`Status: ${response.status}`);
 
-            // 4. Salva a resposta no Cache
             await cache.put(window.location.href, response);
 
-            // Sucesso!
             btn.classList.remove('btn-outline-primary', 'btn-outline-danger');
             btn.classList.add('btn-success');
             btn.innerHTML = '<i class="fas fa-check"></i> Salvo Offline';
-            
-            alert("Aplicação salva com sucesso!\n\nA consultora pode desligar a internet agora. O formulário continuará funcionando.");
+            alert("Aplicação salva com sucesso! Pode desligar a internet.");
 
         } catch (e) {
-            console.error("Erro no download offline:", e);
-            
-            // Mostra o erro real para facilitar o seu diagnóstico
-            alert("Falha ao salvar: " + e.message + "\n\nDica: Verifique se você está usando HTTPS ou localhost.");
-            
-            // Restaura o botão para tentar de novo
+            console.error("Erro download:", e);
+            alert("Falha ao salvar: " + e.message + "\n\nVerifique se está usando HTTPS.");
             btn.innerHTML = originalHtml;
-            btn.classList.remove('btn-success');
             btn.classList.add('btn-outline-danger');
-            setTimeout(() => {
-                 btn.classList.remove('btn-outline-danger');
-                 btn.classList.add('btn-outline-primary');
-            }, 3000);
             btn.disabled = false;
         }
     }
@@ -735,53 +690,35 @@
     async function sincronizarPendencias() {
         if(!navigator.onLine) return;
         
-        // 1. Sincroniza Respostas de Texto (Usando a chave específica da app)
         let f = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
         if(f.length > 0) {
-            const t = new bootstrap.Toast(document.getElementById('liveToast')); 
-            t.show();
-            
-            // Tenta enviar um por um
+            const t = new bootstrap.Toast(document.getElementById('liveToast')); t.show();
             const pendentes = [];
             for(let i of f) { 
                 try { 
                     const res = await fetch("{{ url_for('cli.salvar_resposta', id=aplicacao.id) }}", {
-                        method:'POST',
-                        headers:{'Content-Type':'application/json','X-CSRFToken': CSRF_TOKEN},
-                        body:JSON.stringify(i)
+                        method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken': CSRF_TOKEN}, body:JSON.stringify(i)
                     });
-                    if(!res.ok) pendentes.push(i); // Se falhar, mantém na fila
-                } catch(e) {
-                    pendentes.push(i);
-                } 
+                    if(!res.ok) pendentes.push(i); 
+                } catch(e) { pendentes.push(i); } 
             }
-            // Atualiza o localStorage apenas com o que falhou
-            if(pendentes.length === 0) {
-                localStorage.removeItem(STORAGE_KEY);
-            } else {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(pendentes));
-            }
+            if(pendentes.length === 0) localStorage.removeItem(STORAGE_KEY);
+            else localStorage.setItem(STORAGE_KEY, JSON.stringify(pendentes));
         }
 
-        // 2. Sincroniza Fotos (Usando filtro aplicacao_id)
         const fs = await dbLocal.fotos.where('aplicacao_id').equals(APLICACAO_ID).toArray();
         for(let ft of fs) {
             let rid = ft.resposta_id;
-            // Se não tiver ID da resposta salvo no banco local, tenta achar no DOM
             if(!rid) { 
                 const i = document.getElementById(`input-foto-${ft.pergunta_id}`); 
                 if(i && i.dataset.respostaId) rid = i.dataset.respostaId; 
             }
-            
             if(rid) { 
-                // Encontra a div de preview visual para atualizar o ícone
                 const divPreview = document.getElementById(`foto-local-${ft.id}`);
-                if(divPreview) {
-                    await enviarFoto(ft.blob, ft.pergunta_id, ft.id, rid, divPreview); 
-                } else {
-                    // Se o usuário recarregou a página, a div não existe, cria uma dummy
+                if(divPreview) await enviarFoto(ft.blob, ft.pergunta_id, ft.id, rid, divPreview); 
+                else {
                     const dummyDiv = document.createElement('div');
-                    dummyDiv.innerHTML = '<div class="position-absolute"></div>';
+                    dummyDiv.innerHTML = '<div class="status-icon"></div>';
                     await enviarFoto(ft.blob, ft.pergunta_id, ft.id, rid, dummyDiv);
                 }
             }
@@ -790,10 +727,7 @@
 
     function initCanvas(){ 
         const c=document.getElementById('canvas-unico'); 
-        if(c){ 
-            signaturePadGlobal=new SignaturePad(c,{backgroundColor:'rgb(255,255,255)'}); 
-            resizeCanvas();
-        }
+        if(c){ signaturePadGlobal=new SignaturePad(c,{backgroundColor:'rgb(255,255,255)'}); resizeCanvas(); }
     }
     
     window.abrirModalAssinatura=(pid,t)=>{ 
@@ -809,10 +743,7 @@
         input.value=d; 
         
         const img = document.getElementById(`img-preview-${currentPerguntaId}`);
-        if(img) {
-            img.src=d; 
-            img.style.display='block'; 
-        }
+        if(img) { img.src=d; img.style.display='block'; }
         
         const ph = document.getElementById(`placeholder-${currentPerguntaId}`);
         if(ph) ph.classList.add('d-none');
@@ -823,9 +754,19 @@
     
     window.limparCanvasAtual=()=>signaturePadGlobal.clear();
     window.deletarFotoServidor=async(id)=>{ 
-        if(!confirm('Apagar?'))return; 
+        if(!confirm('Apagar esta foto do servidor?'))return; 
+        
+        if(!navigator.onLine) {
+            alert("Atenção: Você está OFFLINE. A foto será removida da tela, mas pode reaparecer se você recarregar a página antes de ter internet.");
+        }
+        
         document.getElementById(`foto-server-${id}`).remove(); 
-        fetch(`/cli/foto/${id}/deletar`,{method:'DELETE',headers:{'X-CSRFToken': CSRF_TOKEN}}); 
+        
+        try {
+            fetch(`/cli/foto/${id}/deletar`,{method:'DELETE',headers:{'X-CSRFToken': CSRF_TOKEN}}); 
+        } catch(e) {
+            console.log("Erro ao deletar (provavelmente offline):", e);
+        }
     };
 </script>
 {% endblock %}
