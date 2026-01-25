@@ -4,6 +4,8 @@ import logging
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Optional
+from datetime import timedelta  # <--- Importação necessária para o tempo
+
 from flask import Flask, url_for, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
@@ -65,6 +67,19 @@ def create_app() -> Flask:
     app.config["GEMINI_API_KEY"] = os.getenv("GEMINI_API_KEY")
     # --------------------------------------------------------------
 
+    # =========================================================================
+    # CONFIGURAÇÃO DE SESSÃO E LOGIN (SEGURANÇA: 3 HORAS)
+    # =========================================================================
+    # Define que a sessão expira após 3 horas de inatividade
+    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=3)
+    
+    # Define que o cookie do "Lembrar-me" também dura 3 horas
+    app.config['REMEMBER_COOKIE_DURATION'] = timedelta(hours=3)
+    
+    # Importante: Renova o tempo a cada requisição (ex: clicou em algo, ganha +3h)
+    app.config['REMEMBER_COOKIE_REFRESH_EACH_REQUEST'] = True
+    # =========================================================================
+
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
     app.config["SESSION_COOKIE_SECURE"] = False  # em produção com HTTPS -> True
@@ -118,14 +133,14 @@ def create_app() -> Flask:
     # Helpers para templates
     # -------------------------------------------------------------------------
    
-        from .utils.helpers import opcao_pergunta_por_id  # type: ignore
+    from .utils.helpers import opcao_pergunta_por_id  # type: ignore
 
-        @app.context_processor
-        def inject_custom_functions():
-            return dict(
-                opcao_pergunta_por_id=opcao_pergunta_por_id,
-                allowed_file=allowed_file
-            )
+    @app.context_processor
+    def inject_custom_functions():
+        return dict(
+            opcao_pergunta_por_id=opcao_pergunta_por_id,
+            allowed_file=allowed_file
+        )
     
 
     # Helpers de navegação globais
