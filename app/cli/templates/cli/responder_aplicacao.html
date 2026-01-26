@@ -505,7 +505,6 @@
                 if(g && !document.getElementById(`foto-local-${f.id}`)) {
                     const d = document.createElement('div'); d.id=`foto-local-${f.id}`;
                     d.className='position-relative d-inline-block flex-shrink-0 me-2'; d.style.width='70px'; d.style.height='70px';
-                    // ADICIONEI O BOTÃO DE DELETAR AQUI TAMBÉM NA RESTAURAÇÃO
                     d.innerHTML=`
                         <img src="${URL.createObjectURL(f.blob)}" class="rounded w-100 h-100 border border-warning" style="object-fit:cover;">
                         <div class="position-absolute top-50 start-50 translate-middle status-icon">
@@ -575,15 +574,16 @@
         if (f.length !== novoF.length) localStorage.setItem(STORAGE_KEY, JSON.stringify(novoF));
     }
 
+    // --- CORREÇÃO PRINCIPAL: Upload Seguro de Fotos ---
     async function handleFotoUpload(input) {
         const file = input.files[0]; if(!file) return;
-        input.value='';
+        input.value=''; 
         
         const pid = input.dataset.perguntaId; 
         const tid = Date.now(); 
         const g = document.getElementById(`galeria-fotos-${pid}`);
         
-        // NOVA ESTRUTURA COM BOTÃO DE DELETAR
+        // 1. Cria Spinner Visual
         const d = document.createElement('div'); d.id=`foto-local-${tid}`;
         d.className='position-relative d-inline-block flex-shrink-0 me-2'; d.style.width='70px'; d.style.height='70px';
         d.innerHTML=`
@@ -598,62 +598,84 @@
         `;
         g.appendChild(d);
         
-        await dbLocal.fotos.add({
-            id: tid, 
-            aplicacao_id: APLICACAO_ID, 
-            pergunta_id: pid, 
-            blob: file, 
-            nome: file.name, 
-            timestamp: Date.now(), 
-            resposta_id: input.dataset.respostaId || null
-        });
+        // 2. Tenta Salvar Localmente (COM TRY/CATCH)
+        try {
+            await dbLocal.fotos.add({
+                id: tid, 
+                aplicacao_id: APLICACAO_ID, 
+                pergunta_id: pid, 
+                blob: file, 
+                nome: file.name, 
+                timestamp: Date.now(), 
+                resposta_id: input.dataset.respostaId || null
+            });
+        } catch (e) {
+            console.error("Erro crítico ao salvar foto local:", e);
+            // Marca como erro visual para o usuário não achar que está "travado"
+            d.querySelector('img').classList.replace('border-primary','border-danger');
+            d.querySelector('.status-icon').innerHTML='<i class="fas fa-exclamation-circle text-danger"></i>';
+        }
         
+        // 3. Tenta Enviar
         if(navigator.onLine) {
             enviarFoto(file, pid, tid, input.dataset.respostaId, d);
         } else {
-            d.querySelector('img').classList.replace('border-primary','border-warning');
-            d.querySelector('.status-icon').innerHTML='<i class="fas fa-clock text-warning"></i>';
+            marcarComoPendente(d);
         }
     }
 
-    // NOVA FUNÇÃO PARA DELETAR FOTO LOCAL
     window.deletarFotoLocal = async (id) => {
         if(!confirm('Remover esta foto (não enviada)?')) return;
-        
-        // Remove do DOM
         const el = document.getElementById(`foto-local-${id}`);
         if(el) el.remove();
-        
-        // Remove do Dexie
-        await dbLocal.fotos.delete(id);
+        try { await dbLocal.fotos.delete(id); } catch(e){}
     };
 
+    // --- CORREÇÃO: Timeout no Upload ---
     async function enviarFoto(file, pid, tid, rid, div) {
         if(!rid) { 
-            div.querySelector('.status-icon').innerHTML='<i class="fas fa-hourglass-half text-warning"></i>'; 
+            marcarComoPendente(div);
             return; 
         }
         
         const fd = new FormData(); fd.append('foto', file);
         
+        // Timeout de 15 segundos para evitar travamento em "Lie-fi"
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
+
         try {
             const r = await fetch(`/cli/resposta/${rid}/upload-foto`, {
-                method:'POST', headers:{'X-CSRFToken': CSRF_TOKEN}, body:fd
+                method:'POST', 
+                headers:{'X-CSRFToken': CSRF_TOKEN}, 
+                body:fd,
+                signal: controller.signal
             });
+            clearTimeout(timeoutId);
             
             if(r.ok) {
                 const d = await r.json();
                 if(d.sucesso) {
-                    await dbLocal.fotos.delete(tid); 
+                    try { await dbLocal.fotos.delete(tid); } catch(e){}
                     div.outerHTML=`<div class="position-relative d-inline-block flex-shrink-0 me-2" id="foto-server-${d.foto_id}" style="width:70px;height:70px;"><img src="${URL.createObjectURL(file)}" class="rounded w-100 h-100 border border-success" style="object-fit:cover;" onclick="window.open(this.src)"><button type="button" class="btn btn-danger btn-sm p-0 position-absolute top-0 end-0 translate-middle rounded-circle shadow-sm" style="width:20px;height:20px;font-size:10px;" onclick="deletarFotoServidor(${d.foto_id})"><i class="fas fa-times"></i></button></div>`;
                 }
             } else { throw new Error(); }
         } catch(e) { 
-            div.querySelector('.status-icon').innerHTML='<i class="fas fa-wifi text-danger"></i>'; 
+            console.warn("Falha no upload (offline ou timeout):", e);
+            marcarComoPendente(div);
         }
     }
 
-    // 4. FUNÇÃO "BAIXAR PARA OFFLINE" (CACHE ESPECÍFICO)
+    function marcarComoPendente(div) {
+        const img = div.querySelector('img');
+        if(img) {
+            img.classList.remove('border-primary', 'border-danger');
+            img.classList.add('border-warning');
+        }
+        const icon = div.querySelector('.status-icon');
+        if(icon) icon.innerHTML='<i class="fas fa-clock text-warning"></i>';
+    }
+
     async function baixarParaOffline() {
         const btn = document.getElementById('btn-offline-sync');
         const originalHtml = btn.innerHTML;
