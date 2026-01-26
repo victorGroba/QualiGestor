@@ -489,7 +489,6 @@
     // --- SINCRONIZAÇÃO E STORAGE ---
 
     async function restaurarEstadoOffline() {
-        // 1. Restaura Textos/Respostas
         const fila = JSON.parse(localStorage.getItem(STORAGE_KEY_RESPOSTAS) || '[]');
         fila.forEach(item => {
             const pid = item.pergunta_id;
@@ -505,7 +504,7 @@
             }
         });
 
-        // 2. Restaura as fotos locais (pendentes de upload)
+        // Restaura as fotos locais (pendentes de upload)
         try {
             const fotos = await dbLocal.fotos.where('aplicacao_id').equals(APLICACAO_ID).toArray();
             fotos.forEach(f => {
@@ -529,7 +528,7 @@
             });
         } catch(e){ console.error("Erro ao restaurar fotos:", e); }
 
-        // 3. Restaura o estado das fotos deletadas (remove visualmente se ainda estiverem na tela por cache)
+        // Restaura o estado das fotos deletadas (remove visualmente se ainda estiverem na tela por cache)
         const filaDelete = JSON.parse(localStorage.getItem(STORAGE_KEY_DELETAR) || '[]');
         filaDelete.forEach(id => {
             const el = document.getElementById(`foto-server-${id}`);
@@ -816,7 +815,7 @@
     async function sincronizarPendencias() {
         if(!navigator.onLine) return;
         
-        // 1. Sincroniza Textos
+        // 1. Sincroniza Textos (GARANTE QUE OS IDs EXISTAM)
         let f = JSON.parse(localStorage.getItem(STORAGE_KEY_RESPOSTAS) || '[]');
         if(f.length > 0) {
             const t = new bootstrap.Toast(document.getElementById('liveToast')); t.show();
@@ -840,26 +839,7 @@
             else localStorage.setItem(STORAGE_KEY_RESPOSTAS, JSON.stringify(pendentes));
         }
 
-        // 2. Sincroniza Fotos Novas
-        const fs = await dbLocal.fotos.where('aplicacao_id').equals(APLICACAO_ID).toArray();
-        for(let ft of fs) {
-            let rid = ft.resposta_id;
-            if(!rid) { 
-                const i = document.getElementById(`input-foto-${ft.pergunta_id}`); 
-                if(i && i.dataset.respostaId) rid = i.dataset.respostaId; 
-            }
-            if(rid) { 
-                const divPreview = document.getElementById(`foto-local-${ft.id}`);
-                if(divPreview) await enviarFoto(ft.blob, ft.pergunta_id, ft.id, rid, divPreview); 
-                else {
-                    const dummyDiv = document.createElement('div');
-                    dummyDiv.innerHTML = '<div class="status-icon"></div>';
-                    await enviarFoto(ft.blob, ft.pergunta_id, ft.id, rid, dummyDiv);
-                }
-            }
-        }
-
-        // 3. Sincroniza Deleções
+        // 2. Sincroniza Deleções (LIMPA O ESPAÇO ANTES DE UPAR)
         const filaDelete = JSON.parse(localStorage.getItem(STORAGE_KEY_DELETAR) || '[]');
         if(filaDelete.length > 0) {
             const novosPendentesDelete = [];
@@ -871,6 +851,29 @@
             }
             if(novosPendentesDelete.length === 0) localStorage.removeItem(STORAGE_KEY_DELETAR);
             else localStorage.setItem(STORAGE_KEY_DELETAR, JSON.stringify(novosPendentesDelete));
+        }
+
+        // 3. Sincroniza Fotos Novas (AGORA PODE UPAR SEM CONFLITO)
+        const fs = await dbLocal.fotos.where('aplicacao_id').equals(APLICACAO_ID).toArray();
+        for(let ft of fs) {
+            let rid = ft.resposta_id;
+            
+            // Tenta recuperar ID do DOM se não estiver salvo no banco
+            if(!rid) { 
+                const i = document.getElementById(`input-foto-${ft.pergunta_id}`); 
+                if(i && i.dataset.respostaId) rid = i.dataset.respostaId; 
+            }
+            
+            if(rid) { 
+                const divPreview = document.getElementById(`foto-local-${ft.id}`);
+                if(divPreview) {
+                    await enviarFoto(ft.blob, ft.pergunta_id, ft.id, rid, divPreview); 
+                } else {
+                    const dummyDiv = document.createElement('div');
+                    dummyDiv.innerHTML = '<div class="status-icon"></div>';
+                    await enviarFoto(ft.blob, ft.pergunta_id, ft.id, rid, dummyDiv);
+                }
+            }
         }
     }
 
