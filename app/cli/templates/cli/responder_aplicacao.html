@@ -12,6 +12,11 @@
     </div>
 </div>
 
+<div id="status-flutuante" class="shadow-lg d-flex align-items-center justify-content-center text-white" 
+     style="position: fixed; bottom: 20px; right: 20px; width: 55px; height: 55px; border-radius: 50%; z-index: 1050; transition: all 0.3s ease;">
+    <i class="fas fa-wifi fa-lg"></i>
+</div>
+
 <div class="container-fluid py-4 pb-5">
     <div class="row g-4">
         
@@ -371,6 +376,7 @@
     }
 
     function updateStatusConexao(online) {
+        // Atualiza a Div Fixa (Card)
         const div = document.getElementById('status-conexao');
         const btn = document.getElementById('btn-offline-sync');
         if (div) {
@@ -379,11 +385,27 @@
             if(btn) {
                 if(online) {
                     btn.disabled = false;
-                    btn.innerHTML = '<i class="fas fa-download me-2"></i> Baixar para Offline';
+                    btn.innerHTML = '<i class="fas fa-download me-2"></i> Baixar Offline';
                 } else {
                     btn.disabled = true;
                     btn.innerHTML = '<i class="fas fa-check me-2"></i> Operando Offline';
                 }
+            }
+        }
+
+        // Atualiza o Balão Flutuante (NOVO)
+        const balao = document.getElementById('status-flutuante');
+        if (balao) {
+            if (online) {
+                balao.classList.remove('bg-warning', 'bg-danger');
+                balao.classList.add('bg-success');
+                balao.innerHTML = '<i class="fas fa-wifi fa-lg"></i>';
+                balao.title = "Online";
+            } else {
+                balao.classList.remove('bg-success', 'bg-danger');
+                balao.classList.add('bg-warning');
+                balao.innerHTML = '<i class="fas fa-cloud fa-lg"></i>';
+                balao.title = "Offline";
             }
         }
     }
