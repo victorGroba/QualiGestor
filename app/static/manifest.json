@@ -8,12 +8,12 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/static/img/logo-qualigestor.png",
+      "src": "/static/img/logo_mobile-2.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/static/img/logo-qualigestor.png",
+      "src": "/static/img/logo_mobile-2.png",
       "sizes": "512x512",
       "type": "image/png"
     }
