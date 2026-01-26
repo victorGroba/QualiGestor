@@ -4,7 +4,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Optional
-from datetime import timedelta  # <--- Importação necessária para o tempo
+from datetime import timedelta  # <--- IMPORTANTE: Importação do timedelta
 
 from flask import Flask, url_for, request
 from flask_sqlalchemy import SQLAlchemy
@@ -68,21 +68,23 @@ def create_app() -> Flask:
     # --------------------------------------------------------------
 
     # =========================================================================
-    # CONFIGURAÇÃO DE SESSÃO E LOGIN (SEGURANÇA: 3 HORAS)
+    # CONFIGURAÇÃO DE SESSÃO E LOGIN (ATUALIZADO PARA 3 HORAS)
     # =========================================================================
-    # Define que a sessão expira após 3 horas de inatividade
+    # Define que a sessão do servidor expira após 3 horas de inatividade
     app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=3)
     
-    # Define que o cookie do "Lembrar-me" também dura 3 horas
+    # Define que o cookie do "Lembrar-me" (Flask-Login) dura 3 horas
     app.config['REMEMBER_COOKIE_DURATION'] = timedelta(hours=3)
     
     # Importante: Renova o tempo a cada requisição (ex: clicou em algo, ganha +3h)
     app.config['REMEMBER_COOKIE_REFRESH_EACH_REQUEST'] = True
+    
+    # Proteção de Cookies
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+    app.config["SESSION_COOKIE_SECURE"] = False  # Mude para True se usar HTTPS em produção
     # =========================================================================
 
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
-    app.config["SESSION_COOKIE_SECURE"] = False  # em produção com HTTPS -> True
     app.url_map.strict_slashes = False  # normaliza trailing slash
 
     # -------------------------------------------------------------------------

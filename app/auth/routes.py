@@ -1,4 +1,4 @@
-# app/auth/routes.py - VERSÃO CORRIGIDA
+# app/auth/routes.py - VERSÃO CORRIGIDA (LOGOUT ROBUSTO)
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -35,33 +35,70 @@ def exige_admin():
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
+    # Se já estiver logado, redireciona direto para o painel
+    if current_user.is_authenticated:
+        return redirect(url_for('main.painel'))
+
     if request.method == 'POST':
         email = request.form.get('email', '').strip()
         senha = request.form.get('senha', '')
+        
+        # O checkbox agora é opcional, pois forçamos a sessão abaixo
+        remember_me = True if request.form.get('remember') else False
 
         usuario = Usuario.query.filter_by(email=email).first()
 
         if usuario and usuario.check_password(senha):
-            login_user(usuario)
+            # Loga o usuário no Flask-Login
+            login_user(usuario, remember=remember_me)
 
-            # Sessão
+            # === CONFIGURAÇÃO CRÍTICA PARA MOBILE/IPHONE ===
+            # Força a sessão a ser permanente (duração de 3h configurada no __init__.py)
+            # Isso garante que o cookie não seja apagado ao fechar o navegador.
+            session.permanent = True
+            # ===============================================
+
+            # Salva dados úteis na sessão
             tipo_str = usuario.tipo.name if hasattr(usuario.tipo, "name") else str(usuario.tipo)
             session['tipo'] = tipo_str
             session['nome'] = usuario.nome
 
-            return redirect(url_for('main.painel'))
+            # Redirecionamento seguro
+            next_page = request.args.get('next')
+            if not next_page or not next_page.startswith('/'):
+                next_page = url_for('main.painel')
+
+            return redirect(next_page)
 
         flash('E-mail ou senha inválidos.', 'danger')
 
     return render_template('auth/login.html')
 
 @auth_bp.route('/logout')
-@login_required
 def logout():
+    """
+    Função de logout blindada. Garante que a sessão seja destruída,
+    mesmo que tenha sido marcada como permanente anteriormente.
+    """
+    # 1. Desloga do Flask-Login
     logout_user()
+    
+    # 2. Desativa a permanência (anula o session.permanent = True do login)
+    session.permanent = False
+    
+    # 3. Limpa todo o dicionário da sessão
     session.clear()
+    
+    # 4. Prepara o redirecionamento
+    response = redirect(url_for('auth.login'))
+    
+    # 5. FORÇA BRUTA: Deleta os cookies do navegador manualmente
+    # Isso garante que o iPhone não "reaproveite" o cookie antigo
+    response.delete_cookie('session')
+    response.delete_cookie('remember_token')
+    
     flash('Você saiu do sistema.', 'info')
-    return redirect(url_for('auth.login'))
+    return response
 
 @auth_bp.route('/cadastrar-usuario', methods=['GET', 'POST'])
 @login_required
@@ -95,17 +132,15 @@ def cadastrar_usuario():
             data['email'] = email
         if 'tipo' in cols and tipo_usuario is not None:
             data['tipo'] = tipo_usuario
-        # cliente_id pode ser None
+        
         if 'cliente_id' in cols:
             try:
                 data['cliente_id'] = int(cliente_id) if cliente_id not in (None, '', 'None') else None
             except Exception:
                 data['cliente_id'] = None
 
-        # cria a instância sem passar 'senha' (que pode não existir no model)
         novo_usuario = Usuario(**data)
 
-        # procura campos prováveis para armazenar o hash da senha e seta o valor
         possiveis_campos_senha = ['senha_hash', 'password_hash', 'hash_senha', 'password', 'senha']
         campo_setado = None
         for campo in possiveis_campos_senha:
@@ -115,11 +150,9 @@ def cadastrar_usuario():
                 campo_setado = campo
                 break
 
-        # se não encontrou coluna de senha, cria atributo temporário (não ideal)
         if senha_hash is not None and campo_setado is None:
             setattr(novo_usuario, 'senha', senha_hash)
 
-        # grava no banco
         db.session.add(novo_usuario)
         try:
             db.session.commit()
@@ -179,8 +212,6 @@ def excluir_usuario(usuario_id):
     return redirect(url_for('auth.listar_usuarios'))
 
 
-# app/auth/routes.py
-
 @auth_bp.route('/alterar-senha', methods=['GET', 'POST'])
 @login_required
 def alterar_senha():
@@ -201,7 +232,6 @@ def alterar_senha():
             flash('A nova senha deve ter pelo menos 6 caracteres.', 'warning')
             return redirect(url_for('auth.alterar_senha'))
 
-        # Salva a nova senha
         current_user.set_password(nova_senha)
         db.session.commit()
 
