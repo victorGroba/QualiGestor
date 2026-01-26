@@ -301,7 +301,7 @@
     const MODO_ASSINATURA = {{ 'true' if modo_assinatura else 'false' }};
     const CSRF_TOKEN = '{{ csrf_token() }}';
 
-    // 1. BANCO DE DADOS OFFLINE (Dexie.js) - COM ISOLAMENTO POR APLICAÇÃO
+    // 1. BANCO DE DADOS OFFLINE (Dexie.js)
     const dbLocal = new Dexie("QualiGestorDB");
     dbLocal.version(2).stores({
         fotos: 'id, aplicacao_id, pergunta_id, resposta_id, blob, nome, timestamp'
@@ -315,8 +315,8 @@
     // 2. INICIALIZAÇÃO
     document.addEventListener('DOMContentLoaded', async () => {
         initCanvas();
-        reconhecerRespostasExistentes(); // Reconhece o que veio do servidor
-        await restaurarEstadoOffline();  // Reconhece o que o usuário digitou mas não subiu
+        reconhecerRespostasExistentes(); 
+        await restaurarEstadoOffline();  
         atualizarProgressoGlobal();
         
         if (MODO_ASSINATURA) {
@@ -336,6 +336,7 @@
         if(navigator.onLine) sincronizarPendencias();
     });
 
+    // Funções de Canvas e UI
     modalElement.addEventListener('shown.bs.modal', function () { resizeCanvas(); });
     function resizeCanvas() {
         const canvas = document.getElementById('canvas-unico');
@@ -424,6 +425,7 @@
         }
     }
 
+    // Validação do Form
     document.getElementById('form-finalizar').addEventListener('submit', function(e) {
         let erros = [];
         let primeiroErroElemento = null;
@@ -460,18 +462,14 @@
             lista.innerHTML = '';
             erros.slice(0, 5).forEach(err => lista.innerHTML += `<li>${err}</li>`);
             if(erros.length > 5) lista.innerHTML += `<li>+ ${erros.length - 5} pendências...</li>`;
-            
             const alerta = document.getElementById('alerta-validacao');
             alerta.classList.remove('d-none');
-
             if (primeiroErroElemento) {
                 const topicoId = primeiroErroElemento.dataset.topicoId;
                 const collapse = document.getElementById(`collapse-${topicoId}`);
                 if(collapse) {
                     new bootstrap.Collapse(collapse, { show: true });
-                    setTimeout(() => {
-                        primeiroErroElemento.scrollIntoView({behavior: 'smooth', block: 'center'});
-                    }, 300);
+                    setTimeout(() => { primeiroErroElemento.scrollIntoView({behavior: 'smooth', block: 'center'}); }, 300);
                 }
             }
         } else {
@@ -497,7 +495,6 @@
                 if(obs) obs.value = item.observacao;
             }
         });
-
         try {
             const fotos = await dbLocal.fotos.where('aplicacao_id').equals(APLICACAO_ID).toArray();
             fotos.forEach(f => {
@@ -507,13 +504,8 @@
                     d.className='position-relative d-inline-block flex-shrink-0 me-2'; d.style.width='70px'; d.style.height='70px';
                     d.innerHTML=`
                         <img src="${URL.createObjectURL(f.blob)}" class="rounded w-100 h-100 border border-warning" style="object-fit:cover;">
-                        <div class="position-absolute top-50 start-50 translate-middle status-icon">
-                            <i class="fas fa-clock text-warning"></i>
-                        </div>
-                        <button type="button" class="btn btn-danger btn-sm p-0 position-absolute top-0 end-0 translate-middle rounded-circle shadow-sm" 
-                                style="width:20px;height:20px;font-size:10px;z-index:10;" onclick="deletarFotoLocal(${f.id})">
-                            <i class="fas fa-times"></i>
-                        </button>
+                        <div class="position-absolute top-50 start-50 translate-middle status-icon"><i class="fas fa-clock text-warning"></i></div>
+                        <button type="button" class="btn btn-danger btn-sm p-0 position-absolute top-0 end-0 translate-middle rounded-circle shadow-sm" style="width:20px;height:20px;font-size:10px;z-index:10;" onclick="deletarFotoLocal(${f.id})"><i class="fas fa-times"></i></button>
                     `;
                     g.appendChild(d);
                 }
@@ -554,10 +546,12 @@
                     if(fi) fi.dataset.respostaId = d.resposta_id;
                 }
                 removerDaFilaLocal(pid);
+                return d; // Retorna dados para uso no upload de foto
             } else { throw new Error(); }
         } catch(e) {
             salvarFilaLocal({pergunta_id:pid, resposta:resp, observacao:obs, timestamp:Date.now()});
             if(fb) fb.innerHTML = '<i class="fas fa-save text-warning" title="Salvo no dispositivo"></i>';
+            throw e; // Propaga erro para quem chamou
         }
     }
 
@@ -574,7 +568,7 @@
         if (f.length !== novoF.length) localStorage.setItem(STORAGE_KEY, JSON.stringify(novoF));
     }
 
-    // --- CORREÇÃO PRINCIPAL: Upload Seguro de Fotos ---
+    // --- CORREÇÃO DO UPLOAD DE FOTOS ---
     async function handleFotoUpload(input) {
         const file = input.files[0]; if(!file) return;
         input.value=''; 
@@ -583,42 +577,50 @@
         const tid = Date.now(); 
         const g = document.getElementById(`galeria-fotos-${pid}`);
         
-        // 1. Cria Spinner Visual
+        // 1. Spinner Visual
         const d = document.createElement('div'); d.id=`foto-local-${tid}`;
         d.className='position-relative d-inline-block flex-shrink-0 me-2'; d.style.width='70px'; d.style.height='70px';
         d.innerHTML=`
             <img src="${URL.createObjectURL(file)}" class="rounded w-100 h-100 border border-primary" style="object-fit:cover;opacity:0.6">
-            <div class="position-absolute top-50 start-50 translate-middle status-icon">
-                <i class="fas fa-spinner fa-spin text-primary"></i>
-            </div>
-            <button type="button" class="btn btn-danger btn-sm p-0 position-absolute top-0 end-0 translate-middle rounded-circle shadow-sm" 
-                    style="width:20px;height:20px;font-size:10px;z-index:10;" onclick="deletarFotoLocal(${tid})">
-                <i class="fas fa-times"></i>
-            </button>
+            <div class="position-absolute top-50 start-50 translate-middle status-icon"><i class="fas fa-spinner fa-spin text-primary"></i></div>
+            <button type="button" class="btn btn-danger btn-sm p-0 position-absolute top-0 end-0 translate-middle rounded-circle shadow-sm" style="width:20px;height:20px;font-size:10px;z-index:10;" onclick="deletarFotoLocal(${tid})"><i class="fas fa-times"></i></button>
         `;
         g.appendChild(d);
         
-        // 2. Tenta Salvar Localmente (COM TRY/CATCH)
+        // 2. Salva Local (Protegido)
         try {
             await dbLocal.fotos.add({
-                id: tid, 
-                aplicacao_id: APLICACAO_ID, 
-                pergunta_id: pid, 
-                blob: file, 
-                nome: file.name, 
-                timestamp: Date.now(), 
-                resposta_id: input.dataset.respostaId || null
+                id: tid, aplicacao_id: APLICACAO_ID, pergunta_id: pid, blob: file, nome: file.name, timestamp: Date.now(), resposta_id: input.dataset.respostaId || null
             });
         } catch (e) {
             console.error("Erro crítico ao salvar foto local:", e);
-            // Marca como erro visual para o usuário não achar que está "travado"
             d.querySelector('img').classList.replace('border-primary','border-danger');
-            d.querySelector('.status-icon').innerHTML='<i class="fas fa-exclamation-circle text-danger"></i>';
         }
         
-        // 3. Tenta Enviar
+        // 3. Lógica de Envio Inteligente
         if(navigator.onLine) {
-            enviarFoto(file, pid, tid, input.dataset.respostaId, d);
+            let rid = input.dataset.respostaId;
+            
+            // SE NÃO TIVER ID (Ainda não respondeu o texto/radio), CRIA A RESPOSTA AGORA
+            if(!rid) {
+                try {
+                    // Busca o input principal da pergunta para salvar o valor atual dele
+                    const mainInput = document.querySelector(`input[name="resposta-${pid}"]:checked`) 
+                                   || document.querySelector(`textarea[name="resposta-${pid}"]`) 
+                                   || document.querySelector(`select[name="resposta-${pid}"]`)
+                                   || document.querySelector(`input[name="resposta-${pid}"]:not([type="radio"])`);
+                    
+                    if(mainInput) {
+                        console.log("Criando resposta pai automaticamente...");
+                        await salvarResposta(mainInput); // Isso atualiza o input.dataset.respostaId
+                        rid = input.dataset.respostaId;
+                    }
+                } catch(e) {
+                    console.log("Não foi possível criar a resposta pai agora (provavelmente offline).");
+                }
+            }
+
+            enviarFoto(file, pid, tid, rid, d);
         } else {
             marcarComoPendente(d);
         }
@@ -631,25 +633,16 @@
         try { await dbLocal.fotos.delete(id); } catch(e){}
     };
 
-    // --- CORREÇÃO: Timeout no Upload ---
     async function enviarFoto(file, pid, tid, rid, div) {
-        if(!rid) { 
-            marcarComoPendente(div);
-            return; 
-        }
+        if(!rid) { marcarComoPendente(div); return; }
         
         const fd = new FormData(); fd.append('foto', file);
-        
-        // Timeout de 15 segundos para evitar travamento em "Lie-fi"
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000);
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s Timeout
 
         try {
             const r = await fetch(`/cli/resposta/${rid}/upload-foto`, {
-                method:'POST', 
-                headers:{'X-CSRFToken': CSRF_TOKEN}, 
-                body:fd,
-                signal: controller.signal
+                method:'POST', headers:{'X-CSRFToken': CSRF_TOKEN}, body:fd, signal: controller.signal
             });
             clearTimeout(timeoutId);
             
@@ -661,7 +654,6 @@
                 }
             } else { throw new Error(); }
         } catch(e) { 
-            console.warn("Falha no upload (offline ou timeout):", e);
             marcarComoPendente(div);
         }
     }
@@ -681,38 +673,28 @@
         const originalHtml = btn.innerHTML;
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
-
         try {
             const CACHE_NAME_HTML = 'qualigestor-dynamic-v5'; 
             const cache = await caches.open(CACHE_NAME_HTML);
-            console.log("Tentando baixar:", window.location.href);
-            
-            const response = await fetch(window.location.href, {
-                method: 'GET', cache: 'reload', headers: { 'Cache-Control': 'no-cache' }
-            });
-
+            const response = await fetch(window.location.href, { method: 'GET', cache: 'reload', headers: { 'Cache-Control': 'no-cache' } });
             if (!response.ok) throw new Error(`Status: ${response.status}`);
-
             await cache.put(window.location.href, response);
-
             btn.classList.remove('btn-outline-primary', 'btn-outline-danger');
             btn.classList.add('btn-success');
             btn.innerHTML = '<i class="fas fa-check"></i> Salvo Offline';
             alert("Aplicação salva com sucesso! Pode desligar a internet.");
-
         } catch (e) {
-            console.error("Erro download:", e);
-            alert("Falha ao salvar: " + e.message + "\n\nVerifique se está usando HTTPS.");
+            alert("Falha ao salvar: " + e.message);
             btn.innerHTML = originalHtml;
-            btn.classList.add('btn-outline-danger');
             btn.disabled = false;
         }
     }
 
     async function sincronizarPendencias() {
         if(!navigator.onLine) return;
-        
         let f = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        
+        // 1. Sincroniza Textos
         if(f.length > 0) {
             const t = new bootstrap.Toast(document.getElementById('liveToast')); t.show();
             const pendentes = [];
@@ -721,20 +703,30 @@
                     const res = await fetch("{{ url_for('cli.salvar_resposta', id=aplicacao.id) }}", {
                         method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken': CSRF_TOKEN}, body:JSON.stringify(i)
                     });
-                    if(!res.ok) pendentes.push(i); 
+                    if(res.ok) {
+                        const d = await res.json();
+                        // ATUALIZA O DOM COM O NOVO ID PARA QUE AS FOTOS ACHEM ELE
+                        if(d.resposta_id) {
+                            const fi = document.getElementById(`input-foto-${i.pergunta_id}`);
+                            if(fi) fi.dataset.respostaId = d.resposta_id;
+                        }
+                    } else { pendentes.push(i); } 
                 } catch(e) { pendentes.push(i); } 
             }
             if(pendentes.length === 0) localStorage.removeItem(STORAGE_KEY);
             else localStorage.setItem(STORAGE_KEY, JSON.stringify(pendentes));
         }
 
+        // 2. Sincroniza Fotos
         const fs = await dbLocal.fotos.where('aplicacao_id').equals(APLICACAO_ID).toArray();
         for(let ft of fs) {
             let rid = ft.resposta_id;
+            // Tenta achar ID atualizado no DOM se não tinha antes
             if(!rid) { 
                 const i = document.getElementById(`input-foto-${ft.pergunta_id}`); 
                 if(i && i.dataset.respostaId) rid = i.dataset.respostaId; 
             }
+            
             if(rid) { 
                 const divPreview = document.getElementById(`foto-local-${ft.id}`);
                 if(divPreview) await enviarFoto(ft.blob, ft.pergunta_id, ft.id, rid, divPreview); 
@@ -752,24 +744,16 @@
         if(c){ signaturePadGlobal=new SignaturePad(c,{backgroundColor:'rgb(255,255,255)'}); resizeCanvas(); }
     }
     
-    window.abrirModalAssinatura=(pid,t)=>{ 
-        currentPerguntaId=pid; 
-        if(signaturePadGlobal) signaturePadGlobal.clear(); 
-        modalAssinatura.show(); 
-    };
-    
+    window.abrirModalAssinatura=(pid,t)=>{ currentPerguntaId=pid; if(signaturePadGlobal) signaturePadGlobal.clear(); modalAssinatura.show(); };
     window.confirmarAssinaturaModal=()=>{ 
         if(signaturePadGlobal.isEmpty()){alert('Assine.');return;} 
         const d=signaturePadGlobal.toDataURL(); 
         const input = document.getElementById(`resposta-input-${currentPerguntaId}`);
         input.value=d; 
-        
         const img = document.getElementById(`img-preview-${currentPerguntaId}`);
         if(img) { img.src=d; img.style.display='block'; }
-        
         const ph = document.getElementById(`placeholder-${currentPerguntaId}`);
         if(ph) ph.classList.add('d-none');
-        
         salvarResposta(input); 
         modalAssinatura.hide(); 
     };
@@ -777,18 +761,8 @@
     window.limparCanvasAtual=()=>signaturePadGlobal.clear();
     window.deletarFotoServidor=async(id)=>{ 
         if(!confirm('Apagar esta foto do servidor?'))return; 
-        
-        if(!navigator.onLine) {
-            alert("Atenção: Você está OFFLINE. A foto será removida da tela, mas pode reaparecer se você recarregar a página antes de ter internet.");
-        }
-        
         document.getElementById(`foto-server-${id}`).remove(); 
-        
-        try {
-            fetch(`/cli/foto/${id}/deletar`,{method:'DELETE',headers:{'X-CSRFToken': CSRF_TOKEN}}); 
-        } catch(e) {
-            console.log("Erro ao deletar (provavelmente offline):", e);
-        }
+        try { fetch(`/cli/foto/${id}/deletar`,{method:'DELETE',headers:{'X-CSRFToken': CSRF_TOKEN}}); } catch(e) {}
     };
 </script>
 {% endblock %}
