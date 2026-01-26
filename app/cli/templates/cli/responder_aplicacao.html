@@ -333,11 +333,10 @@
         window.addEventListener('offline', () => updateStatusConexao(false));
         updateStatusConexao(navigator.onLine);
         
-        // Tenta sincronizar ao abrir se tiver net
         if(navigator.onLine) sincronizarPendencias();
     });
 
-    // --- FUNÇÕES VISUAIS (Canvas e UI) ---
+    // --- UI E CANVAS ---
     modalElement.addEventListener('shown.bs.modal', function () { resizeCanvas(); });
     function resizeCanvas() {
         const canvas = document.getElementById('canvas-unico');
@@ -426,7 +425,6 @@
         }
     }
 
-    // --- VALIDAÇÃO E ENVIO DO FORMULÁRIO ---
     document.getElementById('form-finalizar').addEventListener('submit', function(e) {
         let erros = [];
         let primeiroErroElemento = null;
@@ -472,9 +470,7 @@
                 const collapse = document.getElementById(`collapse-${topicoId}`);
                 if(collapse) {
                     new bootstrap.Collapse(collapse, { show: true });
-                    setTimeout(() => {
-                        primeiroErroElemento.scrollIntoView({behavior: 'smooth', block: 'center'});
-                    }, 300);
+                    setTimeout(() => { primeiroErroElemento.scrollIntoView({behavior: 'smooth', block: 'center'}); }, 300);
                 }
             }
         } else {
@@ -482,7 +478,7 @@
         }
     });
 
-    // --- LÓGICA DE PERSISTÊNCIA E SINCRONIZAÇÃO ---
+    // --- SINCRONIZAÇÃO E STORAGE ---
     const STORAGE_KEY = `fila_respostas_${APLICACAO_ID}`;
 
     async function restaurarEstadoOffline() {
@@ -553,12 +549,13 @@
                 if(fb) fb.innerHTML = '<i class="fas fa-check text-success"></i>';
                 setTimeout(()=>fb.innerHTML='',2000);
                 
-                // ATUALIZA ID SE EXISTIR
+                // ATUALIZA ID GLOBALMENTE
                 if(d.resposta_id) {
-                    const fi = document.getElementById(`input-foto-${pid}`);
-                    if(fi) fi.dataset.respostaId = d.resposta_id;
-                    
-                    // IMPORTANTE: Se tinha fotos esperando esse ID, envia elas agora!
+                    // Atualiza todos os inputs dessa pergunta com o novo ID
+                    const inputsRelacionados = document.querySelectorAll(`[data-pergunta-id="${pid}"]`);
+                    inputsRelacionados.forEach(el => el.dataset.respostaId = d.resposta_id);
+
+                    // Verifica se tinha fotos esperando por esse ID
                     verificarFotosPendentes(pid, d.resposta_id);
                 }
                 removerDaFilaLocal(pid);
@@ -567,18 +564,17 @@
         } catch(e) {
             salvarFilaLocal({pergunta_id:pid, resposta:resp, observacao:obs, timestamp:Date.now()});
             if(fb) fb.innerHTML = '<i class="fas fa-save text-warning" title="Salvo no dispositivo"></i>';
-            // Não propagamos erro aqui para não travar a UI, apenas salvamos offline
         }
     }
 
-    // NOVA FUNÇÃO: Envia fotos que estavam 'órfãs' (sem ID) assim que o ID chega
+    // NOVA FUNÇÃO CRÍTICA: Envia fotos que estavam 'órfãs'
     async function verificarFotosPendentes(pid, rid) {
-        const fotos = await dbLocal.fotos.where('pergunta_id').equals(parseInt(pid)).toArray();
+        const fotos = await dbLocal.fotos.where('pergunta_id').equals(String(pid)).toArray();
         for(let f of fotos) {
             if(!f.resposta_id) {
-                // Atualiza o ID no banco local e tenta enviar
                 f.resposta_id = rid;
-                await dbLocal.fotos.put(f);
+                await dbLocal.fotos.put(f); // Atualiza no banco local
+                
                 const div = document.getElementById(`foto-local-${f.id}`);
                 if(div) {
                     enviarFoto(f.blob, pid, f.id, rid, div);
@@ -600,7 +596,7 @@
         if (f.length !== novoF.length) localStorage.setItem(STORAGE_KEY, JSON.stringify(novoF));
     }
 
-    // --- CORREÇÃO PRINCIPAL: UPLOAD DE FOTO INTELIGENTE ---
+    // --- CORREÇÃO DO UPLOAD: CRIA RESPOSTA VAZIA SE NECESSÁRIO ---
     async function handleFotoUpload(input) {
         const file = input.files[0]; if(!file) return;
         input.value=''; 
@@ -609,7 +605,7 @@
         const tid = Date.now(); 
         const g = document.getElementById(`galeria-fotos-${pid}`);
         
-        // 1. Cria Spinner Visual
+        // 1. Visual
         const d = document.createElement('div'); d.id=`foto-local-${tid}`;
         d.className='position-relative d-inline-block flex-shrink-0 me-2'; d.style.width='70px'; d.style.height='70px';
         d.innerHTML=`
@@ -624,45 +620,55 @@
         `;
         g.appendChild(d);
         
-        // 2. Salva Local (Protegido contra travamentos)
+        // 2. Salva Local
         try {
             await dbLocal.fotos.add({
                 id: tid, aplicacao_id: APLICACAO_ID, pergunta_id: pid, blob: file, nome: file.name, timestamp: Date.now(), resposta_id: input.dataset.respostaId || null
             });
         } catch (e) {
-            console.error("Erro crítico ao salvar foto local:", e);
+            console.error("Erro local:", e);
             d.querySelector('img').classList.replace('border-primary','border-danger');
-            d.querySelector('.status-icon').innerHTML='<i class="fas fa-exclamation-circle text-danger"></i>';
         }
         
-        // 3. Lógica de Envio com AUTO-CORREÇÃO DE ID
+        // 3. Envio Inteligente (A MÁGICA ACONTECE AQUI)
         if(navigator.onLine) {
             let rid = input.dataset.respostaId;
             
-            // SE NÃO TIVER ID (Ainda não respondeu), TENTA CRIAR AGORA
+            // SE NÃO TEM ID (Você não respondeu ainda):
             if(!rid) {
+                console.log("Sem resposta iniciada. Criando resposta vazia para permitir foto...");
                 try {
-                    // Tenta achar o input principal para salvar o valor atual (mesmo que vazio)
-                    const mainInput = document.querySelector(`input[name="resposta-${pid}"]:checked`) 
-                                   || document.querySelector(`textarea[name="resposta-${pid}"]`) 
-                                   || document.querySelector(`select[name="resposta-${pid}"]`)
-                                   || document.querySelector(`input[name="resposta-${pid}"]:not([type="radio"])`);
+                    // Força a criação de uma resposta "em branco" no servidor
+                    const res = await fetch("{{ url_for('cli.salvar_resposta', id=aplicacao.id) }}", {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN},
+                        body: JSON.stringify({
+                            pergunta_id: pid, 
+                            resposta: "", // Envia vazio só para gerar ID
+                            observacao: "", 
+                            timestamp: Date.now()
+                        })
+                    });
                     
-                    if(mainInput) {
-                        console.log("Criando resposta pai automaticamente para permitir foto...");
-                        const dadosResposta = await salvarResposta(mainInput); 
-                        if(dadosResposta && dadosResposta.resposta_id) {
-                            rid = dadosResposta.resposta_id;
+                    if (res.ok) {
+                        const dados = await res.json();
+                        if (dados.resposta_id) {
+                            rid = dados.resposta_id;
+                            // Atualiza o input para as próximas fotos não precisarem fazer isso
+                            input.dataset.respostaId = rid;
+                            
+                            // Atualiza também os botões Radio/Text dessa pergunta
+                            const outrosInputs = document.querySelectorAll(`[data-pergunta-id="${pid}"]`);
+                            outrosInputs.forEach(el => el.dataset.respostaId = rid);
                         }
                     }
                 } catch(e) {
-                    console.log("Não foi possível criar resposta automática.");
+                    console.log("Falha ao criar resposta vazia:", e);
                 }
             }
 
             enviarFoto(file, pid, tid, rid, d);
         } else {
-            // Se estiver offline ou falhar a criação do ID, fica pendente (amarelo)
             marcarComoPendente(d);
         }
     }
@@ -675,16 +681,9 @@
     };
 
     async function enviarFoto(file, pid, tid, rid, div) {
-        if(!rid) { 
-            // Se não tem ID ainda, fica pendente. 
-            // A nova função 'verificarFotosPendentes' vai enviar isso assim que o ID for criado.
-            marcarComoPendente(div); 
-            return; 
-        }
+        if(!rid) { marcarComoPendente(div); return; }
         
         const fd = new FormData(); fd.append('foto', file);
-        
-        // Timeout de 15 segundos para evitar travamento em internet ruim
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 15000); 
 
@@ -702,7 +701,6 @@
                 }
             } else { throw new Error(); }
         } catch(e) { 
-            console.warn("Upload falhou ou timeout, mantendo offline.");
             marcarComoPendente(div);
         }
     }
@@ -743,7 +741,7 @@
         if(!navigator.onLine) return;
         let f = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
         
-        // 1. Sincroniza Respostas Pendentes
+        // 1. Textos
         if(f.length > 0) {
             const t = new bootstrap.Toast(document.getElementById('liveToast')); t.show();
             const pendentes = [];
@@ -755,10 +753,9 @@
                     if(res.ok) {
                         const d = await res.json();
                         if(d.resposta_id) {
-                            const fi = document.getElementById(`input-foto-${i.pergunta_id}`);
-                            if(fi) fi.dataset.respostaId = d.resposta_id;
-                            // Se sincronizou a resposta, tenta enviar as fotos dela
-                            verificarFotosPendentes(i.pergunta_id, d.resposta_id);
+                             const inputs = document.querySelectorAll(`[data-pergunta-id="${i.pergunta_id}"]`);
+                             inputs.forEach(el => el.dataset.respostaId = d.resposta_id);
+                             verificarFotosPendentes(i.pergunta_id, d.resposta_id);
                         }
                     } else { pendentes.push(i); } 
                 } catch(e) { pendentes.push(i); } 
@@ -767,7 +764,7 @@
             else localStorage.setItem(STORAGE_KEY, JSON.stringify(pendentes));
         }
 
-        // 2. Sincroniza Fotos Pendentes (Global)
+        // 2. Fotos
         const fs = await dbLocal.fotos.where('aplicacao_id').equals(APLICACAO_ID).toArray();
         for(let ft of fs) {
             let rid = ft.resposta_id;
@@ -779,7 +776,6 @@
                 const divPreview = document.getElementById(`foto-local-${ft.id}`);
                 if(divPreview) await enviarFoto(ft.blob, ft.pergunta_id, ft.id, rid, divPreview); 
                 else {
-                    // Se não tiver div (recarregou a pagina), cria um dummy para processar o envio
                     const dummyDiv = document.createElement('div');
                     dummyDiv.innerHTML = '<div class="status-icon"></div>';
                     await enviarFoto(ft.blob, ft.pergunta_id, ft.id, rid, dummyDiv);
