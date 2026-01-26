@@ -41,6 +41,10 @@
                         <i class="fas fa-spinner fa-spin me-2"></i> <span class="fw-bold" style="font-size: 0.85rem;">Carregando...</span>
                     </div>
 
+                    <button type="button" class="btn btn-info text-white w-100 fw-bold mb-2 shadow-sm" id="btn-force-sync" onclick="forcarSincronizacaoManual()">
+                        <i class="fas fa-sync-alt me-2"></i> Sincronizar Agora
+                    </button>
+
                     <button type="button" class="btn btn-outline-primary w-100 fw-bold mb-2" id="btn-offline-sync" onclick="baixarParaOffline()">
                         <i class="fas fa-download me-2"></i> Baixar Offline
                     </button>
@@ -307,6 +311,10 @@
         fotos: 'id, aplicacao_id, pergunta_id, resposta_id, blob, nome, timestamp'
     });
 
+    // CHAVES DE ARMAZENAMENTO LOCAL
+    const STORAGE_KEY_RESPOSTAS = `fila_respostas_${APLICACAO_ID}`;
+    const STORAGE_KEY_DELETAR = `fila_deletar_fotos_${APLICACAO_ID}`;
+
     let signaturePadGlobal = null;
     let currentPerguntaId = null;
     const modalElement = document.getElementById('modalAssinaturaUnico');
@@ -479,10 +487,10 @@
     });
 
     // --- SINCRONIZAÇÃO E STORAGE ---
-    const STORAGE_KEY = `fila_respostas_${APLICACAO_ID}`;
 
     async function restaurarEstadoOffline() {
-        const fila = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        // 1. Restaura Textos/Respostas
+        const fila = JSON.parse(localStorage.getItem(STORAGE_KEY_RESPOSTAS) || '[]');
         fila.forEach(item => {
             const pid = item.pergunta_id;
             const inputTxt = document.querySelector(`[name="resposta-${pid}"]:not([type="radio"])`);
@@ -497,10 +505,12 @@
             }
         });
 
+        // 2. Restaura as fotos locais (pendentes de upload)
         try {
             const fotos = await dbLocal.fotos.where('aplicacao_id').equals(APLICACAO_ID).toArray();
             fotos.forEach(f => {
                 const g = document.getElementById(`galeria-fotos-${f.pergunta_id}`);
+                // Verifica se já não existe na tela para não duplicar
                 if(g && !document.getElementById(`foto-local-${f.id}`)) {
                     const d = document.createElement('div'); d.id=`foto-local-${f.id}`;
                     d.className='position-relative d-inline-block flex-shrink-0 me-2'; d.style.width='70px'; d.style.height='70px';
@@ -518,6 +528,13 @@
                 }
             });
         } catch(e){ console.error("Erro ao restaurar fotos:", e); }
+
+        // 3. Restaura o estado das fotos deletadas (remove visualmente se ainda estiverem na tela por cache)
+        const filaDelete = JSON.parse(localStorage.getItem(STORAGE_KEY_DELETAR) || '[]');
+        filaDelete.forEach(id => {
+            const el = document.getElementById(`foto-server-${id}`);
+            if(el) el.remove();
+        });
     }
 
     async function salvarResposta(input, isObs=false) {
@@ -549,13 +566,9 @@
                 if(fb) fb.innerHTML = '<i class="fas fa-check text-success"></i>';
                 setTimeout(()=>fb.innerHTML='',2000);
                 
-                // ATUALIZA ID GLOBALMENTE
                 if(d.resposta_id) {
-                    // Atualiza todos os inputs dessa pergunta com o novo ID
                     const inputsRelacionados = document.querySelectorAll(`[data-pergunta-id="${pid}"]`);
                     inputsRelacionados.forEach(el => el.dataset.respostaId = d.resposta_id);
-
-                    // Verifica se tinha fotos esperando por esse ID
                     verificarFotosPendentes(pid, d.resposta_id);
                 }
                 removerDaFilaLocal(pid);
@@ -567,14 +580,12 @@
         }
     }
 
-    // NOVA FUNÇÃO CRÍTICA: Envia fotos que estavam 'órfãs'
     async function verificarFotosPendentes(pid, rid) {
         const fotos = await dbLocal.fotos.where('pergunta_id').equals(String(pid)).toArray();
         for(let f of fotos) {
             if(!f.resposta_id) {
                 f.resposta_id = rid;
-                await dbLocal.fotos.put(f); // Atualiza no banco local
-                
+                await dbLocal.fotos.put(f);
                 const div = document.getElementById(`foto-local-${f.id}`);
                 if(div) {
                     enviarFoto(f.blob, pid, f.id, rid, div);
@@ -584,19 +595,19 @@
     }
 
     function salvarFilaLocal(obj) {
-        let f = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        let f = JSON.parse(localStorage.getItem(STORAGE_KEY_RESPOSTAS) || '[]');
         f = f.filter(i => i.pergunta_id != obj.pergunta_id);
         f.push(obj);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(f));
+        localStorage.setItem(STORAGE_KEY_RESPOSTAS, JSON.stringify(f));
     }
 
     function removerDaFilaLocal(pid) {
-        let f = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        let f = JSON.parse(localStorage.getItem(STORAGE_KEY_RESPOSTAS) || '[]');
         const novoF = f.filter(i => i.pergunta_id != pid);
-        if (f.length !== novoF.length) localStorage.setItem(STORAGE_KEY, JSON.stringify(novoF));
+        if (f.length !== novoF.length) localStorage.setItem(STORAGE_KEY_RESPOSTAS, JSON.stringify(novoF));
     }
 
-    // --- CORREÇÃO DO UPLOAD: CRIA RESPOSTA VAZIA SE NECESSÁRIO ---
+    // --- UPLOAD DE FOTOS BLINDADO ---
     async function handleFotoUpload(input) {
         const file = input.files[0]; if(!file) return;
         input.value=''; 
@@ -620,70 +631,52 @@
         `;
         g.appendChild(d);
         
-        // 2. Salva Local
+        // 2. Salva Local (Dexie) com Proteção de Erro
         try {
             await dbLocal.fotos.add({
                 id: tid, aplicacao_id: APLICACAO_ID, pergunta_id: pid, blob: file, nome: file.name, timestamp: Date.now(), resposta_id: input.dataset.respostaId || null
             });
         } catch (e) {
-            console.error("Erro local:", e);
+            console.error("Erro crítico Dexie:", e);
             d.querySelector('img').classList.replace('border-primary','border-danger');
         }
         
-        // 3. Envio Inteligente (A MÁGICA ACONTECE AQUI)
+        // 3. Envio Inteligente (Auto-Criação de Resposta se não existir)
         if(navigator.onLine) {
             let rid = input.dataset.respostaId;
-            
-            // SE NÃO TEM ID (Você não respondeu ainda):
             if(!rid) {
-                console.log("Sem resposta iniciada. Criando resposta vazia para permitir foto...");
                 try {
-                    // Força a criação de uma resposta "em branco" no servidor
+                    // Tenta criar resposta vazia no servidor para obter ID
                     const res = await fetch("{{ url_for('cli.salvar_resposta', id=aplicacao.id) }}", {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN},
-                        body: JSON.stringify({
-                            pergunta_id: pid, 
-                            resposta: "", // Envia vazio só para gerar ID
-                            observacao: "", 
-                            timestamp: Date.now()
-                        })
+                        body: JSON.stringify({pergunta_id: pid, resposta: "", observacao: "", timestamp: Date.now()})
                     });
                     
                     if (res.ok) {
                         const dados = await res.json();
                         if (dados.resposta_id) {
                             rid = dados.resposta_id;
-                            // Atualiza o input para as próximas fotos não precisarem fazer isso
                             input.dataset.respostaId = rid;
-                            
-                            // Atualiza também os botões Radio/Text dessa pergunta
+                            // Atualiza todos inputs relacionados
                             const outrosInputs = document.querySelectorAll(`[data-pergunta-id="${pid}"]`);
                             outrosInputs.forEach(el => el.dataset.respostaId = rid);
                         }
                     }
-                } catch(e) {
-                    console.log("Falha ao criar resposta vazia:", e);
-                }
+                } catch(e) { console.log("Falha auto-resposta:", e); }
             }
-
             enviarFoto(file, pid, tid, rid, d);
         } else {
             marcarComoPendente(d);
         }
     }
 
-    window.deletarFotoLocal = async (id) => {
-        if(!confirm('Remover esta foto (não enviada)?')) return;
-        const el = document.getElementById(`foto-local-${id}`);
-        if(el) el.remove();
-        try { await dbLocal.fotos.delete(id); } catch(e){}
-    };
-
     async function enviarFoto(file, pid, tid, rid, div) {
         if(!rid) { marcarComoPendente(div); return; }
         
         const fd = new FormData(); fd.append('foto', file);
+        
+        // Timeout de 15s para evitar travamento infinito
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 15000); 
 
@@ -715,9 +708,56 @@
         if(icon) icon.innerHTML='<i class="fas fa-clock text-warning"></i>';
     }
 
+    // --- DELEÇÃO DE FOTOS (COM FILA OFFLINE) ---
+    
+    // Deleta foto LOCAL (que ainda não subiu)
+    window.deletarFotoLocal = async (id) => {
+        if(!confirm('Remover esta foto (não enviada)?')) return;
+        const el = document.getElementById(`foto-local-${id}`);
+        if(el) el.remove();
+        try { await dbLocal.fotos.delete(id); } catch(e){}
+    };
+
+    // Deleta foto DO SERVIDOR (com suporte offline)
+    window.deletarFotoServidor = async (id) => {
+        if(!confirm('Apagar esta foto do servidor?')) return;
+        
+        // Remove visualmente na hora
+        const el = document.getElementById(`foto-server-${id}`);
+        if(el) el.remove();
+
+        if(navigator.onLine) {
+            try {
+                await fetch(`/cli/foto/${id}/deletar`, {method:'DELETE',headers:{'X-CSRFToken': CSRF_TOKEN}});
+            } catch(e) {
+                // Se falhar (caiu net), põe na fila
+                adicionarNaFilaDelecao(id);
+            }
+        } else {
+            // Se offline, põe na fila
+            adicionarNaFilaDelecao(id);
+        }
+    };
+
+    function adicionarNaFilaDelecao(id) {
+        let fila = JSON.parse(localStorage.getItem(STORAGE_KEY_DELETAR) || '[]');
+        if(!fila.includes(id)) {
+            fila.push(id);
+            localStorage.setItem(STORAGE_KEY_DELETAR, JSON.stringify(fila));
+        }
+    }
+
+    // --- DOWNLOAD OFFLINE (COM PROTEÇÃO iOS) ---
     async function baixarParaOffline() {
         const btn = document.getElementById('btn-offline-sync');
         const originalHtml = btn.innerHTML;
+        
+        // Proteção para iOS em HTTP não seguro
+        if (!('caches' in window)) {
+            alert("⚠️ Bloqueio de Segurança!\n\nEste dispositivo não permite modo offline sem conexão segura (HTTPS).\nUse um link seguro ou localhost.");
+            return;
+        }
+
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
         try {
@@ -737,11 +777,47 @@
         }
     }
 
+    // --- FORÇAR SINCRONIZAÇÃO MANUAL (NOVO) ---
+    async function forcarSincronizacaoManual() {
+        const btn = document.getElementById('btn-force-sync');
+        if (!navigator.onLine) { alert("⚠️ Sem internet!"); return; }
+
+        const txtOriginal = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
+
+        try {
+            await sincronizarPendencias();
+            
+            // Verifica se sobrou algo
+            const pendentesTexto = JSON.parse(localStorage.getItem(STORAGE_KEY_RESPOSTAS) || '[]').length;
+            const pendentesDelete = JSON.parse(localStorage.getItem(STORAGE_KEY_DELETAR) || '[]').length;
+            const fotosPendentes = await dbLocal.fotos.where('aplicacao_id').equals(APLICACAO_ID).count();
+            
+            if (pendentesTexto + pendentesDelete + fotosPendentes === 0) {
+                btn.classList.replace('btn-info', 'btn-success');
+                btn.innerHTML = '<i class="fas fa-check"></i> Tudo Salvo!';
+                setTimeout(() => { 
+                    alert("Sincronização Concluída!"); 
+                    btn.classList.replace('btn-success', 'btn-info');
+                    btn.innerHTML = txtOriginal;
+                    btn.disabled = false;
+                }, 1000);
+            } else {
+                throw new Error("Alguns itens não foram enviados.");
+            }
+        } catch (e) {
+            alert("Erro na sincronização: " + e.message);
+            btn.innerHTML = txtOriginal;
+            btn.disabled = false;
+        }
+    }
+
     async function sincronizarPendencias() {
         if(!navigator.onLine) return;
-        let f = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
         
-        // 1. Textos
+        // 1. Sincroniza Textos
+        let f = JSON.parse(localStorage.getItem(STORAGE_KEY_RESPOSTAS) || '[]');
         if(f.length > 0) {
             const t = new bootstrap.Toast(document.getElementById('liveToast')); t.show();
             const pendentes = [];
@@ -760,11 +836,11 @@
                     } else { pendentes.push(i); } 
                 } catch(e) { pendentes.push(i); } 
             }
-            if(pendentes.length === 0) localStorage.removeItem(STORAGE_KEY);
-            else localStorage.setItem(STORAGE_KEY, JSON.stringify(pendentes));
+            if(pendentes.length === 0) localStorage.removeItem(STORAGE_KEY_RESPOSTAS);
+            else localStorage.setItem(STORAGE_KEY_RESPOSTAS, JSON.stringify(pendentes));
         }
 
-        // 2. Fotos
+        // 2. Sincroniza Fotos Novas
         const fs = await dbLocal.fotos.where('aplicacao_id').equals(APLICACAO_ID).toArray();
         for(let ft of fs) {
             let rid = ft.resposta_id;
@@ -781,6 +857,20 @@
                     await enviarFoto(ft.blob, ft.pergunta_id, ft.id, rid, dummyDiv);
                 }
             }
+        }
+
+        // 3. Sincroniza Deleções
+        const filaDelete = JSON.parse(localStorage.getItem(STORAGE_KEY_DELETAR) || '[]');
+        if(filaDelete.length > 0) {
+            const novosPendentesDelete = [];
+            for(let id of filaDelete) {
+                try {
+                    const res = await fetch(`/cli/foto/${id}/deletar`, {method:'DELETE',headers:{'X-CSRFToken': CSRF_TOKEN}});
+                    if(!res.ok && res.status !== 404) novosPendentesDelete.push(id);
+                } catch(e) { novosPendentesDelete.push(id); }
+            }
+            if(novosPendentesDelete.length === 0) localStorage.removeItem(STORAGE_KEY_DELETAR);
+            else localStorage.setItem(STORAGE_KEY_DELETAR, JSON.stringify(novosPendentesDelete));
         }
     }
 
@@ -804,10 +894,5 @@
     };
     
     window.limparCanvasAtual=()=>signaturePadGlobal.clear();
-    window.deletarFotoServidor=async(id)=>{ 
-        if(!confirm('Apagar esta foto do servidor?'))return; 
-        document.getElementById(`foto-server-${id}`).remove(); 
-        try { fetch(`/cli/foto/${id}/deletar`,{method:'DELETE',headers:{'X-CSRFToken': CSRF_TOKEN}}); } catch(e) {}
-    };
 </script>
 {% endblock %}
