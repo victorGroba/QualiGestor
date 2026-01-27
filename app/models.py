@@ -5,6 +5,11 @@ import enum
 from flask_login import UserMixin
 from . import db
 
+usuario_grupos = db.Table('usuario_grupos',
+    db.Column('usuario_id', db.Integer, db.ForeignKey('usuario.id'), primary_key=True),
+    db.Column('grupo_id', db.Integer, db.ForeignKey('grupo.id'), primary_key=True)
+)
+
 # ==================== ENUMS ====================
 
 class TipoResposta(enum.Enum):
@@ -160,7 +165,8 @@ class Avaliado(db.Model):
 
 class Usuario(db.Model, UserMixin):
     """
-    Tabela de Usuários com Hierarquia Multi-Tenant (Cliente -> Grupo -> Avaliado)
+    Tabela de Usuários com Hierarquia Multi-Tenant (Cliente -> Grupos -> Avaliado)
+    Atualizada para suportar Múltiplos GAPs (N:N)
     """
     __tablename__ = "usuario"
 
@@ -183,7 +189,9 @@ class Usuario(db.Model, UserMixin):
     # Nível 1: CLIENTE (Ex: FAB) - Obrigatório
     cliente_id = db.Column(db.Integer, db.ForeignKey('cliente.id'), nullable=False)
 
-    # Nível 2: GRUPO (Ex: GAP Galeão) - Opcional
+    # Nível 2: GRUPO PRINCIPAL (Legado/Compatibilidade)
+    # Mantemos este campo para não quebrar relatórios antigos.
+    # Ele será preenchido automaticamente com o primeiro grupo da lista nova.
     grupo_id = db.Column(db.Integer, db.ForeignKey('grupo.id'), nullable=True)
 
     # Nível 3: AVALIADO (Ex: Rancho Oficiais) - Opcional
@@ -194,14 +202,12 @@ class Usuario(db.Model, UserMixin):
 
     # --- RELACIONAMENTOS (LINKS PARA O PYTHON) ---
 
-    # 1. CLIENTE: NÃO PRECISA DEFINIR AQUI (Já existe na classe Cliente como backref='usuarios')
-    # cliente = db.relationship('Cliente', backref='usuarios')
+    # 1. MÚLTIPLOS GAPS (A Nova Funcionalidade)
+    # Este campo permite que a consultora tenha acesso a VÁRIOS grupos ao mesmo tempo.
+    # Ele usa a tabela 'usuario_grupos' que definimos acima.
+    grupos_acesso = db.relationship('Grupo', secondary=usuario_grupos, backref=db.backref('consultoras_extras', lazy='dynamic'))
 
-    # 2. GRUPO: NÃO PRECISA DEFINIR AQUI (Já existe na classe Grupo como backref='usuarios')
-    # grupo = db.relationship('Grupo', backref='usuarios')
-
-    # 3. AVALIADO: ESSE PRECISA! (A classe Avaliado não tinha vinculo com usuário)
-    # Cria o link u.avaliado e cria a lista rancho.usuarios_vinculados
+    # 2. AVALIADO: Link direto para o Rancho (se for usuário local)
     avaliado = db.relationship('Avaliado', backref='usuarios_vinculados')
 
     # --- MÉTODOS DE SEGURANÇA ---
