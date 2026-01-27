@@ -2173,25 +2173,43 @@ def nova_aplicacao():
 def responder_aplicacao(id, modo_assinatura=False):
     """
     Interface Principal de Coleta (Checklist).
-    - modo_assinatura=False: Modo normal de preenchimento.
-    - modo_assinatura=True: Modo final para coletar assinaturas.
+    Atualizada com segurança Multi-GAP.
     """
     try:
         aplicacao = AplicacaoQuestionario.query.get_or_404(id)
 
-        # 1. Validação de Segurança (Cliente)
+        # 1. Validação de Segurança Global (Cliente)
         if aplicacao.avaliado.cliente_id != current_user.cliente_id:
             flash("Aplicação não encontrada ou acesso negado.", "error")
             return redirect(url_for('cli.listar_aplicacoes'))
         
-        # 2. Validação de Status (Se já finalizada, redireciona para visualização)
+        # 2. Validação de Segurança Regional (MULTI-GAP)
+        # Se for Gestor/Auditor, verifica se tem permissão no GAP do rancho auditado
+        if current_user.tipo.name in ['AUDITOR', 'GESTOR']:
+            # Coleta todos os IDs permitidos (Lista Nova + Legado)
+            gaps_permitidos = []
+            if hasattr(current_user, 'grupos_acesso'):
+                gaps_permitidos = [g.id for g in current_user.grupos_acesso]
+            
+            if current_user.grupo_id:
+                gaps_permitidos.append(current_user.grupo_id)
+            
+            # Remove duplicatas
+            gaps_permitidos = list(set(gaps_permitidos))
+            
+            # Verifica a permissão
+            if aplicacao.avaliado.grupo_id not in gaps_permitidos:
+                flash("Acesso negado: Unidade fora da sua jurisdição.", "danger")
+                return redirect(url_for('cli.listar_aplicacoes'))
+
+        # 3. Validação de Status
         if aplicacao.status != StatusAplicacao.EM_ANDAMENTO:
             flash("Esta aplicação já foi finalizada.", "warning")
             return redirect(url_for('cli.visualizar_aplicacao', id=id))
 
-        # --- CARREGAMENTO OTIMIZADO DE DADOS ---
-
-        # 3. Carregar tópicos ativos
+        # --- CARREGAMENTO DE DADOS ---
+        
+        # Carrega tópicos ativos
         topicos = Topico.query.filter(
             Topico.questionario_id == aplicacao.questionario_id,
             Topico.ativo == True
@@ -2199,7 +2217,6 @@ def responder_aplicacao(id, modo_assinatura=False):
 
         if not topicos:
              flash("Este questionário não possui tópicos ativos.", "warning")
-             # Retorna template vazio mas funcional para evitar erro 500
              return render_template(
                 'cli/responder_aplicacao.html',
                 aplicacao=aplicacao, 
@@ -2211,7 +2228,7 @@ def responder_aplicacao(id, modo_assinatura=False):
 
         topico_ids = [t.id for t in topicos]
 
-        # 4. Carregar perguntas ativas (Filtrando apenas pelos tópicos carregados)
+        # Carrega perguntas ativas apenas dos tópicos carregados
         perguntas_ativas = Pergunta.query.filter(
             Pergunta.topico_id.in_(topico_ids),
             Pergunta.ativo == True
@@ -2219,32 +2236,22 @@ def responder_aplicacao(id, modo_assinatura=False):
         
         perguntas_ativas_ids = [p.id for p in perguntas_ativas]
 
-        # 5. Carregar respostas existentes COM AS FOTOS (Eager Loading)
-        # O 'joinedload' aqui é crucial para o sistema de múltiplas fotos não ficar lento
+        # Carrega respostas existentes
         respostas_lista = []
         if perguntas_ativas_ids:
-            query_respostas = RespostaPergunta.query.filter(
+            # Opção simples e segura (sem joinedload complexo para evitar erros de import)
+            respostas_lista = RespostaPergunta.query.filter(
                 RespostaPergunta.aplicacao_id == aplicacao.id,
                 RespostaPergunta.pergunta_id.in_(perguntas_ativas_ids)
-            )
-            
-            # Tenta otimizar o carregamento das fotos se a relação existir
-           # if hasattr(RespostaPergunta, 'fotos'):
-                #query_respostas = query_respostas.options(joinedload(RespostaPergunta.fotos))
-                
-            respostas_lista = query_respostas.all()
+            ).all()
         
-        # 6. Organizar dados para o Template (Mapas para acesso O(1))
+        # Mapeamento para acesso rápido no template
         perguntas_por_topico = {t.id: [] for t in topicos}
         for p in perguntas_ativas:
             if p.topico_id in perguntas_por_topico:
                 perguntas_por_topico[p.topico_id].append(p)
         
-        # Cria um dicionário {pergunta_id: objeto_resposta}
         respostas_map = {r.pergunta_id: r for r in respostas_lista}
-
-        # 7. Renderizar Template
-        current_app.logger.debug(f"Renderizando app {id}. Modo Assinatura: {modo_assinatura}")
 
         return render_template(
             'cli/responder_aplicacao.html',
@@ -5119,26 +5126,32 @@ def perfil():
 def escolher_questionario(avaliado_id):
     """
     Passo 2: Escolher o Questionário e Criar a Aplicação.
+    Atualizado com segurança Multi-GAP.
     """
     rancho = Avaliado.query.get_or_404(avaliado_id)
     
-    # Segurança de Hierarquia
+    # --- SEGURANÇA HIERÁRQUICA (MULTI-GAP) ---
     if current_user.tipo.name in ['AUDITOR', 'GESTOR']:
-        if rancho.grupo_id != current_user.grupo_id:
-            flash("Acesso negado a este rancho.", "danger")
+        # Coleta todos os IDs permitidos (Lista Nova + Legado)
+        gaps_permitidos = [g.id for g in current_user.grupos_acesso]
+        if current_user.grupo_id:
+            gaps_permitidos.append(current_user.grupo_id)
+        
+        # Verifica se o rancho alvo pertence a algum desses grupos
+        if rancho.grupo_id not in gaps_permitidos:
+            flash(f"Acesso negado: Você não tem permissão para auditar o rancho '{rancho.nome}'.", "danger")
             return redirect(url_for('cli.selecionar_rancho_auditoria'))
+    # ------------------------------------------
 
     if request.method == 'POST':
         questionario_id = request.form.get('questionario_id')
         
         if questionario_id:
             try:
-                # --- CORREÇÃO: REMOVIDO O CLIENTE_ID ---
                 nova_aplicacao = AplicacaoQuestionario(
                     aplicador_id=current_user.id,
                     avaliado_id=rancho.id,
                     questionario_id=int(questionario_id),
-                    # cliente_id=current_user.cliente_id,  <-- LINHA REMOVIDA (CAUSAVA O ERRO)
                     data_inicio=datetime.now(),
                     status=StatusAplicacao.EM_ANDAMENTO 
                 )
@@ -5152,7 +5165,6 @@ def escolher_questionario(avaliado_id):
                 
             except Exception as e:
                 db.session.rollback()
-                # Imprime o erro no terminal para facilitar
                 print(f"ERRO SQL: {e}")
                 flash(f"Erro ao criar registro: {str(e)}", "danger")
         else:
