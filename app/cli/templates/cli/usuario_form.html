@@ -73,14 +73,15 @@
                     </div>
 
                     <div class="col-md-4 mb-3" id="divGap" style="display: none;">
-                        <label for="grupo_id" class="form-label font-weight-bold text-info">Vincular a qual GAP?</label>
-                        <select class="form-select border-info" id="grupo_id" name="grupo_id" onchange="filtrarRanchos()">
-                            <option value="">-- Selecione o GAP --</option>
+                        <label for="grupos_acesso" class="form-label font-weight-bold text-info">GAPs de Atuação (Multi-seleção)</label>
+                        <select class="form-select border-info" id="grupos_acesso" name="grupos_acesso" multiple style="height: 150px;" onchange="filtrarRanchos()">
                             {% for gap in grupos %}
                                 <option value="{{ gap.id }}">{{ gap.nome }}</option>
                             {% endfor %}
                         </select>
-                        <div class="form-text text-info">Define a região de atuação.</div>
+                        <div class="form-text text-primary">
+                            <i class="fas fa-info-circle"></i> Segure <strong>Ctrl</strong> (ou Command) para selecionar mais de um GAP.
+                        </div>
                     </div>
 
                     <div class="col-md-4 mb-3" id="divRancho" style="display: none;">
@@ -88,7 +89,7 @@
                         <select class="form-select border-success" id="avaliado_id" name="avaliado_id">
                             <option value="">-- Selecione o GAP primeiro --</option>
                         </select>
-                        <div class="form-text text-success">Define o local específico.</div>
+                        <div class="form-text text-success">Define o local específico (Para perfil Rancho).</div>
                     </div>
                 </div>
 
@@ -124,7 +125,7 @@
         const tipo = document.getElementById('tipo').value;
         const divGap = document.getElementById('divGap');
         const divRancho = document.getElementById('divRancho');
-        const selectGap = document.getElementById('grupo_id');
+        const selectGap = document.getElementById('grupos_acesso'); // ID Atualizado
         const selectRancho = document.getElementById('avaliado_id');
         const textoAjuda = document.getElementById('textoAjuda');
 
@@ -136,8 +137,8 @@
 
         if (tipo === 'gestor' || tipo === 'auditor') {
             divGap.style.display = 'block';
-            selectGap.setAttribute('required', 'required');
-            textoAjuda.innerText = "Selecione o GAP de atuação.";
+            selectGap.setAttribute('required', 'required'); // Torna GAP obrigatório
+            textoAjuda.innerText = "Selecione um ou mais GAPs de atuação.";
             selectRancho.value = ""; 
         } else if (tipo === 'usuario') {
             divGap.style.display = 'block';
@@ -153,14 +154,16 @@
     }
 
     function filtrarRanchos() {
-        const gapId = document.getElementById('grupo_id').value;
+        const selectGap = document.getElementById('grupos_acesso');
+        const gapId = selectGap.value; // Em select multiple, .value pega o primeiro selecionado (ideal para filtrar rancho)
         const selectRancho = document.getElementById('avaliado_id');
         
         // Limpa opções atuais
         selectRancho.innerHTML = '<option value="">-- Selecione o Rancho --</option>';
 
+        // Só filtra ranchos se tiver um GAP selecionado. 
+        // Para consultoras (multi-gap), o rancho não é usado, então não tem problema pegar só o primeiro GAP.
         if (gapId) {
-            // Filtro robusto comparando strings para evitar erro de tipo (int vs string)
             const ranchosFiltrados = todosRanchos.filter(r => String(r.grupo_id) === String(gapId));
             
             if (ranchosFiltrados.length > 0) {
@@ -187,8 +190,8 @@
         atualizarFormulario();
         
         // Se já houver um GAP selecionado (ex: erro de validação ao voltar), filtra os ranchos
-        const gapId = document.getElementById('grupo_id').value;
-        if (gapId) {
+        const selectGap = document.getElementById('grupos_acesso');
+        if (selectGap && selectGap.value) {
             filtrarRanchos();
         }
     });

@@ -3071,32 +3071,43 @@ def gerenciar_usuarios():
 @login_required
 @admin_required
 def novo_usuario():
-    """Cria novo usuário com validação de hierarquia FAB"""
+    """
+    Cria novo usuário com suporte a Múltiplos GAPs (N:N)
+    e compatibilidade com sistema legado.
+    """
     
-    # Imports de segurança (Melhor colocar no topo do arquivo, mas funciona aqui)
+    # Imports de segurança
     from werkzeug.security import generate_password_hash
     
+    # =========================================================================
     # GET: Carregar dados para o formulário
+    # =========================================================================
     if request.method == 'GET':
         try:
-            # Carrega apenas GAPs e Ranchos da empresa logada (FAB)
+            # Carrega GAPs e Ranchos da empresa logada (FAB)
             gaps = Grupo.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).order_by(Grupo.nome).all()
             ranchos = Avaliado.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).order_by(Avaliado.nome).all()
             
-            # Passamos 'grupos=gaps' para bater com o HTML {% for gap in grupos %}
-            return render_template_safe('cli/usuario_form.html', grupos=gaps, ranchos=ranchos)
+            return render_template('cli/usuario_form.html', grupos=gaps, ranchos=ranchos)
         except Exception as e:
             flash(f"Erro ao carregar formulário: {str(e)}", "danger")
             return redirect(url_for('cli.gerenciar_usuarios'))
 
+    # =========================================================================
     # POST: Processar o formulário
+    # =========================================================================
     try:
-        # 1. Coleta dados
+        # 1. Coleta dados básicos
         nome = request.form.get('nome', '').strip()
         email = request.form.get('email', '').strip().lower()
         tipo_str = request.form.get('tipo')
-        grupo_id = request.form.get('grupo_id')       # ID do GAP
-        avaliado_id = request.form.get('avaliado_id') # ID do Rancho
+        
+        # --- ATUALIZAÇÃO MULTI-GAP ---
+        # Agora pegamos uma LISTA de IDs, e não apenas um único ID
+        gaps_ids = request.form.getlist('grupos_acesso') 
+        
+        # ID do Rancho (caso seja usuário local)
+        avaliado_id = request.form.get('avaliado_id') 
         
         # 2. Validações Básicas
         if not all([nome, email, tipo_str]):
@@ -3107,11 +3118,11 @@ def novo_usuario():
             flash('Este e-mail já está em uso.', 'warning')
             return redirect(url_for('cli.novo_usuario'))
 
-        # 3. VALIDAÇÃO DE VÍNCULOS (Regras de Negócio FAB)
+        # 3. VALIDAÇÃO DE VÍNCULOS ATUALIZADA
         
-        # Regra A: Consultora (Auditor) e Gestor GAP precisam de um GAP definido
-        if tipo_str in ['auditor', 'gestor'] and not grupo_id:
-            flash('Para Consultoras e Gestores, é OBRIGATÓRIO selecionar o GAP.', 'warning')
+        # Regra A: Consultora (Auditor) e Gestor GAP precisam de PELO MENOS UM GAP
+        if tipo_str in ['auditor', 'gestor'] and not gaps_ids:
+            flash('Para Consultoras e Gestores, é OBRIGATÓRIO selecionar pelo menos um GAP.', 'warning')
             return redirect(url_for('cli.novo_usuario'))
 
         # Regra B: Usuário Operacional (Rancho) precisa de um Rancho definido
@@ -3120,7 +3131,6 @@ def novo_usuario():
             return redirect(url_for('cli.novo_usuario'))
 
         # 4. Conversão Segura (HTML Value -> Python Enum)
-        # Ajuste as chaves da direita (TipoUsuario.X) conforme seu models.py exato
         mapa_tipos = {
             'super_admin': TipoUsuario.SUPER_ADMIN,
             'admin': TipoUsuario.ADMIN,      
@@ -3132,47 +3142,70 @@ def novo_usuario():
         tipo_enum = mapa_tipos.get(tipo_str)
         
         if not tipo_enum:
-            # Fallback caso o mapeamento falhe (Tenta usar o nome em maiúsculo)
             try:
                 tipo_enum = TipoUsuario[tipo_str.upper()]
             except KeyError:
                 flash(f"Tipo de usuário inválido: {tipo_str}", "error")
                 return redirect(url_for('cli.novo_usuario'))
 
-        # 5. Criação do Objeto
+        # 5. Criação do Objeto Usuário
         usuario = Usuario(
             nome=nome,
             email=email,
             tipo=tipo_enum,
             cliente_id=current_user.cliente_id,
-            # Converte para Int se tiver valor, senão None
-            grupo_id=int(grupo_id) if grupo_id else None,
             avaliado_id=int(avaliado_id) if avaliado_id else None,
             senha_hash=generate_password_hash('123456'),
             ativo=True
         )
+
+        # 6. PROCESSAMENTO DOS GAPS (O Coração da Atualização)
         
-        # 6. Lógica de Consistência (Sua ideia foi ótima!)
-        # Se vinculou a um Rancho, garantimos que o usuário também pertença ao GAP desse Rancho
-        if usuario.avaliado_id:
+        # Cenário A: Consultora/Gestor com Multiplos GAPs selecionados
+        if gaps_ids:
+            primeiro_gap = True
+            for gid in gaps_ids:
+                gap = Grupo.query.get(int(gid))
+                if gap:
+                    # Adiciona à lista N:N (Tabela usuario_grupos)
+                    usuario.grupos_acesso.append(gap)
+                    
+                    # Se for o primeiro, define como 'principal' para manter compatibilidade
+                    if primeiro_gap:
+                        usuario.grupo_id = gap.id
+                        primeiro_gap = False
+        
+        # Cenário B: Usuário de Rancho (Herda o GAP do Rancho automaticamente)
+        elif usuario.avaliado_id:
             rancho = Avaliado.query.get(usuario.avaliado_id)
             if rancho and rancho.grupo_id:
+                # Define o legado
                 usuario.grupo_id = rancho.grupo_id
+                
+                # Busca o objeto Grupo e adiciona na lista nova também (para consistência)
+                gap_do_rancho = Grupo.query.get(rancho.grupo_id)
+                if gap_do_rancho:
+                    usuario.grupos_acesso.append(gap_do_rancho)
 
+        # 7. Salvar no Banco
         db.session.add(usuario)
         db.session.commit()
         
-        # Tenta registrar log, se der erro no log, não quebra o cadastro
+        # Log (Opcional)
         try:
+            # Tente importar log_acao se estiver disponível no escopo ou globalmente
+            from app.utils.helpers import log_acao 
             log_acao(f"Criou usuário: {nome} ({tipo_str})", None, "Usuario", usuario.id)
-        except:
-            pass
+        except Exception:
+            pass # Se não tiver log, segue a vida
 
         flash(f'Usuário {nome} criado com sucesso! Senha padrão: 123456', 'success')
         return redirect(url_for('cli.gerenciar_usuarios'))
         
     except Exception as e:
         db.session.rollback()
+        # Log detalhado do erro no terminal para debug
+        print(f"ERRO AO CRIAR USUÁRIO: {e}")
         flash(f'Erro técnico ao criar usuário: {str(e)}', 'danger')
         return redirect(url_for('cli.novo_usuario'))
 
