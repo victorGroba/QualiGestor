@@ -5431,11 +5431,11 @@ def detalhe_plano_acao(aplicacao_id):
 
 # Em app/cli/routes.py
 
+# No arquivo: app/cli/routes.py
+
 @cli_bp.route('/plano-de-acao/<int:aplicacao_id>/pdf')
 @login_required
 def pdf_plano_acao(aplicacao_id):
-    import base64
-    import os
     from pathlib import Path
     
     try:
@@ -5445,11 +5445,13 @@ def pdf_plano_acao(aplicacao_id):
         if aplicacao.avaliado.cliente_id != current_user.cliente_id:
             flash("Acesso não autorizado.", "danger")
             return redirect(url_for('cli.lista_plano_acao'))
+        
+        # Validação de hierarquia (Rancho/GAP)
         if current_user.avaliado_id and aplicacao.avaliado_id != current_user.avaliado_id:
             flash("Permissão negada.", "danger")
             return redirect(url_for('cli.lista_plano_acao'))
 
-        # 2. Busca Dados
+        # 2. Busca Itens do Plano de Ação
         respostas_db = RespostaPergunta.query\
             .filter_by(aplicacao_id=aplicacao.id)\
             .filter(RespostaPergunta.plano_acao != None)\
@@ -5458,10 +5460,37 @@ def pdf_plano_acao(aplicacao_id):
             .order_by(Topico.ordem, Pergunta.ordem)\
             .all()
         
-        # 3. Prepara Itens e Fotos das NCs
-        upload_folder = current_app.config.get('UPLOAD_FOLDER')
-        itens_relatorio = []
+        # 3. Prepara URIs das Imagens (Logo e Assinaturas)
+        # Usamos .as_uri() para o WeasyPrint lidar melhor com caminhos absolutos
+        
+        # A) Logo
+        logo_pdf_uri = None
+        try:
+            logo_path = Path(current_app.static_folder) / 'img' / 'logo_pdf.png'
+            if logo_path.exists():
+                logo_pdf_uri = logo_path.as_uri()
+            else:
+                # Fallback
+                logo_path = Path(current_app.static_folder) / 'img' / 'logo.jpg'
+                if logo_path.exists():
+                    logo_pdf_uri = logo_path.as_uri()
+        except Exception:
+            pass
 
+        # B) Assinatura do Cliente (Coletada no Checklist)
+        assinatura_cliente_uri = None
+        upload_folder_str = current_app.config.get('UPLOAD_FOLDER')
+        
+        if aplicacao.assinatura_imagem and upload_folder_str:
+            try:
+                ass_path = Path(upload_folder_str) / aplicacao.assinatura_imagem
+                if ass_path.exists():
+                    assinatura_cliente_uri = ass_path.as_uri()
+            except Exception:
+                pass
+
+        # 4. Prepara os Itens (NCs) e suas fotos de evidência
+        itens_relatorio = []
         for resp in respostas_db:
             item = {
                 'topico_nome': resp.pergunta.topico.nome,
@@ -5470,48 +5499,28 @@ def pdf_plano_acao(aplicacao_id):
                 'pergunta_texto': resp.pergunta.texto,
                 'observacao': resp.observacao,
                 'plano_acao': resp.plano_acao,
-                'prazo': resp.prazo_plano_acao,
+                'prazo': resp.prazo_plano_acao, # <--- O CAMPO DE DATA
                 'foto_uri': None
             }
-            if resp.caminho_foto and upload_folder:
-                path = Path(upload_folder) / resp.caminho_foto
-                if path.exists():
-                    item['foto_uri'] = path.as_uri()
+            
+            # Foto da Evidência (Não Conformidade)
+            if resp.caminho_foto and upload_folder_str:
+                try:
+                    foto_path = Path(upload_folder_str) / resp.caminho_foto
+                    if foto_path.exists():
+                        item['foto_uri'] = foto_path.as_uri()
+                except Exception:
+                    pass
+                    
             itens_relatorio.append(item)
         
-        # 4. Helper para converter imagem em Base64
-        def get_image_b64(filepath):
-            if filepath and os.path.exists(filepath):
-                with open(filepath, "rb") as f:
-                    return f"data:image/png;base64,{base64.b64encode(f.read()).decode('utf-8')}"
-            return None
-
-        # -- LOGO --
-        path_logo = os.path.join(current_app.root_path, 'static', 'img', 'logo_pdf.png')
-        logo_b64 = get_image_b64(path_logo)
-
-        # -- ASSINATURA CLIENTE (Da Aplicação) --
-        assinatura_cliente_b64 = None
-        if aplicacao.assinatura_imagem:
-            path_ass = os.path.join(current_app.config['UPLOAD_FOLDER'], aplicacao.assinatura_imagem)
-            assinatura_cliente_b64 = get_image_b64(path_ass)
-
-        # -- ASSINATURA AUDITOR (Do Usuário/Sistema) --
-        # Tenta buscar se o usuário aplicador tem foto/assinatura, senão fica None
-        assinatura_auditor_b64 = None
-        # Exemplo: se o model User tiver um campo 'assinatura_imagem'
-        # if aplicacao.aplicador and getattr(aplicacao.aplicador, 'assinatura_imagem', None):
-        #     path_aud = os.path.join(current_app.config['UPLOAD_FOLDER'], aplicacao.aplicador.assinatura_imagem)
-        #     assinatura_auditor_b64 = get_image_b64(path_aud)
-
-        # 5. Renderiza
+        # 5. Renderiza com o novo Template
         html_content = render_template_safe(
             'cli/pdf_plano_acao.html',
             aplicacao=aplicacao,
             itens=itens_relatorio,
-            logo_uri=logo_b64,
-            assinatura_cliente_uri=assinatura_cliente_b64, # Imagem Cliente
-            assinatura_auditor_uri=assinatura_auditor_b64, # Imagem Auditor (se tiver)
+            logo_pdf_uri=logo_pdf_uri,              # Passando a logo
+            assinatura_cliente_uri=assinatura_cliente_uri, # Passando a assinatura
             assinatura_responsavel=aplicacao.assinatura_responsavel,
             cargo_responsavel=aplicacao.cargo_responsavel,
             data_geracao=datetime.now()
@@ -5520,7 +5529,7 @@ def pdf_plano_acao(aplicacao_id):
         return gerar_pdf_seguro(html_content, filename=f"Plano_Acao_{aplicacao_id}.pdf")
         
     except Exception as e:
-        current_app.logger.error(f"Erro PDF Plano: {e}")
+        current_app.logger.error(f"Erro PDF Plano: {e}", exc_info=True)
         flash("Erro ao gerar PDF.", "danger")
         return redirect(url_for('cli.visualizar_aplicacao', id=aplicacao_id))
 # ===================== ROTAS DE AÇÃO CORRETIVA =====================

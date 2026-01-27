@@ -1,181 +1,243 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <title>Plano de Ação - {{ aplicacao.id }}</title>
-    <style>
-        @page {
-            size: A4;
-            margin: 1cm; /* Margem reduzida para ocupar a tela toda */
-            @bottom-center {
-                content: "Página " counter(page) " de " counter(pages);
-                font-family: Helvetica, Arial, sans-serif;
-                font-size: 8pt;
-                color: #999;
-            }
-        }
+  <meta charset="UTF-8">
+  <title>Plano de Ação - {{ aplicacao.id }}</title>
+  <style>
+    /* ==========================================================================
+       1. ESTILOS GERAIS (Baseados no relatorio_aplicacao.html)
+       ========================================================================== */
+    :root {
+      --text-dark: #2c3e50;
+      --text-light: #7f8c8d;
+      --header-bg: #e67e22; /* Laranja QualiGestor para diferenciar do relatório azul */
+      --header-bg-gradient: linear-gradient(135deg, #d35400 0%, #e67e22 100%);
+    }
 
-        body {
-            font-family: Helvetica, Arial, sans-serif;
-            font-size: 9pt;
-            color: #333;
-            line-height: 1.3;
-        }
+    * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
-        /* === HEADER === */
-        .header-table { width: 100%; border-bottom: 2px solid #e67e22; padding-bottom: 5px; margin-bottom: 10px; }
-        .logo-cell { width: 30%; vertical-align: middle; }
-        .title-cell { width: 70%; text-align: right; vertical-align: middle; }
-        .logo-img { max-height: 55px; max-width: 180px; }
-        h1 { margin: 0; color: #e67e22; font-size: 16pt; text-transform: uppercase; }
-        p.sub { margin: 0; color: #666; font-size: 8pt; }
+    html, body {
+      margin: 0; padding: 0;
+      font-family: 'Roboto', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      font-size: 10pt; color: #2c3e50; background: #fff; line-height: 1.3;
+    }
 
-        /* === INFO === */
-        .info-box {
-            width: 100%; background-color: #fffcf5; 
-            border: 1px solid #e67e22; border-radius: 4px;
-            padding: 8px; margin-bottom: 15px;
-        }
-        .info-table { width: 100%; }
-        .lbl { font-size: 7pt; color: #e67e22; font-weight: bold; text-transform: uppercase; display: block; }
-        .val { font-size: 10pt; font-weight: bold; color: #333; }
+    /* ==========================================================================
+       2. MARGENS DE PÁGINA FIXAS
+       ========================================================================== */
+    @page {
+      size: A4;
+      margin-top: 3.5cm;    
+      margin-bottom: 2.0cm; 
+      margin-left: 1.0cm;
+      margin-right: 1.0cm;
+    }
 
-        /* === TABELA NCs === */
-        .main-table { width: 100%; border-collapse: collapse; margin-top: 5px; }
-        .main-table th {
-            background-color: #e67e22; color: white;
-            padding: 6px 8px; font-size: 8pt; text-transform: uppercase; text-align: left;
-            border: 1px solid #d35400;
-        }
-        .main-table td { border: 1px solid #ddd; padding: 8px; vertical-align: top; }
-        .main-table tr:nth-child(even) { background-color: #fcfcfc; }
+    /* ==========================================================================
+       3. CABEÇALHO FIXO
+       ========================================================================== */
+    .header-fixed {
+      position: fixed; top: -3.5cm; left: -1.0cm; width: 210mm; height: 3.0cm;
+      background: var(--header-bg-gradient);
+      color: white;
+      display: flex; align-items: center; justify-content: space-between;
+      padding-left: 1.0cm; padding-right: 1.0cm; z-index: 1000;
+    }
 
-        /* Itens */
-        .badge { display: inline-block; background: #444; color: #fff; padding: 2px 5px; border-radius: 3px; font-size: 7pt; margin-bottom: 3px; }
-        .question { font-weight: bold; font-size: 9pt; color: #2c3e50; margin-bottom: 3px; }
-        .obs { font-style: italic; color: #666; font-size: 8pt; border-left: 2px solid #ccc; padding-left: 5px; margin-top: 4px; }
-        
-        .plan-box { background: #fff; border: 1px solid #eee; padding: 6px; border-radius: 3px; min-height: 30px; margin-bottom: 5px;}
-        .date-tag { display: inline-block; background: #fff5e6; color: #d35400; border: 1px solid #e67e22; padding: 2px 8px; border-radius: 10px; font-size: 7pt; font-weight: bold; float: right; }
-        
-        .evidencia { max-width: 90px; max-height: 90px; display: block; margin: 0 auto; border: 1px solid #ddd; padding: 2px; background: #fff; }
+    .header-left { display: flex; align-items: center; gap: 15px; flex: 1; }
+    .header-logo { height: 55px; width: auto; max-width: 180px; object-fit: contain; background: rgba(255,255,255,0.1); padding: 5px; border-radius: 4px;}
+    
+    .header-info h1 { margin: 0; font-size: 16pt; font-weight: 700; color: #fff; text-transform: uppercase; }
+    .header-info p { margin: 2px 0 0 0; font-size: 9pt; font-weight: 300; color: rgba(255,255,255,0.9); }
 
-        /* === ASSINATURAS (LAYOUT DIGITAL) === */
-        .signatures { margin-top: 30px; width: 100%; page-break-inside: avoid; }
-        .sig-cell { width: 50%; text-align: center; vertical-align: bottom; padding: 0 20px; }
-        
-        .sig-box {
-            border: 1px dashed #ccc;
-            background-color: #fdfdfd;
-            padding: 10px;
-            border-radius: 5px;
-            min-height: 80px;
-            display: flex; flex-direction: column; justify-content: flex-end; align-items: center;
-        }
+    .header-right { text-align: right; color: #fff; flex-shrink: 0; margin-left: 20px; }
+    .header-label { font-size: 7pt; text-transform: uppercase; opacity: 0.8; }
+    .header-value { font-size: 10pt; font-weight: 500; }
 
-        .sig-img { max-height: 60px; max-width: 200px; display: block; margin-bottom: 5px; }
-        
-        .sig-name { font-weight: bold; font-size: 9pt; color: #333; margin-top: 5px; border-top: 1px solid #ddd; padding-top: 5px; width: 100%; display: block;}
-        .sig-role { font-size: 7pt; color: #777; text-transform: uppercase; }
-        .sig-digital-mark { font-family: 'Courier New', monospace; font-size: 7pt; color: #aaa; margin-bottom: 5px; }
+    /* ==========================================================================
+       4. RODAPÉ FIXO
+       ========================================================================== */
+    .footer-fixed {
+      position: fixed; bottom: -2.0cm; left: -1.0cm; width: 210mm; height: 1.5cm;
+      background-color: #f8f9fa; border-top: 1px solid #ecf0f1;
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 8pt; color: #7f8c8d; padding-left: 1.0cm; padding-right: 1.0cm;
+    }
+    .page-number:after { content: "Página " counter(page); }
 
-        /* Footer */
-        .footer-sys { text-align: center; font-size: 7pt; color: #aaa; margin-top: 10px; border-top: 1px dotted #eee; padding-top: 4px; }
-    </style>
+    /* ==========================================================================
+       5. CONTEÚDO
+       ========================================================================== */
+    .info-grid { 
+      display: table; width: 100%; border-collapse: collapse; 
+      margin-bottom: 20px; page-break-inside: avoid;
+    }
+    .info-item { display: table-cell; background: #fff; border: 1px solid #eee; padding: 8px 12px; vertical-align: top; width: 33%; }
+    .info-label { display: block; font-size: 7pt; color: #999; text-transform: uppercase; font-weight: 700; }
+    .info-value { display: block; font-size: 10pt; font-weight: 500; color: #333; margin-top: 3px; }
+
+    /* Tabela de Planos */
+    .table-plans { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    .table-plans th {
+        background-color: #fdf2e9; color: #d35400;
+        border: 1px solid #fadbd8; padding: 8px; font-size: 8pt; text-transform: uppercase; text-align: left;
+    }
+    .table-plans td { border: 1px solid #eee; padding: 10px; vertical-align: top; font-size: 9pt; }
+    .table-plans tr:nth-child(even) { background-color: #fcfcfc; }
+
+    /* Elementos Internos */
+    .badge-topico { 
+        display: inline-block; background: #555; color: #fff; 
+        padding: 2px 6px; border-radius: 3px; font-size: 7pt; font-weight: bold; margin-bottom: 4px; 
+    }
+    .txt-pergunta { font-weight: bold; color: #2c3e50; display: block; margin-bottom: 4px; }
+    .txt-obs { font-style: italic; color: #7f8c8d; font-size: 8.5pt; margin-bottom: 5px; display: block;}
+    
+    .box-plano {
+        background: #fffcf5; border-left: 3px solid #f39c12;
+        padding: 6px; color: #333; margin-top: 5px;
+    }
+    .label-plano { font-weight: bold; font-size: 7pt; color: #d35400; text-transform: uppercase; display: block; }
+
+    .prazo-tag {
+        display: inline-block; background: #c0392b; color: white;
+        padding: 3px 8px; border-radius: 10px; font-size: 8pt; font-weight: bold;
+        white-space: nowrap; margin-top: 5px;
+    }
+
+    .img-evidencia {
+        width: 80px; height: 80px; object-fit: cover; 
+        border: 1px solid #ccc; padding: 2px; background: #fff;
+    }
+
+    /* ==========================================================================
+       6. ASSINATURAS (LAYOUT IDENTICO AO RELATÓRIO)
+       ========================================================================== */
+    .signatures-block {
+        margin-top: 40px; page-break-inside: avoid;
+        display: table; width: 100%;
+    }
+    .sig-col { display: table-cell; width: 50%; vertical-align: bottom; padding: 0 20px; text-align: center; }
+    
+    .sig-line { border-top: 1px solid #2c3e50; margin-top: 5px; width: 100%; }
+    .sig-img { max-height: 80px; max-width: 220px; display: block; margin: 0 auto 5px auto; mix-blend-mode: multiply; }
+    .sig-name { font-weight: 700; font-size: 10pt; color: #2c3e50; margin-top: 5px; display: block; }
+    .sig-role { font-size: 8pt; color: #7f8c8d; text-transform: uppercase; display: block; }
+
+  </style>
 </head>
 <body>
 
-    <table class="header-table">
-        <tr>
-            <td class="logo-cell">
-                {% if logo_uri %}<img src="{{ logo_uri }}" class="logo-img">{% else %}<h2 style="color:#e67e22;">QUALIGESTOR</h2>{% endif %}
-            </td>
-            <td class="title-cell">
-                <h1>Plano de Ação</h1>
-                <p class="sub">Relatório de Auditoria #{{ aplicacao.id }}</p>
-            </td>
-        </tr>
-    </table>
+  <div class="header-fixed">
+    <div class="header-left">
+      {% if logo_pdf_uri %}
+        <img src="{{ logo_pdf_uri }}" alt="Logo" class="header-logo">
+      {% else %}
+        <h2 style="margin:0; color:#fff;">QualiGestor</h2>
+      {% endif %}
+      <div class="header-info" style="margin-left: 15px;">
+        <h1>PLANO DE AÇÃO CORRETIVA</h1>
+        <p>Referente à Auditoria #{{ aplicacao.id }}</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="header-label">Emissão</div>
+      <div class="header-value">{{ data_geracao.strftime('%d/%m/%Y') }}</div>
+      <div class="header-label" style="margin-top: 5px;">Unidade</div>
+      <div class="header-value" style="font-weight: 400;">{{ aplicacao.avaliado.nome }}</div>
+    </div>
+  </div>
 
-    <div class="info-box">
-        <table class="info-table">
-            <tr>
-                <td width="50%"><span class="lbl">Unidade Avaliada</span><span class="val">{{ aplicacao.avaliado.nome }}</span></td>
-                <td width="25%"><span class="lbl">Data Auditoria</span><span class="val">{{ aplicacao.data_inicio.strftime('%d/%m/%Y') }}</span></td>
-                <td width="25%"><span class="lbl">Total NCs</span><span class="val">{{ itens|length }}</span></td>
-            </tr>
-        </table>
+  <div class="footer-fixed">
+    <div style="font-weight: 500;">QUALIGESTOR - GESTÃO DE QUALIDADE</div>
+    <div>Documento Gerado Eletronicamente</div>
+    <div class="page-number"></div>
+  </div>
+
+  <div class="info-grid">
+    <div class="info-item">
+      <span class="info-label">Unidade Avaliada</span>
+      <span class="info-value">{{ aplicacao.avaliado.nome }}</span>
+    </div>
+    <div class="info-item">
+      <span class="info-label">Data da Auditoria</span>
+      <span class="info-value">{{ aplicacao.data_inicio.strftime('%d/%m/%Y') }}</span>
+    </div>
+    <div class="info-item">
+      <span class="info-label">Total de Pendências</span>
+      <span class="info-value" style="color: #c0392b; font-weight: bold;">{{ itens|length }} Itens</span>
+    </div>
+  </div>
+
+  <table class="table-plans">
+    <thead>
+      <tr>
+        <th width="45%">Não Conformidade (Problema)</th>
+        <th width="40%">Ação Corretiva (O que será feito)</th>
+        <th width="15%" style="text-align: center;">Prazo / Foto</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in itens %}
+      <tr>
+        <td>
+            <span class="badge-topico">{{ item.topico_ordem }}. {{ item.topico_nome }}</span>
+            <span class="txt-pergunta">{{ item.pergunta_ordem }}. {{ item.pergunta_texto }}</span>
+            
+            {% if item.observacao %}
+                <span class="txt-obs">"{{ item.observacao }}"</span>
+            {% endif %}
+        </td>
+
+        <td>
+            <div class="box-plano">
+                <span class="label-plano">Plano Definido:</span>
+                {{ item.plano_acao }}
+            </div>
+        </td>
+
+        <td align="center" style="vertical-align: middle;">
+            {% if item.prazo %}
+                <div class="prazo-tag">
+                    Até {{ item.prazo.strftime('%d/%m/%Y') }}
+                </div>
+            {% else %}
+                <div style="font-size: 8pt; color: #999; margin-bottom: 5px;">Sem Prazo</div>
+            {% endif %}
+
+            {% if item.foto_uri %}
+                <div style="margin-top: 8px;">
+                    <img src="{{ item.foto_uri }}" class="img-evidencia">
+                </div>
+            {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="signatures-block">
+    <div class="sig-col">
+        {% if assinatura_cliente_uri %}
+            <img src="{{ assinatura_cliente_uri }}" class="sig-img">
+        {% else %}
+            <div style="height: 60px;"></div> {% endif %}
+        
+        <div class="sig-line"></div>
+        <span class="sig-name">{{ assinatura_responsavel or aplicacao.assinatura_responsavel or 'Responsável Local' }}</span>
+        <span class="sig-role">{{ cargo_responsavel or aplicacao.cargo_responsavel or 'Gestor da Unidade' }}</span>
     </div>
 
-    <table class="main-table">
-        <thead>
-            <tr>
-                <th width="40%">Não Conformidade</th>
-                <th width="45%">Plano de Ação</th>
-                <th width="15%" align="center">Evidência</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in itens %}
-            <tr>
-                <td>
-                    <span class="badge">{{ item.topico_ordem }}</span> <span style="font-size:8pt; color:#666;">{{ item.topico_nome }}</span>
-                    <div class="question">{{ item.pergunta_ordem }}. {{ item.pergunta_texto }}</div>
-                    {% if item.observacao %}<div class="obs">"{{ item.observacao }}"</div>{% endif %}
-                </td>
-                <td>
-                    <div class="plan-box">{{ item.plano_acao }}</div>
-                    {% if item.prazo %}
-                        <div class="date-tag">Vencimento: {{ item.prazo.strftime('%d/%m/%Y') }}</div>
-                    {% else %}
-                        <div style="text-align:right; font-size:7pt; color:#999;">(Sem prazo)</div>
-                    {% endif %}
-                </td>
-                <td align="center">
-                    {% if item.foto_uri %}<img src="{{ item.foto_uri }}" class="evidencia">{% else %}-{% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-
-    <table class="signatures">
-        <tr>
-            <td class="sig-cell">
-                <div class="sig-box">
-                    {% if assinatura_cliente_uri %}
-                        <img src="{{ assinatura_cliente_uri }}" class="sig-img">
-                        <span class="sig-digital-mark">Assinatura Digital Coletada</span>
-                    {% else %}
-                        <span class="sig-digital-mark" style="color:#d35400;">(Assinatura Pendente)</span>
-                    {% endif %}
-                    
-                    <span class="sig-name">{{ assinatura_responsavel or 'Responsável pela Unidade' }}</span>
-                    <span class="sig-role">{{ cargo_responsavel or 'Gestor' }}</span>
-                </div>
-            </td>
-
-            <td class="sig-cell">
-                <div class="sig-box">
-                    {% if assinatura_auditor_uri %}
-                        <img src="{{ assinatura_auditor_uri }}" class="sig-img">
-                    {% else %}
-                        <div style="font-size: 20px; color: #e67e22; margin-bottom: 5px;">
-                            <i class="fas fa-check-circle"></i> ✔
-                        </div>
-                    {% endif %}
-                    
-                    <span class="sig-digital-mark">VALIDADO PELO SISTEMA</span>
-                    <span class="sig-name">{{ aplicacao.aplicador.nome if aplicacao.aplicador else 'Consultor QualiGestor' }}</span>
-                    <span class="sig-role">Auditor Técnico</span>
-                </div>
-            </td>
-        </tr>
-    </table>
-
-    <div class="footer-sys">
-        Documento gerado eletronicamente em {{ data_geracao.strftime('%d/%m/%Y às %H:%M') }} - QualiGestor
+    <div class="sig-col">
+        <div style="font-size: 14pt; color: #e67e22; font-weight: bold; height: 60px; padding-top: 20px;">
+            VALIDADO PELO SISTEMA
+        </div>
+        
+        <div class="sig-line"></div>
+        <span class="sig-name">{{ aplicacao.aplicador.nome }}</span>
+        <span class="sig-role">Consultor / Auditor Técnico</span>
     </div>
+  </div>
 
 </body>
 </html>
