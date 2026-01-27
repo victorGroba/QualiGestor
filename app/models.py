@@ -420,6 +420,8 @@ class RespostaPergunta(db.Model):
     plano_acao = db.Column(db.Text)             # O que será feito (Planejamento)
     prazo_plano_acao = db.Column(db.Date)       # Prazo estipulado
     responsavel_plano_acao = db.Column(db.String(100))
+    setor_atuacao = db.Column(db.String(100)) # Onde ocorreu
+    causa_raiz = db.Column(db.Text)
     
     # --- NOVOS CAMPOS: AÇÃO CORRETIVA (A Solução executada) ---
     # Usamos String para evitar problemas de migração com Enums.

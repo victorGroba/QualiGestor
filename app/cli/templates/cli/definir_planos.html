@@ -22,8 +22,8 @@
         <div class="d-flex">
             <div class="me-3"><i class="fas fa-user-secret fa-2x"></i></div>
             <div>
-                <h6 class="alert-heading fw-bold mb-1">Etapa de Curadoria</h6>
-                <p class="mb-0 small">Revise as Não Conformidades abaixo, defina o Plano de Ação e o Prazo. Quando terminar, clique em <strong>"Ir para Assinaturas"</strong> no final da página.</p>
+                <h6 class="alert-heading fw-bold mb-1">Etapa de Curadoria e Plano de Ação</h6>
+                <p class="mb-0 small">Preencha os detalhes técnicos (Causa, Setor, Responsável) e defina a Ação Corretiva. O sistema salva automaticamente ao sair do campo.</p>
             </div>
         </div>
     </div>
@@ -68,7 +68,7 @@
                         </div>
                         {% endif %}
 
-                        <div class="bg-light p-3 rounded mb-3 border border-light">
+                        <div class="bg-light p-3 rounded mb-4 border border-light">
                             <small class="text-uppercase text-muted fw-bold" style="font-size: 0.7rem;">
                                 <i class="fas fa-eye me-1"></i> Observação do Auditor:
                             </small>
@@ -77,30 +77,64 @@
                             </div>
                         </div>
 
-                        <label class="form-label fw-bold text-success mb-2">
-                            <i class="fas fa-tools me-1"></i> Plano de Ação Corretiva
+                        <hr class="text-muted my-4">
+
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-4">
+                                <label class="small fw-bold text-secondary mb-1">
+                                    <i class="fas fa-user-tag me-1 text-primary"></i> Responsável
+                                </label>
+                                <input type="text" class="form-control form-control-sm bg-white" 
+                                       id="resp-{{ item.id }}" 
+                                       value="{{ item.responsavel_plano_acao or '' }}"
+                                       placeholder="Quem executará?"
+                                       onblur="salvarManual({{ item.id }})">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="small fw-bold text-secondary mb-1">
+                                    <i class="fas fa-map-marker-alt me-1 text-primary"></i> Setor / Local
+                                </label>
+                                <input type="text" class="form-control form-control-sm bg-white" 
+                                       id="setor-{{ item.id }}" 
+                                       value="{{ item.setor_atuacao or '' }}" 
+                                       placeholder="Onde ocorreu?"
+                                       onblur="salvarManual({{ item.id }})">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="small fw-bold text-secondary mb-1">
+                                    <i class="far fa-calendar-alt me-1 text-danger"></i> Prazo Limite
+                                </label>
+                                <input type="date" 
+                                       class="form-control form-control-sm fw-bold text-dark" 
+                                       id="prazo-{{ item.id }}"
+                                       value="{{ item.prazo_plano_acao.strftime('%Y-%m-%d') if item.prazo_plano_acao else '' }}"
+                                       onblur="salvarManual({{ item.id }})"> 
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="small fw-bold text-secondary mb-1">
+                                <i class="fas fa-search-minus me-1 text-warning"></i> Por que é uma NC? (Causa Raiz / Embasamento)
+                            </label>
+                            <textarea class="form-control form-control-sm bg-light" 
+                                      id="causa-{{ item.id }}" 
+                                      rows="2"
+                                      placeholder="Justificativa técnica, legislação aplicável ou motivo da falha..."
+                                      onblur="salvarManual({{ item.id }})">{{ item.causa_raiz or '' }}</textarea>
+                        </div>
+
+                        <label class="form-label fw-bold text-success mb-1">
+                            <i class="fas fa-tools me-1"></i> Ação Corretiva (O que será feito?)
                         </label>
                         
                         <div class="position-relative">
                             <textarea class="form-control form-control-lg shadow-sm" 
                                       id="plano-{{ item.id }}" 
                                       rows="4" 
-                                      placeholder="Descreva a ação ou solicite sugestão à IA..."
+                                      placeholder="Descreva a ação técnica corretiva ou peça ajuda à IA..."
                                       onblur="salvarManual({{ item.id }})">{{ item.plano_acao or '' }}</textarea>
                             
-                            <div class="mt-3 p-2 bg-white border rounded shadow-sm d-inline-block">
-                                <label class="small fw-bold text-secondary me-2">
-                                    <i class="far fa-calendar-alt text-danger"></i> Prazo estabelecido pelo gestor da OM:
-                                </label>
-                                <input type="date" 
-                                       class="form-control form-control-sm d-inline-block border-0 bg-light fw-bold text-dark" 
-                                       style="width: auto; min-width: 150px;"
-                                       id="prazo-{{ item.id }}"
-                                       value="{{ item.prazo_plano_acao.strftime('%Y-%m-%d') if item.prazo_plano_acao else '' }}"
-                                       onblur="salvarManual({{ item.id }})"> 
-                            </div>
                             <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mt-3 gap-2">
-                                
                                 <div id="status-{{ item.id }}" class="small fw-bold text-muted order-2 order-md-1"></div>
                                 
                                 <button class="btn btn-warning d-flex align-items-center justify-content-center btn-ia shadow-sm w-100 w-md-auto order-1 order-md-2 py-2" 
@@ -111,18 +145,17 @@
                                         onclick="gerarPlanoIA(this)">
                                     
                                     <span class="normal-state fw-bold">
-                                        <i class="fas fa-magic me-2"></i> Gerar Conclusão
+                                        <i class="fas fa-magic me-2"></i> Gerar Conclusão 
                                     </span>
                                     
                                     <span class="loading-state d-none">
                                         <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                                        Gerando...
+                                        Consultando IA...
                                     </span>
                                 </button>
                             </div>
                         </div>
-
-                    </div>
+                        </div>
                 </div>
                 {% endfor %}
             
@@ -141,7 +174,7 @@
     <div class="card border-0 shadow-lg mt-4 bg-dark text-white">
         <div class="card-body p-4 text-center">
             <h5 class="fw-bold mb-2">Revisão Concluída?</h5>
-            <p class="text-white-50 mb-3">Se os Planos de Ação e Prazos estão definidos, avance para a coleta de assinaturas.</p>
+            <p class="text-white-50 mb-3">Se os Planos de Ação e detalhes técnicos estão definidos, avance para a assinatura.</p>
             
             <a href="{{ url_for('cli.fase_assinatura', id=aplicacao.id) }}" class="btn btn-success btn-lg px-5 py-3 fw-bold rounded-pill shadow">
                 <i class="fas fa-file-signature me-2"></i> Ir para Assinaturas
@@ -163,35 +196,23 @@
 </div>
 
 <style>
-    /* Ajustes Gerais */
     .form-control:focus {
         border-color: #ffc107;
         box-shadow: 0 0 0 0.25rem rgba(255, 193, 7, 0.25);
     }
-    
-    /* Card Mobile Friendly */
     .nc-card {
         transition: transform 0.2s, box-shadow 0.2s;
         border: 1px solid rgba(0,0,0,0.05) !important;
     }
-    
-    /* Textarea mais legível */
     textarea.form-control-lg {
         font-size: 0.95rem; 
         line-height: 1.5;
         background-color: #fffcf5;
         min-height: 120px;
     }
-
-    /* Media Query para Mobile */
     @media (max-width: 768px) {
-        .btn-ia {
-            font-size: 0.9rem;
-            font-weight: bold;
-        }
-        .nc-card:hover {
-            transform: none;
-        }
+        .btn-ia { font-size: 0.9rem; font-weight: bold; }
+        .nc-card:hover { transform: none; }
     }
 </style>
 
@@ -200,22 +221,32 @@
 let toastEl = document.getElementById('liveToast');
 let toast = new bootstrap.Toast(toastEl);
 
-// --- LÓGICA DA IA E SALVAMENTO ---
+// --- LÓGICA DA IA ---
+
+
+// Em app/cli/templates/cli/definir_planos.html (dentro da tag <script>)
 
 async function gerarPlanoIA(btn) {
     const id = btn.getAttribute('data-id');
     const pergunta = btn.getAttribute('data-pergunta');
     const observacao = btn.getAttribute('data-observacao');
-    const textarea = document.getElementById(`plano-${id}`);
-    const inputPrazo = document.getElementById(`prazo-${id}`); // Captura o campo de prazo
-
+    
+    // Elementos dos campos
+    const inputCausa = document.getElementById(`causa-${id}`); // Campo "Por que é uma NC?"
+    const textareaPlano = document.getElementById(`plano-${id}`); // Campo "Ação Corretiva"
+    
+    // Elementos visuais do botão
     const normalState = btn.querySelector('.normal-state');
     const loadingState = btn.querySelector('.loading-state');
     
+    // UI Loading
     btn.disabled = true;
     normalState.classList.add('d-none');
     loadingState.classList.remove('d-none');
-    textarea.classList.add('opacity-50');
+    
+    // Deixa os campos meio transparentes para indicar carregamento
+    textareaPlano.classList.add('opacity-50');
+    if(inputCausa) inputCausa.classList.add('opacity-50');
 
     try {
         const res = await fetch("{{ url_for('cli.sugerir_plano_acao') }}", {
@@ -230,73 +261,73 @@ async function gerarPlanoIA(btn) {
         const data = await res.json();
 
         if(data.sucesso) {
-            // === LIMPEZA DE FORMATAÇÃO MARKDOWN ===
-            let textoLimpo = data.sugestao
-                .replace(/\*\*/g, "")
-                .replace(/#/g, "")
-                .replace(/^\d+\.\s*/gm, "")
-                .replace(/^\-\s*/gm, "")
-                .replace(/\n/g, " ")
-                .replace(/\s+/g, " ")
-                .trim();
+            // Preenche a Causa Raiz / Justificativa Legal
+            if(inputCausa) {
+                inputCausa.value = data.causa;
+            }
 
-            textarea.value = textoLimpo;
+            // Preenche o Plano de Ação
+            textareaPlano.value = data.plano;
             
-            // Pega o prazo atual (se houver) para não apagar ao salvar a sugestão
-            const prazoAtual = inputPrazo ? inputPrazo.value : null;
-
-            await salvarNoBanco(id, textoLimpo, prazoAtual);
-            mostrarStatus(id, 'success', '<i class="fas fa-check-circle"></i> Sugestão aplicada!');
+            // Salva automaticamente chamando a função principal
+            await salvarManual(id);
+            
+            mostrarStatus(id, 'success', '<i class="fas fa-check-circle"></i> Análise realizada!');
         } else {
             throw new Error(data.erro || "Erro na IA");
         }
 
     } catch (error) {
         console.error(error);
-        mostrarErro(error.message);
+        mostrarErro("Erro ao gerar sugestão: " + error.message);
     } finally {
+        // Restaura UI
         btn.disabled = false;
         normalState.classList.remove('d-none');
         loadingState.classList.add('d-none');
-        textarea.classList.remove('opacity-50');
-        
-        // Em mobile, foca no campo
-        if(window.innerWidth < 768) {
-             textarea.scrollIntoView({behavior: "smooth", block: "center"});
-        }
+        textareaPlano.classList.remove('opacity-50');
+        if(inputCausa) inputCausa.classList.remove('opacity-50');
     }
 }
 
+// --- LÓGICA DE SALVAMENTO ATUALIZADA (TODOS OS CAMPOS) ---
+
 async function salvarManual(id) {
-    const textarea = document.getElementById(`plano-${id}`);
-    const inputPrazo = document.getElementById(`prazo-${id}`); // <--- Captura o input de prazo
-    
-    const texto = textarea.value.trim();
-    const prazo = inputPrazo ? inputPrazo.value : null; // <--- Pega o valor da data
-    
+    // Coleta todos os valores atuais dos campos
+    const texto = document.getElementById(`plano-${id}`).value.trim();
+    const prazo = document.getElementById(`prazo-${id}`).value;
+    const responsavel = document.getElementById(`resp-${id}`).value.trim();
+    const setor = document.getElementById(`setor-${id}`).value.trim();
+    const causa = document.getElementById(`causa-${id}`).value.trim();
+
     mostrarStatus(id, 'saving', 'Salvando...');
+    
     try {
-        await salvarNoBanco(id, texto, prazo); // <--- Passa o prazo para a função de envio
+        // Envia tudo para o backend
+        await salvarNoBanco(id, texto, prazo, responsavel, setor, causa);
         mostrarStatus(id, 'success', '<i class="fas fa-check"></i> Salvo');
     } catch (e) {
-        mostrarStatus(id, 'error', 'Erro');
+        mostrarStatus(id, 'error', 'Erro ao salvar');
         console.error(e);
         mostrarErro("Erro de conexão ao salvar.");
     }
 }
 
-async function salvarNoBanco(id, texto, prazo) {
+async function salvarNoBanco(id, texto, prazo, responsavel, setor, causa) {
     const res = await fetch("{{ url_for('cli.salvar_resposta', id=aplicacao.id) }}", {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json', 
             'X-CSRFToken': '{{ csrf_token() }}'
         },
-        // Adicionado prazo_plano_acao ao JSON
+        // Payload completo com os novos campos
         body: JSON.stringify({
             resposta_id: id, 
             plano_acao: texto,
-            prazo_plano_acao: prazo
+            prazo_plano_acao: prazo,
+            responsavel_plano_acao: responsavel, // Novo
+            setor_atuacao: setor,                // Novo
+            causa_raiz: causa                    // Novo
         })
     });
     
@@ -307,16 +338,13 @@ async function salvarNoBanco(id, texto, prazo) {
 function mostrarStatus(id, tipo, html) {
     const el = document.getElementById(`status-${id}`);
     el.innerHTML = html;
-    
     el.className = "small fw-bold transition-all mt-1"; 
     
     if(tipo === 'success') el.classList.add("text-success");
     if(tipo === 'error') el.classList.add("text-danger");
     if(tipo === 'saving') el.classList.add("text-muted");
     
-    if(tipo === 'success') {
-        setTimeout(() => { el.innerHTML = ''; }, 4000);
-    }
+    if(tipo === 'success') setTimeout(() => { el.innerHTML = ''; }, 4000);
 }
 
 function mostrarErro(msg) {

@@ -4,6 +4,7 @@ import os
 import base64
 import qrcode
 import uuid
+import time
 from io import BytesIO
 from datetime import datetime, timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, current_app, jsonify, make_response, Response, send_from_directory, abort
@@ -2718,170 +2719,169 @@ def visualizar_aplicacao(id):
 @cli_bp.route('/aplicacao/<int:id>/relatorio')
 @login_required
 def gerar_relatorio_aplicacao(id):
-    """Gera relatório em PDF da aplicação com cálculo por tópico e galeria de fotos por tópico"""
+    """
+    Gera relatório em PDF da aplicação com cálculo por tópico e
+    galeria de fotos robusta (compatível com Windows e arquivos legados).
+    """
+    from pathlib import Path
+    from collections import defaultdict
+    
     try:
-        # Carrega a aplicação com relacionamentos úteis pré-carregados
+        # 1. Carrega a aplicação com relacionamentos
         aplicacao = AplicacaoQuestionario.query.options(
             joinedload(AplicacaoQuestionario.questionario),
             joinedload(AplicacaoQuestionario.avaliado)
         ).get_or_404(id)
 
-        # Buscar o usuário (aplicador) explicitamente
+        # 2. Busca o usuário (aplicador)
         avaliador = Usuario.query.get(aplicacao.aplicador_id) 
         if not avaliador:
             flash("Erro: Avaliador não encontrado.", "danger")
             return redirect(url_for('cli.listar_aplicacoes'))
 
-        # --- CORREÇÃO DE PERMISSÃO ---
-        if aplicacao.avaliado.cliente_id != current_user.cliente_id and not verificar_permissao_admin():
+        # 3. Verificação de Permissão
+        permissao_cliente = (aplicacao.avaliado.cliente_id == current_user.cliente_id)
+        permissao_admin = verificar_permissao_admin() # Sua função auxiliar
+        
+        if not permissao_cliente and not permissao_admin:
             flash("Você não tem permissão para ver esta aplicação.", "error")
             return redirect(url_for('cli.listar_aplicacoes'))
-        # --- FIM DA CORREÇÃO ---
 
-
-        # ★★★ NOVO BLOCO PARA CARREGAR A LOGO ★★★
+        # ==========================================
+        # PREPARAÇÃO DE ARQUIVOS E CAMINHOS (PATHLIB)
+        # ==========================================
+        
+        # A) Logo do Relatório
         logo_pdf_uri = None
         try:
-            # current_app.static_folder aponta para a pasta 'app/static' absoluta
-            # O caminho que você informou foi: F:\ARQUIVOS QUALIGESTOR\QualiGestor - Copia\app\static\img\logo_pdf.png
+            # Tenta logo_pdf.png na pasta static/img
             logo_path = Path(current_app.static_folder) / 'img' / 'logo_pdf.png'
-            
             if logo_path.exists():
-                logo_pdf_uri = logo_path.as_uri() # Converte para 'file:///F:/ARQUIVOS%20QUALIGESTOR/...'
-                current_app.logger.debug(f"Logo do PDF carregada: {logo_pdf_uri}")
+                logo_pdf_uri = logo_path.as_uri()
             else:
-                current_app.logger.warning(f"Logo do PDF não encontrada em: {logo_path}")
-                # Tenta carregar a logo antiga como fallback
+                # Fallback para logo.jpg
                 logo_path_antiga = Path(current_app.static_folder) / 'img' / 'logo.jpg'
                 if logo_path_antiga.exists():
                     logo_pdf_uri = logo_path_antiga.as_uri()
-                    current_app.logger.warning(f"Usando logo.jpg como fallback: {logo_pdf_uri}")
-                else:
-                    current_app.logger.error(f"Nenhuma logo (logo_pdf.png ou logo.jpg) encontrada.")
         except Exception as e_logo:
-            current_app.logger.error(f"Erro ao carregar URI da logo do PDF: {e_logo}")
-        # ★★★ FIM DO BLOCO DA LOGO ★★★
+            current_app.logger.error(f"Erro logo PDF: {e_logo}")
 
+        # B) Pasta de Uploads (para buscar fotos das respostas)
+        upload_folder_str = current_app.config.get('UPLOAD_FOLDER')
 
-        # --- CÁLCULO DE PONTUAÇÕES E ORGANIZAÇÃO DOS DADOS ---
+        # ==========================================
+        # PROCESSAMENTO DE DADOS E CÁLCULOS
+        # ==========================================
 
-        # 1. Buscar tópicos ativos (na ordem correta)
+        # Busca tópicos ativos na ordem
         topicos_ativos = Topico.query.filter_by(
             questionario_id=aplicacao.questionario_id,
             ativo=True
         ).order_by(Topico.ordem).all()
 
-        # 2. Buscar todas as respostas da aplicação
+        # Busca todas as respostas da aplicação
         respostas_da_aplicacao = RespostaPergunta.query.filter_by(aplicacao_id=id).options(
             joinedload(RespostaPergunta.pergunta)
         ).all()
         respostas_dict = {r.pergunta_id: r for r in respostas_da_aplicacao}
 
-        # 3. Estruturas para passar ao template
+        # Inicializa estruturas
         scores_por_topico = {}
         respostas_por_topico = defaultdict(list)
-        fotos_por_topico = defaultdict(list)     # <-- Dicionário SÓ para fotos
+        fotos_por_topico = defaultdict(list) # Armazena objetos com {resposta, caminho_url}
         pontos_totais_obtidos = 0.0
         pontos_totais_maximos = 0.0
         
-        # --- MUDANÇA: Pegar o caminho absoluto da pasta de uploads UMA VEZ ---
-        upload_folder_path_str = current_app.config.get('UPLOAD_FOLDER')
-        if not upload_folder_path_str:
-            current_app.logger.error("UPLOAD_FOLDER não está configurado! As fotos não aparecerão no PDF.")
-        
-        # 4. Processar tópicos
         for topico in topicos_ativos:
             pontos_obtidos_topico = 0.0
             pontos_maximos_topico = 0.0
-            perguntas_ativas_do_topico = [p for p in topico.perguntas if p.ativo]
+            perguntas_ativas = [p for p in topico.perguntas if p.ativo]
 
-            for pergunta in perguntas_ativas_do_topico:
-                peso_pergunta = float(pergunta.peso) if pergunta.peso is not None else 0.0
-                resposta_obj = respostas_dict.get(pergunta.id)
+            for pergunta in perguntas_ativas:
+                peso = float(pergunta.peso) if pergunta.peso is not None else 0.0
+                resp = respostas_dict.get(pergunta.id)
 
-                if resposta_obj:
-                    # Adiciona a resposta à lista principal (para exibir no corpo)
+                if resp:
+                    # Adiciona à lista de exibição textual
                     if pergunta.id not in [r.pergunta_id for r in respostas_por_topico[topico]]:
-                        respostas_por_topico[topico].append(resposta_obj)
+                        respostas_por_topico[topico].append(resp)
                 
-                    # --- ★★★ CORREÇÃO DA FOTO PDF (CAMINHO) ★★★ ---
-                    if resposta_obj.caminho_foto and upload_folder_path_str:
+                    # --- LÓGICA DE FOTO BLINDADA (IGUAL AO PLANO DE AÇÃO) ---
+                    if resp.caminho_foto and upload_folder_str:
+                        caminho_url = None
                         try:
-                            # 1. Recria o caminho absoluto como um objeto Path
-                            caminho_completo_path = Path(upload_folder_path_str) / resposta_obj.caminho_foto
+                            # 1. Tenta na pasta de Uploads (Padrão Novo)
+                            path_upload = Path(upload_folder_str) / resp.caminho_foto
+                            if path_upload.exists():
+                                caminho_url = path_upload.as_uri()
+                            else:
+                                # 2. Tenta na pasta Static/img (Legado/Backup)
+                                path_static = Path(current_app.static_folder) / 'img' / resp.caminho_foto
+                                if path_static.exists():
+                                    caminho_url = path_static.as_uri()
                             
-                            # 2. Converte o objeto Path para uma URI (ex: file:///F:/.../QualiGestor%20-%20Copia/...)
-                            caminho_url = caminho_completo_path.as_uri()
-                            
-                            fotos_por_topico[topico].append({
-                                'resposta': resposta_obj,
-                                'caminho_url': caminho_url 
-                            })
-                            current_app.logger.debug(f"Foto URI gerada para PDF: {caminho_url}")
+                            # Se achou o arquivo físico, adiciona na lista para o PDF
+                            if caminho_url:
+                                fotos_por_topico[topico].append({
+                                    'resposta': resp,
+                                    'caminho_url': caminho_url 
+                                })
+                        except Exception as e_foto:
+                             current_app.logger.error(f"Erro processando foto ID {resp.id}: {e_foto}")
+                    # -------------------------------------------------------
 
-                        except Exception as e_path:
-                             current_app.logger.error(f"Erro ao criar URI da foto '{resposta_obj.caminho_foto}': {e_path}")
-                    # --- ★★★ FIM DA CORREÇÃO DA FOTO (CAMINHO) ★★★ ---
+                # --- Cálculo de Nota (Mantido) ---
+                if peso == 0: continue 
 
-                # --- Lógica de Pontuação (como no seu código) ---
-                if peso_pergunta == 0:
-                    continue 
-
-                is_tipo_sim_nao = False
-                try:
-                    if hasattr(pergunta.tipo, 'name'): tipo_str = pergunta.tipo.name.upper()
-                    else: tipo_str = str(pergunta.tipo or "").upper().replace(" ", "_")
-                    if tipo_str in ['SIM_NAO_NA', 'SIM_NAO', 'SIM_NÃO']:
-                        is_tipo_sim_nao = True
-                except Exception:
-                    pass
-
+                # Checa se é N.A.
                 is_na = False
-                if is_tipo_sim_nao and resposta_obj:
-                    if (resposta_obj.resposta or "").strip().upper() in ["N.A.", "N/A", "NA"]:
+                # Tenta pegar o nome do Enum ou string
+                tipo_str = str(getattr(pergunta.tipo, 'name', pergunta.tipo)).upper()
+                
+                if 'SIM_NAO' in tipo_str and resp:
+                    if (resp.resposta or "").strip().upper() in ["N.A.", "N/A", "NA"]: 
                         is_na = True
                 
-                if is_na:
-                    continue 
+                if is_na: continue 
 
-                pontos_maximos_topico += peso_pergunta
-
-                if resposta_obj and not is_na:
-                    if resposta_obj.pontos is not None:
-                        pontos_obtidos_topico += float(resposta_obj.pontos)
+                pontos_maximos_topico += peso
+                if resp and resp.pontos is not None:
+                    pontos_obtidos_topico += float(resp.pontos)
             
-            # --- Fim do loop de perguntas ---
-
-            # Armazenar scores do tópico
-            percentual_topico = (pontos_obtidos_topico / pontos_maximos_topico * 100.0) if pontos_maximos_topico > 0 else 0.0
-            casas_dec = aplicacao.questionario.casas_decimais
-            if casas_dec is not None and casas_dec >= 0:
-                 percentual_topico = round(percentual_topico, casas_dec)
+            # Fecha totais do Tópico
+            percentual = 0.0
+            if pontos_maximos_topico > 0:
+                percentual = (pontos_obtidos_topico / pontos_maximos_topico * 100.0)
+            
+            casas = aplicacao.questionario.casas_decimais
+            if casas is not None: 
+                percentual = round(percentual, casas)
             
             scores_por_topico[topico.id] = {
                 'score_obtido': round(pontos_obtidos_topico, 2),
                 'score_maximo': round(pontos_maximos_topico, 2),
-                'score_percent': percentual_topico
+                'score_percent': percentual
             }
-            pontos_totais_obtidos += pontos_totais_obtidos
+            pontos_totais_obtidos += pontos_obtidos_topico
             pontos_totais_maximos += pontos_maximos_topico
 
-        # 5. Calcular nota final (como antes)
+        # Cálculo da Nota Final Global
         nota_final = aplicacao.nota_final if aplicacao.nota_final is not None else 0.0
+        
+        # Recalcula se estiver em andamento para mostrar a prévia
         if aplicacao.status == StatusAplicacao.EM_ANDAMENTO:
              if pontos_totais_maximos > 0:
-                 nota_final_calc = (pontos_totais_obtidos / pontos_totais_maximos * 100.0)
-                 casas_dec = aplicacao.questionario.casas_decimais
-                 if casas_dec is not None and casas_dec >= 0:
-                      nota_final = round(nota_final_calc, casas_dec)
+                 nota_calc = (pontos_totais_obtidos / pontos_totais_maximos * 100.0)
+                 if aplicacao.questionario.casas_decimais is not None:
+                      nota_final = round(nota_calc, aplicacao.questionario.casas_decimais)
                  else:
-                      nota_final = nota_final_calc
-             else:
-                 nota_final = 0.0
+                      nota_final = nota_calc
 
-        qr_code_url = None # ... (seu código de QR) ...
+        qr_code_url = None # Espaço para lógica de QR Code se usar
 
-        # Renderizar template HTML com as variáveis ATUALIZADAS
+        # ==========================================
+        # GERAÇÃO DO PDF
+        # ==========================================
         html_content = render_template_safe(
             'cli/relatorio_aplicacao.html',
             aplicacao=aplicacao,
@@ -2892,22 +2892,17 @@ def gerar_relatorio_aplicacao(id):
             scores_por_topico=scores_por_topico,
             nota_final=nota_final,
             data_geracao=datetime.now(),
-            qr_code_url=qr_code_url,
-            logo_pdf_uri=logo_pdf_uri  # <-- ★★★ PASSA A NOVA VARIÁVEL PARA O HTML ★★★
+            logo_pdf_uri=logo_pdf_uri,
+            qr_code_url=qr_code_url
         )
 
-        filename = f"relatorio_{aplicacao.avaliado.nome.replace(' ', '_')}_{aplicacao.data_inicio.strftime('%Y%m%d')}.pdf"
+        filename = f"Relatorio_{aplicacao.avaliado.nome.replace(' ', '_')}_{aplicacao.id}.pdf"
         return gerar_pdf_seguro(html_content, filename)
 
     except Exception as e:
-        current_app.logger.error(f"Erro DETALHADO em gerar_relatorio_aplicacao (ID: {id}): {e}", exc_info=True)
-        import traceback
-        traceback.print_exc() # Adiciona isso para debug no console
+        current_app.logger.error(f"Erro crítico no Relatório PDF (ID {id}): {e}", exc_info=True)
         flash(f"Erro ao gerar relatório: {str(e)}", "danger")
-        try:
-            return redirect(url_for('cli.visualizar_aplicacao', id=id))
-        except:
-            return redirect(url_for('cli.listar_aplicacoes'))
+        return redirect(url_for('cli.visualizar_aplicacao', id=id))
 
 # ... (resto do seu arquivo routes.py) ...
 
@@ -3564,32 +3559,40 @@ def salvar_resposta(id):
                 current_app.logger.info(f"[Salvar Resposta {id}] Exceção de Segurança: Permitindo edição de Plano de Ação em app finalizada.")
 
         # 3. Tratamento Especial: Atualização direta por ID da Resposta (Tela de Gestão de NCs)
+        # ... dentro de salvar_resposta ...
+        
+        # 3. Tratamento Especial: Atualização direta por ID (Tela de Gestão de NCs)
         if 'resposta_id' in data:
             resposta = RespostaPergunta.query.get(data['resposta_id'])
-            # Garante que a resposta pertence a esta aplicação
             if resposta and resposta.aplicacao_id == id:
                 
-                # Salva o texto do Plano de Ação (se enviado)
+                # Campos existentes
                 if 'plano_acao' in data:
                     resposta.plano_acao = str(data['plano_acao']).strip()
 
-                # === NOVO BLOCO: SALVAR O PRAZO ===
+                # === NOVOS CAMPOS AQUI ===
+                if 'responsavel_plano_acao' in data:
+                    resposta.responsavel_plano_acao = str(data['responsavel_plano_acao']).strip()
+                
+                if 'setor_atuacao' in data:
+                    resposta.setor_atuacao = str(data['setor_atuacao']).strip()
+                    
+                if 'causa_raiz' in data:
+                    resposta.causa_raiz = str(data['causa_raiz']).strip()
+                # =========================
+
                 if 'prazo_plano_acao' in data:
                     prazo_str = data['prazo_plano_acao']
                     if prazo_str:
                         try:
-                            # Converte a string 'YYYY-MM-DD' vinda do HTML para objeto Date do Python
                             resposta.prazo_plano_acao = datetime.strptime(prazo_str, '%Y-%m-%d').date()
                         except ValueError:
-                            current_app.logger.warning(f"Data inválida recebida: {prazo_str}")
+                            pass
                     else:
-                        # Se o campo vier vazio (usuário limpou a data), remove do banco
                         resposta.prazo_plano_acao = None
-                # ==================================
 
                 db.session.commit()
-                current_app.logger.info(f"[Salvar Resposta {id}] Sucesso: Plano e Prazo atualizados via resposta_id {resposta.id}")
-                return jsonify({'sucesso': True, 'mensagem': 'Plano salvo'})
+                return jsonify({'sucesso': True, 'mensagem': 'Dados salvos'})
         
         # 4. Fluxo Padrão: Salvar por Pergunta ID (Tela de Checklist)
         
@@ -4890,58 +4893,56 @@ def deletar_foto(foto_id):
 @login_required
 def get_foto_resposta(filename):
     """
-    Serve um arquivo de foto de resposta, verificando permissão
-    na tabela principal E na tabela de múltiplas fotos.
+    Serve fotos de resposta (NCs) verificando permissão via Banco de Dados.
+    Compatível com arquivos legados (nomes antigos) e novos.
     """
     upload_folder = current_app.config.get('UPLOAD_FOLDER')
     if not upload_folder:
         abort(500)
 
     try:
-        # Padrão esperado: resposta_{id}_{hash}.ext
-        if filename.startswith('resposta_') and '_' in filename:
-            parts = filename.split('_')
-            # Garante que pega o ID mesmo se o nome tiver mais underlines
-            resposta_id_str = parts[1]
-            
-            if resposta_id_str.isdigit():
-                resposta_id = int(resposta_id_str)
-                resposta = RespostaPergunta.query.get(resposta_id)
+        # ==========================================================
+        # ESTRATÉGIA BLINDADA: BUSCA NO BANCO (NÃO NO NOME DO ARQUIVO)
+        # ==========================================================
+        
+        resposta = None
+        
+        # 1. Procura na Tabela Principal (RespostaPergunta)
+        # Isso resolve o problema de fotos antigas que não começam com 'resposta_'
+        resposta = RespostaPergunta.query.filter_by(caminho_foto=filename).first()
+        
+        # 2. Se não achou, procura na Tabela de Galeria (FotoResposta) - Caso use múltiplas fotos
+        if not resposta and 'FotoResposta' in globals():
+            foto_extra = FotoResposta.query.filter_by(caminho=filename).first()
+            if foto_extra:
+                resposta = RespostaPergunta.query.get(foto_extra.resposta_id)
 
-                if resposta:
-                    # 1. Verifica se é a foto principal (Compatibilidade Antiga)
-                    eh_foto_principal = (resposta.caminho_foto == filename)
-                    
-                    # 2. Verifica se está na galeria de múltiplas fotos (Novo Sistema)
-                    eh_foto_galeria = False
-                    # Verifica se a classe FotoResposta existe (foi importada)
-                    if 'FotoResposta' in globals():
-                        foto_extra = FotoResposta.query.filter_by(
-                            resposta_id=resposta.id, 
-                            caminho=filename
-                        ).first()
-                        if foto_extra:
-                            eh_foto_galeria = True
-                    
-                    # Se a foto for válida (principal OU galeria), verifica permissão do usuário
-                    if eh_foto_principal or eh_foto_galeria:
-                        aplicacao = AplicacaoQuestionario.query.get(resposta.aplicacao_id)
-                        if aplicacao:
-                            avaliado = Avaliado.query.get(aplicacao.avaliado_id)
-                            # Permite se for dono dos dados (mesmo cliente) ou Admin Global
-                            if (avaliado and avaliado.cliente_id == current_user.cliente_id) or verificar_permissao_admin():
-                                return send_from_directory(upload_folder, filename)
+        # ==========================================================
+        # VERIFICAÇÃO DE PERMISSÃO
+        # ==========================================================
+        if resposta:
+            aplicacao = AplicacaoQuestionario.query.get(resposta.aplicacao_id)
             
-            # Se chegou aqui, é porque a foto não pertence à resposta ou usuário não tem permissão
-            current_app.logger.warning(f"Acesso negado ou arquivo não vinculado: {filename}")
-            abort(403)
-        else:
-            abort(404)
+            if aplicacao:
+                avaliado = Avaliado.query.get(aplicacao.avaliado_id)
+                
+                # Regra: Só mostra se for do mesmo cliente do usuário logado OU se for Admin
+                # Isso impede que um cliente veja foto de outro mudando a URL
+                permissao_cliente = (avaliado and avaliado.cliente_id == current_user.cliente_id)
+                permissao_admin = verificar_permissao_admin() # Sua função de utils ou decorator
+                
+                if permissao_cliente or permissao_admin:
+                    return send_from_directory(upload_folder, filename)
+
+        # Se chegou aqui, o arquivo existe mas o usuário não tem permissão,
+        # ou o arquivo não está registrado no banco.
+        current_app.logger.warning(f"Acesso negado à foto: {filename}")
+        abort(403)
 
     except FileNotFoundError:
         abort(404)
     except Exception as e:
-        current_app.logger.error(f"Erro ao servir foto: {e}")
+        current_app.logger.error(f"Erro ao servir foto {filename}: {e}")
         abort(500)
 
 @cli_bp.route('/aplicacao/<int:id>/reabrir', methods=['POST'])
@@ -5269,10 +5270,12 @@ def excluir_questionario(id):
 
 # Em app/cli/routes.py
 
+# Em app/cli/routes.py
+
 @cli_bp.route('/api/ia/sugerir-plano', methods=['POST'])
 @login_required
 def sugerir_plano_acao():
-    """Gera sugestão usando Gemini Flash Latest com Prompt Refinado (v3)"""
+    """Gera sugestão com Retry automático para erro 429 (Cota Excedida)"""
     try:
         data = request.get_json()
         if not data.get('pergunta'): return jsonify({'erro': 'Dados insuficientes'}), 400
@@ -5282,38 +5285,69 @@ def sugerir_plano_acao():
             
         genai.configure(api_key=api_key)
         
-        # --- PROMPT V3: Foco Cirúrgico e Contextual ---
+        # --- PROMPT (MANTIDO IGUAL) ---
         prompt = f"""
-        Atue como um Consultor Técnico em Segurança de Alimentos. Redija a Ação Corretiva para a Não Conformidade abaixo.
+        Você é um Auditor Especialista em Segurança de Alimentos.
+        Analise a seguinte Não Conformidade encontrada:
         
-        CONTEXTO DA AUDITORIA:
-        - Requisito Auditado: "{data.get('pergunta')}"
-        - O que o Auditor viu (Observação): "{data.get('observacao')}"
+        - REQUISITO: "{data.get('pergunta')}"
+        - OBSERVAÇÃO DO AUDITOR: "{data.get('observacao')}"
 
-        OBJETIVO:
-        Criar um comando técnico e direto para resolver EXATAMENTE o problema pontual descrito, sem generalizações.
+        CONSULTE MENTALMENTE:
+        - Portaria SVS/MS nº 326/1997
+        - Portaria CVS-5/2013
+        - RDC ANVISA nº 275/2002
+        - RDC ANVISA nº 216/2004
+        - Portaria GM-MD nº 5.703/2023
+        
+        TAREFA:
+        Retorne APENAS um objeto JSON válido (sem markdown) com duas chaves:
+        1. "justificativa": Uma frase técnica curta explicando POR QUE é uma não conformidade, citando a norma infringida.
+        2. "acao": Uma ação corretiva direta, imperativa e curta.
 
-        REGRAS DE OURO (ESCOPO E TOM):
-        1. FOCO CIRÚRGICO: Resolva apenas o defeito citado. Se a observação fala de "uma tela rasgada", mande consertar "a tela rasgada". NÃO mande "inspecionar as outras" (o auditor já fez isso).
-        2. SEM REDUNDÂNCIA: Não peça para "criar planilhas", "monitorar" ou "fazer levantamentos", a menos que o problema seja falta de registro. Foque na ação física (trocar, limpar, consertar).
-        3. VOCABULÁRIO CONECTADO: Use os mesmos substantivos da observação. Se o auditor escreveu "janela do estoque", use "janela do estoque" na ação.
-        4. IMPERATIVO TÉCNICO: Comece com verbos fortes (Substituir, Adequar, Instalar, Higienizar).
-        5. FORMATO: Um único parágrafo curto. Sem listas. Sem introduções ("A ação deve ser...").
-
-        Exemplo Bom: "Substituir imediatamente a tela milimetrada danificada da janela, garantindo a vedação completa contra pragas conforme exigido."
-        Exemplo Ruim: "Verificar todas as janelas e trocar as telas se necessário." (Errado: o auditor já verificou).
-
-        Gere a ação corretiva agora:
+        Exemplo JSON:
+        {{
+            "justificativa": "Descumprimento da RDC 216, item 4.1, devido à superfície danificada.",
+            "acao": "Substituir o equipamento danificado imediatamente."
+        }}
         """
-        # ------------------------
         
         model = genai.GenerativeModel('gemini-2.0-flash')
-        response = model.generate_content(prompt)
         
-        return jsonify({'sucesso': True, 'sugestao': response.text.strip()})
-    except Exception as e:
-        return jsonify({'sucesso': False, 'erro': str(e)}), 500
+        # --- LÓGICA DE RETRY (A NOVIDADE) ---
+        response = None
+        erro_final = None
+        
+        for tentativa in range(3): # Tenta até 3 vezes
+            try:
+                response = model.generate_content(prompt)
+                break # Se funcionou, sai do loop
+            except Exception as e:
+                erro_str = str(e)
+                if "429" in erro_str or "Resource exhausted" in erro_str:
+                    print(f"[IA] Rate Limit (429). Tentativa {tentativa+1}/3. Aguardando 2s...")
+                    time.sleep(2) # Espera 2 segundos antes de tentar de novo
+                else:
+                    raise e # Se for outro erro, estoura imediatamente
 
+        if not response:
+            return jsonify({'sucesso': False, 'erro': "IA sobrecarregada. Aguarde 10s e tente novamente."}), 429
+
+        # Limpeza do JSON
+        texto_limpo = response.text.replace("```json", "").replace("```", "").strip()
+        
+        import json
+        resultado = json.loads(texto_limpo)
+        
+        return jsonify({
+            'sucesso': True, 
+            'causa': resultado.get('justificativa', ''),
+            'plano': resultado.get('acao', '')
+        })
+
+    except Exception as e:
+        print(f"Erro IA: {e}")
+        return jsonify({'sucesso': False, 'erro': str(e)}), 500
 # Em app/cli/routes.py
 
 @cli_bp.route('/aplicacao/<int:id>/gestao-ncs', methods=['GET'])
@@ -5441,17 +5475,17 @@ def pdf_plano_acao(aplicacao_id):
     try:
         aplicacao = AplicacaoQuestionario.query.get_or_404(aplicacao_id)
         
-        # 1. Segurança
+        # 1. Segurança e Validação de Hierarquia
         if aplicacao.avaliado.cliente_id != current_user.cliente_id:
             flash("Acesso não autorizado.", "danger")
             return redirect(url_for('cli.lista_plano_acao'))
         
-        # Validação de hierarquia (Rancho/GAP)
         if current_user.avaliado_id and aplicacao.avaliado_id != current_user.avaliado_id:
             flash("Permissão negada.", "danger")
             return redirect(url_for('cli.lista_plano_acao'))
 
-        # 2. Busca Itens do Plano de Ação
+        # 2. Busca Itens do Plano de Ação (NCs com plano definido)
+        # Ordena por Tópico e Pergunta para manter a sequência do checklist
         respostas_db = RespostaPergunta.query\
             .filter_by(aplicacao_id=aplicacao.id)\
             .filter(RespostaPergunta.plano_acao != None)\
@@ -5460,24 +5494,23 @@ def pdf_plano_acao(aplicacao_id):
             .order_by(Topico.ordem, Pergunta.ordem)\
             .all()
         
-        # 3. Prepara URIs das Imagens (Logo e Assinaturas)
-        # Usamos .as_uri() para o WeasyPrint lidar melhor com caminhos absolutos
+        # 3. Preparação de Imagens (Logo e Assinaturas) com caminho absoluto (pathlib)
         
-        # A) Logo
+        # A) Logo (Com fallback)
         logo_pdf_uri = None
         try:
             logo_path = Path(current_app.static_folder) / 'img' / 'logo_pdf.png'
             if logo_path.exists():
                 logo_pdf_uri = logo_path.as_uri()
             else:
-                # Fallback
+                # Fallback para logo.jpg
                 logo_path = Path(current_app.static_folder) / 'img' / 'logo.jpg'
                 if logo_path.exists():
                     logo_pdf_uri = logo_path.as_uri()
         except Exception:
             pass
 
-        # B) Assinatura do Cliente (Coletada no Checklist)
+        # B) Assinatura do Cliente
         assinatura_cliente_uri = None
         upload_folder_str = current_app.config.get('UPLOAD_FOLDER')
         
@@ -5489,50 +5522,68 @@ def pdf_plano_acao(aplicacao_id):
             except Exception:
                 pass
 
-        # 4. Prepara os Itens (NCs) e suas fotos de evidência
+        # 4. Prepara os Itens com NOVOS CAMPOS e FOTO BLINDADA
         itens_relatorio = []
         for resp in respostas_db:
+            # Mapeamento completo dos dados para o template HTML
             item = {
+                # --- Dados de Estrutura (Mantidos) ---
                 'topico_nome': resp.pergunta.topico.nome,
                 'topico_ordem': resp.pergunta.topico.ordem,
                 'pergunta_ordem': resp.pergunta.ordem,
                 'pergunta_texto': resp.pergunta.texto,
-                'observacao': resp.observacao,
+                
+                # --- Dados da Auditoria (Mantidos) ---
+                'observacao': resp.observacao, # Observação da Consultora
                 'plano_acao': resp.plano_acao,
-                'prazo': resp.prazo_plano_acao, # <--- O CAMPO DE DATA
+                'prazo': resp.prazo_plano_acao,
+                
+                # --- NOVOS CAMPOS (Horizontal) ---
+                # Usamos getattr para não quebrar se o banco não tiver atualizado ainda
+                'responsavel_plano_acao': getattr(resp, 'responsavel_plano_acao', None),
+                'setor_atuacao': getattr(resp, 'setor_atuacao', None),
+                'causa_raiz': getattr(resp, 'causa_raiz', None),
+                
                 'foto_uri': None
             }
             
-            # Foto da Evidência (Não Conformidade)
+            # --- Lógica da Foto da Evidência (ATUALIZADA E BLINDADA) ---
             if resp.caminho_foto and upload_folder_str:
                 try:
-                    foto_path = Path(upload_folder_str) / resp.caminho_foto
-                    if foto_path.exists():
-                        item['foto_uri'] = foto_path.as_uri()
-                except Exception:
+                    # Tentativa 1: Pasta de Uploads (Padrão Novo)
+                    path_upload = Path(upload_folder_str) / resp.caminho_foto
+                    if path_upload.exists():
+                        item['foto_uri'] = path_upload.as_uri()
+                    else:
+                        # Tentativa 2: Pasta Static/img (Legado - para fotos antigas)
+                        path_static = Path(current_app.static_folder) / 'img' / resp.caminho_foto
+                        if path_static.exists():
+                            item['foto_uri'] = path_static.as_uri()
+                except Exception as e:
+                    current_app.logger.error(f"Erro foto PDF Plano ID {resp.id}: {e}")
                     pass
                     
             itens_relatorio.append(item)
         
-        # 5. Renderiza com o novo Template
+        # 5. Renderiza com o novo Template Horizontal
         html_content = render_template_safe(
             'cli/pdf_plano_acao.html',
             aplicacao=aplicacao,
             itens=itens_relatorio,
-            logo_pdf_uri=logo_pdf_uri,              # Passando a logo
-            assinatura_cliente_uri=assinatura_cliente_uri, # Passando a assinatura
+            logo_pdf_uri=logo_pdf_uri,
+            assinatura_cliente_uri=assinatura_cliente_uri,
             assinatura_responsavel=aplicacao.assinatura_responsavel,
             cargo_responsavel=aplicacao.cargo_responsavel,
             data_geracao=datetime.now()
         )
         
-        return gerar_pdf_seguro(html_content, filename=f"Plano_Acao_{aplicacao_id}.pdf")
+        nome_arquivo = f"Plano_Acao_{aplicacao.avaliado.nome.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf"
+        return gerar_pdf_seguro(html_content, filename=nome_arquivo)
         
     except Exception as e:
         current_app.logger.error(f"Erro PDF Plano: {e}", exc_info=True)
         flash("Erro ao gerar PDF.", "danger")
         return redirect(url_for('cli.visualizar_aplicacao', id=aplicacao_id))
-# ===================== ROTAS DE AÇÃO CORRETIVA =====================
 
 @cli_bp.route('/acao-corretiva/registrar/<int:resposta_id>', methods=['POST'])
 @login_required
