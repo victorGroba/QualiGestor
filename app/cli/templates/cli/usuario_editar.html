@@ -36,20 +36,25 @@
                     </div>
 
                     <div class="col-md-4 mb-3" id="divGap">
-                        <label class="form-label text-info">Vincular ao GAP</label>
-                        <select class="form-select border-info" id="grupo_id" name="grupo_id" onchange="filtrarRanchos()">
-                            <option value="">-- Selecione --</option>
+                        <label class="form-label text-info fw-bold">GAPs de Atuação (Multi-seleção)</label>
+                        <select class="form-select border-info" id="grupos_acesso" name="grupos_acesso" multiple style="height: 150px;">
                             {% for g in gaps %}
-                            <option value="{{ g.id }}" {% if usuario.grupo_id == g.id %}selected{% endif %}>{{ g.nome }}</option>
+                            <option value="{{ g.id }}" 
+                                {# Verifica se o gap está na lista de acessos do usuário #}
+                                {% if g in usuario.grupos_acesso %}selected{% endif %}>
+                                {{ g.nome }}
+                            </option>
                             {% endfor %}
                         </select>
+                        <div class="form-text text-primary small">Segure <strong>Ctrl</strong> para selecionar vários.</div>
                     </div>
 
                     <div class="col-md-4 mb-3" id="divRancho">
                         <label class="form-label text-success">Vincular ao Rancho</label>
                         <select class="form-select border-success" id="avaliado_id" name="avaliado_id">
                             <option value="">-- Selecione o GAP primeiro --</option>
-                            </select>
+                        </select>
+                        <div class="form-text small">Usado apenas para perfil Rancho.</div>
                     </div>
                 </div>
 
@@ -68,14 +73,12 @@
 </div>
 
 <script>
-    // Trazendo dados do backend para o JS
     const todosRanchos = [
         {% for r in ranchos %}
         { "id": "{{ r.id }}", "nome": {{ r.nome|tojson }}, "grupo_id": "{{ r.grupo_id }}" },
         {% endfor %}
     ];
     
-    // ID do rancho atual salvo no banco (para pré-selecionar)
     const ranchoAtualId = "{{ usuario.avaliado_id if usuario.avaliado_id else '' }}";
 
     function atualizarFormulario() {
@@ -83,13 +86,14 @@
         const divGap = document.getElementById('divGap');
         const divRancho = document.getElementById('divRancho');
         
-        // Regra de visibilidade
         if (tipo === 'gestor' || tipo === 'auditor') {
             divGap.style.display = 'block';
             divRancho.style.display = 'none';
         } else if (tipo === 'usuario') {
             divGap.style.display = 'block';
             divRancho.style.display = 'block';
+            // Para usuário comum, o select múltiplo deve se comportar como simples (visual apenas)
+            // Mas a lógica do backend cuidará disso
         } else {
             divGap.style.display = 'none';
             divRancho.style.display = 'none';
@@ -97,7 +101,9 @@
     }
 
     function filtrarRanchos() {
-        const gapId = document.getElementById('grupo_id').value;
+        // Pega o primeiro valor selecionado no select múltiplo para filtrar ranchos
+        const selectGap = document.getElementById('grupos_acesso');
+        const gapId = selectGap.value; 
         const selectRancho = document.getElementById('avaliado_id');
         selectRancho.innerHTML = '<option value="">-- Selecione --</option>';
 
@@ -115,9 +121,12 @@
         }
     }
 
+    // Ouve mudanças no select de GAPs para atualizar ranchos (caso seja usuário comum)
+    document.getElementById('grupos_acesso').addEventListener('change', filtrarRanchos);
+
     document.addEventListener("DOMContentLoaded", function() {
         atualizarFormulario();
-        filtrarRanchos(); // Carrega os ranchos do GAP atual ao abrir a tela
+        filtrarRanchos(); 
     });
 </script>
 {% endblock %}

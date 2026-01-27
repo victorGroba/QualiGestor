@@ -3215,7 +3215,10 @@ def novo_usuario():
 @login_required
 @admin_required
 def editar_usuario(id):
-    """Edita permissões, senha e vínculos do usuário"""
+    """
+    Edita permissões, senha e vínculos do usuário.
+    Atualizado para suportar Multi-GAP (N:N).
+    """
     # Garante que só edita usuários do mesmo cliente (segurança)
     usuario = Usuario.query.filter_by(id=id, cliente_id=current_user.cliente_id).first_or_404()
     
@@ -3225,53 +3228,97 @@ def editar_usuario(id):
 
     if request.method == 'POST':
         try:
+            # 1. Coleta dados do formulário
             nome = request.form.get('nome')
             email = request.form.get('email')
             tipo_str = request.form.get('tipo')
             senha = request.form.get('senha') # Opcional
             
-            # Vínculos
-            grupo_id = request.form.get('grupo_id')
+            # --- ATUALIZAÇÃO MULTI-GAP ---
+            # Pega a LISTA de IDs dos GAPs (Select Multiple)
+            gaps_ids = request.form.getlist('grupos_acesso')
+            
+            # Pega o ID do Rancho (Select Simples)
             avaliado_id = request.form.get('avaliado_id')
 
-            # Atualiza dados básicos
+            # 2. Atualiza dados básicos
             usuario.nome = nome
             usuario.email = email
             
-            # Atualiza Tipo (Enum)
-            try:
-                usuario.tipo = TipoUsuario[tipo_str.upper()]
-            except:
-                pass # Mantém o anterior se der erro
+            # 3. Atualiza Tipo (Enum)
+            if tipo_str:
+                try:
+                    # Tenta converter string para Enum (ex: 'gestor' -> TipoUsuario.GESTOR)
+                    usuario.tipo = TipoUsuario[tipo_str.upper()]
+                except KeyError:
+                    pass # Se falhar, mantém o tipo anterior por segurança
 
-            # Lógica de Vínculos (A Regra de Ouro)
+            # 4. Lógica de Vínculos (A Regra de Ouro Atualizada)
+            
+            # Primeiro, limpamos a lista de acesso atual para reconstruí-la
+            usuario.grupos_acesso = []
+            
+            # Cenário A: Gestor ou Auditor (Consultora) -> Múltiplos GAPs
             if usuario.tipo in [TipoUsuario.GESTOR, TipoUsuario.AUDITOR]:
-                # Gestor/Auditor: Tem GAP, mas não tem Rancho
-                usuario.grupo_id = int(grupo_id) if grupo_id else None
+                if gaps_ids:
+                    primeiro = True
+                    for gid in gaps_ids:
+                        gap = Grupo.query.get(int(gid))
+                        if gap:
+                            # Adiciona na tabela nova (N:N)
+                            usuario.grupos_acesso.append(gap)
+                            
+                            # Mantém compatibilidade com legado (usa o primeiro como principal)
+                            if primeiro:
+                                usuario.grupo_id = gap.id
+                                primeiro = False
+                else:
+                    # Se desmarcou tudo
+                    usuario.grupo_id = None
+                
+                # Garante que não tenha rancho vinculado
                 usuario.avaliado_id = None
                 
+            # Cenário B: Usuário de Rancho -> 1 Rancho e seu respectivo GAP
             elif usuario.tipo == TipoUsuario.USUARIO:
-                # Rancho: Tem GAP e Rancho
-                usuario.grupo_id = int(grupo_id) if grupo_id else None
                 usuario.avaliado_id = int(avaliado_id) if avaliado_id else None
+                
+                # Se tem rancho, pega o GAP do rancho automaticamente
+                if usuario.avaliado_id:
+                    rancho = Avaliado.query.get(usuario.avaliado_id)
+                    if rancho and rancho.grupo_id:
+                        # Preenche legado
+                        usuario.grupo_id = rancho.grupo_id
+                        
+                        # Preenche lista nova para consistência
+                        gap_rancho = Grupo.query.get(rancho.grupo_id)
+                        if gap_rancho:
+                            usuario.grupos_acesso.append(gap_rancho)
+                else:
+                    usuario.grupo_id = None
+
+            # Cenário C: Admins -> Visão Global (sem vínculos restritivos)
             else:
-                # Admins: Visão Global (sem vínculos restritivos)
                 usuario.grupo_id = None
                 usuario.avaliado_id = None
 
-            # Atualiza Senha (apenas se preenchida)
+            # 5. Atualiza Senha (apenas se preenchida)
             if senha and len(senha.strip()) > 0:
                 from werkzeug.security import generate_password_hash
                 usuario.senha_hash = generate_password_hash(senha)
 
+            # 6. Salvar no Banco
             db.session.commit()
             flash(f'Usuário {nome} atualizado com sucesso.', 'success')
             return redirect(url_for('cli.gerenciar_usuarios'))
 
         except Exception as e:
             db.session.rollback()
+            # Log no terminal para ajudar no debug
+            print(f"Erro ao editar usuário {id}: {e}")
             flash(f'Erro ao atualizar: {str(e)}', 'error')
 
+    # Retorna o template com os dados
     return render_template_safe('cli/usuario_editar.html', usuario=usuario, gaps=gaps, ranchos=ranchos)
 
 
