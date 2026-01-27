@@ -2467,28 +2467,32 @@ def finalizar_definitivamente(id):
     try:
         aplicacao = AplicacaoQuestionario.query.get_or_404(id)
         
-        # Validação: Agora as assinaturas SÃO obrigatórias
-        perguntas_assinatura = Pergunta.query.join(Topico).filter(
-            Topico.questionario_id == aplicacao.questionario_id,
-            Pergunta.tipo == TipoResposta.ASSINATURA,
-            Pergunta.obrigatoria == True,
-            Pergunta.ativo == True
-        ).all()
-        
-        respostas_ids = {r.pergunta_id for r in aplicacao.respostas if r.resposta}
-        
-        faltando = [p.texto for p in perguntas_assinatura if p.id not in respostas_ids]
-        
-        if faltando:
-            flash(f"Para finalizar definitivamente, é obrigatório coletar: {', '.join(faltando)}", "danger")
+        # 1. Validação de Segurança (Garante que é do mesmo cliente)
+        if aplicacao.avaliado.cliente_id != current_user.cliente_id:
+            flash("Acesso negado.", "danger")
+            return redirect(url_for('cli.listar_aplicacoes'))
+
+        # 2. VALIDAÇÃO CORRIGIDA: Verifica o campo de assinatura da Aplicação
+        # Removemos a busca na tabela 'RespostaPergunta' porque a assinatura agora
+        # é salva direto na tabela 'AplicacaoQuestionario' (campo assinatura_imagem).
+        if not aplicacao.assinatura_imagem:
+            flash("Para finalizar definitivamente, é obrigatório coletar a Assinatura do Responsável.", "danger")
             return redirect(url_for('cli.fase_assinatura', id=id))
 
-        # TUDO CERTO: FINALIZA
+        # 3. Atualiza Observações Finais (se enviado no form)
+        observacoes = request.form.get('observacoes_finais')
+        if observacoes is not None:
+            aplicacao.observacoes_finais = observacoes
+
+        # 4. TUDO CERTO: FINALIZA
         aplicacao.status = StatusAplicacao.FINALIZADA
-        aplicacao.data_fim = datetime.now()
-        aplicacao.observacoes_finais = request.form.get('observacoes_finais', aplicacao.observacoes_finais)
+        
+        # Só atualiza a data fim se ainda não tiver (para preservar data original se reaberto)
+        if not aplicacao.data_fim:
+            aplicacao.data_fim = datetime.now()
         
         db.session.commit()
+        
         log_acao(f"Finalização Definitiva: {aplicacao.questionario.nome}", None, "Aplicacao", id)
         
         flash("Auditoria finalizada com sucesso! Documento gerado.", "success")
@@ -2496,7 +2500,9 @@ def finalizar_definitivamente(id):
         
     except Exception as e:
         db.session.rollback()
-        flash(f"Erro ao finalizar: {e}", "danger")
+        # Log do erro no terminal para ajudar no debug
+        print(f"Erro ao finalizar definitivamente: {e}")
+        flash(f"Erro técnico ao finalizar: {e}", "danger")
         return redirect(url_for('cli.fase_assinatura', id=id))
 
 @cli_bp.route('/aplicacao/<int:id>/assinar-finalizar', methods=['POST'])
