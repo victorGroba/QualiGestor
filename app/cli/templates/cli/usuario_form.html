@@ -2,6 +2,36 @@
 
 {% block title %}Novo Usuário{% endblock %}
 
+{% block head %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+    /* Ajustes para o Select2 parecer com o Bootstrap 5 */
+    .select2-container .select2-selection--multiple {
+        border: 1px solid #ced4da !important;
+        min-height: 38px !important;
+        border-radius: 0.375rem !important;
+        padding-bottom: 0;
+    }
+    .select2-container--default .select2-selection--multiple .select2-selection__choice {
+        background-color: #0dcaf0 !important; /* Cor Cyan do tema */
+        border: 1px solid #0dcaf0 !important;
+        color: white !important;
+        border-radius: 20px;
+        padding: 2px 8px;
+        margin-top: 4px;
+    }
+    .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+        color: white !important;
+        margin-right: 5px;
+        border-right: 1px solid rgba(255,255,255,0.5);
+    }
+    .select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover {
+        background-color: transparent !important;
+        color: #ffcccc !important;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
 
@@ -74,13 +104,13 @@
 
                     <div class="col-md-4 mb-3" id="divGap" style="display: none;">
                         <label for="grupos_acesso" class="form-label font-weight-bold text-info">GAPs de Atuação (Multi-seleção)</label>
-                        <select class="form-select border-info" id="grupos_acesso" name="grupos_acesso" multiple style="height: 150px;" onchange="filtrarRanchos()">
+                        <select class="form-select border-info" id="grupos_acesso" name="grupos_acesso" multiple="multiple" style="width: 100%;">
                             {% for gap in grupos %}
                                 <option value="{{ gap.id }}">{{ gap.nome }}</option>
                             {% endfor %}
                         </select>
                         <div class="form-text text-primary">
-                            <i class="fas fa-info-circle"></i> Segure <strong>Ctrl</strong> (ou Command) para selecionar mais de um GAP.
+                            <i class="fas fa-info-circle"></i> Clique na caixa para adicionar ou remover GAPs.
                         </div>
                     </div>
 
@@ -109,6 +139,9 @@
     </div>
 </div>
 
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
 <script>
     // Geramos o array de ranchos protegendo os nomes contra aspas simples/duplas com |tojson
     const todosRanchos = [
@@ -125,7 +158,7 @@
         const tipo = document.getElementById('tipo').value;
         const divGap = document.getElementById('divGap');
         const divRancho = document.getElementById('divRancho');
-        const selectGap = document.getElementById('grupos_acesso'); // ID Atualizado
+        const selectGap = document.getElementById('grupos_acesso');
         const selectRancho = document.getElementById('avaliado_id');
         const textoAjuda = document.getElementById('textoAjuda');
 
@@ -147,22 +180,25 @@
             selectRancho.setAttribute('required', 'required');
             textoAjuda.innerText = "Selecione o GAP e o Rancho específico.";
         } else {
-            selectGap.value = "";
+            // Se for admin, limpa tudo
+            // Para Select2, usamos jQuery para limpar
+            $('#grupos_acesso').val(null).trigger('change');
             selectRancho.value = "";
             textoAjuda.innerText = "Administradores possuem visão global.";
         }
     }
 
     function filtrarRanchos() {
-        const selectGap = document.getElementById('grupos_acesso');
-        const gapId = selectGap.value; // Em select multiple, .value pega o primeiro selecionado (ideal para filtrar rancho)
+        // Com Select2, usamos jQuery para pegar o valor (pega o primeiro se for múltiplo ou array)
+        // No contexto de "filtrar ranchos", usamos o primeiro GAP selecionado como base
+        const gapVal = $('#grupos_acesso').val(); 
+        const gapId = Array.isArray(gapVal) ? gapVal[0] : gapVal;
+        
         const selectRancho = document.getElementById('avaliado_id');
         
         // Limpa opções atuais
         selectRancho.innerHTML = '<option value="">-- Selecione o Rancho --</option>';
 
-        // Só filtra ranchos se tiver um GAP selecionado. 
-        // Para consultoras (multi-gap), o rancho não é usado, então não tem problema pegar só o primeiro GAP.
         if (gapId) {
             const ranchosFiltrados = todosRanchos.filter(r => String(r.grupo_id) === String(gapId));
             
@@ -186,12 +222,24 @@
     }
 
     // Inicialização ao carregar a página
-    document.addEventListener("DOMContentLoaded", function() {
+    $(document).ready(function() {
+        // 1. Ativa o Select2 no campo de GAPs
+        $('#grupos_acesso').select2({
+            placeholder: "Clique para selecionar GAPs...",
+            allowClear: true,
+            width: '100%'
+        });
+
+        // 2. Vincula o evento de mudança do Select2 à função de filtro
+        $('#grupos_acesso').on('change', function() {
+            filtrarRanchos();
+        });
+
+        // 3. Inicializa o estado do formulário
         atualizarFormulario();
         
-        // Se já houver um GAP selecionado (ex: erro de validação ao voltar), filtra os ranchos
-        const selectGap = document.getElementById('grupos_acesso');
-        if (selectGap && selectGap.value) {
+        // 4. Se já houver valor (ex: erro de validação), filtra
+        if ($('#grupos_acesso').val() && $('#grupos_acesso').val().length > 0) {
             filtrarRanchos();
         }
     });

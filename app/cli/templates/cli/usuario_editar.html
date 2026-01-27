@@ -2,6 +2,36 @@
 
 {% block title %}Editar Usuário{% endblock %}
 
+{% block head %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+    /* Ajustes para o Select2 parecer com o Bootstrap 5 */
+    .select2-container .select2-selection--multiple {
+        border: 1px solid #ced4da !important;
+        min-height: 38px !important;
+        border-radius: 0.375rem !important;
+        padding-bottom: 0;
+    }
+    .select2-container--default .select2-selection--multiple .select2-selection__choice {
+        background-color: #0dcaf0 !important; /* Cor Cyan do tema */
+        border: 1px solid #0dcaf0 !important;
+        color: white !important;
+        border-radius: 20px;
+        padding: 2px 8px;
+        margin-top: 4px;
+    }
+    .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+        color: white !important;
+        margin-right: 5px;
+        border-right: 1px solid rgba(255,255,255,0.5);
+    }
+    .select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover {
+        background-color: transparent !important;
+        color: #ffcccc !important;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
     <div class="card shadow mb-4">
@@ -37,16 +67,16 @@
 
                     <div class="col-md-4 mb-3" id="divGap">
                         <label class="form-label text-info fw-bold">GAPs de Atuação (Multi-seleção)</label>
-                        <select class="form-select border-info" id="grupos_acesso" name="grupos_acesso" multiple style="height: 150px;">
+                        <select class="form-select border-info" id="grupos_acesso" name="grupos_acesso" multiple="multiple" style="width: 100%;">
                             {% for g in gaps %}
                             <option value="{{ g.id }}" 
-                                {# Verifica se o gap está na lista de acessos do usuário #}
-                                {% if g in usuario.grupos_acesso %}selected{% endif %}>
+                                {# CORREÇÃO CRÍTICA: Compara ID com lista de IDs para marcar corretamente #}
+                                {% if g.id in usuario.grupos_acesso|map(attribute='id')|list %}selected{% endif %}>
                                 {{ g.nome }}
                             </option>
                             {% endfor %}
                         </select>
-                        <div class="form-text text-primary small">Segure <strong>Ctrl</strong> para selecionar vários.</div>
+                        <div class="form-text text-primary small"><i class="fas fa-info-circle"></i> Clique para adicionar/remover GAPs.</div>
                     </div>
 
                     <div class="col-md-4 mb-3" id="divRancho">
@@ -72,6 +102,9 @@
     </div>
 </div>
 
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
 <script>
     const todosRanchos = [
         {% for r in ranchos %}
@@ -79,6 +112,7 @@
         {% endfor %}
     ];
     
+    // ID do rancho salvo no banco (para pré-selecionar)
     const ranchoAtualId = "{{ usuario.avaliado_id if usuario.avaliado_id else '' }}";
 
     function atualizarFormulario() {
@@ -92,8 +126,6 @@
         } else if (tipo === 'usuario') {
             divGap.style.display = 'block';
             divRancho.style.display = 'block';
-            // Para usuário comum, o select múltiplo deve se comportar como simples (visual apenas)
-            // Mas a lógica do backend cuidará disso
         } else {
             divGap.style.display = 'none';
             divRancho.style.display = 'none';
@@ -101,32 +133,56 @@
     }
 
     function filtrarRanchos() {
-        // Pega o primeiro valor selecionado no select múltiplo para filtrar ranchos
-        const selectGap = document.getElementById('grupos_acesso');
-        const gapId = selectGap.value; 
+        // Pega valor do Select2 (pode ser array ou string)
+        const gapVal = $('#grupos_acesso').val();
+        // Se for array múltiplo, pega o primeiro para filtrar os ranchos (regra de negócio: Rancho pertence a 1 GAP)
+        const gapId = Array.isArray(gapVal) ? gapVal[0] : gapVal;
+        
         const selectRancho = document.getElementById('avaliado_id');
         selectRancho.innerHTML = '<option value="">-- Selecione --</option>';
 
         if (gapId) {
             const filtrados = todosRanchos.filter(r => String(r.grupo_id) === String(gapId));
-            filtrados.forEach(r => {
+            
+            if (filtrados.length > 0) {
+                filtrados.forEach(r => {
+                    const opt = document.createElement('option');
+                    opt.value = r.id;
+                    opt.text = r.nome;
+                    // Marca o rancho atual se bater o ID
+                    if (String(r.id) === String(ranchoAtualId)) {
+                        opt.selected = true;
+                    }
+                    selectRancho.appendChild(opt);
+                });
+            } else {
                 const opt = document.createElement('option');
-                opt.value = r.id;
-                opt.text = r.nome;
-                if (String(r.id) === String(ranchoAtualId)) {
-                    opt.selected = true;
-                }
+                opt.text = "Nenhum rancho neste GAP";
                 selectRancho.appendChild(opt);
-            });
+            }
         }
     }
 
-    // Ouve mudanças no select de GAPs para atualizar ranchos (caso seja usuário comum)
-    document.getElementById('grupos_acesso').addEventListener('change', filtrarRanchos);
+    $(document).ready(function() {
+        // 1. Inicia Select2
+        $('#grupos_acesso').select2({
+            placeholder: "Selecione os GAPs...",
+            allowClear: true,
+            width: '100%'
+        });
 
-    document.addEventListener("DOMContentLoaded", function() {
+        // 2. Evento de mudança (Select2 usa jQuery events)
+        $('#grupos_acesso').on('change', function() {
+            filtrarRanchos();
+        });
+
+        // 3. Configuração Inicial
         atualizarFormulario();
-        filtrarRanchos(); 
+        
+        // 4. Se tiver GAP selecionado ao abrir a tela, carrega os ranchos
+        if ($('#grupos_acesso').val() && $('#grupos_acesso').val().length > 0) {
+            filtrarRanchos();
+        }
     });
 </script>
 {% endblock %}

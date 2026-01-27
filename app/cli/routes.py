@@ -3159,33 +3159,45 @@ def novo_usuario():
             ativo=True
         )
 
-        # 6. PROCESSAMENTO DOS GAPS (O Coração da Atualização)
+        # 6. PROCESSAMENTO DOS GAPS E VÍNCULOS (Lógica Blindada por Tipo)
         
-        # Cenário A: Consultora/Gestor com Multiplos GAPs selecionados
-        if gaps_ids:
-            primeiro_gap = True
-            for gid in gaps_ids:
-                gap = Grupo.query.get(int(gid))
-                if gap:
-                    # Adiciona à lista N:N (Tabela usuario_grupos)
-                    usuario.grupos_acesso.append(gap)
+        # Cenário A: Consultora ou Gestor (Múltiplos GAPs)
+        if usuario.tipo in [TipoUsuario.GESTOR, TipoUsuario.AUDITOR]:
+            if gaps_ids:
+                primeiro_gap = True
+                for gid in gaps_ids:
+                    gap = Grupo.query.get(int(gid))
+                    if gap:
+                        # Adiciona à lista N:N
+                        usuario.grupos_acesso.append(gap)
+                        
+                        # Preenche o legado (grupo_id) com o primeiro da lista
+                        if primeiro_gap:
+                            usuario.grupo_id = gap.id
+                            primeiro_gap = False
+            else:
+                # Se for Auditor/Gestor e não selecionar nada (tecnicamente já barrado acima)
+                usuario.grupo_id = None
+
+        # Cenário B: Usuário de Rancho (1 Rancho e Herda o GAP dele)
+        elif usuario.tipo == TipoUsuario.USUARIO:
+            if usuario.avaliado_id:
+                rancho = Avaliado.query.get(usuario.avaliado_id)
+                if rancho and rancho.grupo_id:
+                    # 1. Define o legado
+                    usuario.grupo_id = rancho.grupo_id
                     
-                    # Se for o primeiro, define como 'principal' para manter compatibilidade
-                    if primeiro_gap:
-                        usuario.grupo_id = gap.id
-                        primeiro_gap = False
-        
-        # Cenário B: Usuário de Rancho (Herda o GAP do Rancho automaticamente)
-        elif usuario.avaliado_id:
-            rancho = Avaliado.query.get(usuario.avaliado_id)
-            if rancho and rancho.grupo_id:
-                # Define o legado
-                usuario.grupo_id = rancho.grupo_id
-                
-                # Busca o objeto Grupo e adiciona na lista nova também (para consistência)
-                gap_do_rancho = Grupo.query.get(rancho.grupo_id)
-                if gap_do_rancho:
-                    usuario.grupos_acesso.append(gap_do_rancho)
+                    # 2. Adiciona na lista nova para manter consistência no banco
+                    gap_do_rancho = Grupo.query.get(rancho.grupo_id)
+                    if gap_do_rancho:
+                        usuario.grupos_acesso.append(gap_do_rancho)
+            else:
+                usuario.grupo_id = None
+
+        # Cenário C: Admins (Sem restrições de linha)
+        else:
+            usuario.grupo_id = None
+            usuario.avaliado_id = None
 
         # 7. Salvar no Banco
         db.session.add(usuario)
@@ -4885,77 +4897,98 @@ def reabrir_aplicacao(id):
 @login_required
 def selecionar_rancho_auditoria():
     """
-    Passo 1: Selecionar o Local (Rancho) - VERSÃO DEBUG
+    Passo 1: Selecionar o Local (Rancho)
+    CORRIGIDO: Suporta Multi-GAP (grupos_acesso) + Fallback para grupo_id único.
     """
-    # Se for POST (o usuário clicou em avançar)
+    
+    # --- LÓGICA DE POST (Processar Seleção) ---
     if request.method == 'POST':
         rancho_id = request.form.get('avaliado_id')
         if rancho_id:
+            # Salva na sessão ou redireciona direto
             return redirect(url_for('cli.escolher_questionario', avaliado_id=rancho_id))
         else:
-            flash("Selecione um rancho para continuar.", "warning")
+            flash("Selecione um local para continuar.", "warning")
 
+    # --- LÓGICA DE GET (Preparar Lista) ---
     try:
-        # --- DEBUG: Vamos ver quem é o usuário ---
-        print(f"--- DEBUG AUDITORIA ---")
-        print(f"Usuário: {current_user.nome}")
-        print(f"Tipo (bruto): {current_user.tipo}")
-        print(f"Cliente ID: {current_user.cliente_id}")
-        
-        # Converte o tipo para string maiúscula para evitar erros de Enum vs String
-        # Isso resolve 90% dos bugs de permissão
+        # 1. Identificação segura do tipo de usuário (trata Enum e String)
         tipo_str = str(current_user.tipo).upper()
         
-        # LÓGICA DE FILTRAGEM
-        grupos = []
-        avaliados = []
+        grupos_disponiveis = []
+        ranchos_disponiveis = []
 
-        # Se o tipo contiver AUDITOR ou GESTOR (ex: 'TipoUsuario.AUDITOR' ou 'auditor')
-        if 'AUDITOR' in tipo_str or 'GESTOR' in tipo_str:
-            print(">> Entrou na lógica de AUDITOR/GESTOR")
-            
-            if current_user.grupo_id:
-                # Traz apenas o GAP do usuário
-                grupos = Grupo.query.filter_by(
-                    id=current_user.grupo_id, 
-                    ativo=True
-                ).all()
-                
-                # Traz ranchos desse GAP
-                avaliados = Avaliado.query.filter_by(
-                    grupo_id=current_user.grupo_id, 
-                    ativo=True
-                ).order_by(Avaliado.nome).all()
-            else:
-                print(">> ALERTA: Usuário é Auditor mas não tem grupo_id vinculado!")
-                flash("Seu usuário não está vinculado a nenhum GAP.", "warning")
-            
-        else:
-            print(">> Entrou na lógica de ADMIN (Vê tudo)")
-            # Admin/SuperAdmin vê TUDO do cliente
-            grupos = Grupo.query.filter_by(
+        # ---------------------------------------------------------
+        # CENÁRIO A: ADMIN / SUPER ADMIN (Vê tudo do cliente)
+        # ---------------------------------------------------------
+        if 'ADMIN' in tipo_str:
+            grupos_disponiveis = Grupo.query.filter_by(
                 cliente_id=current_user.cliente_id, 
                 ativo=True
             ).order_by(Grupo.nome).all()
             
-            avaliados = Avaliado.query.filter_by(
+            ranchos_disponiveis = Avaliado.query.filter_by(
                 cliente_id=current_user.cliente_id, 
                 ativo=True
             ).order_by(Avaliado.nome).all()
 
-        print(f"Resultados encontrados -> Grupos: {len(grupos)}, Ranchos: {len(avaliados)}")
-        print("-----------------------")
+        # ---------------------------------------------------------
+        # CENÁRIO B: GESTOR / AUDITOR (Lógica Multi-GAP)
+        # ---------------------------------------------------------
+        elif 'GESTOR' in tipo_str or 'AUDITOR' in tipo_str:
+            # Set para evitar duplicatas se o banco estiver sujo
+            set_grupos = set()
 
+            # 1. Verifica a nova lista Múltipla (N:N)
+            if hasattr(current_user, 'grupos_acesso') and current_user.grupos_acesso:
+                for g in current_user.grupos_acesso:
+                    if g.ativo:
+                        set_grupos.add(g)
+
+            # 2. Verifica o campo antigo (Fallback)
+            if current_user.grupo_id:
+                grupo_legacy = Grupo.query.get(current_user.grupo_id)
+                if grupo_legacy and grupo_legacy.ativo:
+                    set_grupos.add(grupo_legacy)
+
+            # Converte de volta para lista para o template
+            grupos_disponiveis = list(set_grupos)
+            
+            # Extrai os IDs para filtrar os Ranchos
+            ids_grupos = [g.id for g in grupos_disponiveis]
+
+            if ids_grupos:
+                # Busca ranchos que pertencem a QUALQUER um dos grupos encontrados
+                ranchos_disponiveis = Avaliado.query.filter(
+                    Avaliado.cliente_id == current_user.cliente_id,
+                    Avaliado.grupo_id.in_(ids_grupos),  # <--- O SEGREDO ESTÁ AQUI (.in_)
+                    Avaliado.ativo == True
+                ).order_by(Avaliado.nome).all()
+            else:
+                flash("Seu usuário não está vinculado a nenhum GAP. Contate o suporte.", "warning")
+
+        # ---------------------------------------------------------
+        # CENÁRIO C: USUÁRIO COMUM (Vê apenas seu Rancho)
+        # ---------------------------------------------------------
+        elif current_user.avaliado_id:
+            ranchos_disponiveis = Avaliado.query.filter_by(
+                id=current_user.avaliado_id,
+                ativo=True
+            ).all()
+            
+            # O grupo é o do próprio rancho (se existir)
+            if ranchos_disponiveis and ranchos_disponiveis[0].grupo:
+                grupos_disponiveis = [ranchos_disponiveis[0].grupo]
+
+        # --- RENDERIZAÇÃO ---
         return render_template_safe('cli/auditoria_selecao.html', 
-                                  grupos=grupos,      
-                                  avaliados=avaliados 
-                                  )
-                                  
+                                  grupos=grupos_disponiveis,
+                                  avaliados=ranchos_disponiveis)
+
     except Exception as e:
-        print(f"ERRO CRÍTICO: {e}") # Imprime o erro no terminal
+        print(f"ERRO CRÍTICO NA SELEÇÃO DE AUDITORIA: {e}")
         flash(f"Erro ao carregar locais: {str(e)}", "danger")
         return redirect(url_for('cli.index'))
-
 
 
 @cli_bp.route('/perfil', methods=['GET', 'POST'])

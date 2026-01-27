@@ -114,6 +114,7 @@
     <div class="row g-4 card-grid" id="listaUsuarios">
         {% for usuario in usuarios %}
         
+        {# Prepara variáveis para os filtros JS #}
         {% set tipo_cod = usuario.tipo.name %}
         {% if tipo_cod == 'SUPER_ADMIN' %}{% set tipo_cod = 'ADMIN' %}{% endif %}
         
@@ -139,24 +140,50 @@
                     <div class="mb-3">
                         {% if tipo_cod == 'ADMIN' %}
                             <span class="badge bg-danger bg-opacity-10 text-danger border border-danger px-2 py-1 rounded-pill">SDAB (Nacional)</span>
-                        {% elif tipo_cod == 'GESTOR' %}
-                            <span class="badge bg-info bg-opacity-10 text-info border border-info px-2 py-1 rounded-pill">GAP (Regional)</span>
+                        {% elif tipo_cod == 'GESTOR' or tipo_cod == 'AUDITOR' %}
+                            <span class="badge bg-info bg-opacity-10 text-info border border-info px-2 py-1 rounded-pill">
+                                {{ 'Consultora' if tipo_cod == 'AUDITOR' else 'GAP (Regional)' }}
+                            </span>
                         {% else %}
                             <span class="badge bg-success bg-opacity-10 text-success border border-success px-2 py-1 rounded-pill">Rancho (Local)</span>
                         {% endif %}
                     </div>
 
-                    <div class="p-2 bg-light rounded mb-4 small">
+                    <div class="p-2 bg-light rounded mb-4 small" style="min-height: 60px;">
                         <i class="fas fa-map-marker-alt text-secondary me-1"></i>
-                        {% if usuario.avaliado %}
+                        
+                        {# 1. PRIORIDADE: CONSULTORAS E GESTORES (Lista Multi-GAP) #}
+                        {# Verifica o cargo PRIMEIRO para evitar erros com ID de rancho perdido #}
+                        {% if (tipo_cod == 'GESTOR' or tipo_cod == 'AUDITOR') %}
+                            
+                            {% if usuario.grupos_acesso|length > 0 %}
+                                <div class="fw-bold text-dark mb-1" style="font-size: 0.8rem;">GAPs Vinculados:</div>
+                                <div class="d-flex flex-wrap gap-1">
+                                    {% for gap in usuario.grupos_acesso %}
+                                        <span class="badge bg-white text-dark border border-secondary fw-normal">
+                                            {{ gap.nome }}
+                                        </span>
+                                    {% endfor %}
+                                </div>
+                            {% elif usuario.grupo %}
+                                {# Fallback: Se a lista falhar, mostra o GAP legado #}
+                                <span class="fw-bold text-dark">{{ usuario.grupo.nome }}</span>
+                            {% else %}
+                                <span class="text-danger fst-italic">Sem vínculo definido</span>
+                            {% endif %}
+
+                        {# 2. USUÁRIO DE RANCHO (Mostra Local Específico) #}
+                        {% elif tipo_cod == 'USUARIO' and usuario.avaliado %}
                             <span class="fw-bold text-dark">{{ usuario.avaliado.nome }}</span>
-                        {% elif usuario.grupo %}
-                            <span class="fw-bold text-dark">{{ usuario.grupo.nome }}</span>
+                            <div class="text-muted fst-italic mt-1" style="font-size: 0.85em;">
+                                ({{ usuario.avaliado.grupo.nome if usuario.avaliado.grupo else 'Sem GAP' }})
+                            </div>
+
+                        {# 3. ADMIN #}
                         {% else %}
-                            <span class="text-muted fst-italic">Acesso Global</span>
+                            <span class="text-muted fst-italic">Acesso Global (Todos)</span>
                         {% endif %}
                     </div>
-
                     <div class="mt-auto pt-3 border-top d-flex justify-content-between align-items-center">
                         <div>
                             {% if usuario.ativo %}
@@ -167,9 +194,11 @@
                         </div>
                         
                         <div class="btn-group">
-                            <a href="#" class="btn btn-sm btn-outline-primary rounded-start" title="Editar (Em breve)">
+                            {# Link corrigido para usar user_id (padrão do routes.py) #}
+                            <a href="{{ url_for('cli.editar_usuario', user_id=usuario.id) }}" class="btn btn-sm btn-outline-primary rounded-start" title="Editar">
                                 <i class="fas fa-edit"></i>
                             </a>
+                            
                             <button class="btn btn-sm btn-outline-danger rounded-end" onclick="confirmarExclusao('{{ usuario.nome }}')" title="Excluir">
                                 <i class="fas fa-trash-alt"></i>
                             </button>
