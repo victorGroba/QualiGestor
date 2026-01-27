@@ -30,7 +30,7 @@ try:
         AplicacaoQuestionario, RespostaPergunta, UsuarioAutorizado,
         TipoResposta, StatusQuestionario, StatusAplicacao, 
         TipoPreenchimento, ModoExibicaoNota, CorRelatorio,
-        TipoUsuario, Notificacao, LogAuditoria, ConfiguracaoCliente, FotoResposta, CategoriaIndicador
+        TipoUsuario, Notificacao, LogAuditoria, ConfiguracaoCliente, FotoResposta, CategoriaIndicador, usuario_grupos
     )
 except ImportError as e:
     print(f"Erro de import: {e}")
@@ -147,49 +147,50 @@ def admin_required(f):
 
 # No arquivo app/cli/routes.py
 
+# Em app/cli/routes.py (Substitua a função inteira)
+
 def get_avaliados_usuario():
     """
     Retorna a lista de Ranchos (Avaliados) disponíveis para o usuário.
-    Lógica Hierárquica FAB:
-    1. SUPER_ADMIN (Lab) / ADMIN (SDAB): Vê TUDO.
-    2. GESTOR (GAP) / AUDITOR (Consultora): Vê todos os Ranchos do seu GAP.
-    3. USUARIO (Rancho): Vê APENAS o seu próprio Rancho.
+    Atualizado para suportar Multi-GAP.
     """
     try:
-        # Recupera o tipo de usuário como string segura (uppercase)
         user_type = getattr(current_user, 'tipo', 'USUARIO')
-        if hasattr(user_type, 'name'):
-            type_name = user_type.name.upper()
-        elif hasattr(user_type, 'value'):
-            type_name = str(user_type.value).upper()
-        else:
-            type_name = str(user_type).upper()
+        # Tratamento seguro do Enum
+        if hasattr(user_type, 'name'): type_name = user_type.name.upper()
+        else: type_name = str(user_type).upper()
 
-        # 1. Nível Nacional: Laboratório (Super Admin) e SDAB (Admin)
+        # 1. Nível Nacional: Vê TUDO
         if type_name in ['SUPER_ADMIN', 'ADMIN']:
             return Avaliado.query.filter_by(
                 cliente_id=current_user.cliente_id, 
                 ativo=True
             ).order_by(Avaliado.nome).all()
         
-        # 2. Nível Regional: Gestor do GAP e Consultora (Auditor)
-        # Filtra pelo Grupo (GAP) vinculado ao usuário
-        elif type_name in ['GESTOR', 'AUDITOR'] and current_user.grupo_id:
-            return Avaliado.query.filter_by(
-                cliente_id=current_user.cliente_id,
-                grupo_id=current_user.grupo_id,
-                ativo=True
-            ).order_by(Avaliado.nome).all()
+        # 2. Nível Regional (GESTOR/AUDITOR) - MULTI-GAP
+        elif type_name in ['GESTOR', 'AUDITOR']:
+            # Pega IDs de todos os GAPs que a consultora tem acesso
+            gaps_ids = [g.id for g in current_user.grupos_acesso]
+            
+            # Se a lista estiver vazia, tenta o legado
+            if not gaps_ids and current_user.grupo_id:
+                gaps_ids = [current_user.grupo_id]
+
+            if gaps_ids:
+                return Avaliado.query.filter(
+                    Avaliado.cliente_id == current_user.cliente_id,
+                    Avaliado.grupo_id.in_(gaps_ids),  # <--- AQUI É O PULO DO GATO (.in_)
+                    Avaliado.ativo == True
+                ).order_by(Avaliado.nome).all()
+            return []
             
         # 3. Nível Local: Usuário do Rancho
-        # Filtra apenas o ID do próprio rancho
         elif type_name == 'USUARIO' and current_user.avaliado_id:
             return Avaliado.query.filter_by(
                 id=current_user.avaliado_id,
                 ativo=True
             ).all()
             
-        # Fallback de segurança (não retorna nada se não cair nas regras acima)
         return []
 
     except Exception as e:
@@ -2052,7 +2053,7 @@ def excluir_avaliado(id):
 @cli_bp.route('/listar-aplicacoes')
 @login_required
 def listar_aplicacoes():
-    """Lista todas as aplicações de questionário com FILTRO HIERÁRQUICO e PAGINAÇÃO"""
+    """Lista todas as aplicações de questionário com FILTRO HIERÁRQUICO (MULTI-GAP) e PAGINAÇÃO"""
     try:
         # 1. Captura de Filtros (com conversão de tipo segura do Flask)
         avaliado_id = request.args.get('avaliado_id', type=int)
@@ -2062,24 +2063,39 @@ def listar_aplicacoes():
         data_fim = request.args.get('data_fim')
         page = request.args.get('page', 1, type=int)
 
-        # 2. Query Base (Filtrada pelo Cliente)
+        # 2. Query Base (Filtrada pelo Cliente e unida com Avaliado)
         query = AplicacaoQuestionario.query.join(Avaliado).filter(
             Avaliado.cliente_id == current_user.cliente_id
         )
 
-        # 3. Blindagem de Hierarquia (Regras FAB)
+        # 3. Blindagem de Hierarquia (Regras FAB Atualizadas)
         
         # Nível 1: Usuário de Rancho (vê apenas o seu)
         if current_user.avaliado_id:
             query = query.filter(AplicacaoQuestionario.avaliado_id == current_user.avaliado_id)
-            # Força o filtro visual para coincidir com a permissão (trava o select no HTML)
+            # Força o filtro visual para coincidir com a permissão
             avaliado_id = current_user.avaliado_id 
 
-        # Nível 2: Gestor/Auditor de GAP (vê apenas do seu GAP)
-        elif current_user.grupo_id:
-            query = query.filter(Avaliado.grupo_id == current_user.grupo_id)
+        # Nível 2: Gestor/Auditor de GAP (Lógica MULTI-GAP)
+        # Verifica se o usuário tem a lista de grupos de acesso (novo sistema)
+        elif hasattr(current_user, 'grupos_acesso'):
+            # Coleta todos os IDs permitidos da tabela N:N
+            ids_permitidos = [g.id for g in current_user.grupos_acesso if g.ativo]
+            
+            # Fallback: Se a lista nova estiver vazia, tenta usar o campo antigo (legado)
+            if not ids_permitidos and current_user.grupo_id:
+                ids_permitidos = [current_user.grupo_id]
+            
+            # Se encontrou grupos permitidos, filtra por eles
+            if ids_permitidos:
+                query = query.filter(Avaliado.grupo_id.in_(ids_permitidos))
+            else:
+                # Se é Gestor/Auditor mas não tem NENHUM grupo vinculado (nem novo nem antigo)
+                # Só deve ver algo se for ADMIN/SUPER_ADMIN. Se não for, bloqueia tudo.
+                if current_user.tipo.name not in ['SUPER_ADMIN', 'ADMIN']:
+                     query = query.filter(Avaliado.id == -1) # Retorna vazio por segurança
 
-        # 3. SDAB/ADMIN (Vê tudo - já filtrado por cliente_id no passo 2)
+        # Nível 3: SDAB/ADMIN (Vê tudo - já filtrado por cliente_id no passo 2)
 
         # 4. Aplicação dos Filtros Dinâmicos (vindos do formulário)
         if avaliado_id:
@@ -2097,11 +2113,11 @@ def listar_aplicacoes():
                 dt_inicio = datetime.strptime(data_inicio, '%Y-%m-%d')
                 query = query.filter(AplicacaoQuestionario.data_inicio >= dt_inicio)
             except ValueError:
-                pass # Ignora se a data for inválida
+                pass 
         
         if data_fim:
             try:
-                # Ajusta para o final do dia (23:59:59) para pegar tudo daquele dia
+                # Ajusta para o final do dia (23:59:59)
                 dt_fim = datetime.strptime(data_fim, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
                 query = query.filter(AplicacaoQuestionario.data_inicio <= dt_fim)
             except ValueError:
@@ -2114,7 +2130,7 @@ def listar_aplicacoes():
         )
         
         # 6. Dados para os Selects de Filtro
-        # Reutiliza a função de segurança existente para listar apenas avaliados permitidos
+        # Usa a função get_avaliados_usuario() que JÁ ATUALIZAMOS para Multi-GAP
         avaliados = get_avaliados_usuario() 
         
         questionarios = Questionario.query.filter_by(
@@ -2122,8 +2138,7 @@ def listar_aplicacoes():
             ativo=True
         ).order_by(Questionario.nome).all()
         
-        # 7. Renderização com Contexto de Filtros
-        # Passamos 'filtros' para manter o estado dos inputs no HTML após a busca
+        # 7. Renderização
         return render_template_safe('cli/listar_aplicacoes.html',
                              aplicacoes=aplicacoes,
                              avaliados=avaliados,
@@ -2137,7 +2152,6 @@ def listar_aplicacoes():
                              })
 
     except Exception as e:
-        # Log do erro no console para debug
         print(f"Erro em listar_aplicacoes: {e}")
         flash(f"Erro ao carregar lista de aplicações: {str(e)}", "danger")
         return render_template_safe('cli/index.html')
@@ -2576,7 +2590,7 @@ def excluir_aplicacao(id):
 @login_required
 def visualizar_aplicacao(id):
     """
-    Visualiza uma aplicação com BLINDAGEM DE HIERARQUIA.
+    Visualiza uma aplicação com BLINDAGEM DE HIERARQUIA (MULTI-GAP).
     Garante que itens excluídos não apareçam e que usuários só vejam o que têm permissão.
     """
     try:
@@ -2596,12 +2610,30 @@ def visualizar_aplicacao(id):
             flash("Acesso negado: Você só pode visualizar aplicações do seu Rancho.", "danger")
             return redirect(url_for('cli.listar_aplicacoes'))
 
-        # 3. Proteção Nível Regional (GAP)
-        # Se o usuário é Gestor de GAP (current_user.grupo_id), 
-        # ele só pode ver se o rancho da aplicação pertencer ao GAP dele.
-        if current_user.grupo_id and aplicacao.avaliado.grupo_id != current_user.grupo_id:
-            flash("Acesso negado: Esta unidade não pertence ao seu GAP.", "danger")
-            return redirect(url_for('cli.listar_aplicacoes'))
+        # 3. Proteção Nível Regional (GAP) - ATUALIZADA MULTI-GAP
+        # Se o usuário não é Super Admin nem Admin, verificamos os vínculos de GAP
+        if current_user.tipo.name not in ['SUPER_ADMIN', 'ADMIN']:
+            
+            # Coleta todos os GAPs que o usuário tem permissão
+            gaps_permitidos = []
+            
+            # A) Pela nova lista N:N
+            if hasattr(current_user, 'grupos_acesso'):
+                gaps_permitidos.extend([g.id for g in current_user.grupos_acesso])
+            
+            # B) Pelo legado (se existir)
+            if current_user.grupo_id:
+                gaps_permitidos.append(current_user.grupo_id)
+            
+            # Remove duplicatas e limpa
+            gaps_permitidos = list(set(gaps_permitidos))
+            
+            # SE o usuário tem GAPs vinculados (é Gestor/Auditor),
+            # verificamos se o rancho desta aplicação pertence a um deles.
+            if gaps_permitidos:
+                if aplicacao.avaliado.grupo_id not in gaps_permitidos:
+                    flash(f"Acesso negado: A unidade '{aplicacao.avaliado.nome}' não pertence aos seus GAPs de acesso.", "danger")
+                    return redirect(url_for('cli.listar_aplicacoes'))
             
         # --- FIM DA SEGURANÇA ---
         
@@ -2661,7 +2693,6 @@ def visualizar_aplicacao(id):
         print(f"Erro visualizar_aplicacao: {e}") 
         flash(f"Erro ao carregar aplicação: {str(e)}", "danger")
         return redirect(url_for('cli.listar_aplicacoes'))
-
 # Em app/cli/routes.py
 
 # Em app/cli/routes.py
@@ -3037,33 +3068,57 @@ def exportar_relatorio():
 
 # ===================== GESTÃO DE USUÁRIOS =====================
 
+# Em app/cli/routes.py
+
 @cli_bp.route('/usuarios', endpoint='gerenciar_usuarios')
 @login_required
 @admin_required
 def gerenciar_usuarios():
-    """Página de gestão de usuários"""
+    """Página de gestão de usuários com Filtro por GAP e visualização Múltipla"""
     try:
-        # Carrega usuários do cliente atual
-        usuarios = Usuario.query.filter_by(
-            cliente_id=current_user.cliente_id
-        ).order_by(Usuario.nome).all()
+        # 1. Carregar Grupos (GAPs) para o Filtro
+        grupos = Grupo.query.filter_by(
+            cliente_id=current_user.cliente_id, 
+            ativo=True
+        ).order_by(Grupo.nome).all()
+
+        # 2. Iniciar Query Base de Usuários
+        query = Usuario.query.filter_by(cliente_id=current_user.cliente_id)
+
+        # 3. Aplicar Filtro se selecionado
+        filtro_grupo_id = request.args.get('grupo_id')
         
-        # Estatísticas (Otimizado para usar o Enum)
+        if filtro_grupo_id and filtro_grupo_id.isdigit():
+            gid = int(filtro_grupo_id)
+            # Filtra usuários que:
+            # A) Tenham esse GAP na lista de acesso (Consultoras/Gestores)
+            # B) OU estejam vinculados a um Rancho que pertence a esse GAP (Usuários locais)
+            query = query.join(usuario_grupos, isouter=True).join(Avaliado, isouter=True).filter(
+                or_(
+                    usuario_grupos.c.grupo_id == gid,  # Vínculo N:N
+                    Avaliado.grupo_id == gid           # Vínculo via Rancho
+                )
+            ).distinct()
+
+        # 4. Executar Query
+        usuarios = query.order_by(Usuario.nome).all()
+        
+        # Estatísticas (Otimizado)
         stats_usuarios = {
             'total': len(usuarios),
             'ativos': len([u for u in usuarios if u.ativo]),
-            # Consideramos Admin quem é SUPER_ADMIN ou ADMIN
             'admins': len([u for u in usuarios if u.tipo.name in ['SUPER_ADMIN', 'ADMIN']]),
-            # O resto é operacional (Gestor, Auditor, Rancho)
             'operacional': len([u for u in usuarios if u.tipo.name not in ['SUPER_ADMIN', 'ADMIN']])
         }
         
-        # MUDANÇA AQUI: Apontando para o arquivo novo 'gerenciar_usuarios.html'
         return render_template_safe('cli/gerenciar_usuarios.html',
                              usuarios=usuarios,
+                             grupos=grupos,               # Passando grupos para o select
+                             filtro_grupo_id=filtro_grupo_id, # Para manter o select marcado
                              stats=stats_usuarios)
                              
     except Exception as e:
+        print(f"Erro: {e}")
         flash(f"Erro ao carregar usuários: {str(e)}", "danger")
         return render_template_safe('cli/index.html')
 

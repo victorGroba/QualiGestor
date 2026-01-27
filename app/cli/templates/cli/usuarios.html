@@ -4,62 +4,38 @@
 
 {% block head %}
 <style>
-    /* CSS Específico para corrigir os Cards dentro do CLIQ */
-    
+    /* CSS dos Cards */
     .user-card {
         background: #fff;
         border: none;
         border-radius: 12px;
         transition: all 0.3s ease;
-        border-left: 5px solid transparent; /* Borda colorida lateral */
-        height: 100%; /* Força altura igual para todos */
+        border-left: 5px solid transparent;
+        height: 100%;
     }
-
     .user-card:hover {
         transform: translateY(-5px);
         box-shadow: 0 10px 25px rgba(0,0,0,0.1) !important;
     }
+    /* Cores das bordas */
+    .border-admin { border-left-color: #dc3545; }
+    .border-gestor { border-left-color: #0dcaf0; }
+    .border-usuario { border-left-color: #198754; }
 
-    /* Cores baseadas no tipo de usuário */
-    .border-admin { border-left-color: #dc3545; } /* Vermelho */
-    .border-gestor { border-left-color: #0dcaf0; } /* Azul */
-    .border-usuario { border-left-color: #198754; } /* Verde */
-
+    /* Avatar */
     .user-avatar {
-        width: 55px;
-        height: 55px;
+        width: 55px; height: 55px;
         border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-weight: 600;
-        font-size: 1.3rem;
+        display: flex; align-items: center; justify-content: center;
+        color: white; font-weight: 600; font-size: 1.3rem;
         box-shadow: 0 4px 10px rgba(0,0,0,0.15);
     }
-
     .bg-gradient-admin { background: linear-gradient(135deg, #dc3545, #a71d2a); }
     .bg-gradient-gestor { background: linear-gradient(135deg, #0dcaf0, #0aa2c0); }
     .bg-gradient-usuario { background: linear-gradient(135deg, #198754, #146c43); }
 
-    /* Corrige o alinhamento do Grid */
-    .card-grid {
-        display: flex;
-        flex-wrap: wrap;
-    }
-    
-    /* Estilo do input de busca */
-    .search-input {
-        border-radius: 20px 0 0 20px;
-        border: 1px solid #dee2e6;
-        border-right: none;
-    }
-    .search-icon {
-        border-radius: 0 20px 20px 0;
-        background: white;
-        border: 1px solid #dee2e6;
-        border-left: none;
-    }
+    .search-input { border-radius: 20px 0 0 20px; border-right: none; }
+    .search-icon { border-radius: 0 20px 20px 0; background: white; border-left: none; }
 </style>
 {% endblock %}
 
@@ -111,10 +87,9 @@
         </div>
     </div>
 
-    <div class="row g-4 card-grid" id="listaUsuarios">
+    <div class="row g-4" id="listaUsuarios">
         {% for usuario in usuarios %}
         
-        {# Prepara variáveis para os filtros JS #}
         {% set tipo_cod = usuario.tipo.name %}
         {% if tipo_cod == 'SUPER_ADMIN' %}{% set tipo_cod = 'ADMIN' %}{% endif %}
         
@@ -123,14 +98,13 @@
              data-tipo="{{ tipo_cod }}"
              data-status="{% if usuario.ativo %}ativo{% else %}inativo{% endif %}">
             
-            <div class="user-card w-100 shadow-sm {% if tipo_cod == 'ADMIN' %}border-admin{% elif tipo_cod == 'GESTOR' %}border-gestor{% else %}border-usuario{% endif %}">
+            <div class="user-card w-100 shadow-sm {% if tipo_cod == 'ADMIN' %}border-admin{% elif tipo_cod == 'GESTOR' or tipo_cod == 'AUDITOR' %}border-gestor{% else %}border-usuario{% endif %}">
                 <div class="card-body p-4 d-flex flex-column h-100">
                     
                     <div class="d-flex align-items-start mb-3">
-                        <div class="user-avatar me-3 flex-shrink-0 {% if tipo_cod == 'ADMIN' %}bg-gradient-admin{% elif tipo_cod == 'GESTOR' %}bg-gradient-gestor{% else %}bg-gradient-usuario{% endif %}">
+                        <div class="user-avatar me-3 flex-shrink-0 {% if tipo_cod == 'ADMIN' %}bg-gradient-admin{% elif tipo_cod == 'GESTOR' or tipo_cod == 'AUDITOR' %}bg-gradient-gestor{% else %}bg-gradient-usuario{% endif %}">
                             {{ usuario.nome[0].upper() }}
                         </div>
-                        
                         <div class="flex-grow-1 overflow-hidden">
                             <h5 class="card-title mb-1 fw-bold text-truncate" title="{{ usuario.nome }}">{{ usuario.nome }}</h5>
                             <div class="text-muted small text-truncate" title="{{ usuario.email }}">{{ usuario.email }}</div>
@@ -152,8 +126,7 @@
                     <div class="p-2 bg-light rounded mb-4 small" style="min-height: 60px;">
                         <i class="fas fa-map-marker-alt text-secondary me-1"></i>
                         
-                        {# 1. PRIORIDADE: CONSULTORAS E GESTORES (Lista Multi-GAP) #}
-                        {# Verifica o cargo PRIMEIRO para evitar erros com ID de rancho perdido #}
+                        {# PRIORIDADE 1: CONSULTORAS E GESTORES (Mostra Lista) #}
                         {% if (tipo_cod == 'GESTOR' or tipo_cod == 'AUDITOR') %}
                             
                             {% if usuario.grupos_acesso|length > 0 %}
@@ -166,24 +139,24 @@
                                     {% endfor %}
                                 </div>
                             {% elif usuario.grupo %}
-                                {# Fallback: Se a lista falhar, mostra o GAP legado #}
                                 <span class="fw-bold text-dark">{{ usuario.grupo.nome }}</span>
                             {% else %}
-                                <span class="text-danger fst-italic">Sem vínculo definido</span>
+                                <span class="text-danger fst-italic">Sem vínculo</span>
                             {% endif %}
 
-                        {# 2. USUÁRIO DE RANCHO (Mostra Local Específico) #}
+                        {# PRIORIDADE 2: USUÁRIO DE RANCHO (Mostra Local) #}
                         {% elif tipo_cod == 'USUARIO' and usuario.avaliado %}
                             <span class="fw-bold text-dark">{{ usuario.avaliado.nome }}</span>
                             <div class="text-muted fst-italic mt-1" style="font-size: 0.85em;">
                                 ({{ usuario.avaliado.grupo.nome if usuario.avaliado.grupo else 'Sem GAP' }})
                             </div>
 
-                        {# 3. ADMIN #}
+                        {# PRIORIDADE 3: ADMIN #}
                         {% else %}
                             <span class="text-muted fst-italic">Acesso Global (Todos)</span>
                         {% endif %}
                     </div>
+
                     <div class="mt-auto pt-3 border-top d-flex justify-content-between align-items-center">
                         <div>
                             {% if usuario.ativo %}
@@ -192,13 +165,10 @@
                                 <small class="text-secondary fw-bold"><i class="fas fa-circle fa-xs me-1"></i> Inativo</small>
                             {% endif %}
                         </div>
-                        
                         <div class="btn-group">
-                            {# Link corrigido para usar user_id (padrão do routes.py) #}
                             <a href="{{ url_for('cli.editar_usuario', user_id=usuario.id) }}" class="btn btn-sm btn-outline-primary rounded-start" title="Editar">
                                 <i class="fas fa-edit"></i>
                             </a>
-                            
                             <button class="btn btn-sm btn-outline-danger rounded-end" onclick="confirmarExclusao('{{ usuario.nome }}')" title="Excluir">
                                 <i class="fas fa-trash-alt"></i>
                             </button>
@@ -225,7 +195,6 @@
             <button class="btn btn-link" onclick="limparFiltros()">Limpar filtros</button>
         </div>
     </div>
-
 </div>
 
 <script>
@@ -254,7 +223,6 @@ function filtrarUsuarios() {
             card.classList.add('d-none');
         }
     });
-
     document.getElementById('nenhumResultado').classList.toggle('d-none', visiveis > 0);
 }
 
@@ -266,9 +234,7 @@ function limparFiltros() {
 }
 
 function confirmarExclusao(nome) {
-    if(confirm('Tem certeza que deseja excluir ' + nome + '?')) {
-        alert('Função de exclusão em desenvolvimento.');
-    }
+    if(confirm('Tem certeza que deseja excluir ' + nome + '?')) alert('Função de exclusão em desenvolvimento.');
 }
 </script>
 {% endblock %}

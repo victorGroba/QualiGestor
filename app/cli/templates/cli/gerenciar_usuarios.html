@@ -14,9 +14,36 @@
         </a>
     </div>
 
+    <div class="card shadow mb-4 border-left-primary">
+        <div class="card-body py-2">
+            <form method="GET" action="{{ url_for('cli.gerenciar_usuarios') }}" class="row align-items-center g-2">
+                <div class="col-auto">
+                    <span class="text-gray-600 small fw-bold"><i class="fas fa-filter me-1"></i>Filtrar por GAP:</span>
+                </div>
+                <div class="col-auto">
+                    <select name="grupo_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                        <option value="">Todos os GAPs</option>
+                        {% for g in grupos %}
+                        <option value="{{ g.id }}" {% if filtro_grupo_id|int == g.id %}selected{% endif %}>
+                            {{ g.nome }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% if filtro_grupo_id %}
+                <div class="col-auto">
+                    <a href="{{ url_for('cli.gerenciar_usuarios') }}" class="btn btn-sm btn-outline-secondary" title="Limpar Filtro">
+                        <i class="fas fa-times"></i>
+                    </a>
+                </div>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
     <div class="card shadow mb-4">
-        <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">Usuários Cadastrados</h6>
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold text-primary">Usuários Cadastrados ({{ stats.total }})</h6>
         </div>
         <div class="card-body">
             <div class="table-responsive">
@@ -25,7 +52,7 @@
                         <tr>
                             <th>Nome / E-mail</th>
                             <th>Perfil (Cargo)</th>
-                            <th>Vínculo (Local de Acesso)</th>
+                            <th>Vínculo (Locais de Acesso)</th>
                             <th class="text-center">Ações</th>
                         </tr>
                     </thead>
@@ -55,18 +82,38 @@
                                 {% if u.tipo.name in ['SUPER_ADMIN', 'ADMIN'] %}
                                     <span class="text-muted small"><i class="fas fa-globe me-1"></i>Acesso Global</span>
                                 
-                                {% elif u.grupo %}
-                                    <div class="text-primary small">
-                                        <i class="fas fa-map-marker-alt me-1"></i>GAP: <strong>{{ u.grupo.nome }}</strong>
+                                {% elif u.tipo.name in ['GESTOR', 'AUDITOR'] %}
+                                    <div class="d-flex flex-wrap gap-1">
+                                        {% if u.grupos_acesso %}
+                                            {% for gap in u.grupos_acesso %}
+                                                <span class="badge bg-light text-primary border border-primary" title="GAP Vinculado">
+                                                    <i class="fas fa-map-marker-alt me-1"></i>{{ gap.nome }}
+                                                </span>
+                                            {% endfor %}
+                                        {% else %}
+                                            {% if u.grupo %}
+                                                <span class="badge bg-light text-secondary border">
+                                                    <i class="fas fa-map-marker-alt me-1"></i>{{ u.grupo.nome }} (Legado)
+                                                </span>
+                                            {% else %}
+                                                <span class="text-danger small">Sem vínculo definido!</span>
+                                            {% endif %}
+                                        {% endif %}
                                     </div>
-                                    
+
+                                {% else %}
                                     {% if u.avaliado %}
-                                        <div class="text-success small mt-1">
+                                        <div class="text-success small">
                                             <i class="fas fa-utensils me-1"></i>Rancho: <strong>{{ u.avaliado.nome }}</strong>
                                         </div>
+                                        {% if u.avaliado.grupo %}
+                                        <div class="text-muted small" style="font-size: 0.75rem;">
+                                            (GAP: {{ u.avaliado.grupo.nome }})
+                                        </div>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-danger small">Sem vínculo!</span>
                                     {% endif %}
-                                {% else %}
-                                    <span class="text-danger small">Sem vínculo!</span>
                                 {% endif %}
                             </td>
 
@@ -92,7 +139,9 @@
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="4" class="text-center py-4">Nenhum usuário encontrado.</td>
+                            <td colspan="4" class="text-center py-4 text-muted">
+                                <i class="fas fa-search me-2"></i>Nenhum usuário encontrado com os filtros atuais.
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
