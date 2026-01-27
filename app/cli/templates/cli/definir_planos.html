@@ -23,7 +23,7 @@
             <div class="me-3"><i class="fas fa-user-secret fa-2x"></i></div>
             <div>
                 <h6 class="alert-heading fw-bold mb-1">Etapa de Curadoria</h6>
-                <p class="mb-0 small">Revise as Não Conformidades abaixo e gere o Plano de Ação. Quando terminar a revisão, clique em <strong>"Ir para Assinaturas"</strong> no final da página para retornar ao checklist e formalizar a entrega.</p>
+                <p class="mb-0 small">Revise as Não Conformidades abaixo, defina o Plano de Ação e o Prazo. Quando terminar, clique em <strong>"Ir para Assinaturas"</strong> no final da página.</p>
             </div>
         </div>
     </div>
@@ -88,6 +88,17 @@
                                       placeholder="Descreva a ação ou solicite sugestão à IA..."
                                       onblur="salvarManual({{ item.id }})">{{ item.plano_acao or '' }}</textarea>
                             
+                            <div class="mt-3 p-2 bg-white border rounded shadow-sm d-inline-block">
+                                <label class="small fw-bold text-secondary me-2">
+                                    <i class="far fa-calendar-alt text-danger"></i> Prazo estabelecido pelo gestor da OM:
+                                </label>
+                                <input type="date" 
+                                       class="form-control form-control-sm d-inline-block border-0 bg-light fw-bold text-dark" 
+                                       style="width: auto; min-width: 150px;"
+                                       id="prazo-{{ item.id }}"
+                                       value="{{ item.prazo_plano_acao.strftime('%Y-%m-%d') if item.prazo_plano_acao else '' }}"
+                                       onblur="salvarManual({{ item.id }})"> 
+                            </div>
                             <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mt-3 gap-2">
                                 
                                 <div id="status-{{ item.id }}" class="small fw-bold text-muted order-2 order-md-1"></div>
@@ -130,7 +141,7 @@
     <div class="card border-0 shadow-lg mt-4 bg-dark text-white">
         <div class="card-body p-4 text-center">
             <h5 class="fw-bold mb-2">Revisão Concluída?</h5>
-            <p class="text-white-50 mb-3">Se os Planos de Ação estão prontos, avance para a coleta de assinaturas no checklist.</p>
+            <p class="text-white-50 mb-3">Se os Planos de Ação e Prazos estão definidos, avance para a coleta de assinaturas.</p>
             
             <a href="{{ url_for('cli.fase_assinatura', id=aplicacao.id) }}" class="btn btn-success btn-lg px-5 py-3 fw-bold rounded-pill shadow">
                 <i class="fas fa-file-signature me-2"></i> Ir para Assinaturas
@@ -196,6 +207,7 @@ async function gerarPlanoIA(btn) {
     const pergunta = btn.getAttribute('data-pergunta');
     const observacao = btn.getAttribute('data-observacao');
     const textarea = document.getElementById(`plano-${id}`);
+    const inputPrazo = document.getElementById(`prazo-${id}`); // Captura o campo de prazo
 
     const normalState = btn.querySelector('.normal-state');
     const loadingState = btn.querySelector('.loading-state');
@@ -230,7 +242,10 @@ async function gerarPlanoIA(btn) {
 
             textarea.value = textoLimpo;
             
-            await salvarNoBanco(id, textoLimpo);
+            // Pega o prazo atual (se houver) para não apagar ao salvar a sugestão
+            const prazoAtual = inputPrazo ? inputPrazo.value : null;
+
+            await salvarNoBanco(id, textoLimpo, prazoAtual);
             mostrarStatus(id, 'success', '<i class="fas fa-check-circle"></i> Sugestão aplicada!');
         } else {
             throw new Error(data.erro || "Erro na IA");
@@ -254,26 +269,35 @@ async function gerarPlanoIA(btn) {
 
 async function salvarManual(id) {
     const textarea = document.getElementById(`plano-${id}`);
+    const inputPrazo = document.getElementById(`prazo-${id}`); // <--- Captura o input de prazo
+    
     const texto = textarea.value.trim();
+    const prazo = inputPrazo ? inputPrazo.value : null; // <--- Pega o valor da data
     
     mostrarStatus(id, 'saving', 'Salvando...');
     try {
-        await salvarNoBanco(id, texto);
+        await salvarNoBanco(id, texto, prazo); // <--- Passa o prazo para a função de envio
         mostrarStatus(id, 'success', '<i class="fas fa-check"></i> Salvo');
     } catch (e) {
         mostrarStatus(id, 'error', 'Erro');
+        console.error(e);
         mostrarErro("Erro de conexão ao salvar.");
     }
 }
 
-async function salvarNoBanco(id, texto) {
+async function salvarNoBanco(id, texto, prazo) {
     const res = await fetch("{{ url_for('cli.salvar_resposta', id=aplicacao.id) }}", {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json', 
             'X-CSRFToken': '{{ csrf_token() }}'
         },
-        body: JSON.stringify({resposta_id: id, plano_acao: texto})
+        // Adicionado prazo_plano_acao ao JSON
+        body: JSON.stringify({
+            resposta_id: id, 
+            plano_acao: texto,
+            prazo_plano_acao: prazo
+        })
     });
     
     if(!res.ok) throw new Error("Erro de rede");

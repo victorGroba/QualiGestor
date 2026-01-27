@@ -2472,12 +2472,12 @@ def finalizar_definitivamente(id):
             flash("Acesso negado.", "danger")
             return redirect(url_for('cli.listar_aplicacoes'))
 
-        # 2. VALIDAÇÃO CORRIGIDA: Verifica o campo de assinatura da Aplicação
-        # Removemos a busca na tabela 'RespostaPergunta' porque a assinatura agora
-        # é salva direto na tabela 'AplicacaoQuestionario' (campo assinatura_imagem).
-        if not aplicacao.assinatura_imagem:
-            flash("Para finalizar definitivamente, é obrigatório coletar a Assinatura do Responsável.", "danger")
-            return redirect(url_for('cli.fase_assinatura', id=id))
+        # --- BLOCO QUE VOCÊ QUER REMOVER (O FIX DO COMMIT) ---
+        # Remova ou comente as linhas abaixo para tirar a obrigatoriedade
+        # if not aplicacao.assinatura_imagem:
+        #     flash("Para finalizar definitivamente, é obrigatório coletar a Assinatura do Responsável.", "danger")
+        #     return redirect(url_for('cli.fase_assinatura', id=id))
+        # -----------------------------------------------------
 
         # 3. Atualiza Observações Finais (se enviado no form)
         observacoes = request.form.get('observacoes_finais')
@@ -2487,7 +2487,7 @@ def finalizar_definitivamente(id):
         # 4. TUDO CERTO: FINALIZA
         aplicacao.status = StatusAplicacao.FINALIZADA
         
-        # Só atualiza a data fim se ainda não tiver (para preservar data original se reaberto)
+        # Só atualiza a data fim se ainda não tiver
         if not aplicacao.data_fim:
             aplicacao.data_fim = datetime.now()
         
@@ -2500,7 +2500,6 @@ def finalizar_definitivamente(id):
         
     except Exception as e:
         db.session.rollback()
-        # Log do erro no terminal para ajudar no debug
         print(f"Erro ao finalizar definitivamente: {e}")
         flash(f"Erro técnico ao finalizar: {e}", "danger")
         return redirect(url_for('cli.fase_assinatura', id=id))
@@ -3538,7 +3537,7 @@ def excluir_categoria(id):
 @login_required
 @csrf.exempt
 def salvar_resposta(id):
-    """Salva uma resposta individual (AJAX) - COM LOGS DETALHADOS E SUPORTE A PLANO DE AÇÃO"""
+    """Salva uma resposta individual (AJAX) - COM LOGS DETALHADOS E SUPORTE A PLANO DE AÇÃO E PRAZO"""
     current_app.logger.info(f"--- Rota /salvar-resposta chamada para app ID: {id} ---")
     try:
         aplicacao = AplicacaoQuestionario.query.get_or_404(id)
@@ -3569,11 +3568,28 @@ def salvar_resposta(id):
             resposta = RespostaPergunta.query.get(data['resposta_id'])
             # Garante que a resposta pertence a esta aplicação
             if resposta and resposta.aplicacao_id == id:
+                
+                # Salva o texto do Plano de Ação (se enviado)
                 if 'plano_acao' in data:
                     resposta.plano_acao = str(data['plano_acao']).strip()
-                    db.session.commit()
-                    current_app.logger.info(f"[Salvar Resposta {id}] Sucesso: Plano de ação atualizado via resposta_id {resposta.id}")
-                    return jsonify({'sucesso': True, 'mensagem': 'Plano salvo'})
+
+                # === NOVO BLOCO: SALVAR O PRAZO ===
+                if 'prazo_plano_acao' in data:
+                    prazo_str = data['prazo_plano_acao']
+                    if prazo_str:
+                        try:
+                            # Converte a string 'YYYY-MM-DD' vinda do HTML para objeto Date do Python
+                            resposta.prazo_plano_acao = datetime.strptime(prazo_str, '%Y-%m-%d').date()
+                        except ValueError:
+                            current_app.logger.warning(f"Data inválida recebida: {prazo_str}")
+                    else:
+                        # Se o campo vier vazio (usuário limpou a data), remove do banco
+                        resposta.prazo_plano_acao = None
+                # ==================================
+
+                db.session.commit()
+                current_app.logger.info(f"[Salvar Resposta {id}] Sucesso: Plano e Prazo atualizados via resposta_id {resposta.id}")
+                return jsonify({'sucesso': True, 'mensagem': 'Plano salvo'})
         
         # 4. Fluxo Padrão: Salvar por Pergunta ID (Tela de Checklist)
         
@@ -5413,63 +5429,100 @@ def detalhe_plano_acao(aplicacao_id):
 
 # Em app/cli/routes.py
 
+# Em app/cli/routes.py
+
 @cli_bp.route('/plano-de-acao/<int:aplicacao_id>/pdf')
 @login_required
 def pdf_plano_acao(aplicacao_id):
-    """
-    Gera o PDF do Plano de Ação com a assinatura EMBUTIDA (Base64)
-    para garantir que apareça independente de permissões de pasta.
-    """
     import base64
     import os
+    from pathlib import Path
     
     try:
         aplicacao = AplicacaoQuestionario.query.get_or_404(aplicacao_id)
         
-        # 1. Busca os dados
-        respostas = RespostaPergunta.query\
+        # 1. Segurança
+        if aplicacao.avaliado.cliente_id != current_user.cliente_id:
+            flash("Acesso não autorizado.", "danger")
+            return redirect(url_for('cli.lista_plano_acao'))
+        if current_user.avaliado_id and aplicacao.avaliado_id != current_user.avaliado_id:
+            flash("Permissão negada.", "danger")
+            return redirect(url_for('cli.lista_plano_acao'))
+
+        # 2. Busca Dados
+        respostas_db = RespostaPergunta.query\
             .filter_by(aplicacao_id=aplicacao.id)\
             .filter(RespostaPergunta.plano_acao != None)\
             .filter(RespostaPergunta.plano_acao != "")\
-            .join(Pergunta)\
-            .order_by(Pergunta.ordem)\
+            .join(Pergunta).join(Topico)\
+            .order_by(Topico.ordem, Pergunta.ordem)\
             .all()
         
-        # 2. Prepara a Assinatura (A MÁGICA ACONTECE AQUI)
-        assinatura_b64 = None
-        if aplicacao.assinatura_imagem:
-            # Monta o caminho completo do arquivo
-            caminho_arquivo = os.path.join(current_app.config['UPLOAD_FOLDER'], aplicacao.assinatura_imagem)
-            
-            # Verifica se existe e converte para texto
-            if os.path.exists(caminho_arquivo):
-                with open(caminho_arquivo, "rb") as img_file:
-                    encoded_string = base64.b64encode(img_file.read()).decode('utf-8')
-                    assinatura_b64 = f"data:image/png;base64,{encoded_string}"
-            else:
-                current_app.logger.warning(f"Imagem de assinatura não encontrada no disco: {caminho_arquivo}")
+        # 3. Prepara Itens e Fotos das NCs
+        upload_folder = current_app.config.get('UPLOAD_FOLDER')
+        itens_relatorio = []
 
-        # 3. Renderiza o HTML passando a string da imagem
+        for resp in respostas_db:
+            item = {
+                'topico_nome': resp.pergunta.topico.nome,
+                'topico_ordem': resp.pergunta.topico.ordem,
+                'pergunta_ordem': resp.pergunta.ordem,
+                'pergunta_texto': resp.pergunta.texto,
+                'observacao': resp.observacao,
+                'plano_acao': resp.plano_acao,
+                'prazo': resp.prazo_plano_acao,
+                'foto_uri': None
+            }
+            if resp.caminho_foto and upload_folder:
+                path = Path(upload_folder) / resp.caminho_foto
+                if path.exists():
+                    item['foto_uri'] = path.as_uri()
+            itens_relatorio.append(item)
+        
+        # 4. Helper para converter imagem em Base64
+        def get_image_b64(filepath):
+            if filepath and os.path.exists(filepath):
+                with open(filepath, "rb") as f:
+                    return f"data:image/png;base64,{base64.b64encode(f.read()).decode('utf-8')}"
+            return None
+
+        # -- LOGO --
+        path_logo = os.path.join(current_app.root_path, 'static', 'img', 'logo_pdf.png')
+        logo_b64 = get_image_b64(path_logo)
+
+        # -- ASSINATURA CLIENTE (Da Aplicação) --
+        assinatura_cliente_b64 = None
+        if aplicacao.assinatura_imagem:
+            path_ass = os.path.join(current_app.config['UPLOAD_FOLDER'], aplicacao.assinatura_imagem)
+            assinatura_cliente_b64 = get_image_b64(path_ass)
+
+        # -- ASSINATURA AUDITOR (Do Usuário/Sistema) --
+        # Tenta buscar se o usuário aplicador tem foto/assinatura, senão fica None
+        assinatura_auditor_b64 = None
+        # Exemplo: se o model User tiver um campo 'assinatura_imagem'
+        # if aplicacao.aplicador and getattr(aplicacao.aplicador, 'assinatura_imagem', None):
+        #     path_aud = os.path.join(current_app.config['UPLOAD_FOLDER'], aplicacao.aplicador.assinatura_imagem)
+        #     assinatura_auditor_b64 = get_image_b64(path_aud)
+
+        # 5. Renderiza
         html_content = render_template_safe(
             'cli/pdf_plano_acao.html',
             aplicacao=aplicacao,
-            respostas=respostas,
-            data_geracao=datetime.now(),
-            assinatura_uri=assinatura_b64, # <--- Agora vai a imagem codificada
+            itens=itens_relatorio,
+            logo_uri=logo_b64,
+            assinatura_cliente_uri=assinatura_cliente_b64, # Imagem Cliente
+            assinatura_auditor_uri=assinatura_auditor_b64, # Imagem Auditor (se tiver)
             assinatura_responsavel=aplicacao.assinatura_responsavel,
-            cargo_responsavel=aplicacao.cargo_responsavel
+            cargo_responsavel=aplicacao.cargo_responsavel,
+            data_geracao=datetime.now()
         )
         
         return gerar_pdf_seguro(html_content, filename=f"Plano_Acao_{aplicacao_id}.pdf")
         
     except Exception as e:
         current_app.logger.error(f"Erro PDF Plano: {e}")
-        flash(f"Erro ao gerar PDF: {str(e)}", "danger")
+        flash("Erro ao gerar PDF.", "danger")
         return redirect(url_for('cli.visualizar_aplicacao', id=aplicacao_id))
-    # app/cli/routes.py
-
-# ... (todo o seu código existente) ...
-
 # ===================== ROTAS DE AÇÃO CORRETIVA =====================
 
 @cli_bp.route('/acao-corretiva/registrar/<int:resposta_id>', methods=['POST'])
