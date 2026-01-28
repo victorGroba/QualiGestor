@@ -2,9 +2,10 @@
 const db = new Dexie('QualiGestorDB');
 
 // 1. Atualizamos a estrutura para aceitar FOTOS
-db.version(2).stores({
+db.version(3).stores({
     respostas_pendentes: 'pergunta_id, aplicacao_id, dados_completos, timestamp',
     fotos_pendentes: 'pergunta_id, arquivo_blob, nome_arquivo' // Nova tabela para fotos
+    fila_deletar: 'id_item, tipo, timestamp'
 });
 
 const OfflineManager = {
