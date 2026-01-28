@@ -1,10 +1,11 @@
 // Configuração do Banco de Dados Local (IndexedDB)
 const db = new Dexie('QualiGestorDB');
 
-// 1. Atualizamos a estrutura para aceitar FOTOS
+// 1. ATUALIZADO: Estrutura idêntica ao HTML para evitar conflitos (Versão 3)
 db.version(3).stores({
     respostas_pendentes: 'pergunta_id, aplicacao_id, dados_completos, timestamp',
-    fotos_pendentes: 'pergunta_id, arquivo_blob, nome_arquivo' // Nova tabela para fotos
+    // Agora a chave primária é 'id' (auto-incremento ou timestamp), não mais 'pergunta_id'
+    fotos_pendentes: 'id, aplicacao_id, pergunta_id, resposta_id, blob, nome, timestamp',
     fila_deletar: 'id_item, tipo, timestamp'
 });
 
@@ -33,19 +34,26 @@ const OfflineManager = {
     },
 
     // --- FUNÇÃO 2: SALVAR FOTO (A Evidência) ---
-    async salvarFoto(perguntaId, fileInput) {
+    async salvarFoto(perguntaId, fileInput, aplicacaoId = null) {
         try {
             const file = fileInput.files[0];
             if (!file) return;
 
-            // Salva a foto no banco local (IndexedDB)
-            await db.fotos_pendentes.put({
-                pergunta_id: perguntaId.toString(), // Garante que é string para bater com a resposta
-                arquivo_blob: file,
-                nome_arquivo: file.name
+            // Gera um ID único para a foto
+            const fotoId = Date.now();
+
+            // Salva a foto no banco local (IndexedDB) com a estrutura NOVA
+            await db.fotos_pendentes.add({
+                id: fotoId,
+                aplicacao_id: aplicacaoId, // Idealmente deve ser passado, ou null se não tiver
+                pergunta_id: perguntaId.toString(),
+                resposta_id: null, // Será preenchido após sincronizar o texto
+                blob: file,        // Nome padronizado: 'blob'
+                nome: file.name,   // Nome padronizado: 'nome'
+                timestamp: Date.now()
             });
 
-            // Se tiver internet, a gente tenta sincronizar TUDO daquela pergunta (Texto + Foto)
+            // Se tiver internet, a gente tenta sincronizar TUDO daquela pergunta
             if (navigator.onLine) {
                 await this.sincronizarUma(perguntaId);
                 return { status: 'sincronizado', msg: 'Foto enviada!' };
@@ -58,12 +66,15 @@ const OfflineManager = {
         }
     },
 
-    // --- FUNÇÃO 3: SINCRONIZAR UMA PERGUNTA (Inteligente: Texto depois Foto) ---
+    // --- FUNÇÃO 3: SINCRONIZAR UMA PERGUNTA (Inteligente: Texto depois Fotos) ---
     async sincronizarUma(perguntaId) {
         const respostaItem = await db.respostas_pendentes.get(perguntaId);
         
         // A) Sincronizar o TEXTO primeiro
         let respostaIdServidor = null;
+
+        // Tenta recuperar ID se já existir no HTML (caso a resposta já tenha ido, mas a foto não)
+        // Como o OfflineManager roda isolado, ele depende do retorno do servidor ou da resposta pendente.
 
         if (respostaItem) {
             try {
@@ -75,7 +86,7 @@ const OfflineManager = {
 
                 if (response.ok) {
                     const jsonRes = await response.json();
-                    respostaIdServidor = jsonRes.resposta_id; // O servidor devolve o ID real da resposta
+                    respostaIdServidor = jsonRes.resposta_id; // O servidor devolve o ID real
                     
                     // Remove da fila de pendentes pois já foi
                     await db.respostas_pendentes.delete(perguntaId);
@@ -90,31 +101,52 @@ const OfflineManager = {
             }
         }
 
-        // B) Sincronizar a FOTO (Se houver e se tivermos o ID da resposta)
-        // Se a resposta já existia no servidor (não estava pendente), precisamos descobrir o ID dela
-        // Aqui assumimos que se não tinha texto pendente, a resposta já existe no banco.
-        // *Nota: Para simplificar, focamos no fluxo onde o usuário acabou de responder.*
+        // B) Sincronizar FOTOS (Agora suporta múltiplas fotos por pergunta)
+        // Busca todas as fotos pendentes vinculadas a esta pergunta
+        // Nota: Precisamos converter perguntaId para string pois no banco salvamos como string
+        const fotosItems = await db.fotos_pendentes
+            .where('pergunta_id')
+            .equals(perguntaId.toString())
+            .toArray();
         
-        const fotoItem = await db.fotos_pendentes.get(perguntaId);
+        // Se não temos o ID da resposta vindo do texto, não conseguimos enviar a foto.
+        // (A menos que a gente busque no DOM, mas este script roda separado).
+        // Aqui assumimos: se enviou o texto agora, temos o ID. Se não tinha texto pendente, 
+        // talvez a resposta já existisse. *Melhoria: Se respostaIdServidor for null, tentar buscar a resposta no servidor antes*
         
-        if (fotoItem && respostaIdServidor) {
-            try {
-                const formData = new FormData();
-                formData.append('foto', fotoItem.arquivo_blob, fotoItem.nome_arquivo);
+        if (fotosItems.length > 0 && respostaIdServidor) {
+            let enviouAlguma = false;
 
-                const responseFoto = await fetch(`/resposta/${respostaIdServidor}/upload-foto`, {
-                    method: 'POST',
-                    body: formData // Fetch detecta FormData e ajusta headers automaticamente
-                });
+            for (const fotoItem of fotosItems) {
+                try {
+                    const formData = new FormData();
+                    // Garante a extensão do arquivo para evitar erro 400 no Python
+                    let nomeFinal = fotoItem.nome || 'foto.jpg';
+                    if (!nomeFinal.toLowerCase().match(/\.(jpg|jpeg|png|webp)$/)) {
+                        nomeFinal += '.jpg';
+                    }
 
-                if (responseFoto.ok) {
-                    await db.fotos_pendentes.delete(perguntaId);
-                    console.log(`Foto da pergunta ${perguntaId} enviada.`);
-                    return { status: 'sincronizado', msg: 'Tudo salvo!' };
+                    // Recria o arquivo para garantir integridade
+                    const arquivoParaEnvio = new File([fotoItem.blob], nomeFinal, { type: fotoItem.blob.type || 'image/jpeg' });
+                    formData.append('foto', arquivoParaEnvio, nomeFinal);
+
+                    const responseFoto = await fetch(`/resposta/${respostaIdServidor}/upload-foto`, {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (responseFoto.ok) {
+                        // Remove especificamente esta foto pelo seu ID único
+                        await db.fotos_pendentes.delete(fotoItem.id);
+                        console.log(`Foto ${fotoItem.id} da pergunta ${perguntaId} enviada.`);
+                        enviouAlguma = true;
+                    }
+                } catch (error) {
+                    console.log(`Falha ao enviar foto ${fotoItem.id}.`);
                 }
-            } catch (error) {
-                console.log("Falha ao enviar foto (mas texto foi).");
             }
+            
+            if (enviouAlguma) return { status: 'sincronizado', msg: 'Fotos processadas' };
         }
         
         return { status: 'parcial', msg: 'Processado' };
@@ -124,7 +156,7 @@ const OfflineManager = {
     async sincronizarTudo() {
         if (!navigator.onLine) return;
         
-        // Pega todos os IDs únicos que têm texto OU foto pendente
+        // Pega todos os IDs únicos que têm texto pendente
         const textos = await db.respostas_pendentes.toArray();
         const fotos = await db.fotos_pendentes.toArray();
         
@@ -134,26 +166,28 @@ const OfflineManager = {
 
         if (idsParaSincronizar.size === 0) return;
 
-        console.log(`Sincronizando ${idsParaSincronizar.size} itens...`);
+        console.log(`[OfflineManager] Sincronizando itens de ${idsParaSincronizar.size} perguntas...`);
         
         // Itera e sincroniza um por um
         for (const pId of idsParaSincronizar) {
             await this.sincronizarUma(pId);
         }
         
-        console.log("Sincronização em lote concluída.");
-        // Opcional: Recarregar a página para atualizar ícones
-        // location.reload(); 
+        console.log("[OfflineManager] Sincronização em lote concluída.");
     },
     
     // Funções auxiliares para verificar status visual
     async temPendente(perguntaId) {
         const t = await db.respostas_pendentes.get(perguntaId);
-        const f = await db.fotos_pendentes.get(perguntaId);
-        return (t || f);
+        // Verifica se existe alguma foto com este pergunta_id
+        const fCount = await db.fotos_pendentes.where('pergunta_id').equals(perguntaId.toString()).count();
+        return (t || fCount > 0);
     }
 };
 
 // Listeners Automáticos
 window.addEventListener('online', () => OfflineManager.sincronizarTudo());
-document.addEventListener('DOMContentLoaded', () => OfflineManager.sincronizarTudo());
+document.addEventListener('DOMContentLoaded', () => {
+    // Aguarda um pouco para não competir com o carregamento principal da página
+    setTimeout(() => OfflineManager.sincronizarTudo(), 3000);
+});

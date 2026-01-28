@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qualigestor-dynamic-v7'; // VERSÃO ATUALIZADA
+const CACHE_NAME = 'qualigestor-dynamic-v8'; // ATUALIZADO: v7 -> v8
 
 // 1. Arquivos CRÍTICOS
 // Se qualquer um destes falhar ao baixar, o Service Worker NÃO instala.
@@ -7,6 +7,10 @@ const CRITICAL_ASSETS = [
     // Estilos e Imagens Locais
     '/static/css/dashboard.css',
     '/static/img/logo.jpg',
+
+    // --- IMPORTANTE: GARANTINDO O JS DO BANCO ---
+    // Adicionei aqui para forçar o download da correção do banco de dados
+    '/static/js/offline-manager.js', 
 
     // Bibliotecas Essenciais (CDN)
     // Sem Dexie, o banco não abre. Sem SignaturePad, não assina.
@@ -30,7 +34,7 @@ self.addEventListener('install', event => {
     
     event.waitUntil(
         caches.open(CACHE_NAME).then(async cache => {
-            console.log('[SW] Instalando arquivos críticos...');
+            console.log('[SW] Instalando arquivos críticos (v8)...');
             
             try {
                 // Instala os críticos (Obrigatório)
@@ -54,7 +58,7 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('activate', event => {
-    console.log('[SW] Ativando nova versão...');
+    console.log('[SW] Ativando versão v8 e limpando caches antigos...');
     event.waitUntil(
         caches.keys().then(keys => {
             return Promise.all(
