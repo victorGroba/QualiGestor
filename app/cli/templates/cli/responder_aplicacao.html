@@ -610,28 +610,44 @@
         }
     }
 
-    // --- FUNÇÃO CRÍTICA CORRIGIDA ---
+   // --- FUNÇÃO CORRIGIDA E BLINDADA ---
     async function enviarFoto(blobOuFile, nomeArquivo, pid, tid, rid, div) {
         const fd = new FormData();
         
-        // 1. Sanitização do Nome
-        // Se o nomeArquivo veio nulo do banco, cria um novo com timestamp e extensão jpg
-        let nomeFinal = nomeArquivo || `foto_${Date.now()}.jpg`;
+        // 1. GARANTIA DE NOME (Checklist de Segurança)
+        let nomeFinal = nomeArquivo;
         
-        // Se o nome não tem extensão, adiciona .jpg (o backend exige extensão válida)
-        if (!nomeFinal.includes('.')) {
+        // Se veio nulo ou indefinido, cria um genérico
+        if (!nomeFinal || nomeFinal === 'undefined') {
+            nomeFinal = `foto_recuperada_${Date.now()}.jpg`;
+        }
+
+        // 2. GARANTIA DE EXTENSÃO (O erro 400 acontece aqui)
+        // O servidor Python exige que termine com .jpg, .png, etc.
+        const nomeLower = nomeFinal.toLowerCase();
+        if (!nomeLower.endsWith('.jpg') && 
+            !nomeLower.endsWith('.jpeg') && 
+            !nomeLower.endsWith('.png') && 
+            !nomeLower.endsWith('.webp')) {
+            // Se não tiver extensão, FORÇAMOS .jpg
             nomeFinal += '.jpg';
         }
 
-        // 2. Recuperação do MIME Type
-        // Se o blob do Dexie perdeu o type, forçamos image/jpeg
-        const mimeType = blobOuFile.type || 'image/jpeg';
+        // 3. GARANTIA DE TIPO MIME
+        // Se o blob perdeu o tipo, assumimos jpeg
+        let mimeType = blobOuFile.type;
+        if (!mimeType || mimeType === '') {
+            mimeType = 'image/jpeg';
+        }
 
-        // 3. Recriação do Arquivo (A MÁGICA PARA O ERRO 400)
-        // Criamos um novo File object explícito para garantir que o FormData envie os headers corretos
+        console.log(`[Upload] Preparando: ${nomeFinal} | Tipo: ${mimeType} | Tamanho: ${blobOuFile.size}`);
+
+        // 4. RECRIAÇÃO DO ARQUIVO
+        // Recriamos o File object explicitamente para garantir integridade
         const arquivoParaEnvio = new File([blobOuFile], nomeFinal, { type: mimeType });
 
-        fd.append('foto', arquivoParaEnvio);
+        // Adiciona ao FormData com o nome explícito no 3º argumento
+        fd.append('foto', arquivoParaEnvio, nomeFinal);
 
         try {
             const r = await fetch(`/cli/resposta/${rid}/upload-foto`, {
@@ -643,8 +659,12 @@
             if (r.ok) {
                 const data = await r.json();
                 if (data.sucesso) {
+                    console.log("[Upload] Sucesso:", data);
+                    
+                    // Remove do banco local
                     await dbLocal.fotos_pendentes.delete(tid);
                     
+                    // Atualiza visual
                     if(div && div.parentNode) {
                         div.outerHTML = `
                             <div class="position-relative d-inline-block flex-shrink-0 me-2" id="foto-server-${data.foto_id}" style="width: 70px; height: 70px;">
@@ -658,13 +678,20 @@
                     atualizarContadorPendencias();
                 }
             } else {
-                // Log detalhado do erro 400
+                // Se der erro, mostra exatamente o que o servidor respondeu
                 const erroTexto = await r.text();
-                console.error("Erro upload:", r.status, erroTexto);
-                // Não throw Error aqui para não travar o loop de sync de outras fotos
+                console.error("[Upload] Erro Servidor:", r.status, erroTexto);
+                // IMPORTANTE: Se o erro for 400 (arquivo inválido), deletamos do local para não travar a fila
+                // Se for arquivo inválido, não adianta tentar de novo.
+                if (r.status === 400) {
+                     console.warn("[Upload] Removendo arquivo corrompido/inválido da fila local.");
+                     await dbLocal.fotos_pendentes.delete(tid);
+                     if(div) div.remove();
+                     atualizarContadorPendencias();
+                }
             }
         } catch (e) {
-            console.log("Falha na rede ou servidor, foto fica na fila.", e);
+            console.log("[Upload] Falha de Rede (Offline?) ou Código:", e);
         }
     }
 
