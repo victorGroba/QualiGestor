@@ -3584,9 +3584,6 @@ def salvar_resposta(id):
                 current_app.logger.info(f"[Salvar Resposta {id}] Exceção de Segurança: Permitindo edição de Plano de Ação em app finalizada.")
 
         # 3. Tratamento Especial: Atualização direta por ID da Resposta (Tela de Gestão de NCs)
-        # ... dentro de salvar_resposta ...
-        
-        # 3. Tratamento Especial: Atualização direta por ID (Tela de Gestão de NCs)
         if 'resposta_id' in data:
             resposta = RespostaPergunta.query.get(data['resposta_id'])
             if resposta and resposta.aplicacao_id == id:
@@ -3655,11 +3652,25 @@ def salvar_resposta(id):
         else:
             current_app.logger.info(f"[Salvar Resposta {id}] Atualizando RespostaPergunta existente (ID: {resposta.id}).")
 
-        # Atualiza Campos
+        # Atualiza Campos Básicos
         resposta.resposta = resposta_texto
         resposta.observacao = observacao
         
-        # Atualiza Plano de Ação (Apenas se enviado)
+        # === CORREÇÃO: ATUALIZAÇÃO AUTOMÁTICA DE NÃO CONFORMIDADE ===
+        # Lista de respostas que o sistema entende como negativas
+        respostas_negativas = ['não', 'nao', 'no', 'irregular', 'ruim']
+        texto_limpo = (resposta_texto or "").strip().lower()
+
+        if texto_limpo in respostas_negativas:
+            # Se for negativo, marca como NC
+            resposta.nao_conforme = True
+        else:
+            # SE MUDOU PARA SIM, N.A. OU OUTRO: LIMPA A NC IMEDIATAMENTE
+            # Isso impede que um item corrigido continue aparecendo no plano de ação.
+            resposta.nao_conforme = False
+        # ============================================================
+        
+        # Atualiza Plano de Ação (Apenas se enviado via checklist)
         if plano_acao_recebido is not None:
             resposta.plano_acao = str(plano_acao_recebido).strip()
 
