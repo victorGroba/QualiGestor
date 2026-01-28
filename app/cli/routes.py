@@ -2296,7 +2296,8 @@ def concluir_coleta(id):
     """
     Fase 1: Encerra a coleta técnica.
     - Valida obrigatórias (EXCETO ASSINATURAS).
-    - Valida fotos.
+    - Valida se NCs possuem DESCRIÇÃO (Correção Crítica).
+    - Valida fotos obrigatórias.
     - Calcula nota prévia.
     - Redireciona para a Gestão de NCs (não finaliza status).
     """
@@ -2328,11 +2329,11 @@ def concluir_coleta(id):
             flash("Esta aplicação já foi finalizada.", "warning")
             return redirect(url_for('cli.visualizar_aplicacao', id=id))
 
-        # --- 4. VALIDAÇÃO DE OBRIGATÓRIAS (COM A NOVA LÓGICA) ---
-        # AQUI ESTÁ A MUDANÇA: Ignoramos perguntas do tipo ASSINATURA nesta etapa
+        # --- 4. VALIDAÇÃO DE OBRIGATÓRIAS ---
+        # Ignoramos perguntas do tipo ASSINATURA nesta etapa técnica
         perguntas_obrigatorias_ids = {
             p.id for p in perguntas_ativas 
-            if p.obrigatoria and p.tipo.name != 'ASSINATURA' 
+            if p.obrigatoria and (p.tipo.name if hasattr(p.tipo, 'name') else str(p.tipo)) != 'ASSINATURA'
         }
         
         perguntas_faltando_ids = perguntas_obrigatorias_ids - respostas_dadas_ids
@@ -2340,7 +2341,7 @@ def concluir_coleta(id):
         if perguntas_faltando_ids:
             # Busca os textos das perguntas para mostrar erro amigável
             nomes_faltantes = [p.texto for p in perguntas_ativas if p.id in perguntas_faltando_ids]
-            pendencias = nomes_faltantes[:3] # Mostra só as 3 primeiras
+            pendencias = nomes_faltantes[:3]
             
             flash(f"Faltam {len(perguntas_faltando_ids)} pergunta(s) obrigatória(s) para avançar.", "warning")
             for texto in pendencias: 
@@ -2350,9 +2351,33 @@ def concluir_coleta(id):
                 
             return redirect(url_for('cli.responder_aplicacao', id=id))
 
-        # --- 5. MARCAÇÃO DE NÃO CONFORMIDADES & VALIDAÇÃO DE FOTOS ---
-        perguntas_sem_foto = []
+        # --- 5. VALIDAÇÃO DE OBSERVAÇÃO EM NÃO CONFORMIDADES (A CORREÇÃO) ---
         respostas_negativas = ['não', 'nao', 'no', 'irregular', 'ruim']
+        ncs_sem_obs = []
+
+        for p in perguntas_ativas:
+            if p.id in respostas_dict:
+                resp = respostas_dict[p.id]
+                resp_txt = (resp.resposta or "").strip().lower()
+
+                # Se for NC (resposta negativa)
+                if resp_txt in respostas_negativas:
+                    obs = (resp.observacao or "").strip()
+                    # Se observação estiver vazia, bloqueia
+                    if not obs:
+                        topico_nome = p.topico.nome if p.topico else "Geral"
+                        ncs_sem_obs.append(f"'{p.texto}' ({topico_nome})")
+
+        if ncs_sem_obs:
+            count = len(ncs_sem_obs)
+            flash(f"Bloqueado: {count} resposta(s) 'Não Conforme' estão sem a descrição do problema (Observação).", "danger")
+            flash("É obrigatório descrever o problema para toda Não Conformidade.", "warning")
+            for erro in ncs_sem_obs[:3]:
+                flash(f"- {erro}", "secondary")
+            return redirect(url_for('cli.responder_aplicacao', id=id))
+
+        # --- 6. MARCAÇÃO DE NÃO CONFORMIDADES & VALIDAÇÃO DE FOTOS ---
+        perguntas_sem_foto = []
 
         for p in perguntas_ativas:
             if p.id in respostas_dict:
@@ -2392,7 +2417,7 @@ def concluir_coleta(id):
                 flash(f"- {erro}", "warning")
             return redirect(url_for('cli.responder_aplicacao', id=id))
 
-        # --- 6. CÁLCULO DE NOTA (Parcial) ---
+        # --- 7. CÁLCULO DE NOTA (Parcial) ---
         if aplicacao.questionario.calcular_nota:
             pontos_obtidos = 0.0
             pontos_maximos = 0.0
@@ -2426,12 +2451,12 @@ def concluir_coleta(id):
             else:
                 aplicacao.nota_final = 0.0
 
-        # --- 7. SALVAR E REDIRECIONAR PARA REVISÃO ---
+        # --- 8. SALVAR E REDIRECIONAR PARA REVISÃO ---
         db.session.commit()
 
         flash("Coleta concluída! Agora revise as Não Conformidades.", "info")
         
-        # Redireciona para a tela de Planos de Ação (onde haverá o botão para ir às assinaturas)
+        # Redireciona para a tela de Planos de Ação (Gestão de NCs)
         return redirect(url_for('cli.gerenciar_nao_conformidades', id=id))
 
     except Exception as e:
