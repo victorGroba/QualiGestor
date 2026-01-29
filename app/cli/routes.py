@@ -5696,3 +5696,62 @@ def upload_foto_correcao(resposta_id):
         return jsonify({'erro': str(e)}), 500
     
     return jsonify({'erro': 'Erro no upload'}), 400
+
+@cli_bp.route('/aplicacao/<int:id>/upload-fluxograma', methods=['POST'])
+@login_required
+def upload_fluxograma(id):
+    """
+    Recebe o upload do fluxograma (PDF ou Imagem) e vincula à auditoria.
+    """
+    try:
+        aplicacao = AplicacaoQuestionario.query.get_or_404(id)
+
+        # 1. Segurança: Verifica se pertence ao cliente do usuário
+        if aplicacao.avaliado.cliente_id != current_user.cliente_id:
+            flash("Acesso negado a esta auditoria.", "danger")
+            return redirect(url_for('cli.listar_aplicacoes'))
+
+        # 2. Verifica se o arquivo veio no request
+        if 'fluxograma' not in request.files:
+            flash("Nenhum arquivo selecionado.", "warning")
+            return redirect(url_for('cli.visualizar_aplicacao', id=id))
+
+        file = request.files['fluxograma']
+
+        if file.filename == '':
+            flash("Nenhum arquivo selecionado.", "warning")
+            return redirect(url_for('cli.visualizar_aplicacao', id=id))
+
+        # 3. Validação de Extensão (PDF e Imagens)
+        extensoes_permitidas = {'pdf', 'png', 'jpg', 'jpeg'}
+
+        if file and allowed_file(file.filename, extensoes_permitidas):
+            # Gera nome seguro e único
+            original_filename = secure_filename(file.filename)
+            extensao = original_filename.rsplit('.', 1)[1].lower()
+            novo_nome = f"fluxograma_{id}_{uuid.uuid4().hex[:8]}.{extensao}"
+
+            # Define caminho (Garanta que UPLOAD_FOLDER existe no config)
+            upload_path = current_app.config.get('UPLOAD_FOLDER', 'app/static/img')
+
+            # Cria pasta se não existir
+            if not os.path.exists(upload_path):
+                os.makedirs(upload_path)
+
+            caminho_completo = os.path.join(upload_path, novo_nome)
+            file.save(caminho_completo)
+
+            # 4. Salva no Banco
+            aplicacao.fluxograma_arquivo = novo_nome
+            db.session.commit()
+
+            flash("Fluxograma anexado com sucesso!", "success")
+        else:
+            flash("Formato de arquivo inválido. Use PDF, JPG ou PNG.", "danger")
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"Erro no upload do fluxograma: {e}")
+        flash(f"Erro técnico ao enviar arquivo: {str(e)}", "danger")
+
+    return redirect(url_for('cli.visualizar_aplicacao', id=id))
