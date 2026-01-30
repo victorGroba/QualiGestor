@@ -5755,3 +5755,35 @@ def upload_fluxograma(id):
         flash(f"Erro técnico ao enviar arquivo: {str(e)}", "danger")
 
     return redirect(url_for('cli.visualizar_aplicacao', id=id))
+
+# app/cli/routes.py
+
+@cli_bp.route('/aplicacao/<int:id>/fluxograma/visualizar')
+@login_required
+def visualizar_fluxograma(id):
+    """
+    Rota segura para servir o arquivo do fluxograma.
+    Verifica se o usuário tem permissão na aplicação antes de entregar o arquivo.
+    """
+    try:
+        aplicacao = AplicacaoQuestionario.query.get_or_404(id)
+
+        # 1. Segurança: Verifica se pertence ao cliente do usuário
+        if aplicacao.avaliado.cliente_id != current_user.cliente_id:
+            abort(403) # Acesso Negado
+
+        # 2. Verifica se o arquivo existe no banco
+        if not aplicacao.fluxograma_arquivo:
+            abort(404)
+
+        # 3. Define a pasta de upload
+        upload_folder = current_app.config.get('UPLOAD_FOLDER')
+        if not upload_folder:
+            abort(500)
+
+        # 4. Envia o arquivo
+        return send_from_directory(upload_folder, aplicacao.fluxograma_arquivo)
+
+    except Exception as e:
+        print(f"Erro ao visualizar fluxograma: {e}")
+        abort(404)

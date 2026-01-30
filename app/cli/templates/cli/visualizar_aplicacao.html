@@ -6,31 +6,47 @@
     :root {
         --bs-body-bg: #f4f6f8;
     }
-    
+
     /* === CARDS LIMPOS === */
     .card-clean {
-        border: 1px solid rgba(0,0,0,0.05);
-        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
         background: white;
         border-radius: 8px;
         margin-bottom: 1.5rem;
     }
-    
+
     /* === RESPOSTAS (ESTILO TEXTO) === */
     .resposta-row {
         padding: 16px 0;
         border-bottom: 1px solid #f0f0f0;
     }
-    .resposta-row:last-child { border-bottom: none; }
-    
-    .resp-val { font-weight: 600; font-size: 0.95rem; }
-    .resp-sim { color: #198754; } 
-    .resp-nao { color: #dc3545; } 
-    .resp-neutro { color: #6c757d; }
+
+    .resposta-row:last-child {
+        border-bottom: none;
+    }
+
+    .resp-val {
+        font-weight: 600;
+        font-size: 0.95rem;
+    }
+
+    .resp-sim {
+        color: #198754;
+    }
+
+    .resp-nao {
+        color: #dc3545;
+    }
+
+    .resp-neutro {
+        color: #6c757d;
+    }
 
     /* === PLANO DE AÇÃO (BOX NOVO) === */
     .plano-acao-box {
-        background-color: #fff8e1; /* Amarelo bem claro */
+        background-color: #fff8e1;
+        /* Amarelo bem claro */
         border-left: 4px solid #ffc107;
         padding: 10px 15px;
         margin-top: 10px;
@@ -55,30 +71,50 @@
 
     /* === BARRA FLUTUANTE MOBILE (Fixa no Rodapé da TELA) === */
     .mobile-action-bar {
-        position: fixed; /* Fixa na tela */
+        position: fixed;
+        /* Fixa na tela */
         bottom: 0;
         left: 0;
         right: 0;
         width: 100%;
         background: white;
         padding: 10px 15px;
-        box-shadow: 0 -4px 15px rgba(0,0,0,0.1);
+        box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.1);
         z-index: 9999;
         display: flex;
         align-items: center;
         justify-content: space-between;
         border-top: 1px solid #eee;
     }
-    
+
     /* Espaço extra no final da página para o conteúdo não ficar escondido pela barra */
-    .spacer-bottom { height: 90px; }
+    .spacer-bottom {
+        height: 90px;
+    }
 
     /* Ajustes de Impressão */
     @media print {
-        .no-print, .mobile-action-bar, .sticky-sidebar { display: none !important; }
-        .col-lg-9 { width: 100% !important; max-width: 100%; flex: 0 0 100%; }
-        .col-lg-3 { display: none; }
-        .card-clean { box-shadow: none; border: 1px solid #ccc; }
+
+        .no-print,
+        .mobile-action-bar,
+        .sticky-sidebar {
+            display: none !important;
+        }
+
+        .col-lg-9 {
+            width: 100% !important;
+            max-width: 100%;
+            flex: 0 0 100%;
+        }
+
+        .col-lg-3 {
+            display: none;
+        }
+
+        .card-clean {
+            box-shadow: none;
+            border: 1px solid #ccc;
+        }
     }
 </style>
 
@@ -87,33 +123,40 @@
 <div class="mobile-action-bar d-lg-none no-print">
     <div>
         <small class="text-muted d-block" style="font-size: 0.65rem; text-transform: uppercase;">Nota Atual</small>
-        <span class="fw-bold fs-5 {% if nota_segura >= 70 %}text-success{% elif nota_segura >= 50 %}text-warning{% else %}text-danger{% endif %}">
+        <span
+            class="fw-bold fs-5 {% if nota_segura >= 70 %}text-success{% elif nota_segura >= 50 %}text-warning{% else %}text-danger{% endif %}">
             {{ nota_segura }}%
         </span>
     </div>
-    
+
     <div class="d-flex gap-2 align-items-center">
-        
+
         {% if aplicacao.status.name != 'FINALIZADA' and aplicacao.status.value != 'finalizada' %}
-            <a href="{{ url_for('cli.responder_aplicacao', id=aplicacao.id) }}" class="btn btn-primary btn-sm shadow-sm px-3 fw-bold">
-                <i class="fas fa-play me-1"></i> Continuar
-            </a>
+        <a href="{{ url_for('cli.responder_aplicacao', id=aplicacao.id) }}"
+            class="btn btn-primary btn-sm shadow-sm px-3 fw-bold">
+            <i class="fas fa-play me-1"></i> Continuar
+        </a>
         {% else %}
-            <a href="{{ url_for('cli.gerenciar_nao_conformidades', id=aplicacao.id) }}" class="btn btn-warning btn-sm shadow-sm px-3 fw-bold text-dark">
-                <i class="fas fa-exclamation-triangle"></i> Planos
-            </a>
-            <a href="{{ url_for('cli.gerar_relatorio_aplicacao', id=aplicacao.id) }}" class="btn btn-dark btn-sm shadow-sm px-3">
-                <i class="fas fa-file-pdf"></i>
-            </a>
+        <a href="{{ url_for('cli.gerenciar_nao_conformidades', id=aplicacao.id) }}"
+            class="btn btn-warning btn-sm shadow-sm px-3 fw-bold text-dark">
+            <i class="fas fa-exclamation-triangle"></i> Planos
+        </a>
+        <a href="{{ url_for('cli.gerar_relatorio_aplicacao', id=aplicacao.id) }}"
+            class="btn btn-dark btn-sm shadow-sm px-3">
+            <i class="fas fa-file-pdf"></i>
+        </a>
         {% endif %}
 
         <div class="dropup">
-            <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="dropdown"
+                aria-expanded="false">
                 <i class="fas fa-ellipsis-v px-1"></i>
             </button>
             <ul class="dropdown-menu dropdown-menu-end shadow border-0 mb-2">
-                <li><h6 class="dropdown-header">Ações</h6></li>
-                
+                <li>
+                    <h6 class="dropdown-header">Ações</h6>
+                </li>
+
                 <li>
                     <a class="dropdown-item" href="{{ url_for('cli.gerar_relatorio_aplicacao', id=aplicacao.id) }}">
                         <i class="fas fa-file-pdf me-2 text-secondary"></i> Baixar Relatório
@@ -124,27 +167,31 @@
                         <i class="fas fa-share-alt me-2 text-info"></i> Compartilhar Link
                     </button>
                 </li>
-                
+
                 {% if aplicacao.status.name == 'FINALIZADA' or aplicacao.status.value == 'finalizada' %}
-                    <li>
-                        <a class="dropdown-item" href="{{ url_for('cli.gerenciar_nao_conformidades', id=aplicacao.id) }}">
-                            <i class="fas fa-clipboard-check me-2 text-warning"></i> Gerenciar Planos
-                        </a>
-                    </li>
-                    <li><hr class="dropdown-divider"></li>
-                    <li>
-                        <button class="dropdown-item text-warning" onclick="reabrirAplicacao()">
-                            <i class="fas fa-lock-open me-2"></i> Reabrir Edição
-                        </button>
-                    </li>
-                    <li>
-                        <button class="dropdown-item text-danger" onclick="excluirAplicacao()">
-                            <i class="fas fa-trash me-2"></i> Excluir Aplicação
-                        </button>
-                    </li>
+                <li>
+                    <a class="dropdown-item" href="{{ url_for('cli.gerenciar_nao_conformidades', id=aplicacao.id) }}">
+                        <i class="fas fa-clipboard-check me-2 text-warning"></i> Gerenciar Planos
+                    </a>
+                </li>
+                <li>
+                    <hr class="dropdown-divider">
+                </li>
+                <li>
+                    <button class="dropdown-item text-warning" onclick="reabrirAplicacao()">
+                        <i class="fas fa-lock-open me-2"></i> Reabrir Edição
+                    </button>
+                </li>
+                <li>
+                    <button class="dropdown-item text-danger" onclick="excluirAplicacao()">
+                        <i class="fas fa-trash me-2"></i> Excluir Aplicação
+                    </button>
+                </li>
                 {% endif %}
-                
-                <li><hr class="dropdown-divider"></li>
+
+                <li>
+                    <hr class="dropdown-divider">
+                </li>
                 <li>
                     <a class="dropdown-item" href="{{ url_for('cli.listar_aplicacoes') }}">
                         <i class="fas fa-home me-2 text-secondary"></i> Voltar ao Início
@@ -156,18 +203,19 @@
 </div>
 
 <div class="container-fluid py-4 px-md-4">
-    
+
     <div class="d-flex justify-content-between align-items-center mb-4 no-print">
         <div>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-1 small">
-                    <li class="breadcrumb-item"><a href="{{ url_for('cli.listar_aplicacoes') }}" class="text-decoration-none text-muted">Aplicações</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('cli.listar_aplicacoes') }}"
+                            class="text-decoration-none text-muted">Aplicações</a></li>
                     <li class="breadcrumb-item active">Visualizar #{{ aplicacao.id }}</li>
                 </ol>
             </nav>
             <h4 class="fw-bold text-dark mb-0">{{ aplicacao.questionario.nome }}</h4>
         </div>
-        
+
         <div class="d-none d-lg-block">
             <a href="{{ url_for('cli.listar_aplicacoes') }}" class="btn btn-outline-secondary btn-sm">
                 <i class="fas fa-arrow-left me-1"></i> Voltar
@@ -176,9 +224,9 @@
     </div>
 
     <div class="row g-4">
-        
+
         <div class="col-lg-9">
-            
+
             <div class="card-clean p-4">
                 <div class="row g-3">
                     <div class="col-md-3 border-end-md">
@@ -188,14 +236,14 @@
                         </div>
                         <small class="text-muted d-block text-truncate">{{ aplicacao.avaliado.endereco }}</small>
                     </div>
-                    
+
                     <div class="col-md-3 border-end-md">
                         <label class="small text-muted text-uppercase fw-bold">Auditor(a)</label>
                         <div class="text-dark">
                             {% if aplicacao.aplicador %}
-                                {{ aplicacao.aplicador.nome }}
+                            {{ aplicacao.aplicador.nome }}
                             {% else %}
-                                <span class="text-muted fst-italic">Não identificado</span>
+                            <span class="text-muted fst-italic">Não identificado</span>
                             {% endif %}
                         </div>
                         <small class="text-muted">Consultora</small>
@@ -205,7 +253,7 @@
                         <label class="small text-muted text-uppercase fw-bold">Período</label>
                         <div class="text-dark">{{ aplicacao.data_inicio.strftime('%d/%m/%Y') }}</div>
                         <small class="text-muted">
-                            {{ aplicacao.data_inicio.strftime('%H:%M') }} 
+                            {{ aplicacao.data_inicio.strftime('%H:%M') }}
                             {% if aplicacao.data_fim %} - {{ aplicacao.data_fim.strftime('%H:%M') }}{% endif %}
                         </small>
                     </div>
@@ -213,11 +261,11 @@
                         <label class="small text-muted text-uppercase fw-bold">Status</label>
                         <div>
                             {% if aplicacao.status.name == 'FINALIZADA' or aplicacao.status.value == 'finalizada' %}
-                                <span class="text-success fw-bold"><i class="fas fa-check-circle"></i> Finalizada</span>
+                            <span class="text-success fw-bold"><i class="fas fa-check-circle"></i> Finalizada</span>
                             {% elif aplicacao.status.name == 'CANCELADA' or aplicacao.status.value == 'cancelada' %}
-                                <span class="text-danger fw-bold"><i class="fas fa-ban"></i> Cancelada</span>
+                            <span class="text-danger fw-bold"><i class="fas fa-ban"></i> Cancelada</span>
                             {% else %}
-                                <span class="text-warning fw-bold"><i class="fas fa-clock"></i> Em Andamento</span>
+                            <span class="text-warning fw-bold"><i class="fas fa-clock"></i> Em Andamento</span>
                             {% endif %}
                         </div>
                     </div>
@@ -232,55 +280,56 @@
                 </div>
                 <div class="card-body">
                     <div class="row align-items-center">
-                        
+
                         <div class="col-md-7 mb-3 mb-md-0">
                             {% if aplicacao.fluxograma_arquivo %}
-                                <div class="alert alert-success d-flex flex-column flex-md-row align-items-center justify-content-between p-3 border-success border-opacity-25 bg-success bg-opacity-10">
-                                    <div class="d-flex align-items-center mb-3 mb-md-0">
-                                        <i class="fas fa-check-circle text-success fa-2x me-3"></i>
-                                        <div>
-                                            <strong class="text-success">Arquivo Anexado!</strong><br>
-                                            <small class="text-muted text-break">{{ aplicacao.fluxograma_arquivo }}</small>
-                                        </div>
-                                    </div>
-                                    <div class="ms-auto">
-                                        <a href="{{ url_for('static', filename='img/' + aplicacao.fluxograma_arquivo) }}" 
-                                           target="_blank" 
-                                           class="btn btn-success shadow-sm fw-bold px-4 py-2 mt-2 mt-md-0 w-100 w-md-auto">
-                                            <i class="fas fa-eye me-2"></i> Visualizar
-                                        </a>
+                            <div
+                                class="alert alert-success d-flex flex-column flex-md-row align-items-center justify-content-between p-3 border-success border-opacity-25 bg-success bg-opacity-10">
+                                <div class="d-flex align-items-center mb-3 mb-md-0">
+                                    <i class="fas fa-check-circle text-success fa-2x me-3"></i>
+                                    <div>
+                                        <strong class="text-success">Arquivo Anexado!</strong><br>
+                                        <small class="text-muted text-break">{{ aplicacao.fluxograma_arquivo }}</small>
                                     </div>
                                 </div>
+                                <div class="ms-auto">
+                                    <a href="{{ url_for('cli.visualizar_fluxograma', id=aplicacao.id) }}"
+                                        target="_blank"
+                                        class="btn btn-success shadow-sm fw-bold px-4 py-2 mt-2 mt-md-0 w-100 w-md-auto">
+                                        <i class="fas fa-eye me-2"></i> Visualizar
+                                    </a>
+                                </div>
+                            </div>
                             {% else %}
-                                <div class="alert alert-secondary py-4 text-center border-dashed">
-                                    <i class="fas fa-file-invoice text-muted fa-2x mb-2"></i><br>
-                                    <span class="text-muted fw-bold">Nenhum fluxograma anexado.</span>
-                                </div>
+                            <div class="alert alert-secondary py-4 text-center border-dashed">
+                                <i class="fas fa-file-invoice text-muted fa-2x mb-2"></i><br>
+                                <span class="text-muted fw-bold">Nenhum fluxograma anexado.</span>
+                            </div>
                             {% endif %}
                         </div>
 
                         {% if aplicacao.status.name != 'CANCELADA' and aplicacao.status.value != 'cancelada' %}
                         <div class="col-md-5 border-start-md ps-md-4">
-                            <form action="{{ url_for('cli.upload_fluxograma', id=aplicacao.id) }}" 
-                                  method="POST" 
-                                  enctype="multipart/form-data"
-                                  class="p-3 bg-light rounded border">
-                                
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <form action="{{ url_for('cli.upload_fluxograma', id=aplicacao.id) }}" method="POST"
+                                enctype="multipart/form-data" class="p-3 bg-light rounded border">
+
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
 
                                 <label class="form-label fw-bold text-dark mb-2">
-                                    <i class="fas fa-cloud-upload-alt me-1"></i> 
-                                    {% if aplicacao.fluxograma_arquivo %}Substituir Arquivo{% else %}Anexar Novo Arquivo{% endif %}
+                                    <i class="fas fa-cloud-upload-alt me-1"></i>
+                                    {% if aplicacao.fluxograma_arquivo %}Substituir Arquivo{% else %}Anexar Novo
+                                    Arquivo{% endif %}
                                 </label>
-                                
+
                                 <div class="mb-3">
-                                    <input type="file" class="form-control form-control-lg" name="fluxograma" required accept=".pdf, .jpg, .jpeg, .png" style="min-height: 50px;">
+                                    <input type="file" class="form-control form-control-lg" name="fluxograma" required
+                                        accept=".pdf, .jpg, .jpeg, .png" style="min-height: 50px;">
                                 </div>
 
                                 <button class="btn btn-primary btn-lg w-100 fw-bold shadow-sm py-2" type="submit">
                                     <i class="fas fa-upload me-2"></i> Enviar Fluxograma
                                 </button>
-                                
+
                                 <small class="text-muted d-block text-center mt-2" style="font-size: 0.75rem;">
                                     Formatos aceitos: PDF, JPG, PNG
                                 </small>
@@ -292,141 +341,151 @@
             </div>
             <div class="card-clean p-4">
                 <h5 class="mb-4 fw-bold border-bottom pb-2">Detalhamento</h5>
-                
+
                 {% if topicos %}
-                    {% for topico in topicos %}
-                        <div class="d-flex align-items-center mt-4 mb-3">
-                            <div class="bg-primary" style="width: 4px; height: 20px; border-radius: 2px;"></div>
-                            <h6 class="fw-bold text-dark ms-2 mb-0">{{ topico.nome }}</h6>
-                        </div>
-                        
-                        {% set perguntas_topico = topico.perguntas_ativas if topico.perguntas_ativas is defined else topico.perguntas %}
-                        
-                        {% for pergunta in perguntas_topico %}
-                            {% set resposta = respostas_dict.get(pergunta.id) %}
-                            <div class="resposta-row">
-                                <div class="row align-items-start">
-                                    
-                                    <div class="col-8">
-                                        <div class="text-dark" style="font-size: 0.95rem;">
-                                            <span class="text-muted fw-bold me-1" style="font-size: 0.85rem;">{{ topico.ordem }}.{{ pergunta.ordem }}</span>
-                                            {{ pergunta.texto }}
-                                        </div>
-                                        
-                                        {% if resposta.observacao %}
-                                            <div class="mt-1 text-muted fst-italic small ms-3 border-start ps-2">
-                                                <i class="fas fa-comment-dots me-1"></i> {{ resposta.observacao }}
-                                            </div>
-                                        {% endif %}
+                {% for topico in topicos %}
+                <div class="d-flex align-items-center mt-4 mb-3">
+                    <div class="bg-primary" style="width: 4px; height: 20px; border-radius: 2px;"></div>
+                    <h6 class="fw-bold text-dark ms-2 mb-0">{{ topico.nome }}</h6>
+                </div>
 
-                                        {% if resposta.plano_acao %}
-                                            <div class="plano-acao-box ms-3 mt-2">
-                                                <div class="fw-bold text-warning-dark mb-1">
-                                                    <i class="fas fa-clipboard-list me-1"></i> Plano de Ação Definido
-                                                </div>
-                                                <div class="mb-1">
-                                                    <strong>Ação:</strong> {{ resposta.plano_acao }}
-                                                </div>
-                                                <div class="d-flex gap-3 text-muted small mt-1">
-                                                    {% if resposta.responsavel_plano_acao %}
-                                                        <span><i class="fas fa-user me-1"></i> Resp: {{ resposta.responsavel_plano_acao }}</span>
-                                                    {% endif %}
-                                                    {% if resposta.prazo_plano_acao %}
-                                                        <span><i class="fas fa-calendar me-1"></i> Prazo: {{ resposta.prazo_plano_acao.strftime('%d/%m/%Y') }}</span>
-                                                    {% endif %}
-                                                </div>
-                                            </div>
-                                        {% endif %}
-                                    </div>
-                                    
-                                    <div class="col-4 text-end">
-                                        {% if resposta %}
-                                            {% if pergunta.tipo.name == 'ASSINATURA' %}
-                                                {% if resposta.resposta and 'data:image' in resposta.resposta %}
-                                                    <span class="badge bg-light text-dark border"><i class="fas fa-pen-nib"></i> Assinado</span>
-                                                {% else %}
-                                                    <span class="text-muted small">Pendente</span>
-                                                {% endif %}
-                                            
-                                            {% else %}
-                                                {% if resposta.resposta in ['Sim', 'Conforme', '10', '100'] %}
-                                                    <span class="resp-val resp-sim"><i class="fas fa-check"></i> {{ resposta.resposta }}</span>
-                                                
-                                                {% elif resposta.resposta in ['Não', 'Não Conforme', 'NC'] %}
-                                                    <span class="resp-val resp-nao"><i class="fas fa-times"></i> {{ resposta.resposta }}</span>
-                                                
-                                                {% else %}
-                                                    <span class="resp-val resp-neutro">{{ resposta.resposta or '---' }}</span>
-                                                {% endif %}
-                                            {% endif %}
+                {% set perguntas_topico = topico.perguntas_ativas if topico.perguntas_ativas is defined else
+                topico.perguntas %}
 
-                                            {% if (resposta.fotos|length > 0) or (resposta.caminho_foto) %}
-                                                <div class="mt-1">
-                                                    <i class="fas fa-camera text-secondary small" title="Possui evidência fotográfica"></i>
-                                                </div>
-                                            {% endif %}
-                                        {% else %}
-                                            <span class="text-muted small">-</span>
-                                        {% endif %}
-                                    </div>
+                {% for pergunta in perguntas_topico %}
+                {% set resposta = respostas_dict.get(pergunta.id) %}
+                <div class="resposta-row">
+                    <div class="row align-items-start">
+
+                        <div class="col-8">
+                            <div class="text-dark" style="font-size: 0.95rem;">
+                                <span class="text-muted fw-bold me-1" style="font-size: 0.85rem;">{{ topico.ordem }}.{{
+                                    pergunta.ordem }}</span>
+                                {{ pergunta.texto }}
+                            </div>
+
+                            {% if resposta.observacao %}
+                            <div class="mt-1 text-muted fst-italic small ms-3 border-start ps-2">
+                                <i class="fas fa-comment-dots me-1"></i> {{ resposta.observacao }}
+                            </div>
+                            {% endif %}
+
+                            {% if resposta.plano_acao %}
+                            <div class="plano-acao-box ms-3 mt-2">
+                                <div class="fw-bold text-warning-dark mb-1">
+                                    <i class="fas fa-clipboard-list me-1"></i> Plano de Ação Definido
+                                </div>
+                                <div class="mb-1">
+                                    <strong>Ação:</strong> {{ resposta.plano_acao }}
+                                </div>
+                                <div class="d-flex gap-3 text-muted small mt-1">
+                                    {% if resposta.responsavel_plano_acao %}
+                                    <span><i class="fas fa-user me-1"></i> Resp: {{ resposta.responsavel_plano_acao
+                                        }}</span>
+                                    {% endif %}
+                                    {% if resposta.prazo_plano_acao %}
+                                    <span><i class="fas fa-calendar me-1"></i> Prazo: {{
+                                        resposta.prazo_plano_acao.strftime('%d/%m/%Y') }}</span>
+                                    {% endif %}
                                 </div>
                             </div>
-                        {% endfor %} 
-                    {% endfor %} 
+                            {% endif %}
+                        </div>
+
+                        <div class="col-4 text-end">
+                            {% if resposta %}
+                            {% if pergunta.tipo.name == 'ASSINATURA' %}
+                            {% if resposta.resposta and 'data:image' in resposta.resposta %}
+                            <span class="badge bg-light text-dark border"><i class="fas fa-pen-nib"></i> Assinado</span>
+                            {% else %}
+                            <span class="text-muted small">Pendente</span>
+                            {% endif %}
+
+                            {% else %}
+                            {% if resposta.resposta in ['Sim', 'Conforme', '10', '100'] %}
+                            <span class="resp-val resp-sim"><i class="fas fa-check"></i> {{ resposta.resposta }}</span>
+
+                            {% elif resposta.resposta in ['Não', 'Não Conforme', 'NC'] %}
+                            <span class="resp-val resp-nao"><i class="fas fa-times"></i> {{ resposta.resposta }}</span>
+
+                            {% else %}
+                            <span class="resp-val resp-neutro">{{ resposta.resposta or '---' }}</span>
+                            {% endif %}
+                            {% endif %}
+
+                            {% if (resposta.fotos|length > 0) or (resposta.caminho_foto) %}
+                            <div class="mt-1">
+                                <i class="fas fa-camera text-secondary small" title="Possui evidência fotográfica"></i>
+                            </div>
+                            {% endif %}
+                            {% else %}
+                            <span class="text-muted small">-</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% endfor %}
                 {% else %}
-                    <p class="text-muted text-center py-3">Nenhum dado disponível.</p>
-                {% endif %} 
+                <p class="text-muted text-center py-3">Nenhum dado disponível.</p>
+                {% endif %}
             </div>
         </div>
 
         <div class="col-lg-3 d-none d-lg-block">
             <div class="sticky-sidebar">
-                
+
                 <div class="card-clean p-4 text-center">
                     <label class="text-muted text-uppercase small fw-bold">Nota Final</label>
-                    <div class="nota-display my-2 {% if nota_segura >= 70 %}text-success{% elif nota_segura >= 50 %}text-warning{% else %}text-danger{% endif %}">
+                    <div
+                        class="nota-display my-2 {% if nota_segura >= 70 %}text-success{% elif nota_segura >= 50 %}text-warning{% else %}text-danger{% endif %}">
                         {{ nota_segura }}%
                     </div>
-                    
+
                     {% if aplicacao.status.name != 'FINALIZADA' and aplicacao.status.value != 'finalizada' %}
-                        <div class="mt-3">
-                            <a href="{{ url_for('cli.responder_aplicacao', id=aplicacao.id) }}" class="btn btn-primary w-100 fw-bold shadow-sm">
-                                <i class="fas fa-play me-2"></i> Continuar
-                            </a>
-                        </div>
+                    <div class="mt-3">
+                        <a href="{{ url_for('cli.responder_aplicacao', id=aplicacao.id) }}"
+                            class="btn btn-primary w-100 fw-bold shadow-sm">
+                            <i class="fas fa-play me-2"></i> Continuar
+                        </a>
+                    </div>
                     {% endif %}
                 </div>
 
                 <div class="card-clean p-3">
                     <div class="d-grid gap-2">
-                        <a href="{{ url_for('cli.gerar_relatorio_aplicacao', id=aplicacao.id) }}" class="btn btn-outline-dark">
+                        <a href="{{ url_for('cli.gerar_relatorio_aplicacao', id=aplicacao.id) }}"
+                            class="btn btn-outline-dark">
                             <i class="fas fa-file-pdf me-2"></i> Baixar Relatório
                         </a>
-                        
+
                         <button onclick="window.print()" class="btn btn-outline-secondary">
                             <i class="fas fa-print me-2"></i> Imprimir
                         </button>
-                        
+
                         <button onclick="compartilharResultado()" class="btn btn-outline-info">
                             <i class="fas fa-share-alt me-2"></i> Compartilhar
                         </button>
 
                         {% if aplicacao.status.name == 'FINALIZADA' or aplicacao.status.value == 'finalizada' %}
                         <hr class="my-2">
-                        
-                        <a href="{{ url_for('cli.gerenciar_nao_conformidades', id=aplicacao.id) }}" class="btn btn-warning text-dark fw-bold">
+
+                        <a href="{{ url_for('cli.gerenciar_nao_conformidades', id=aplicacao.id) }}"
+                            class="btn btn-warning text-dark fw-bold">
                             <i class="fas fa-clipboard-check me-2"></i> Planos de Ação
                         </a>
 
-                        <button onclick="reabrirAplicacao()" class="btn btn-light text-warning border-warning btn-sm mt-2">
+                        <button onclick="reabrirAplicacao()"
+                            class="btn btn-light text-warning border-warning btn-sm mt-2">
                             <i class="fas fa-lock-open me-2"></i> Reabrir Edição
                         </button>
-                        
-                        <button onclick="excluirAplicacao()" class="btn btn-light text-danger border-danger btn-sm mt-1">
+
+                        <button onclick="excluirAplicacao()"
+                            class="btn btn-light text-danger border-danger btn-sm mt-1">
                             <i class="fas fa-trash-alt me-2"></i> Excluir
                         </button>
                         {% endif %}
-                        
+
                     </div>
                 </div>
 
@@ -434,7 +493,7 @@
         </div>
 
     </div>
-    
+
     <div class="spacer-bottom d-lg-none"></div>
 </div>
 {% endblock %}
@@ -445,13 +504,13 @@
         if (confirm('Deseja reabrir esta auditoria para edição?')) {
             fetch(`/cli/aplicacao/{{ aplicacao.id }}/reabrir`, {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}'}
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' }
             })
-            .then(r => r.json())
-            .then(data => {
-                if(data.sucesso) window.location.href = '/cli/aplicacao/{{ aplicacao.id }}/responder';
-                else alert('Erro: ' + (data.erro || 'Falha ao reabrir'));
-            });
+                .then(r => r.json())
+                .then(data => {
+                    if (data.sucesso) window.location.href = '/cli/aplicacao/{{ aplicacao.id }}/responder';
+                    else alert('Erro: ' + (data.erro || 'Falha ao reabrir'));
+                });
         }
     }
 
@@ -460,7 +519,7 @@
             const form = document.createElement('form');
             form.method = 'POST';
             form.action = "{{ url_for('cli.excluir_aplicacao', id=aplicacao.id) }}";
-            
+
             const csrfInput = document.createElement('input');
             csrfInput.type = 'hidden';
             csrfInput.name = 'csrf_token';
@@ -471,7 +530,7 @@
             form.submit();
         }
     }
-    
+
     function compartilharResultado() {
         const url = window.location.href;
         navigator.clipboard.writeText(url).then(() => alert('Link copiado!'));
