@@ -1193,30 +1193,63 @@ async function salvarLocalmente(file, pid, rid) {
         });
     }
 
-    async function baixarParaOffline() {
-        if (!('caches' in window)) {
-            alert("Bloqueio de Segurança: Offline precisa de HTTPS.");
-            return;
+    // ARQUIVO: app/cli/templates/cli/responder_aplicacao.html
+
+async function baixarParaOffline() {
+    const btn = document.getElementById('btn-offline-sync');
+    const originalHtml = btn.innerHTML;
+    
+    // 1. Feedback Visual Imediato
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Baixando App Completo...';
+
+    try {
+        // TEM QUE SER O MESMO NOME QUE ESTÁ NO service-worker.js
+        const CACHE_NAME = 'qualigestor-dynamic-v8'; 
+        const cache = await caches.open(CACHE_NAME);
+
+        // 2. LISTA DE ROTAS CRÍTICAS
+        // Isso garante que ela consiga sair da auditoria e voltar para o menu
+        // mesmo sem internet.
+        const urlsEssenciais = [
+            window.location.href,          // O Checklist atual (A página que ela está)
+            '/cli/dashboard',              // A Home
+            '/cli/minhas-aplicacoes',      // A Lista de agendamentos (Confira se a rota é essa mesma)
+            '/static/css/dashboard.css',   // O visual
+            '/static/js/offline-manager.js',
+            '/static/img/logo.jpg'
+        ];
+
+        // 3. FORÇA O DOWNLOAD (Bypass no Cache antigo)
+        // O '{ cache: "reload" }' obriga o celular a ir na rede buscar a versão mais nova
+        await Promise.all(urlsEssenciais.map(url => {
+            return cache.add(new Request(url, { cache: 'reload' })).catch(err => {
+                console.warn(`[Offline] Aviso: Não consegui baixar ${url}`, err);
+                // Não damos throw aqui para não cancelar o resto se uma imagem falhar
+            });
+        }));
+
+        // 4. PERSISTÊNCIA NO IOS
+        // Tenta pedir ao iOS para não limpar os dados se o espaço acabar
+        if (navigator.storage && navigator.storage.persist) {
+            const isPersisted = await navigator.storage.persist();
+            console.log(`[Offline] Persistência iOS ativada: ${isPersisted}`);
         }
-        const btn = document.getElementById('btn-offline-sync');
-        const originalHtml = btn.innerHTML;
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
-        try {
-            const CACHE_NAME_HTML = 'qualigestor-dynamic-v7';
-            const cache = await caches.open(CACHE_NAME_HTML);
-            const response = await fetch(window.location.href, { method: 'GET', cache: 'reload', headers: { 'Cache-Control': 'no-cache' } });
-            if (!response.ok) throw new Error(`Status: ${response.status}`);
-            await cache.put(window.location.href, response);
-            btn.classList.add('btn-success');
-            btn.innerHTML = '<i class="fas fa-check"></i> Salvo Offline';
-            alert("Aplicação salva com sucesso! Pode desligar a internet.");
-        } catch (e) {
-            alert("Falha ao salvar: " + e.message);
-            btn.innerHTML = originalHtml;
-            btn.disabled = false;
-        }
+
+        // 5. SUCESSO
+        btn.classList.remove('btn-outline-primary');
+        btn.classList.add('btn-success');
+        btn.innerHTML = '<i class="fas fa-check-double"></i> Pronto para uso Offline!';
+        
+        alert("Sincronização Concluída!\n\nAgora você pode ficar sem internet. Lembre-se: NÃO faça logout. Apenas feche o app.");
+
+    } catch (e) {
+        console.error(e);
+        alert("Erro ao baixar: " + e.message + "\nVerifique sua conexão e tente novamente.");
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
     }
+}
     window.forcarSincronizacaoManual = sincronizarTudo;
 </script>
 <div style="position: fixed; bottom: 10px; left: 10px; z-index: 9999; display: flex; flex-direction: column; gap: 5px;">
