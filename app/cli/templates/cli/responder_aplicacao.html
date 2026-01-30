@@ -1212,11 +1212,13 @@ async function baixarParaOffline() {
         // Isso garante que ela consiga sair da auditoria e voltar para o menu
         // mesmo sem internet.
         const urlsEssenciais = [
-            '/',
-            window.location.href,          // O Checklist atual (A página que ela está)
-            '/cli/dashboard',              // A Home
-            '/cli/minhas-aplicacoes',      // A Lista de agendamentos (Confira se a rota é essa mesma)
-            '/static/css/dashboard.css',   // O visual
+            '/',                       // A raiz do domínio
+            '/cli/',                   // A raiz do painel (MUITO IMPORTANTE)
+            '/cli/home',               // O Dashboard real (conforme routes.py)
+            '/cli/aplicacoes',         // A Lista real (conforme routes.py)
+            window.location.href,      // O Checklist atual
+            '/static/css/dashboard.css',
+            '/static/css/style.css',   // Adicionei style.css que vi nos seus arquivos
             '/static/js/offline-manager.js',
             '/static/img/logo.jpg'
         ];
