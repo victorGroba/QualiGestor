@@ -358,6 +358,7 @@
     // 1. BANCO DE DADOS LOCAL (Dexie) - VERSÃO 3
     // =========================================================
     const dbLocal = new Dexie("QualiGestorDB");
+    window.dbLocal = dbLocal;
 
     dbLocal.version(3).stores({
         respostas_pendentes: 'pergunta_id, aplicacao_id, dados_completos, timestamp', 
