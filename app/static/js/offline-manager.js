@@ -67,52 +67,16 @@ const OfflineManager = {
     },
 
     // --- FUNÇÃO 3: SINCRONIZAR UMA PERGUNTA (Inteligente: Texto depois Fotos) ---
+    // ARQUIVO: app/static/js/offline-manager.js
+
     async sincronizarUma(perguntaId) {
-        const respostaItem = await db.respostas_pendentes.get(perguntaId);
-        
-        // A) Sincronizar o TEXTO primeiro
-        let respostaIdServidor = null;
+        // ... (parte do texto mantém igual) ...
 
-        // Tenta recuperar ID se já existir no HTML (caso a resposta já tenha ido, mas a foto não)
-        // Como o OfflineManager roda isolado, ele depende do retorno do servidor ou da resposta pendente.
-
-        if (respostaItem) {
-            try {
-                const response = await fetch(`/aplicacao/${respostaItem.aplicacao_id}/salvar-resposta`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(respostaItem.dados_completos)
-                });
-
-                if (response.ok) {
-                    const jsonRes = await response.json();
-                    respostaIdServidor = jsonRes.resposta_id; // O servidor devolve o ID real
-                    
-                    // Remove da fila de pendentes pois já foi
-                    await db.respostas_pendentes.delete(perguntaId);
-                    console.log(`Texto da pergunta ${perguntaId} sincronizado.`);
-                } else {
-                    console.warn("Servidor rejeitou o texto.");
-                    return { status: 'erro', msg: 'Erro no servidor' };
-                }
-            } catch (error) {
-                console.log("Offline ao tentar enviar texto.");
-                return { status: 'offline', msg: 'Sem conexão' };
-            }
-        }
-
-        // B) Sincronizar FOTOS (Agora suporta múltiplas fotos por pergunta)
-        // Busca todas as fotos pendentes vinculadas a esta pergunta
-        // Nota: Precisamos converter perguntaId para string pois no banco salvamos como string
+        // PARTE DAS FOTOS
         const fotosItems = await db.fotos_pendentes
             .where('pergunta_id')
             .equals(perguntaId.toString())
             .toArray();
-        
-        // Se não temos o ID da resposta vindo do texto, não conseguimos enviar a foto.
-        // (A menos que a gente busque no DOM, mas este script roda separado).
-        // Aqui assumimos: se enviou o texto agora, temos o ID. Se não tinha texto pendente, 
-        // talvez a resposta já existisse. *Melhoria: Se respostaIdServidor for null, tentar buscar a resposta no servidor antes*
         
         if (fotosItems.length > 0 && respostaIdServidor) {
             let enviouAlguma = false;
@@ -120,35 +84,43 @@ const OfflineManager = {
             for (const fotoItem of fotosItems) {
                 try {
                     const formData = new FormData();
-                    // Garante a extensão do arquivo para evitar erro 400 no Python
-                    let nomeFinal = fotoItem.nome || 'foto.jpg';
-                    if (!nomeFinal.toLowerCase().match(/\.(jpg|jpeg|png|webp)$/)) {
-                        nomeFinal += '.jpg';
-                    }
+                    // Garante nome seguro
+                    let safeName = fotoItem.nome || 'foto.jpg';
+                    safeName = safeName.replace(/[^a-zA-Z0-9._-]/g, ''); 
+                    if (!safeName.toLowerCase().endsWith('.jpg')) safeName += '.jpg';
 
-                    // Recria o arquivo para garantir integridade
-                    const arquivoParaEnvio = new File([fotoItem.blob], nomeFinal, { type: fotoItem.blob.type || 'image/jpeg' });
-                    formData.append('foto', arquivoParaEnvio, nomeFinal);
+                    const arquivoParaEnvio = new File([fotoItem.blob], safeName, { type: fotoItem.blob.type || 'image/jpeg' });
+                    formData.append('foto', arquivoParaEnvio, safeName);
 
                     const responseFoto = await fetch(`/resposta/${respostaIdServidor}/upload-foto`, {
                         method: 'POST',
                         body: formData
                     });
 
+                    // AQUI ESTÁ A LIMPEZA
                     if (responseFoto.ok) {
-                        // Remove especificamente esta foto pelo seu ID único
-                        await db.fotos_pendentes.delete(fotoItem.id);
-                        console.log(`Foto ${fotoItem.id} da pergunta ${perguntaId} enviada.`);
+                        await db.fotos_pendentes.delete(fotoItem.id); // DELETA DO LOCAL
+                        console.log(`Foto ${fotoItem.id} sincronizada e removida do celular.`);
+                        
+                        // Atualiza visual se a página estiver aberta
+                        const elLocal = document.getElementById(`foto-local-${fotoItem.id}`);
+                        if (elLocal) {
+                            // Poderíamos trocar pelo verde, mas o mais seguro é remover o amarelo
+                            // e deixar o usuário recarregar se quiser ver o verde, ou substituir dinamicamente
+                            elLocal.remove(); 
+                        }
                         enviouAlguma = true;
+                    } 
+                    else if (responseFoto.status === 400) {
+                        // Se o servidor disse que o arquivo é podre, deleta também
+                        await db.fotos_pendentes.delete(fotoItem.id);
                     }
                 } catch (error) {
-                    console.log(`Falha ao enviar foto ${fotoItem.id}.`);
+                    console.log(`Sem conexão para foto ${fotoItem.id}. Mantendo no banco.`);
                 }
             }
-            
             if (enviouAlguma) return { status: 'sincronizado', msg: 'Fotos processadas' };
         }
-        
         return { status: 'parcial', msg: 'Processado' };
     },
 

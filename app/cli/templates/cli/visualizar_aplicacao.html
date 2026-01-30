@@ -18,7 +18,7 @@
     
     /* === RESPOSTAS (ESTILO TEXTO) === */
     .resposta-row {
-        padding: 12px 0;
+        padding: 16px 0;
         border-bottom: 1px solid #f0f0f0;
     }
     .resposta-row:last-child { border-bottom: none; }
@@ -27,6 +27,16 @@
     .resp-sim { color: #198754; } 
     .resp-nao { color: #dc3545; } 
     .resp-neutro { color: #6c757d; }
+
+    /* === PLANO DE AÇÃO (BOX NOVO) === */
+    .plano-acao-box {
+        background-color: #fff8e1; /* Amarelo bem claro */
+        border-left: 4px solid #ffc107;
+        padding: 10px 15px;
+        margin-top: 10px;
+        border-radius: 4px;
+        font-size: 0.9rem;
+    }
 
     /* === NOTA GRANDE === */
     .nota-display {
@@ -89,8 +99,11 @@
                 <i class="fas fa-play me-1"></i> Continuar
             </a>
         {% else %}
+            <a href="{{ url_for('cli.gerenciar_nao_conformidades', id=aplicacao.id) }}" class="btn btn-warning btn-sm shadow-sm px-3 fw-bold text-dark">
+                <i class="fas fa-exclamation-triangle"></i> Planos
+            </a>
             <a href="{{ url_for('cli.gerar_relatorio_aplicacao', id=aplicacao.id) }}" class="btn btn-dark btn-sm shadow-sm px-3">
-                <i class="fas fa-file-pdf me-1"></i> PDF
+                <i class="fas fa-file-pdf"></i>
             </a>
         {% endif %}
 
@@ -111,13 +124,13 @@
                         <i class="fas fa-share-alt me-2 text-info"></i> Compartilhar Link
                     </button>
                 </li>
-                <li>
-                    <a class="dropdown-item" href="{{ url_for('cli.listar_aplicacoes') }}">
-                        <i class="fas fa-home me-2 text-secondary"></i> Voltar ao Início
-                    </a>
-                </li>
-
+                
                 {% if aplicacao.status.name == 'FINALIZADA' or aplicacao.status.value == 'finalizada' %}
+                    <li>
+                        <a class="dropdown-item" href="{{ url_for('cli.gerenciar_nao_conformidades', id=aplicacao.id) }}">
+                            <i class="fas fa-clipboard-check me-2 text-warning"></i> Gerenciar Planos
+                        </a>
+                    </li>
                     <li><hr class="dropdown-divider"></li>
                     <li>
                         <button class="dropdown-item text-warning" onclick="reabrirAplicacao()">
@@ -130,6 +143,13 @@
                         </button>
                     </li>
                 {% endif %}
+                
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                    <a class="dropdown-item" href="{{ url_for('cli.listar_aplicacoes') }}">
+                        <i class="fas fa-home me-2 text-secondary"></i> Voltar ao Início
+                    </a>
+                </li>
             </ul>
         </div>
     </div>
@@ -153,11 +173,6 @@
                 <i class="fas fa-arrow-left me-1"></i> Voltar
             </a>
         </div>
-        <div class="d-lg-none">
-            <a href="{{ url_for('cli.listar_aplicacoes') }}" class="btn btn-light btn-sm text-muted border">
-                <i class="fas fa-chevron-left"></i>
-            </a>
-        </div>
     </div>
 
     <div class="row g-4">
@@ -166,12 +181,27 @@
             
             <div class="card-clean p-4">
                 <div class="row g-3">
-                    <div class="col-md-4 border-end-md">
+                    <div class="col-md-3 border-end-md">
                         <label class="small text-muted text-uppercase fw-bold">Avaliado</label>
-                        <div class="fw-bold text-dark">{{ aplicacao.avaliado.nome }}</div>
-                        <small class="text-muted">{{ aplicacao.avaliado.endereco }}</small>
+                        <div class="fw-bold text-dark text-truncate" title="{{ aplicacao.avaliado.nome }}">
+                            {{ aplicacao.avaliado.nome }}
+                        </div>
+                        <small class="text-muted d-block text-truncate">{{ aplicacao.avaliado.endereco }}</small>
                     </div>
-                    <div class="col-md-4 border-end-md">
+                    
+                    <div class="col-md-3 border-end-md">
+                        <label class="small text-muted text-uppercase fw-bold">Auditor(a)</label>
+                        <div class="text-dark">
+                            {% if aplicacao.aplicador %}
+                                {{ aplicacao.aplicador.nome }}
+                            {% else %}
+                                <span class="text-muted fst-italic">Não identificado</span>
+                            {% endif %}
+                        </div>
+                        <small class="text-muted">Consultora</small>
+                    </div>
+
+                    <div class="col-md-3 border-end-md">
                         <label class="small text-muted text-uppercase fw-bold">Período</label>
                         <div class="text-dark">{{ aplicacao.data_inicio.strftime('%d/%m/%Y') }}</div>
                         <small class="text-muted">
@@ -179,7 +209,7 @@
                             {% if aplicacao.data_fim %} - {{ aplicacao.data_fim.strftime('%H:%M') }}{% endif %}
                         </small>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label class="small text-muted text-uppercase fw-bold">Status</label>
                         <div>
                             {% if aplicacao.status.name == 'FINALIZADA' or aplicacao.status.value == 'finalizada' %}
@@ -194,6 +224,72 @@
                 </div>
             </div>
 
+            <div class="card mb-4 shadow-sm border-0">
+                <div class="card-header bg-white py-3">
+                    <h6 class="mb-0 text-primary fw-bold">
+                        <i class="fas fa-project-diagram me-2"></i>Fluxograma do Processo
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        
+                        <div class="col-md-7 mb-3 mb-md-0">
+                            {% if aplicacao.fluxograma_arquivo %}
+                                <div class="alert alert-success d-flex flex-column flex-md-row align-items-center justify-content-between p-3 border-success border-opacity-25 bg-success bg-opacity-10">
+                                    <div class="d-flex align-items-center mb-3 mb-md-0">
+                                        <i class="fas fa-check-circle text-success fa-2x me-3"></i>
+                                        <div>
+                                            <strong class="text-success">Arquivo Anexado!</strong><br>
+                                            <small class="text-muted text-break">{{ aplicacao.fluxograma_arquivo }}</small>
+                                        </div>
+                                    </div>
+                                    <div class="ms-auto">
+                                        <a href="{{ url_for('static', filename='img/' + aplicacao.fluxograma_arquivo) }}" 
+                                           target="_blank" 
+                                           class="btn btn-success shadow-sm fw-bold px-4 py-2 mt-2 mt-md-0 w-100 w-md-auto">
+                                            <i class="fas fa-eye me-2"></i> Visualizar
+                                        </a>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="alert alert-secondary py-4 text-center border-dashed">
+                                    <i class="fas fa-file-invoice text-muted fa-2x mb-2"></i><br>
+                                    <span class="text-muted fw-bold">Nenhum fluxograma anexado.</span>
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        {% if aplicacao.status.name != 'CANCELADA' and aplicacao.status.value != 'cancelada' %}
+                        <div class="col-md-5 border-start-md ps-md-4">
+                            <form action="{{ url_for('cli.upload_fluxograma', id=aplicacao.id) }}" 
+                                  method="POST" 
+                                  enctype="multipart/form-data"
+                                  class="p-3 bg-light rounded border">
+                                
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+                                <label class="form-label fw-bold text-dark mb-2">
+                                    <i class="fas fa-cloud-upload-alt me-1"></i> 
+                                    {% if aplicacao.fluxograma_arquivo %}Substituir Arquivo{% else %}Anexar Novo Arquivo{% endif %}
+                                </label>
+                                
+                                <div class="mb-3">
+                                    <input type="file" class="form-control form-control-lg" name="fluxograma" required accept=".pdf, .jpg, .jpeg, .png" style="min-height: 50px;">
+                                </div>
+
+                                <button class="btn btn-primary btn-lg w-100 fw-bold shadow-sm py-2" type="submit">
+                                    <i class="fas fa-upload me-2"></i> Enviar Fluxograma
+                                </button>
+                                
+                                <small class="text-muted d-block text-center mt-2" style="font-size: 0.75rem;">
+                                    Formatos aceitos: PDF, JPG, PNG
+                                </small>
+                            </form>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
             <div class="card-clean p-4">
                 <h5 class="mb-4 fw-bold border-bottom pb-2">Detalhamento</h5>
                 
@@ -219,7 +315,26 @@
                                         
                                         {% if resposta.observacao %}
                                             <div class="mt-1 text-muted fst-italic small ms-3 border-start ps-2">
-                                                {{ resposta.observacao }}
+                                                <i class="fas fa-comment-dots me-1"></i> {{ resposta.observacao }}
+                                            </div>
+                                        {% endif %}
+
+                                        {% if resposta.plano_acao %}
+                                            <div class="plano-acao-box ms-3 mt-2">
+                                                <div class="fw-bold text-warning-dark mb-1">
+                                                    <i class="fas fa-clipboard-list me-1"></i> Plano de Ação Definido
+                                                </div>
+                                                <div class="mb-1">
+                                                    <strong>Ação:</strong> {{ resposta.plano_acao }}
+                                                </div>
+                                                <div class="d-flex gap-3 text-muted small mt-1">
+                                                    {% if resposta.responsavel_plano_acao %}
+                                                        <span><i class="fas fa-user me-1"></i> Resp: {{ resposta.responsavel_plano_acao }}</span>
+                                                    {% endif %}
+                                                    {% if resposta.prazo_plano_acao %}
+                                                        <span><i class="fas fa-calendar me-1"></i> Prazo: {{ resposta.prazo_plano_acao.strftime('%d/%m/%Y') }}</span>
+                                                    {% endif %}
+                                                </div>
                                             </div>
                                         {% endif %}
                                     </div>
@@ -247,7 +362,7 @@
 
                                             {% if (resposta.fotos|length > 0) or (resposta.caminho_foto) %}
                                                 <div class="mt-1">
-                                                    <i class="fas fa-camera text-secondary small" title="Possui evidência"></i>
+                                                    <i class="fas fa-camera text-secondary small" title="Possui evidência fotográfica"></i>
                                                 </div>
                                             {% endif %}
                                         {% else %}
@@ -256,9 +371,12 @@
                                     </div>
                                 </div>
                             </div>
-                        {% endfor %} {% endfor %} {% else %}
+                        {% endfor %} 
+                    {% endfor %} 
+                {% else %}
                     <p class="text-muted text-center py-3">Nenhum dado disponível.</p>
-                {% endif %} </div>
+                {% endif %} 
+            </div>
         </div>
 
         <div class="col-lg-3 d-none d-lg-block">
@@ -295,14 +413,20 @@
 
                         {% if aplicacao.status.name == 'FINALIZADA' or aplicacao.status.value == 'finalizada' %}
                         <hr class="my-2">
-                        <button onclick="reabrirAplicacao()" class="btn btn-light text-warning border-warning btn-sm">
+                        
+                        <a href="{{ url_for('cli.gerenciar_nao_conformidades', id=aplicacao.id) }}" class="btn btn-warning text-dark fw-bold">
+                            <i class="fas fa-clipboard-check me-2"></i> Planos de Ação
+                        </a>
+
+                        <button onclick="reabrirAplicacao()" class="btn btn-light text-warning border-warning btn-sm mt-2">
                             <i class="fas fa-lock-open me-2"></i> Reabrir Edição
                         </button>
-                        {% endif %}
                         
                         <button onclick="excluirAplicacao()" class="btn btn-light text-danger border-danger btn-sm mt-1">
                             <i class="fas fa-trash-alt me-2"></i> Excluir
                         </button>
+                        {% endif %}
+                        
                     </div>
                 </div>
 

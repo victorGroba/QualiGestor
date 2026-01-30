@@ -606,105 +606,155 @@
     // =========================================================
     // 5. UPLOAD DE FOTOS (ATUALIZADO COM COMPRESSÃO)
     // =========================================================
-    async function handleFotoUpload(input) {
-        const fileOriginal = input.files[0]; 
-        if (!fileOriginal) return;
-        
-        // Limpa o input para permitir selecionar a mesma foto novamente se errar
-        input.value = ''; 
+    // ARQUIVO: app/cli/templates/cli/responder_aplicacao.html
 
-        const pid = input.dataset.perguntaId;
-        
-        // FEEDBACK VISUAL: Muda o ícone do botão "+" para uma engrenagem girando
-        // Isso avisa ao usuário que o celular está processando a foto
-        const labelBtn = document.querySelector(`label[for="input-foto-${pid}"]`);
-        let htmlOriginal = '';
-        if (labelBtn) {
-            htmlOriginal = labelBtn.innerHTML;
-            labelBtn.innerHTML = '<i class="fas fa-cog fa-spin"></i>'; 
-            labelBtn.classList.add('disabled');
+async function handleFotoUpload(input) {
+    if (!input.files || input.files.length === 0) return;
+    
+    const fileOriginal = input.files[0];
+    const pid = input.dataset.perguntaId;
+    let rid = input.dataset.respostaId;
+
+    // 1. TRAVA VISUAL (Evita clique duplo)
+    const labelBtn = document.querySelector(`label[for="input-foto-${pid}"]`);
+    const iconeOriginal = labelBtn ? labelBtn.innerHTML : '';
+    if (labelBtn) {
+        labelBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; 
+        labelBtn.classList.add('disabled', 'btn-warning'); 
+        input.disabled = true;
+    }
+
+    try {
+        // 2. COMPRESSÃO LEVE (Essencial para não travar a RAM)
+        // (Certifique-se de estar usando a versão com createObjectURL que passei antes)
+        const file = await comprimirImagem(fileOriginal, 1024, 0.6);
+        input.value = ''; // Limpa input
+
+        // Se não tiver ID de resposta (RID), cria o texto primeiro
+        if (!rid) {
+            await salvarResposta(document.querySelector(`[name="resposta-${pid}"]`));
+            const el = document.querySelector(`[data-pergunta-id="${pid}"]`);
+            rid = el ? el.dataset.respostaId : null;
         }
 
-        try {
-            // --- PASSO CRUCIAL: COMPRESSÃO ---
-            // Reduzimos para no máximo 1280px de largura e qualidade 0.7
-            // Uma foto de 8MB vira ~150KB. Isso resolve o problema de cota do iOS.
-            console.log(`[Foto] Tamanho Original: ${(fileOriginal.size/1024/1024).toFixed(2)}MB`);
-            const file = await comprimirImagem(fileOriginal, 1280, 0.7);
-            console.log(`[Foto] Tamanho Comprimido: ${(file.size/1024/1024).toFixed(2)}MB`);
+        // =================================================================
+        // O PULO DO GATO: DECISÃO DE ENVIO
+        // =================================================================
+        
+        if (navigator.onLine && rid) {
+            // --- CENÁRIO A: TEM INTERNET (ENVIO DIRETO) ---
+            console.log("Online: Tentando envio direto...");
+            await enviarDiretoParaServidor(file, pid, rid);
+        } else {
+            // --- CENÁRIO B: OFFLINE OU SEM RID (SALVA LOCAL) ---
+            console.log("Offline: Salvando no dispositivo...");
+            await salvarLocalmente(file, pid, rid);
+        }
 
-            const tid = Date.now(); 
-            const rid = input.dataset.respostaId; 
-
-            // Preview Local Otimizado
-            const g = document.getElementById(`galeria-fotos-${pid}`);
-            const d = document.createElement('div');
-            d.id = `foto-local-${tid}`;
-            d.className = 'position-relative d-inline-block flex-shrink-0 me-2';
-            d.style.width = '70px'; d.style.height = '70px';
-            
-            // Usamos createObjectURL que é muito mais leve que Base64 para exibir na tela
-            const imgUrl = URL.createObjectURL(file);
-            
-            d.innerHTML = `
-                <img src="${imgUrl}" class="rounded w-100 h-100 border border-warning" 
-                     style="object-fit:cover;" 
-                     onload="URL.revokeObjectURL(this.src)"> <div class="position-absolute top-50 start-50 translate-middle status-icon"><i class="fas fa-clock text-warning"></i></div>
-                <button type="button" class="btn btn-danger btn-sm p-0 position-absolute top-0 end-0 translate-middle rounded-circle shadow-sm" 
-                        style="width:20px;height:20px;font-size:10px;z-index:10;" onclick="deletarFotoLocal(${tid})">
-                    <i class="fas fa-times"></i>
-                </button>
-            `;
-            g.appendChild(d);
-
-            // Salva no Banco Local (Agora salvamos o arquivo 'file' pequeno, não o original gigante)
-            try {
-                await dbLocal.fotos_pendentes.add({
-                    id: tid,
-                    aplicacao_id: APLICACAO_ID,
-                    pergunta_id: pid,
-                    resposta_id: rid || null,
-                    blob: file, // Aqui está o segredo: salvamos a versão leve
-                    nome: file.name, 
-                    timestamp: Date.now()
-                });
-                atualizarContadorPendencias();
-            } catch (e) {
-                console.error(e);
-                d.remove();
-                if (e.name === 'QuotaExceededError') {
-                    alert("Seu dispositivo está sem espaço! Tente limpar o cache do navegador.");
-                } else {
-                    alert("Erro ao salvar foto no dispositivo.");
-                }
-                return;
-            }
-
-            // Tenta enviar se online
-            if (navigator.onLine) {
-                if (!rid) {
-                    // Se a pergunta ainda não tem ID de resposta, salva o texto primeiro
-                    await salvarResposta(document.querySelector(`[name="resposta-${pid}"]`)); 
-                    setTimeout(() => {
-                        const elAtualizado = document.querySelector(`[data-pergunta-id="${pid}"]`);
-                        const newRid = elAtualizado ? elAtualizado.dataset.respostaId : null;
-                        if (newRid) enviarFoto(file, file.name, pid, tid, newRid, d);
-                    }, 800);
-                } else {
-                    enviarFoto(file, file.name, pid, tid, rid, d);
-                }
-            }
-        } catch (erroGeral) {
-            console.error("Erro no processamento da foto:", erroGeral);
-            alert("Não foi possível processar esta foto. Tente tirar a foto novamente.");
-        } finally {
-            // Restaura o botão original (tira a engrenagem)
-            if (labelBtn) {
-                labelBtn.innerHTML = htmlOriginal;
-                labelBtn.classList.remove('disabled');
-            }
+    } catch (erroGeral) {
+        console.error("Erro no processo:", erroGeral);
+        alert("Erro ao processar a foto. Tente novamente.");
+    } finally {
+        // Destrava a interface
+        if (labelBtn) {
+            labelBtn.innerHTML = iconeOriginal;
+            labelBtn.classList.remove('disabled', 'btn-warning');
+            input.disabled = false;
         }
     }
+}
+
+// --- FUNÇÃO AUXILIAR 1: ENVIO DIRETO (Sem passar pelo banco local) ---
+async function enviarDiretoParaServidor(file, pid, rid) {
+    // Cria um preview temporário de "Carregando..."
+    const g = document.getElementById(`galeria-fotos-${pid}`);
+    const tempId = 'temp-' + Date.now();
+    const d = document.createElement('div');
+    d.id = tempId;
+    d.className = 'position-relative d-inline-block flex-shrink-0 me-2';
+    d.style.width = '70px'; d.style.height = '70px';
+    d.innerHTML = `<div class="d-flex align-items-center justify-content-center w-100 h-100 bg-light border rounded"><i class="fas fa-circle-notch fa-spin text-primary"></i></div>`;
+    g.appendChild(d);
+
+    try {
+        const fd = new FormData();
+        // Garante nome seguro
+        let safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '');
+        if (!safeName.toLowerCase().endsWith('.jpg')) safeName += '.jpg';
+        
+        fd.append('foto', file, safeName);
+
+        const r = await fetch(`/cli/resposta/${rid}/upload-foto`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': CSRF_TOKEN },
+            body: fd
+        });
+
+        if (r.ok) {
+            const data = await r.json();
+            // SUCESSO! Substitui o loading pela foto oficial do servidor (Borda Verde)
+            d.outerHTML = `
+                <div class="position-relative d-inline-block flex-shrink-0 me-2" id="foto-server-${data.foto_id}" style="width: 70px; height: 70px;">
+                    <img src="${URL.createObjectURL(file)}" class="rounded w-100 h-100 border border-success" style="object-fit: cover; cursor: pointer;" onclick="window.open(this.src)">
+                    <button type="button" class="btn btn-danger btn-sm p-0 position-absolute top-0 end-0 translate-middle rounded-circle shadow-sm" style="width: 20px; height: 20px; font-size: 10px; z-index: 10;" onclick="deletarFotoServidor(${data.foto_id})">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>`;
+        } else {
+            throw new Error("Servidor rejeitou");
+        }
+    } catch (e) {
+        console.warn("Falha no envio direto. Caindo para o modo offline...", e);
+        d.remove(); // Remove o loading
+        await salvarLocalmente(file, pid, rid); // FALLBACK: Tenta salvar local
+    }
+}
+
+// --- FUNÇÃO AUXILIAR 2: SALVAR LOCAL (Só usada se estiver offline ou falhar envio) ---
+async function salvarLocalmente(file, pid, rid) {
+    const tid = Date.now();
+    
+    try {
+        await dbLocal.fotos_pendentes.add({
+            id: tid,
+            aplicacao_id: APLICACAO_ID,
+            pergunta_id: pid,
+            resposta_id: rid || null,
+            blob: file, 
+            nome: file.name, 
+            timestamp: Date.now()
+        });
+        atualizarContadorPendencias();
+
+        // Cria Preview Amarelo (Pendente)
+        const g = document.getElementById(`galeria-fotos-${pid}`);
+        const d = document.createElement('div');
+        d.id = `foto-local-${tid}`;
+        d.className = 'position-relative d-inline-block flex-shrink-0 me-2';
+        d.style.width = '70px'; d.style.height = '70px';
+        const imgUrl = URL.createObjectURL(file);
+        
+        d.innerHTML = `
+            <img src="${imgUrl}" class="rounded w-100 h-100 border border-warning" 
+                 style="object-fit:cover;" onload="URL.revokeObjectURL(this.src)"> 
+            <div class="position-absolute top-50 start-50 translate-middle status-icon">
+                <i class="fas fa-clock text-warning"></i>
+            </div>
+            <button type="button" class="btn btn-danger btn-sm p-0 position-absolute top-0 end-0 translate-middle rounded-circle shadow-sm" 
+                    style="width:20px;height:20px;font-size:10px;z-index:10;" onclick="deletarFotoLocal(${tid})">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+        g.appendChild(d);
+
+    } catch (e) {
+        if (e.name === 'QuotaExceededError') {
+            alert("Memória do celular cheia! Conecte na internet para liberar espaço.");
+        } else {
+            alert("Erro ao salvar foto offline.");
+        }
+    }
+}
 
    // --- FUNÇÃO CORRIGIDA E BLINDADA ---
     async function enviarFoto(blobOuFile, nomeArquivo, pid, tid, rid, div) {
