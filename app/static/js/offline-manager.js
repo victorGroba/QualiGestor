@@ -69,10 +69,11 @@ const OfflineManager = {
     // --- FUNÇÃO 3: SINCRONIZAR UMA PERGUNTA (Inteligente: Texto depois Fotos) ---
     // ARQUIVO: app/static/js/offline-manager.js
 
-    async sincronizarUma(perguntaId) {
-        // ... (parte do texto mantém igual) ...
+    // ARQUIVO: app/static/js/offline-manager.js
 
-        // PARTE DAS FOTOS
+    async sincronizarUma(perguntaId) {
+        // ... (código de texto mantém igual) ...
+
         const fotosItems = await db.fotos_pendentes
             .where('pergunta_id')
             .equals(perguntaId.toString())
@@ -84,12 +85,25 @@ const OfflineManager = {
             for (const fotoItem of fotosItems) {
                 try {
                     const formData = new FormData();
-                    // Garante nome seguro
+                    
+                    // Nome seguro
                     let safeName = fotoItem.nome || 'foto.jpg';
-                    safeName = safeName.replace(/[^a-zA-Z0-9._-]/g, ''); 
+                    safeName = safeName.replace(/[^a-zA-Z0-9._-]/g, '');
                     if (!safeName.toLowerCase().endsWith('.jpg')) safeName += '.jpg';
 
-                    const arquivoParaEnvio = new File([fotoItem.blob], safeName, { type: fotoItem.blob.type || 'image/jpeg' });
+                    // --- TRATAMENTO INTELIGENTE (TEXTO ou ARQUIVO) ---
+                    let arquivoParaEnvio;
+
+                    if (fotoItem.tipo === 'base64' || (typeof fotoItem.blob === 'string' && fotoItem.blob.startsWith('data:'))) {
+                        // Se salvou como texto, converte de volta para arquivo
+                        const res = await fetch(fotoItem.blob);
+                        const blobRecuperado = await res.blob();
+                        arquivoParaEnvio = new File([blobRecuperado], safeName, { type: 'image/jpeg' });
+                    } else {
+                        // Se salvou normal
+                        arquivoParaEnvio = new File([fotoItem.blob], safeName, { type: fotoItem.blob.type || 'image/jpeg' });
+                    }
+
                     formData.append('foto', arquivoParaEnvio, safeName);
 
                     const responseFoto = await fetch(`/resposta/${respostaIdServidor}/upload-foto`, {
@@ -97,26 +111,21 @@ const OfflineManager = {
                         body: formData
                     });
 
-                    // AQUI ESTÁ A LIMPEZA
                     if (responseFoto.ok) {
-                        await db.fotos_pendentes.delete(fotoItem.id); // DELETA DO LOCAL
-                        console.log(`Foto ${fotoItem.id} sincronizada e removida do celular.`);
+                        await db.fotos_pendentes.delete(fotoItem.id);
                         
-                        // Atualiza visual se a página estiver aberta
+                        // Remove visualmente se a tela estiver aberta
                         const elLocal = document.getElementById(`foto-local-${fotoItem.id}`);
-                        if (elLocal) {
-                            // Poderíamos trocar pelo verde, mas o mais seguro é remover o amarelo
-                            // e deixar o usuário recarregar se quiser ver o verde, ou substituir dinamicamente
-                            elLocal.remove(); 
-                        }
+                        if (elLocal) elLocal.remove();
+                        
                         enviouAlguma = true;
                     } 
                     else if (responseFoto.status === 400) {
-                        // Se o servidor disse que o arquivo é podre, deleta também
+                        // Se o servidor rejeitou, deleta também
                         await db.fotos_pendentes.delete(fotoItem.id);
                     }
                 } catch (error) {
-                    console.log(`Sem conexão para foto ${fotoItem.id}. Mantendo no banco.`);
+                    console.log(`Erro offline foto ${fotoItem.id}:`, error);
                 }
             }
             if (enviouAlguma) return { status: 'sincronizado', msg: 'Fotos processadas' };

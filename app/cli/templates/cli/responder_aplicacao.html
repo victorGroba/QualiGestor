@@ -608,6 +608,8 @@
     // =========================================================
     // ARQUIVO: app/cli/templates/cli/responder_aplicacao.html
 
+// ARQUIVO: app/cli/templates/cli/responder_aplicacao.html
+
 async function handleFotoUpload(input) {
     if (!input.files || input.files.length === 0) return;
     
@@ -615,7 +617,7 @@ async function handleFotoUpload(input) {
     const pid = input.dataset.perguntaId;
     let rid = input.dataset.respostaId;
 
-    // 1. TRAVA VISUAL (Evita clique duplo)
+    // 1. TRAVA VISUAL
     const labelBtn = document.querySelector(`label[for="input-foto-${pid}"]`);
     const iconeOriginal = labelBtn ? labelBtn.innerHTML : '';
     if (labelBtn) {
@@ -625,43 +627,123 @@ async function handleFotoUpload(input) {
     }
 
     try {
-        // 2. COMPRESSÃO LEVE (Essencial para não travar a RAM)
-        // (Certifique-se de estar usando a versão com createObjectURL que passei antes)
+        // 2. COMPRESSÃO (Mantendo a que funciona)
         const file = await comprimirImagem(fileOriginal, 1024, 0.6);
-        input.value = ''; // Limpa input
+        input.value = ''; 
 
-        // Se não tiver ID de resposta (RID), cria o texto primeiro
+        // Garante RID
         if (!rid) {
             await salvarResposta(document.querySelector(`[name="resposta-${pid}"]`));
             const el = document.querySelector(`[data-pergunta-id="${pid}"]`);
             rid = el ? el.dataset.respostaId : null;
         }
 
-        // =================================================================
-        // O PULO DO GATO: DECISÃO DE ENVIO
-        // =================================================================
-        
+        // 3. DECISÃO DE SALVAMENTO
         if (navigator.onLine && rid) {
-            // --- CENÁRIO A: TEM INTERNET (ENVIO DIRETO) ---
+            // ONLINE: Tenta envio direto (Bypass do banco)
             console.log("Online: Tentando envio direto...");
             await enviarDiretoParaServidor(file, pid, rid);
         } else {
-            // --- CENÁRIO B: OFFLINE OU SEM RID (SALVA LOCAL) ---
+            // OFFLINE: Salva no dispositivo
             console.log("Offline: Salvando no dispositivo...");
-            await salvarLocalmente(file, pid, rid);
+            const tid = Date.now();
+            
+            try {
+                // Tenta salvar como ARQUIVO (Blob)
+                await dbLocal.fotos_pendentes.add({
+                    id: tid,
+                    aplicacao_id: APLICACAO_ID,
+                    pergunta_id: pid,
+                    resposta_id: rid || null,
+                    blob: file, 
+                    tipo: 'blob', // Marcador
+                    nome: file.name, 
+                    timestamp: Date.now()
+                });
+                // CORREÇÃO DO ERRO URL AQUI NA CHAMADA:
+                criarPreviewLocal(pid, tid, file); 
+
+            } catch (erroBlob) {
+                // SE DER "FEATURE IS DISABLED", ENTRA AQUI (PLANO B)
+                console.warn("Blob bloqueado pelo navegador. Convertendo para Texto...", erroBlob);
+                
+                try {
+                    const base64 = await blobParaBase64(file);
+                    await dbLocal.fotos_pendentes.add({
+                        id: tid,
+                        aplicacao_id: APLICACAO_ID,
+                        pergunta_id: pid,
+                        resposta_id: rid || null,
+                        blob: base64, // Salva o texto gigante
+                        tipo: 'base64', // Marcador importante
+                        nome: file.name, 
+                        timestamp: Date.now()
+                    });
+                    criarPreviewLocal(pid, tid, file);
+                    console.log("Salvo com sucesso em modo Texto (Base64).");
+                } catch (erroFatal) {
+                    alert("Erro: Seu dispositivo está impedindo salvar fotos offline.");
+                    console.error(erroFatal);
+                }
+            }
         }
 
     } catch (erroGeral) {
-        console.error("Erro no processo:", erroGeral);
-        alert("Erro ao processar a foto. Tente novamente.");
+        console.error("Erro processo:", erroGeral);
+        alert("Falha ao processar foto.");
     } finally {
-        // Destrava a interface
         if (labelBtn) {
             labelBtn.innerHTML = iconeOriginal;
             labelBtn.classList.remove('disabled', 'btn-warning');
             input.disabled = false;
         }
     }
+}
+
+// --- FUNÇÃO DE PREVIEW CORRIGIDA (WINDOW.URL) ---
+function criarPreviewLocal(pid, tid, file) {
+    const g = document.getElementById(`galeria-fotos-${pid}`);
+    const d = document.createElement('div');
+    d.id = `foto-local-${tid}`;
+    d.className = 'position-relative d-inline-block flex-shrink-0 me-2';
+    d.style.width = '70px'; d.style.height = '70px';
+    
+    // CORREÇÃO CRÍTICA 1: Usar window.URL explicitamente
+    const imgUrl = window.URL.createObjectURL(file);
+    
+    // CORREÇÃO CRÍTICA 2: Usar window.URL.revokeObjectURL dentro do HTML string
+    d.innerHTML = `
+        <img src="${imgUrl}" class="rounded w-100 h-100 border border-warning" 
+             style="object-fit:cover;" onload="window.URL.revokeObjectURL(this.src)"> 
+        <div class="position-absolute top-50 start-50 translate-middle status-icon">
+            <i class="fas fa-clock text-warning"></i>
+        </div>
+        <button type="button" class="btn btn-danger btn-sm p-0 position-absolute top-0 end-0 translate-middle rounded-circle shadow-sm" 
+                style="width:20px;height:20px;font-size:10px;z-index:10;" onclick="deletarFotoLocal(${tid})">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    g.appendChild(d);
+}
+
+// Helper para converter Blob em Texto (Base64)
+function blobParaBase64(blob) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+}
+
+// Helper para converter Blob em Texto (Base64)
+function blobParaBase64(blob) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
 }
 
 // --- FUNÇÃO AUXILIAR 1: ENVIO DIRETO (Sem passar pelo banco local) ---
