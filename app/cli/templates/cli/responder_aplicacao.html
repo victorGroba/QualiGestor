@@ -1218,4 +1218,61 @@ async function salvarLocalmente(file, pid, rid) {
     }
     window.forcarSincronizacaoManual = sincronizarTudo;
 </script>
+<div style="position: fixed; bottom: 10px; left: 10px; z-index: 9999; display: flex; flex-direction: column; gap: 5px;">
+    
+    <button onclick="debugVerificarBanco()" class="btn btn-dark btn-sm shadow-lg border-white" style="border: 1px solid white;">
+        🕵️ <span id="debug-contador">Ver Banco</span>
+    </button>
+    
+    <button onclick="debugLimparBanco()" class="btn btn-danger btn-sm shadow-lg border-white" style="border: 1px solid white; font-size: 10px;">
+        🗑️ Limpar Forçado
+    </button>
+
+</div>
+
+<script>
+    // 1. Função para contar quantos itens estão "presos" no celular
+    async function debugVerificarBanco() {
+        const btn = document.getElementById('debug-contador');
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Lendo...';
+        
+        try {
+            // Verifica se o Dexie existe
+            if (!window.dbLocal || !window.dbLocal.fotos_pendentes) {
+                alert("Erro: Banco de dados não iniciado.");
+                btn.innerHTML = 'Erro DB';
+                return;
+            }
+
+            const count = await window.dbLocal.fotos_pendentes.count();
+            
+            // Atualiza o texto do botão
+            btn.innerText = `Itens: ${count}`;
+            
+            // Dá um feedback visual mais detalhado
+            if (count === 0) {
+                alert("✅ BANCO LIMPO!\n\nO celular não tem nenhuma foto pendente. Tudo foi enviado ou o bypass funcionou.");
+            } else {
+                alert(`⚠️ ATENÇÃO: ${count} FOTOS NO CELULAR.\n\nElas estão salvas offline. Se você tem internet, elas deveriam ter subido.`);
+            }
+
+        } catch (e) {
+            alert("Erro ao ler banco: " + e.message);
+            btn.innerText = 'Erro';
+        }
+    }
+
+    // 2. Função de Emergência para limpar na marra
+    async function debugLimparBanco() {
+        if(!confirm("Tem certeza? Isso vai apagar as fotos que ainda não subiram! Use só se travou tudo.")) return;
+        
+        try {
+            await window.dbLocal.fotos_pendentes.clear();
+            alert("🗑️ Banco esvaziado na força bruta.");
+            debugVerificarBanco(); // Atualiza contador
+        } catch (e) {
+            alert("Erro ao limpar: " + e.message);
+        }
+    }
+</script>
 {% endblock %}
