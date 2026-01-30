@@ -558,8 +558,7 @@
   </script>
 
   <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
-
-  {% block extra_js %}{% endblock %}
+  
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
@@ -569,10 +568,10 @@
       });
     }
   </script>
-  <script src="https://unpkg.com/dexie@latest/dist/dexie.js"></script>
 
   <script src="https://unpkg.com/dexie@latest/dist/dexie.js"></script>
-<script>
+
+  <script>
     // 1. Encontra todos os links de "Sair" na página (Sidebar, Menu Superior, etc)
     document.addEventListener("DOMContentLoaded", () => {
         // Procura links que contenham 'logout' ou 'sair'
@@ -641,7 +640,4 @@
 
 {% block extra_js %}{% endblock %}
 </body>
-</html>
-</body>
-
 </html>
