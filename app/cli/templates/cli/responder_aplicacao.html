@@ -1212,6 +1212,7 @@ async function baixarParaOffline() {
         // Isso garante que ela consiga sair da auditoria e voltar para o menu
         // mesmo sem internet.
         const urlsEssenciais = [
+            '/',
             window.location.href,          // O Checklist atual (A página que ela está)
             '/cli/dashboard',              // A Home
             '/cli/minhas-aplicacoes',      // A Lista de agendamentos (Confira se a rota é essa mesma)
