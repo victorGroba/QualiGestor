@@ -1233,32 +1233,56 @@ async function salvarLocalmente(file, pid, rid) {
 
 <script>
     // 1. Função para contar quantos itens estão "presos" no celular
+    // VERSÃO "FORENSE" - MOSTRA O TIPO DE DADO SALVO
     async function debugVerificarBanco() {
         const btn = document.getElementById('debug-contador');
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Lendo...';
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analisando...';
         
         try {
-            // Verifica se o Dexie existe
             if (!window.dbLocal || !window.dbLocal.fotos_pendentes) {
-                alert("Erro: Banco de dados não iniciado.");
-                btn.innerHTML = 'Erro DB';
+                alert("Erro: Banco não encontrado (window.dbLocal null).");
                 return;
             }
 
-            const count = await window.dbLocal.fotos_pendentes.count();
+            // Pega todos os itens para analisar
+            const itens = await window.dbLocal.fotos_pendentes.toArray();
+            const qtd = itens.length;
             
-            // Atualiza o texto do botão
-            btn.innerText = `Itens: ${count}`;
-            
-            // Dá um feedback visual mais detalhado
-            if (count === 0) {
-                alert("✅ BANCO LIMPO!\n\nO celular não tem nenhuma foto pendente. Tudo foi enviado ou o bypass funcionou.");
+            btn.innerText = `Itens: ${qtd}`;
+
+            if (qtd === 0) {
+                alert("✅ BANCO VAZIO\nO iPhone enviou tudo direto (Bypass ativo) ou já sincronizou.");
             } else {
-                alert(`⚠️ ATENÇÃO: ${count} FOTOS NO CELULAR.\n\nElas estão salvas offline. Se você tem internet, elas deveriam ter subido.`);
+                // ANALISA O PRIMEIRO ITEM PARA VER COMO FOI SALVO
+                const item = itens[0];
+                let relatorio = `⚠️ EXISTEM ${qtd} FOTOS OFFLINE:\n\n`;
+                
+                relatorio += `📸 FOTO ID: ${item.id}\n`;
+                
+                // VERIFICAÇÃO DO TIPO
+                if (item.blob instanceof Blob) {
+                    // Cenario Ideal
+                    const tamanhoMB = (item.blob.size / 1024 / 1024).toFixed(2);
+                    relatorio += `💾 TIPO: BLOB (Arquivo Puro) ✅\n`;
+                    relatorio += `📦 TAMANHO: ${tamanhoMB} MB\n`;
+                    relatorio += `ℹ️ O iPhone ACEITOU salvar arquivos. Memória RAM está salva!`;
+                } 
+                else if (typeof item.blob === 'string') {
+                    // Cenario de Emergência (Base64)
+                    const tamanhoMB = (item.blob.length / 1024 / 1024).toFixed(2); // Aproximado
+                    relatorio += `📝 TIPO: BASE64 (Texto) 🛡️\n`;
+                    relatorio += `📦 TAMANHO: ~${tamanhoMB} MB\n`;
+                    relatorio += `ℹ️ O iPhone BLOQUEOU arquivos, mas o Plano B salvou como texto!`;
+                } 
+                else {
+                    relatorio += `❓ TIPO: DESCONHECIDO (${typeof item.blob})`;
+                }
+
+                alert(relatorio);
             }
 
         } catch (e) {
-            alert("Erro ao ler banco: " + e.message);
+            alert("Erro na análise: " + e.message);
             btn.innerText = 'Erro';
         }
     }
