@@ -479,49 +479,82 @@
     }
 
     async function sincronizarTudo() {
-        if (!navigator.onLine) return;
+    if (!navigator.onLine) return;
 
-        const toastEl = document.getElementById('liveToast');
-        const toast = new bootstrap.Toast(toastEl);
+    const toastEl = document.getElementById('liveToast');
+    const toast = new bootstrap.Toast(toastEl);
+    let mostrouToast = false;
 
-        // 1. Textos
-        const pendentes = await dbLocal.respostas_pendentes.where('aplicacao_id').equals(APLICACAO_ID).toArray();
-        if (pendentes.length > 0) {
-            toast.show();
-            for (const item of pendentes) {
-                await sincronizarUmaResposta(item.pergunta_id);
-            }
+    // =================================================================
+    // 1. TEXTOS (RESPOSAS) - ESSENCIAL RODAR PRIMEIRO
+    // =================================================================
+    // Isso garante que a resposta exista no servidor para vincularmos a foto depois
+    const pendentesTexto = await dbLocal.respostas_pendentes.where('aplicacao_id').equals(APLICACAO_ID).toArray();
+    
+    if (pendentesTexto.length > 0) {
+        if(!mostrouToast) { toast.show(); mostrouToast = true; }
+        
+        for (const item of pendentesTexto) {
+            await sincronizarUmaResposta(item.pergunta_id);
         }
-
-        // 2. Fotos
-        const fotos = await dbLocal.fotos_pendentes.where('aplicacao_id').equals(APLICACAO_ID).toArray();
-        for (const f of fotos) {
-            let rid = f.resposta_id;
-            if (!rid) {
-                const inp = document.querySelector(`[data-pergunta-id="${f.pergunta_id}"]`);
-                if (inp && inp.dataset.respostaId) rid = inp.dataset.respostaId;
-            }
-
-            if (rid) {
-                const div = document.getElementById(`foto-local-${f.id}`);
-                // Se o elemento visual existe ou não, mandamos a foto
-                const elVisual = div || document.createElement('div');
-                await enviarFoto(f.blob, f.nome, f.pergunta_id, f.id, rid, elVisual);
-            }
-        }
-
-        // 3. Deleções
-        const deletes = await dbLocal.fila_deletar.toArray();
-        for (const del of deletes) {
-            if (del.tipo === 'foto') {
-                try {
-                    await fetch(`/cli/foto/${del.id_item}/deletar`, { method: 'DELETE', headers: { 'X-CSRFToken': CSRF_TOKEN } });
-                    await dbLocal.fila_deletar.where('id_item').equals(del.id_item).delete();
-                } catch (e) {}
-            }
-        }
-        atualizarContadorPendencias();
     }
+
+    // =================================================================
+    // 2. FOTOS (Lógica Blindada para iOS)
+    // =================================================================
+    const countFotos = await dbLocal.fotos_pendentes.where('aplicacao_id').equals(APLICACAO_ID).count();
+
+    if (countFotos > 0) {
+        if(!mostrouToast) { toast.show(); mostrouToast = true; }
+
+        // Pega apenas os IDs (super leve) para não estourar a memória
+        const idsFotos = await dbLocal.fotos_pendentes.where('aplicacao_id').equals(APLICACAO_ID).primaryKeys();
+
+        for (const idFoto of idsFotos) {
+            // Carrega UMA foto por vez para a memória RAM
+            const f = await dbLocal.fotos_pendentes.get(idFoto);
+
+            if (f) {
+                let rid = f.resposta_id;
+
+                // Tenta achar o ID da resposta se não tiver (Fallback visual)
+                if (!rid) {
+                    const inp = document.querySelector(`[data-pergunta-id="${f.pergunta_id}"]`);
+                    if (inp && inp.dataset.respostaId) rid = inp.dataset.respostaId;
+                }
+
+                if (rid) {
+                    const div = document.getElementById(`foto-local-${f.id}`);
+                    const elVisual = div || document.createElement('div'); 
+
+                    // Envia e ESPERA terminar antes de pegar a próxima (await)
+                    await enviarFoto(f.blob, f.nome, f.pergunta_id, f.id, rid, elVisual);
+                }
+            }
+            // O Garbage Collector limpa a foto anterior da memória aqui
+        }
+    }
+
+    // =================================================================
+    // 3. DELEÇÕES (Limpeza do que foi apagado offline)
+    // =================================================================
+    const deletes = await dbLocal.fila_deletar.toArray();
+    for (const del of deletes) {
+        if (del.tipo === 'foto') {
+            try {
+                await fetch(`/cli/foto/${del.id_item}/deletar`, { 
+                    method: 'DELETE', 
+                    headers: { 'X-CSRFToken': CSRF_TOKEN } 
+                });
+                await dbLocal.fila_deletar.where('id_item').equals(del.id_item).delete();
+            } catch (e) {
+                console.log("Erro ao sincronizar deleção:", e);
+            }
+        }
+    }
+
+    atualizarContadorPendencias();
+}
 
     async function verificarFotosPendentes(pid, rid) {
         const fotos = await dbLocal.fotos_pendentes.where('pergunta_id').equals(String(pid)).toArray();
@@ -559,50 +592,56 @@
     // Reduz drasticamente o tamanho do arquivo antes de salvar
     // =========================================================
     function comprimirImagem(file, maxWidth = 1280, quality = 0.7) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = event => {
-                const img = new Image();
-                img.src = event.target.result;
-                img.onload = () => {
-                    // 1. Cálculo de proporção para redimensionar sem distorcer
-                    let width = img.width;
-                    let height = img.height;
+    return new Promise((resolve, reject) => {
+        // MUDANÇA CRÍTICA: Usamos createObjectURL em vez de FileReader
+        // Isso evita carregar a imagem inteira como texto na RAM (Base64)
+        const imgUrl = URL.createObjectURL(file);
+        const img = new Image();
+        
+        img.src = imgUrl; 
+        
+        img.onload = () => {
+            // Libera a memória do "link" imediatamente
+            URL.revokeObjectURL(imgUrl); 
 
-                    if (width > maxWidth) {
-                        height = Math.round(height * maxWidth / width);
-                        width = maxWidth;
-                    }
+            let width = img.width;
+            let height = img.height;
 
-                    // 2. Cria um canvas (tela de pintura) na memória
-                    const canvas = document.createElement('canvas');
-                    canvas.width = width;
-                    canvas.height = height;
-                    const ctx = canvas.getContext('2d');
-                    
-                    // Desenha a imagem no tamanho reduzido
-                    ctx.drawImage(img, 0, 0, width, height);
+            // Mantém a proporção
+            if (width > maxWidth) {
+                height = Math.round(height * maxWidth / width);
+                width = maxWidth;
+            }
 
-                    // 3. Converte para JPEG com qualidade 70% (remove metadados pesados)
-                    canvas.toBlob((blob) => {
-                        if (!blob) {
-                            reject(new Error('Erro na compressão da imagem.'));
-                            return;
-                        }
-                        // Recria um objeto File leve com o mesmo nome
-                        const compressedFile = new File([blob], file.name, {
-                            type: 'image/jpeg',
-                            lastModified: Date.now()
-                        });
-                        resolve(compressedFile);
-                    }, 'image/jpeg', quality);
-                };
-                img.onerror = error => reject(error);
-            };
-            reader.onerror = error => reject(error);
-        });
-    }
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            
+            // Desenha redimensionado
+            ctx.drawImage(img, 0, 0, width, height);
+
+            // Converte para Blob (Arquivo leve)
+            canvas.toBlob((blob) => {
+                if (!blob) {
+                    reject(new Error('Erro na compressão.'));
+                    return;
+                }
+                // Recria o arquivo com o nome original
+                const compressedFile = new File([blob], file.name, {
+                    type: 'image/jpeg',
+                    lastModified: Date.now()
+                });
+                resolve(compressedFile);
+            }, 'image/jpeg', quality);
+        };
+        
+        img.onerror = (e) => {
+            URL.revokeObjectURL(imgUrl);
+            reject(e);
+        };
+    });
+}
 
     // =========================================================
     // 5. UPLOAD DE FOTOS (ATUALIZADO COM COMPRESSÃO)

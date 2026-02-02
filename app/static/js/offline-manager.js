@@ -1,9 +1,8 @@
 // =========================================================
 // ARQUIVO: app/static/js/offline-manager.js
-// VERSÃO: 3.1 (Atualizada com fix para iOS e Blobs)
+// VERSÃO: 3.2 (BLINDADO CONTRA CRASH IOS + DETECÇÃO DE CONFLITO)
 // =========================================================
 
-// 1. Configuração do Banco de Dados Local (IndexedDB)
 const db = new Dexie('QualiGestorDB');
 
 db.version(3).stores({
@@ -14,7 +13,7 @@ db.version(3).stores({
 
 const OfflineManager = {
     
-    // --- 1. SALVAR TEXTO (A Resposta da Pergunta) ---
+    // --- 1. SALVAR TEXTO ---
     async salvarResposta(aplicacaoId, dados) {
         try {
             await db.respostas_pendentes.put({
@@ -24,217 +23,171 @@ const OfflineManager = {
                 timestamp: Date.now()
             });
 
-            // Tenta enviar imediatamente se tiver internet
             if (navigator.onLine) {
                 return await this.sincronizarUma(dados.pergunta_id);
             } else {
-                return { status: 'pendente', msg: 'Salvo no dispositivo (Sem internet)' };
+                return { status: 'pendente', msg: 'Salvo localmente' };
             }
         } catch (e) {
-            console.error("Erro ao salvar resposta local:", e);
+            console.error("Erro Dexie:", e);
             throw e;
         }
     },
 
-    // --- 2. SINCRONIZAR UMA PERGUNTA (Lógica Sequencial Blindada) ---
+    // --- 2. SINCRONIZAR UMA PERGUNTA (Unitário) ---
     async sincronizarUma(perguntaId) {
         let respostaIdServidor = null;
         let aplicacaoId = null;
 
-        // A) TENTA SINCRONIZAR O TEXTO PRIMEIRO
+        // A) TEXTO
         const textoItem = await db.respostas_pendentes.get(perguntaId);
-        
         if (textoItem) {
             aplicacaoId = textoItem.aplicacao_id;
             try {
-                // Recupera CSRF Global ou tenta buscar do DOM
                 const csrf = (typeof CSRF_TOKEN !== 'undefined') ? CSRF_TOKEN : 
                              (document.querySelector('input[name="csrf_token"]')?.value || '');
 
                 const response = await fetch(`/cli/aplicacao/${aplicacaoId}/salvar-resposta`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrf
-                    },
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
                     body: JSON.stringify(textoItem.dados_completos)
                 });
 
                 if (response.ok) {
                     const data = await response.json();
-                    respostaIdServidor = data.resposta_id; // GUARDAMOS O ID GERADO
-                    
-                    // Remove o texto da fila de pendentes
+                    respostaIdServidor = data.resposta_id;
                     await db.respostas_pendentes.delete(perguntaId);
-                    
-                    // Feedback visual se estiver na tela
-                    const icon = document.getElementById(`status-icon-${perguntaId}`);
-                    if (icon) {
-                        icon.innerHTML = '<i class="fas fa-check text-success"></i>';
-                        setTimeout(() => icon.innerHTML = '', 2000);
-                    }
-                } else {
-                    console.warn(`Erro servidor texto (${perguntaId}):`, response.status);
-                    return { status: 'erro', msg: 'Servidor rejeitou texto' };
                 }
             } catch (e) {
-                console.error(`Erro rede texto (${perguntaId}):`, e);
                 return { status: 'erro', msg: 'Sem conexão' };
             }
         }
 
-        // B) TENTA SINCRONIZAR AS FOTOS (Usando o ID do passo anterior ou o que já estiver salvo)
-        const fotosItems = await db.fotos_pendentes
-            .where('pergunta_id')
-            .equals(perguntaId.toString())
-            .toArray();
+        // B) FOTOS (Unitário e Seguro)
+        // Aqui usamos primaryKeys para não carregar blobs pesados se houver muitas fotos
+        const chavesFotos = await db.fotos_pendentes
+            .where('pergunta_id').equals(perguntaId.toString())
+            .primaryKeys();
         
-        if (fotosItems.length > 0) {
-            let enviouAlguma = false;
+        if (chavesFotos.length > 0) {
+            for (const chave of chavesFotos) {
+                const fotoItem = await db.fotos_pendentes.get(chave);
+                if (!fotoItem) continue;
 
-            for (const fotoItem of fotosItems) {
-                // Se não temos ID do servidor (nem do passo anterior, nem salvo no item), pulamos
-                // (Isso evita tentar enviar foto "orfã")
                 let rid = respostaIdServidor || fotoItem.resposta_id;
                 
-                // Tenta buscar ID do DOM se estivermos na página (Fallback)
+                // Fallback: Tenta achar ID no DOM se estivermos na página
                 if (!rid && typeof document !== 'undefined') {
-                    const inputDom = document.querySelector(`[data-pergunta-id="${perguntaId}"]`);
-                    if (inputDom && inputDom.dataset.respostaId) rid = inputDom.dataset.respostaId;
+                    const el = document.querySelector(`[data-pergunta-id="${perguntaId}"]`);
+                    if (el && el.dataset.respostaId) rid = el.dataset.respostaId;
                 }
 
-                if (!rid) {
-                    console.log(`Foto ${fotoItem.id} aguardando sincronização do texto para obter ID.`);
-                    continue; 
-                }
+                if (!rid) continue; // Sem ID, não dá pra enviar
 
                 try {
-                    const formData = new FormData();
-                    
-                    // 1. Tratamento do Nome (Segurança)
-                    let safeName = fotoItem.nome || `foto_${Date.now()}.jpg`;
-                    safeName = safeName.replace(/[^a-zA-Z0-9._-]/g, ''); // Remove caracteres especiais
-                    if (!safeName.match(/\.(jpg|jpeg|png|webp)$/i)) safeName += '.jpg'; // Garante extensão
+                    const fd = new FormData();
+                    let safeName = (fotoItem.nome || `foto_${Date.now()}.jpg`).replace(/[^a-zA-Z0-9._-]/g, '');
+                    if (!safeName.match(/\.(jpg|jpeg|png|webp)$/i)) safeName += '.jpg';
 
-                    // 2. Tratamento do Arquivo (Blob ou Base64)
-                    let arquivoParaEnvio;
-
-                    if (fotoItem.tipo === 'base64' || (typeof fotoItem.blob === 'string' && fotoItem.blob.startsWith('data:'))) {
-                        // Converte Base64 de volta para Blob
-                        const res = await fetch(fotoItem.blob);
-                        const blobRecuperado = await res.blob();
-                        arquivoParaEnvio = new File([blobRecuperado], safeName, { type: 'image/jpeg' });
+                    // Recupera Blob
+                    let arquivo;
+                    if (fotoItem.tipo === 'base64' || (typeof fotoItem.blob === 'string')) {
+                        const r = await fetch(fotoItem.blob);
+                        const b = await r.blob();
+                        arquivo = new File([b], safeName, { type: 'image/jpeg' });
                     } else {
-                        // Já é um Blob/File
-                        arquivoParaEnvio = new File([fotoItem.blob], safeName, { type: fotoItem.blob.type || 'image/jpeg' });
+                        arquivo = new File([fotoItem.blob], safeName, { type: fotoItem.blob.type || 'image/jpeg' });
                     }
 
-                    formData.append('foto', arquivoParaEnvio, safeName);
-
-                    // Pega o CSRF novamente para garantir
+                    fd.append('foto', arquivo, safeName);
+                    
                     const csrf = (typeof CSRF_TOKEN !== 'undefined') ? CSRF_TOKEN : 
                                  (document.querySelector('input[name="csrf_token"]')?.value || '');
 
-                    const responseFoto = await fetch(`/cli/resposta/${rid}/upload-foto`, {
+                    const resFoto = await fetch(`/cli/resposta/${rid}/upload-foto`, {
                         method: 'POST',
                         headers: { 'X-CSRFToken': csrf },
-                        body: formData
+                        body: fd
                     });
 
-                    if (responseFoto.ok) {
-                        // SUCESSO: Remove do banco local
+                    if (resFoto.ok || resFoto.status === 400) {
                         await db.fotos_pendentes.delete(fotoItem.id);
-                        
-                        // Atualiza visualmente se possível
+                        // Atualiza UI se existir
                         if (typeof document !== 'undefined') {
-                            const elLocal = document.getElementById(`foto-local-${fotoItem.id}`);
-                            if (elLocal) elLocal.remove();
-                            // Se existir função de criar elemento server, pode chamar aqui (opcional)
-                        }
-                        enviouAlguma = true;
-                    } 
-                    else if (responseFoto.status === 400) {
-                        // ERRO 400 (Arquivo Inválido): Deleta para não travar a fila
-                        console.error("Servidor rejeitou arquivo (400). Removendo da fila.");
-                        await db.fotos_pendentes.delete(fotoItem.id);
-                        if (typeof document !== 'undefined') {
-                            const elLocal = document.getElementById(`foto-local-${fotoItem.id}`);
-                            if (elLocal) elLocal.remove();
+                            const localEl = document.getElementById(`foto-local-${fotoItem.id}`);
+                            if (localEl) localEl.remove();
                         }
                     }
-                } catch (error) {
-                    console.log(`Erro upload foto ${fotoItem.id}:`, error);
+                } catch (err) {
+                    console.log(`Erro foto ${fotoItem.id}:`, err);
                 }
             }
-            if (enviouAlguma) return { status: 'sincronizado', msg: 'Fotos enviadas' };
         }
-
-        return { status: 'ok', msg: 'Processo finalizado' };
+        return { status: 'ok' };
     },
 
-    // --- 3. SINCRONIZAR TUDO (Batch) ---
+    // --- 3. SINCRONIZAR TUDO (Modo Seguro v2) ---
     async sincronizarTudo() {
-        if (!navigator.onLine) {
-            console.log("[OfflineManager] Sem internet. Sincronização cancelada.");
-            return;
-        }
+        if (!navigator.onLine) return;
         
-        console.log("[OfflineManager] Iniciando sincronização completa...");
+        // [TRAVA DE SEGURANÇA]
+        // Se estivermos na página de responder, deixamos o script da página lidar com isso
+        // para evitar conflito de dois scripts enviando a mesma foto e travando o celular.
+        if (document.getElementById('form-finalizar') || document.querySelector('.question-card')) {
+            console.log("[OfflineManager] Página de resposta detectada. Passando a bola para o script local.");
+            return; 
+        }
 
-        // Pega todos os IDs únicos que têm pendências (texto ou foto)
+        console.log("[OfflineManager] Iniciando Sync Global...");
+
+        // 1. Textos
         const textos = await db.respostas_pendentes.toArray();
-        const fotos = await db.fotos_pendentes.toArray();
+        const idsUnicos = new Set(textos.map(t => t.pergunta_id));
         
-        const idsParaSincronizar = new Set();
-        textos.forEach(t => idsParaSincronizar.add(t.pergunta_id));
-        fotos.forEach(f => idsParaSincronizar.add(f.pergunta_id));
-
-        if (idsParaSincronizar.size === 0) {
-            console.log("[OfflineManager] Nada pendente.");
-            return;
+        for (const pid of idsUnicos) {
+            await this.sincronizarUma(pid);
         }
 
-        // Atualiza contador visual se a função existir na página
-        if (typeof atualizarContadorPendencias === 'function') atualizarContadorPendencias();
-
-        // Itera e sincroniza um por um
-        for (const pId of idsParaSincronizar) {
-            await this.sincronizarUma(pId);
+        // 2. Fotos (Correção Crítica para iOS)
+        // NUNCA usar .toArray() em fotos_pendentes globalmente
+        const totalFotos = await db.fotos_pendentes.count();
+        
+        if (totalFotos > 0) {
+            // Pegamos apenas IDs para iterar um a um
+            const chaves = await db.fotos_pendentes.primaryKeys();
+            for (const chave of chaves) {
+                const foto = await db.fotos_pendentes.get(chave);
+                if (foto) {
+                    // Reutiliza a lógica unitária segura
+                    await this.sincronizarUma(foto.pergunta_id);
+                }
+                // Memória limpa a cada iteração
+            }
         }
         
-        // Atualiza contador final
-        if (typeof atualizarContadorPendencias === 'function') atualizarContadorPendencias();
-        console.log("[OfflineManager] Sincronização em lote concluída.");
-    },
-    
-    // Funções auxiliares
-    async temPendente(perguntaId) {
-        const t = await db.respostas_pendentes.get(perguntaId);
-        const fCount = await db.fotos_pendentes.where('pergunta_id').equals(perguntaId.toString()).count();
-        return (t || fCount > 0);
+        console.log("[OfflineManager] Sync Global Finalizado.");
     }
 };
 
 // =========================================================
-// 4. LISTENERS AUTOMÁTICOS (A "Mágica" do Background)
+// 4. LISTENERS (Só ativa se NÃO estiver na página de responder)
 // =========================================================
 
-// Gatilho 1: Quando a internet cai e volta
-window.addEventListener('online', () => {
-    console.log("[Auto-Sync] Internet detectada (Evento Online)");
-    OfflineManager.sincronizarTudo();
-});
+function triggerSync() {
+    // Verificação dupla de segurança
+    if (!document.getElementById('form-finalizar')) {
+        OfflineManager.sincronizarTudo();
+    }
+}
 
-// Gatilho 2: Quando o app "acorda" ou volta para a tela (ESSENCIAL PARA IPHONE/IOS)
-// Isso resolve o problema de andar com o celular no bolso e ele não sincronizar sozinho
+window.addEventListener('online', triggerSync);
+
 document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible" && navigator.onLine) {
-        console.log("[Auto-Sync] App voltou para a tela (Wake Up)");
-        OfflineManager.sincronizarTudo();
+        triggerSync();
     }
 });
 
-// Gatilho 3: Quando abre o app (Delay para não travar o carregamento inicial)
 document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => OfflineManager.sincronizarTudo(), 3000);
+    setTimeout(triggerSync, 5000); // Delay maior para não competir com load inicial
 });
