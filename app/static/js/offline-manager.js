@@ -35,6 +35,7 @@ const OfflineManager = {
     },
 
     // --- 2. SINCRONIZAR UMA PERGUNTA (Unitário) ---
+  // --- 2. SINCRONIZAR UMA PERGUNTA (Unitário - VERSÃO CORRIGIDA SEM FETCH) ---
     async sincronizarUma(perguntaId) {
         let respostaIdServidor = null;
         let aplicacaoId = null;
@@ -63,8 +64,7 @@ const OfflineManager = {
             }
         }
 
-        // B) FOTOS (Unitário e Seguro)
-        // Aqui usamos primaryKeys para não carregar blobs pesados se houver muitas fotos
+        // B) FOTOS
         const chavesFotos = await db.fotos_pendentes
             .where('pergunta_id').equals(perguntaId.toString())
             .primaryKeys();
@@ -82,22 +82,42 @@ const OfflineManager = {
                     if (el && el.dataset.respostaId) rid = el.dataset.respostaId;
                 }
 
-                if (!rid) continue; // Sem ID, não dá pra enviar
+                if (!rid) continue; 
 
                 try {
                     const fd = new FormData();
                     let safeName = (fotoItem.nome || `foto_${Date.now()}.jpg`).replace(/[^a-zA-Z0-9._-]/g, '');
                     if (!safeName.match(/\.(jpg|jpeg|png|webp)$/i)) safeName += '.jpg';
 
-                    // Recupera Blob
+                    // --- AQUI ESTÁ A MUDANÇA CRÍTICA (FIM DAS IMAGENS QUEBRADAS) ---
                     let arquivo;
+                    
+                    // Se for Base64 (Texto), converte bit a bit manualmente
                     if (fotoItem.tipo === 'base64' || (typeof fotoItem.blob === 'string')) {
-                        const r = await fetch(fotoItem.blob);
-                        const b = await r.blob();
-                        arquivo = new File([b], safeName, { type: 'image/jpeg' });
-                    } else {
+                        try {
+                            // Remove o cabeçalho "data:image/jpeg;base64," se tiver
+                            const base64Data = fotoItem.blob.includes(',') ? fotoItem.blob.split(',')[1] : fotoItem.blob;
+                            
+                            // Decodifica a string (Leve para a CPU)
+                            const byteCharacters = atob(base64Data);
+                            const byteNumbers = new Array(byteCharacters.length);
+                            for (let i = 0; i < byteCharacters.length; i++) {
+                                byteNumbers[i] = byteCharacters.charCodeAt(i);
+                            }
+                            const byteArray = new Uint8Array(byteNumbers);
+                            
+                            // Cria o arquivo binário perfeito
+                            arquivo = new File([byteArray], safeName, { type: 'image/jpeg' });
+                        } catch (errConv) {
+                            console.error("Erro fatal convertendo base64:", errConv);
+                            continue; // Pula se estiver estragado
+                        }
+                    } 
+                    // Se já for Blob (Android ou PC), usa direto
+                    else {
                         arquivo = new File([fotoItem.blob], safeName, { type: fotoItem.blob.type || 'image/jpeg' });
                     }
+                    // -------------------------------------------------------------
 
                     fd.append('foto', arquivo, safeName);
                     
@@ -112,7 +132,6 @@ const OfflineManager = {
 
                     if (resFoto.ok || resFoto.status === 400) {
                         await db.fotos_pendentes.delete(fotoItem.id);
-                        // Atualiza UI se existir
                         if (typeof document !== 'undefined') {
                             const localEl = document.getElementById(`foto-local-${fotoItem.id}`);
                             if (localEl) localEl.remove();
