@@ -298,6 +298,17 @@
             <i class="fas fa-id-card me-2 text-primary"></i> Meus Dados / Senha
           </a>
         </li>
+
+        {% if current_user.tipo_id == 1 or current_user.tipo.name == 'SUPER_ADMIN' %}
+        <li>
+          <hr class="dropdown-divider">
+        </li>
+        <li>
+          <a class="dropdown-item py-2 text-dark" href="{{ url_for('admin.auditoria') }}">
+            <i class="fas fa-user-secret me-2"></i> Auditoria do Sistema
+          </a>
+        </li>
+        {% endif %}
         <li>
           <hr class="dropdown-divider">
         </li>
@@ -412,9 +423,8 @@
           </div>
         </div>
       </div>
+      
       {% if current_user.tipo_id == 1 or current_user.tipo.name == 'SUPER_ADMIN' %}
-
-
 
       <li class="nav-item">
         <a class="nav-link" href="{{ url_for('admin.listar_clientes') }}">

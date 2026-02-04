@@ -1,0 +1,66 @@
+{% extends "base_cliq.html" %}
+
+{% block title %}Auditoria do Sistema{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+
+    <h1 class="h3 mb-4 text-gray-800">
+        <i class="fas fa-eye text-warning me-2"></i>Auditoria do Sistema
+    </h1>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Últimas Ações Registradas</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm table-bordered table-hover" width="100%" cellspacing="0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Data/Hora</th>
+                            <th>Usuário</th>
+                            <th>Ação</th>
+                            <th>Tipo Entidade</th>
+                            <th>ID</th>
+                            <th>IP</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                        <tr data-bs-toggle="collapse" data-bs-target="#log-{{ log.id }}" style="cursor: pointer;">
+                            <td style="font-size: 0.9em;">{{ log.data_acao.strftime('%d/%m/%Y %H:%M') }}</td>
+                            <td>
+                                {% if log.usuario_id %}
+                                    Usuário ID: {{ log.usuario_id }}
+                                {% else %}
+                                    Sistema/Anônimo
+                                {% endif %}
+                            </td>
+                            <td class="fw-bold {{ 'text-danger' if 'Excluir' in log.acao else 'text-primary' }}">
+                                {{ log.acao }}
+                            </td>
+                            <td>{{ log.entidade_tipo or '-' }}</td>
+                            <td>{{ log.entidade_id or '-' }}</td>
+                            <td style="font-size: 0.8em;">{{ log.ip }}</td>
+                        </tr>
+                        <tr class="collapse bg-light" id="log-{{ log.id }}">
+                            <td colspan="6" class="p-3">
+                                <strong>Detalhes Completos:</strong><br>
+                                <code class="text-dark">{{ log.detalhes or 'Sem detalhes registrados.' }}</code>
+                                <br><br>
+                                <small class="text-muted">User Agent: {{ log.user_agent }}</small>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted">Nenhum registro de auditoria encontrado.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

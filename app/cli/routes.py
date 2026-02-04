@@ -22,6 +22,7 @@ from flask import request, make_response
 from collections import defaultdict
 
 from .. import csrf
+from ..utils.audit import registrar_log
 
 # ==================== CORREÇÃO 1: IMPORTS ROBUSTOS ====================
 try:
@@ -2593,20 +2594,60 @@ def assinar_finalizar(id):
         flash(f"Erro ao salvar assinatura: {str(e)}", "danger")
         return redirect(url_for('cli.gerenciar_nao_conformidades', id=id))
 
+# No topo do arquivo app/cli/routes.py, adicione os imports:
+from ..utils.audit import registrar_log
+from ..models import StatusAplicacao  # Certifique-se de importar o Enum
+
+# ... (outras rotas) ...
+
 @cli_bp.route('/aplicacao/<int:id>/excluir', methods=['GET', 'POST'])
 @login_required
 def excluir_aplicacao(id):
     """
-    Exclui uma aplicação de questionário e todas as suas respostas.
+    Exclui uma aplicação de questionário e todas as suas respostas,
+    registrando a ação na auditoria para segurança.
     """
     # Busca a aplicação pelo ID
     aplicacao = db.session.get(AplicacaoQuestionario, id)
+    
     if not aplicacao:
         flash('Aplicação não encontrada.', 'danger')
         return redirect(url_for('cli.listar_aplicacoes'))
     
+    # === TRAVA DE SEGURANÇA ===
+    # Impede a exclusão se o status for FINALIZADA.
+    # Isso evita apagar relatórios prontos acidentalmente.
+    if aplicacao.status == StatusAplicacao.FINALIZADA:
+        flash('Ação Bloqueada: Não é permitido excluir uma aplicação já FINALIZADA por segurança.', 'warning')
+        return redirect(url_for('cli.listar_aplicacoes'))
+    # ==========================
+
     try:
-        # Excluir todas as respostas associadas (se não houver cascade configurado no modelo)
+        # === AUDITORIA: GRAVAR ANTES DE APAGAR ===
+        # Aqui recuperamos os dados cruciais para o log, pois o objeto será deletado.
+        nome_quest = aplicacao.questionario.nome if aplicacao.questionario else "Quest. Desconhecido"
+        nome_loja = aplicacao.avaliado.nome if aplicacao.avaliado else "Loja Desconhecida"
+        nome_user = aplicacao.aplicador.nome if aplicacao.aplicador else "Usuário Desconhecido"
+        
+        detalhes_audit = (
+            f"Aplicação ID: {id} | "
+            f"Loja: {nome_loja} | "
+            f"Questionário: {nome_quest} | "
+            f"Avaliador: {nome_user} | "
+            f"Data: {aplicacao.data_inicio} | "
+            f"Nota: {aplicacao.nota_final or 0}"
+        )
+
+        registrar_log(
+            acao="Excluir Aplicação",
+            detalhes=detalhes_audit,
+            entidade_tipo="AplicacaoQuestionario",
+            entidade_id=id
+        )
+        # =========================================
+
+        # Excluir todas as respostas associadas
+        # (Isso limpa os 'filhos' antes de matar o 'pai')
         RespostaPergunta.query.filter_by(aplicacao_id=id).delete()
 
         # Excluir a aplicação
@@ -2617,8 +2658,9 @@ def excluir_aplicacao(id):
 
     except Exception as e:
         db.session.rollback()
+        # Loga o erro técnico no arquivo de logs do servidor
         current_app.logger.error(f"Erro ao excluir aplicação {id}: {e}", exc_info=True)
-        flash('Erro ao excluir aplicação. Verifique os logs para mais detalhes.', 'danger')
+        flash('Erro crítico ao excluir aplicação. Contate o suporte.', 'danger')
 
     return redirect(url_for('cli.listar_aplicacoes'))
 
