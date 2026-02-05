@@ -54,7 +54,7 @@ def create_app():
 
     from .auth.routes import auth_bp
     from .main.routes import main_bp
-    from .cli.routes import cli_bp
+    from .cli.routes_LEGADO import cli_bp
     from .panorama.routes import panorama_bp
     from .admin.routes import admin_bp
 

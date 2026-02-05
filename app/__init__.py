@@ -236,7 +236,7 @@ def create_app() -> Flask:
     # -------------------------------------------------------------------------
     from .auth.routes import auth_bp
     from .main.routes import main_bp
-    from .cli.routes import cli_bp
+    from .cli import cli_bp
     from .panorama.routes import panorama_bp
 
     app.register_blueprint(auth_bp)

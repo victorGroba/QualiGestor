@@ -389,30 +389,7 @@
     {% endif %}
   {% endfor %}
 
-  <div class="no-break" style="margin-top: 50px; padding-top: 20px;">
-    {% if assinatura_uri %}
-        <div style="text-align: center; width: 100%;">
-            <p style="margin-bottom: 5px; font-size: 10pt; color: #7f8c8d; text-transform: uppercase; font-weight: bold;">Responsável pelo Local</p>
-            
-            <img src="{{ assinatura_uri }}" style="max-width: 200px; max-height: 100px; margin-bottom: 5px; mix-blend-mode: multiply;">
-            
-            <div style="border-top: 1px solid #2c3e50; width: 250px; margin: 0 auto;"></div>
-            
-            <p style="margin-top: 5px; font-weight: bold; font-size: 10pt; color: #2c3e50;">
-                {{ assinatura_responsavel or aplicacao.assinatura_responsavel }}
-            </p>
-            <p style="margin-top: 0; font-size: 8pt; color: #7f8c8d;">
-                {{ cargo_responsavel or aplicacao.cargo_responsavel }}
-            </p>
-        </div>
-    {% else %}
-        <div style="text-align: center; width: 100%; margin-top: 60px;">
-             <div style="border-bottom: 1px solid #2c3e50; width: 300px; margin: 0 auto;"></div>
-             <p style="margin-top: 5px; font-weight: bold; font-size: 10pt; color: #2c3e50;">Responsável pelo Local</p>
-             <p style="margin-top: 0; font-size: 8pt; color: #7f8c8d;">Assinatura</p>
-        </div>
-    {% endif %}
-  </div>
+ 
 
   {% if qr_code_url %}
     <div class="validation-block">
