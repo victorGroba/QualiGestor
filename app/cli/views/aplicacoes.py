@@ -493,11 +493,11 @@ def visualizar_aplicacao(id):
 @cli_bp.route('/aplicacao/<int:id>/relatorio')
 @login_required
 def gerar_relatorio_aplicacao(id):
-    """Gera PDF do Relatório."""
+    """Gera PDF do Relatório com suporte a MÚLTIPLAS FOTOS."""
     app = AplicacaoQuestionario.query.get_or_404(id)
     if app.avaliado.cliente_id != current_user.cliente_id: abort(403)
     
-    # Prepara dados (Tópicos, Respostas, Scores)
+    # Prepara dados
     topicos = Topico.query.filter_by(questionario_id=app.questionario_id, ativo=True).order_by(Topico.ordem).all()
     respostas = {r.pergunta_id: r for r in app.respostas}
     
@@ -514,14 +514,35 @@ def gerar_relatorio_aplicacao(id):
             r = respostas.get(p.id)
             if r:
                 respostas_por_topico[t].append(r)
-                # Lógica de imagem (Static vs Uploads)
-                if r.caminho_foto and upload_folder:
-                    uri = None
-                    p1 = Path(upload_folder) / r.caminho_foto
-                    p2 = Path(current_app.static_folder) / 'img' / r.caminho_foto
-                    if p1.exists(): uri = p1.as_uri()
-                    elif p2.exists(): uri = p2.as_uri()
-                    if uri: fotos[t].append({'resposta': r, 'caminho_url': uri})
+                
+                # === CORREÇÃO 1: LÓGICA DE FOTOS MÚLTIPLAS ===
+                caminhos_imagens = []
+                
+                # 1. Foto Legada
+                if r.caminho_foto: 
+                    caminhos_imagens.append(r.caminho_foto)
+                
+                # 2. Fotos Múltiplas (Tabela FotoResposta)
+                if hasattr(r, 'fotos'):
+                    for f in r.fotos:
+                        caminhos_imagens.append(f.caminho)
+                
+                # Processa URLs
+                if caminhos_imagens and upload_folder:
+                    uris_validas = []
+                    for caminho in caminhos_imagens:
+                        uri = None
+                        p1 = Path(upload_folder) / caminho
+                        p2 = Path(current_app.static_folder) / 'img' / caminho
+                        
+                        if p1.exists(): uri = p1.as_uri()
+                        elif p2.exists(): uri = p2.as_uri()
+                        
+                        if uri: uris_validas.append(uri)
+                    
+                    if uris_validas:
+                        # Agora enviamos uma LISTA chamada 'urls' para bater com o HTML
+                        fotos[t].append({'resposta': r, 'urls': uris_validas})
 
                 # Score
                 if str(p.tipo).upper() == 'SIM_NAO_NA' and str(r.resposta).upper() in ['NA', 'N.A.']: continue
@@ -530,7 +551,14 @@ def gerar_relatorio_aplicacao(id):
                     obtido += (r.pontos or 0)
         
         percent = (obtido/maximo*100) if maximo > 0 else 0
-        scores[t.id] = {'obtido': obtido, 'maximo': maximo, 'percent': round(percent, 2)}
+        
+        # === CORREÇÃO 2: NOME DA CHAVE DO SCORE ===
+        # Mudamos de 'percent' para 'score_percent' para bater com o HTML
+        scores[t.id] = {
+            'obtido': obtido, 
+            'maximo': maximo, 
+            'score_percent': round(percent, 2) # <--- AQUI ESTAVA O ERRO DO CRASH
+        }
 
     # Logo
     logo_uri = None
