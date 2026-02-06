@@ -26,7 +26,8 @@ from ..utils import (
 from ...models import (
     db, Usuario, Avaliado, Questionario, Topico, Pergunta, 
     AplicacaoQuestionario, RespostaPergunta, OpcaoPergunta,
-    StatusAplicacao, TipoResposta, FotoResposta, CategoriaIndicador
+    StatusAplicacao, TipoResposta, FotoResposta, CategoriaIndicador,
+    Grupo  # <--- ADICIONADO: Necessário para buscar os GAPs
 )
 
 # ===================== LISTAGEM =====================
@@ -79,10 +80,8 @@ def listar_aplicacoes():
         if questionario_id: 
             query = query.filter(AplicacaoQuestionario.questionario_id == questionario_id)
         
-        # --- CORREÇÃO DO ERRO DE ENUM AQUI ---
         if status: 
             # O PostgreSQL exige Maiúsculo (EM_ANDAMENTO)
-            # O .upper() converte 'em_andamento' para 'EM_ANDAMENTO' antes de consultar o banco
             query = query.filter(AplicacaoQuestionario.status == status.upper())
         
         # Filtros de Data
@@ -142,14 +141,30 @@ def selecionar_rancho_auditoria():
     """Passo 1: Selecionar Rancho (Com verificação Multi-GAP)."""
     if request.method == 'POST':
         rancho_id = request.form.get('avaliado_id')
-        if rancho_id: return redirect(url_for('cli.escolher_questionario', avaliado_id=rancho_id))
-        else: flash("Selecione um local.", "warning")
+        if rancho_id: 
+            return redirect(url_for('cli.escolher_questionario', avaliado_id=rancho_id))
+        else: 
+            flash("Selecione um local.", "warning")
 
     try:
         # Reutiliza lógica de listar avaliados permitidos
         ranchos_disponiveis = get_avaliados_usuario()
-        # Agrupa para exibição (opcional, simplificado aqui para usar a lista direta)
-        return render_template_safe('cli/auditoria_selecao.html', avaliados=ranchos_disponiveis)
+        
+        # --- CORREÇÃO AQUI: BUSCAR OS GRUPOS (GAPs) ---
+        grupos = []
+        if current_user.tipo.name in ['SUPER_ADMIN', 'ADMIN']:
+            # Admin vê todos os grupos do cliente
+            grupos = Grupo.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).all()
+        elif hasattr(current_user, 'grupos_acesso'):
+            # Auditor/Gestor vê apenas os grupos vinculados
+            grupos = [g for g in current_user.grupos_acesso if g.ativo]
+        
+        # Passa 'grupos' para o template preencher o primeiro select
+        return render_template_safe(
+            'cli/auditoria_selecao.html', 
+            avaliados=ranchos_disponiveis,
+            grupos=grupos 
+        )
     except Exception as e:
         flash(f"Erro: {str(e)}", "danger")
         return redirect(url_for('cli.index'))

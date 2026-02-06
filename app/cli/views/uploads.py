@@ -10,183 +10,139 @@ from werkzeug.utils import secure_filename
 from .. import cli_bp, csrf
 
 # Importa Utilitários
-from ..utils import allowed_file, log_acao
+from ..utils import allowed_file
 
 # Importa Modelos
 from ...models import db, RespostaPergunta, FotoResposta, AplicacaoQuestionario
 
-# ===================== UPLOAD DE FOTOS (AJAX) =====================
+# ===================== UPLOAD DE FOTOS (CORRIGIDO) =====================
 
-@cli_bp.route('/upload/foto_resposta', methods=['POST'])
+@cli_bp.route('/resposta/<int:resposta_id>/upload-foto', methods=['POST'])
 @login_required
 @csrf.exempt
-def upload_foto_resposta():
-    """Recebe upload via AJAX (Dropzone ou Input File)."""
+def upload_foto_por_id(resposta_id):
+    """
+    Recebe upload vinculado diretamente ao ID da Resposta.
+    URL usada pelo JS: /cli/resposta/<id>/upload-foto
+    """
     try:
-        # Verifica dados básicos
+        # 1. Busca a Resposta no Banco (Para saber quem é o "pai" da foto)
+        resp = RespostaPergunta.query.get(resposta_id)
+        if not resp:
+            # Se não achou a resposta, retorna erro para o JS tentar de novo
+            return jsonify({'erro': 'Resposta ainda não sincronizada. Tente novamente.'}), 404
+
+        # 2. Segurança: Verifica se a aplicação pertence ao cliente logado
+        app = AplicacaoQuestionario.query.get(resp.aplicacao_id)
+        if not app or app.avaliado.cliente_id != current_user.cliente_id:
+            return jsonify({'erro': 'Acesso negado à aplicação.'}), 403
+
+        # 3. Validação do Arquivo
         if 'foto' not in request.files:
             return jsonify({'erro': 'Nenhum arquivo enviado'}), 400
         
         file = request.files['foto']
-        pergunta_id = request.form.get('pergunta_id')
-        aplicacao_id = request.form.get('aplicacao_id')
-
         if not file or file.filename == '':
             return jsonify({'erro': 'Arquivo vazio'}), 400
         
-        if not allowed_file(file.filename, {'png', 'jpg', 'jpeg', 'gif'}):
-            return jsonify({'erro': 'Formato não permitido (apenas imagens).'}), 400
+        # Aceita jpg, png, jpeg, gif, webp
+        if not allowed_file(file.filename, {'png', 'jpg', 'jpeg', 'gif', 'webp'}):
+            return jsonify({'erro': 'Formato inválido (apenas imagens).'}), 400
 
-        # Verifica permissão na Aplicação
-        app = AplicacaoQuestionario.query.get(aplicacao_id)
-        if not app or app.avaliado.cliente_id != current_user.cliente_id:
-            return jsonify({'erro': 'Acesso negado à aplicação.'}), 403
+        # 4. Preparação para Salvar
+        # Recuperamos IDs do objeto 'resp' para manter o padrão de nomeação
+        ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'jpg'
+        new_filename = f"{resp.aplicacao_id}_{resp.pergunta_id}_{uuid.uuid4().hex[:8]}.{ext}"
 
-        # Gera nome seguro e único
-        filename = secure_filename(file.filename)
-        ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else 'jpg'
-        new_filename = f"{aplicacao_id}_{pergunta_id}_{uuid.uuid4().hex[:8]}.{ext}"
-
-        # Garante diretório
         upload_folder = current_app.config.get('UPLOAD_FOLDER')
         if not os.path.exists(upload_folder):
             os.makedirs(upload_folder)
 
-        # Salva arquivo
-        file.save(os.path.join(upload_folder, new_filename))
+        # 5. Salva no Disco
+        caminho_completo = os.path.join(upload_folder, new_filename)
+        file.save(caminho_completo)
 
-        # Atualiza Banco de Dados
-        # Lógica Híbrida: Suporta tanto campo único (Legado) quanto Multi-fotos
-        resp = RespostaPergunta.query.filter_by(aplicacao_id=aplicacao_id, pergunta_id=pergunta_id).first()
-        
-        if not resp:
-            # Se a resposta ainda não existe, cria (comportamento de upload antes de responder texto)
-            resp = RespostaPergunta(aplicacao_id=aplicacao_id, pergunta_id=pergunta_id)
-            db.session.add(resp)
-            db.session.flush() # Para ter ID
-
-        # 1. Atualiza campo principal (para exibir a 'capa' ou compatibilidade)
+        # 6. Atualiza Banco de Dados
+        # a) Atualiza a "capa" da resposta (para compatibilidade com relatórios antigos)
         resp.caminho_foto = new_filename
         
-        # 2. Adiciona na tabela de múltiplas fotos (se existir no modelo)
-        try:
-            nova_foto = FotoResposta(
-                caminho=new_filename,
-                resposta_id=resp.id,
-                data_upload=db.func.now()
-            )
-            db.session.add(nova_foto)
-        except Exception:
-            # Se a tabela FotoResposta não existir ou der erro, ignoramos (fallback legacy)
-            pass
-
+        # b) Insere na tabela de múltiplas fotos (FotoResposta)
+        nova_foto = FotoResposta(
+            caminho=new_filename,
+            resposta_id=resp.id,
+            data_upload=db.func.now()
+        )
+        db.session.add(nova_foto)
+        
+        # Commit da transação (Aqui que pode dar erro se o banco estiver travado)
         db.session.commit()
 
+        # Retorna SUCESSO com IDs (Essencial para o botão de deletar funcionar no JS)
         return jsonify({
             'sucesso': True, 
             'arquivo': new_filename,
-            'resposta_id': resp.id
+            'resposta_id': resp.id,
+            'foto_id': nova_foto.id 
         })
 
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Erro Upload: {e}")
-        return jsonify({'erro': str(e)}), 500
+        # Log do erro real no terminal
+        current_app.logger.error(f"ERRO FATAL UPLOAD: {str(e)}")
+        # Retorna 500 para o App saber que deve manter a foto na fila
+        return jsonify({'erro': f"Erro no servidor: {str(e)}"}), 500
 
 # ===================== REMOÇÃO DE FOTOS =====================
 
-@cli_bp.route('/deletar/foto_resposta', methods=['POST'])
+@cli_bp.route('/foto/<int:foto_id>/deletar', methods=['DELETE'])
 @login_required
 @csrf.exempt
-def deletar_foto():
-    """Remove foto do banco e (opcionalmente) do disco."""
+def deletar_foto_por_id(foto_id):
+    """Rota de deleção via ID da foto (Segura)."""
     try:
-        data = request.get_json()
-        nome_arquivo = data.get('filename')
-        resposta_id = data.get('resposta_id')
+        foto = FotoResposta.query.get(foto_id)
+        if not foto:
+            return jsonify({'erro': 'Foto não encontrada'}), 404
+        
+        # Validação de Segurança
+        resp = RespostaPergunta.query.get(foto.resposta_id)
+        app = AplicacaoQuestionario.query.get(resp.aplicacao_id)
+        if app.avaliado.cliente_id != current_user.cliente_id:
+            return jsonify({'erro': 'Acesso negado'}), 403
 
-        if not nome_arquivo:
-            return jsonify({'erro': 'Nome do arquivo necessário'}), 400
+        nome_arquivo = foto.caminho
 
-        # Busca a resposta para validar permissão
-        resp = RespostaPergunta.query.get(resposta_id)
-        if resp:
-            app = AplicacaoQuestionario.query.get(resp.aplicacao_id)
-            if app.avaliado.cliente_id != current_user.cliente_id:
-                return jsonify({'erro': 'Acesso negado'}), 403
+        # Remove do Banco
+        db.session.delete(foto)
+        
+        # Se essa era a foto de capa, limpa a referência na resposta
+        if resp.caminho_foto == nome_arquivo:
+            resp.caminho_foto = None
+            
+        db.session.commit()
 
-            # Limpa referência no campo principal
-            if resp.caminho_foto == nome_arquivo:
-                resp.caminho_foto = None
+        # Remove do Disco (Opcional, mas recomendado para limpar espaço)
+        try:
+            path = os.path.join(current_app.config['UPLOAD_FOLDER'], nome_arquivo)
+            if os.path.exists(path):
+                os.remove(path)
+        except Exception as e:
+            print(f"Erro ao deletar arquivo físico: {e}")
 
-            # Remove da tabela FotoResposta
-            FotoResposta.query.filter_by(caminho=nome_arquivo).delete()
-
-            db.session.commit()
-
-            # Remove do disco (Opcional - alguns sistemas preferem soft delete)
-            try:
-                path = os.path.join(current_app.config['UPLOAD_FOLDER'], nome_arquivo)
-                if os.path.exists(path):
-                    os.remove(path)
-            except Exception as e:
-                print(f"Erro ao deletar arquivo físico: {e}")
-
-            return jsonify({'sucesso': True})
-
-        return jsonify({'erro': 'Resposta não encontrada'}), 404
+        return jsonify({'sucesso': True})
 
     except Exception as e:
         db.session.rollback()
         return jsonify({'erro': str(e)}), 500
 
-# ===================== SERVIR ARQUIVOS (SEGURANÇA) =====================
+# ===================== SERVIR ARQUIVOS =====================
 
 @cli_bp.route('/uploads/<path:filename>')
 @login_required
 def get_foto_resposta(filename):
-    """
-    Rota segura para exibir imagens. 
-    Verifica se o usuário tem acesso à aplicação dona da foto.
-    """
+    """Serve a imagem de forma protegida (somente logado)."""
     try:
-        # Tenta descobrir de quem é essa foto através do nome ou busca no banco
-        # Formato esperado do nome: {app_id}_{perg_id}_{hash}.ext
-        
-        parts = filename.split('_')
-        app_id = None
-        
-        if len(parts) >= 3 and parts[0].isdigit():
-            app_id = int(parts[0])
-        else:
-            # Fallback: Tenta achar no banco pelo nome do arquivo
-            foto_db = FotoResposta.query.filter_by(caminho=filename).first()
-            if foto_db:
-                app_id = foto_db.resposta.aplicacao_id
-            else:
-                resp_db = RespostaPergunta.query.filter_by(caminho_foto=filename).first()
-                if resp_db:
-                    app_id = resp_db.aplicacao_id
-
-        # Se identificamos a App, verificamos segurança
-        if app_id:
-            app = AplicacaoQuestionario.query.get(app_id)
-            if app and app.avaliado.cliente_id != current_user.cliente_id:
-                abort(403) # Pertence a outro cliente
-        
-        # Se não achou app_id (arquivo antigo ou nome fora do padrão), 
-        # deixamos passar SE o usuário for logado (risco menor, mas existente)
-        # Idealmente, todo arquivo deveria ter rastreio.
-
         upload_folder = current_app.config.get('UPLOAD_FOLDER')
-        
-        # Tenta servir do Upload Folder
-        try:
-            return send_from_directory(upload_folder, filename)
-        except:
-            # Fallback para Static (caso seja imagem padrão ou antiga)
-            return send_from_directory(os.path.join(current_app.static_folder, 'img'), filename)
-
+        return send_from_directory(upload_folder, filename)
     except Exception as e:
-        current_app.logger.error(f"Erro ao servir imagem: {e}")
         abort(404)

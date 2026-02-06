@@ -89,7 +89,7 @@
                                             class="btn btn-sm btn-danger shadow-sm" 
                                             data-bs-toggle="modal" 
                                             data-bs-target="#modalExcluir"
-                                            data-id="{{ q.id }}"
+                                            data-url="{{ url_for('cli.excluir_questionario', id=q.id) }}"
                                             data-nome="{{ q.nome }}"
                                             title="Excluir/Inativar">
                                         <i class="fas fa-trash-alt"></i>
@@ -165,21 +165,16 @@
             var button = event.relatedTarget;
             
             // 2. Extrair informações dos atributos data-*
-            var id = button.getAttribute('data-id');
             var nome = button.getAttribute('data-nome');
+            var urlExcluir = button.getAttribute('data-url'); // Pega a URL pronta do Python
             
             // 3. Atualizar o texto do modal
             var modalTitle = modalExcluir.querySelector('#nomeQuestionarioModal');
             modalTitle.textContent = nome;
             
-            // 4. Montar a URL correta para o formulário
-            // A rota no Python é: /questionario/<int:id>/excluir
-            // Como estamos no /cli/, precisamos garantir o caminho certo
+            // 4. Atualizar o Action do Form
             var form = modalExcluir.querySelector('#formExcluir');
-            
-            // Usamos uma string base do Flask para garantir que o prefixo '/cli' ou '/app' seja respeitado
-            // Mas aqui vamos montar manualmente baseado na estrutura padrão
-            form.action = "{{ url_for('cli.index') }}questionario/" + id + "/excluir";
+            form.action = urlExcluir; // Usa a URL correta gerada pelo Flask
         });
     });
 </script>
