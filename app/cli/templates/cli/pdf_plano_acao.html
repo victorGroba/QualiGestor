@@ -5,7 +5,7 @@
   <title>Plano de Ação - {{ aplicacao.id }}</title>
   <style>
     /* ==========================================================================
-       1. ESTILOS GERAIS
+       1. ESTILOS GERAIS (MANTIDOS ORIGINAIS)
        ========================================================================== */
     :root {
       --text-dark: #2c3e50;
@@ -19,15 +19,15 @@
     html, body {
       margin: 0; padding: 0;
       font-family: 'Roboto', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-      font-size: 9pt; /* Fonte levemente menor para caber mais dados na horizontal */
+      font-size: 9pt;
       color: #2c3e50; background: #fff; line-height: 1.3;
     }
 
     /* ==========================================================================
-       2. ORIENTAÇÃO PAISAGEM (HORIZONTAL)
+       2. ORIENTAÇÃO PAISAGEM
        ========================================================================== */
     @page {
-      size: A4 landscape; /* MUDANÇA CRUCIAL: Paisagem */
+      size: A4 landscape;
       margin-top: 3.5cm;    
       margin-bottom: 2.0cm; 
       margin-left: 1.0cm;
@@ -35,11 +35,11 @@
     }
 
     /* ==========================================================================
-       3. CABEÇALHO FIXO (LARGURA AJUSTADA PARA 297mm)
+       3. CABEÇALHO FIXO (MANTIDO ORIGINAL)
        ========================================================================== */
     .header-fixed {
       position: fixed; top: -3.5cm; left: -1.0cm; 
-      width: 297mm; /* Largura total do A4 Landscape */
+      width: 297mm;
       height: 3.0cm;
       background: var(--header-bg-gradient);
       color: white;
@@ -49,12 +49,10 @@
 
     .header-left { display: flex; align-items: center; gap: 15px; flex: 1; }
     
-    /* REMOVIDO O BACKGROUND DA LOGO */
     .header-logo { 
         height: 55px; width: auto; max-width: 180px; 
         object-fit: contain; 
         padding: 2px; 
-        /* background removido conforme solicitado */
     }
     
     .header-info h1 { margin: 0; font-size: 16pt; font-weight: 700; color: #fff; text-transform: uppercase; }
@@ -65,11 +63,11 @@
     .header-value { font-size: 10pt; font-weight: 500; }
 
     /* ==========================================================================
-       4. RODAPÉ FIXO (LARGURA AJUSTADA)
+       4. RODAPÉ FIXO (MANTIDO ORIGINAL)
        ========================================================================== */
     .footer-fixed {
       position: fixed; bottom: -2.0cm; left: -1.0cm; 
-      width: 297mm; /* Largura total do A4 Landscape */
+      width: 297mm;
       height: 1.5cm;
       background-color: #f8f9fa; border-top: 1px solid #ecf0f1;
       display: flex; align-items: center; justify-content: space-between;
@@ -88,13 +86,13 @@
     .info-label { display: block; font-size: 7pt; color: #999; text-transform: uppercase; font-weight: 700; }
     .info-value { display: block; font-size: 10pt; font-weight: 500; color: #333; margin-top: 3px; }
 
-    /* Tabela de Planos Atualizada com Mais Colunas */
-    .table-plans { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    /* Tabela */
+    .table-plans { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; }
     .table-plans th {
         background-color: #fdf2e9; color: #d35400;
         border: 1px solid #fadbd8; padding: 6px; font-size: 8pt; text-transform: uppercase; text-align: left;
     }
-    .table-plans td { border: 1px solid #eee; padding: 8px; vertical-align: top; font-size: 8.5pt; }
+    .table-plans td { border: 1px solid #eee; padding: 8px; vertical-align: top; font-size: 8.5pt; word-wrap: break-word; }
     .table-plans tr:nth-child(even) { background-color: #fcfcfc; }
 
     /* Elementos Internos */
@@ -123,13 +121,24 @@
         white-space: nowrap; margin-top: 2px;
     }
 
+    /* === MUDANÇA: CSS para Grid de Fotos === */
+    .photo-grid {
+        display: flex; 
+        flex-wrap: wrap; 
+        gap: 5px; 
+        justify-content: flex-start; /* Alinha à esquerda ou use center */
+        margin-top: 5px;
+    }
+
     .img-evidencia {
-        width: 70px; height: 70px; object-fit: cover; 
-        border: 1px solid #ccc; padding: 2px; background: #fff; margin-top: 5px;
+        /* Aumentado levemente para aproveitar a coluna maior */
+        width: 60px; height: 60px; 
+        object-fit: cover; 
+        border: 1px solid #ccc; padding: 2px; background: #fff;
     }
 
     /* ==========================================================================
-       6. ASSINATURAS
+       6. ASSINATURAS (MANTIDO ORIGINAL)
        ========================================================================== */
     .signatures-block {
         margin-top: 30px; page-break-inside: avoid;
@@ -189,9 +198,11 @@
   <table class="table-plans">
     <thead>
       <tr>
-        <th width="28%">Não Conformidade (Problema)</th>
-        <th width="12%">Setor / Local</th> <th width="20%">Causa / Embasamento</th> <th width="25%">Ação Corretiva</th>
-        <th width="15%" style="text-align: center;">Resp. / Prazo</th>
+        <th width="25%">Não Conformidade (Problema)</th>
+        <th width="10%">Setor</th> 
+        <th width="18%">Causa / Embasamento</th> 
+        <th width="22%">Ação Corretiva</th>
+        <th width="25%" style="text-align: center;">Resp. / Prazo / Fotos</th>
       </tr>
     </thead>
     <tbody>
@@ -239,10 +250,10 @@
                 <div style="font-size: 7pt; color: #999; margin-top: 3px;">Sem Prazo</div>
             {% endif %}
 
-            {% if item.fotos %}
-                <div style="margin-top: 5px;">
+            {% if item.fotos and item.fotos|length > 0 %}
+                <div class="photo-grid">
                     {% for foto_uri in item.fotos %}
-                        <img src="{{ foto_uri }}" class="img-evidencia" style="margin-bottom: 3px;">
+                        <img src="{{ foto_uri }}" class="img-evidencia" onerror="this.style.display='none'">
                     {% endfor %}
                 </div>
             {% endif %}
