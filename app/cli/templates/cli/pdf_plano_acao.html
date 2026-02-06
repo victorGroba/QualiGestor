@@ -239,9 +239,11 @@
                 <div style="font-size: 7pt; color: #999; margin-top: 3px;">Sem Prazo</div>
             {% endif %}
 
-            {% if item.foto_uri %}
-                <div>
-                    <img src="{{ item.foto_uri }}" class="img-evidencia">
+            {% if item.fotos %}
+                <div style="margin-top: 5px;">
+                    {% for foto_uri in item.fotos %}
+                        <img src="{{ foto_uri }}" class="img-evidencia" style="margin-bottom: 3px;">
+                    {% endfor %}
                 </div>
             {% endif %}
         </td>

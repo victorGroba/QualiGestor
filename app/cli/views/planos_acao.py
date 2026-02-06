@@ -214,6 +214,8 @@ def sugerir_plano_acao():
 
 # ===================== PDF DO PLANO DE AÇÃO =====================
 
+# Em app/cli/views/planos_acao.py
+
 @cli_bp.route('/plano-de-acao/<int:aplicacao_id>/pdf')
 @login_required
 def pdf_plano_acao(aplicacao_id):
@@ -224,7 +226,7 @@ def pdf_plano_acao(aplicacao_id):
             flash("Acesso negado.", "danger")
             return redirect(url_for('cli.lista_plano_acao'))
 
-        # Busca apenas respostas que possuem plano de ação definido
+        # Busca respostas com plano de ação
         respostas = RespostaPergunta.query\
             .filter_by(aplicacao_id=app.id)\
             .filter(RespostaPergunta.plano_acao != None)\
@@ -248,46 +250,52 @@ def pdf_plano_acao(aplicacao_id):
                 if p.exists(): assinatura_uri = p.as_uri()
             except: pass
 
-        # Estrutura de dados para o template - CORRIGIDA
+        # Estrutura de dados para o template
         itens = []
         for r in respostas:
             item = {
-                # Dados de identificação para as badges e textos do template
                 'topico_nome': r.pergunta.topico.nome,
-                'topico_ordem': r.pergunta.topico.ordem,  # Necessário para {{ item.topico_ordem }}
+                'topico_ordem': r.pergunta.topico.ordem,
                 'pergunta_texto': r.pergunta.texto,
-                'pergunta_ordem': r.pergunta.ordem,      # Necessário para {{ item.pergunta_ordem }}
-                
-                # Dados preenchidos pela consultoria
+                'pergunta_ordem': r.pergunta.ordem,
                 'observacao': r.observacao,
                 'plano_acao': r.plano_acao,
                 'prazo': r.prazo_plano_acao,
-                
-                # Mapeamento exato dos campos conforme definido no models.py e pdf_plano_acao.html
-                'responsavel_plano_acao': r.responsavel_plano_acao, 
-                'setor_atuacao': r.setor_atuacao, 
+                'responsavel_plano_acao': r.responsavel_plano_acao,
+                'setor_atuacao': r.setor_atuacao,
                 'causa_raiz': r.causa_raiz,
-                
-                'foto_uri': None
+                'fotos': [] # MUDANÇA 1: Lista para receber múltiplas fotos
             }
             
-            # Recuperação da foto da Não Conformidade
+            # A) Adiciona foto "Legada" (campo antigo caminho_foto)
             if r.caminho_foto and upload_folder:
                 try:
                     p1 = Path(upload_folder) / r.caminho_foto
-                    if p1.exists(): 
-                        item['foto_uri'] = p1.as_uri()
+                    p2 = Path(current_app.static_folder) / 'img' / r.caminho_foto
+                    if p1.exists(): item['fotos'].append(p1.as_uri())
+                    elif p2.exists(): item['fotos'].append(p2.as_uri())
                 except: pass
+
+            # B) Adiciona "Novas Fotos" (tabela FotoResposta - relacionamento r.fotos)
+            # Filtramos apenas tipo='evidencia' para mostrar o problema
+            if hasattr(r, 'fotos'):
+                for foto in r.fotos:
+                    if upload_folder and foto.tipo == 'evidencia':
+                        try:
+                            p = Path(upload_folder) / foto.caminho
+                            if p.exists():
+                                uri = p.as_uri()
+                                # Evita duplicar se for a mesma foto do legado
+                                if uri not in item['fotos']:
+                                    item['fotos'].append(uri)
+                        except: pass
             
             itens.append(item)
         
-        # Renderização segura do template
         html = render_template_safe(
             'cli/pdf_plano_acao.html',
-            aplicacao=app, 
-            itens=itens,
-            logo_pdf_uri=logo_uri, 
-            assinatura_cliente_uri=assinatura_uri,
+            aplicacao=app, itens=itens,
+            logo_pdf_uri=logo_uri, assinatura_cliente_uri=assinatura_uri,
             assinatura_responsavel=app.assinatura_responsavel,
             cargo_responsavel=app.cargo_responsavel,
             data_geracao=datetime.now()
