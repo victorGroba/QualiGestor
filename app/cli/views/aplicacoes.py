@@ -27,7 +27,7 @@ from ...models import (
     db, Usuario, Avaliado, Questionario, Topico, Pergunta, 
     AplicacaoQuestionario, RespostaPergunta, OpcaoPergunta,
     StatusAplicacao, TipoResposta, FotoResposta, CategoriaIndicador,
-    Grupo  # <--- ADICIONADO: Necessário para buscar os GAPs
+    Grupo, AcaoCorretiva 
 )
 
 # ===================== LISTAGEM =====================
@@ -175,19 +175,31 @@ def escolher_questionario(avaliado_id):
     """Passo 2: Escolher Questionário e Criar."""
     rancho = Avaliado.query.get_or_404(avaliado_id)
     
-    # Validação de Segurança (Repetida para garantir)
-    permitidos = [r.id for r in get_avaliados_usuario()]
-    if rancho.id not in permitidos:
-        flash("Acesso negado a este rancho.", "danger")
-        return redirect(url_for('cli.selecionar_rancho_auditoria'))
+    # ... (mantenha a validação de segurança existente) ...
 
     if request.method == 'POST':
         qid = request.form.get('questionario_id')
+        # CAPTURA A DATA MANUAL
+        inicio_manual_str = request.form.get('visita_inicio')
+        
         if qid:
             try:
+                # Tratamento da data manual
+                dt_inicio = datetime.now()
+                if inicio_manual_str:
+                    try:
+                        dt_inicio = datetime.strptime(inicio_manual_str, '%Y-%m-%dT%H:%M')
+                    except ValueError:
+                        pass # Se falhar, usa now()
+
                 nova_app = AplicacaoQuestionario(
-                    aplicador_id=current_user.id, avaliado_id=rancho.id,
-                    questionario_id=int(qid), data_inicio=datetime.now(),
+                    aplicador_id=current_user.id, 
+                    avaliado_id=rancho.id,
+                    questionario_id=int(qid), 
+                    
+                    data_inicio=datetime.now(), # Log de sistema (quando criou no banco)
+                    visita_inicio=dt_inicio,    # Dado de Negócio (quando a consultora disse que começou)
+                    
                     status=StatusAplicacao.EM_ANDAMENTO 
                 )
                 db.session.add(nova_app)
@@ -411,12 +423,15 @@ def assinar_finalizar(id):
     app = AplicacaoQuestionario.query.get_or_404(id)
     b64 = request.form.get('assinatura_base64')
     
+    # NOVO: Recebe o timestamp manual do fim da visita (enviado pelo JS)
+    fim_manual_iso = request.form.get('visita_fim_manual')
+    
     if not b64:
         flash("Assinatura obrigatória.", "warning")
         return redirect(url_for('cli.gerenciar_nao_conformidades', id=id))
 
     try:
-        # Salva imagem
+        # ... (código existente de salvar imagem) ...
         if ',' in b64: b64 = b64.split(',')[1]
         fname = f"assinatura_app_{id}_{uuid.uuid4().hex[:8]}.png"
         path = os.path.join(current_app.config['UPLOAD_FOLDER'], fname)
@@ -426,7 +441,23 @@ def assinar_finalizar(id):
         app.assinatura_responsavel = request.form.get('nome_responsavel')
         app.cargo_responsavel = request.form.get('cargo_responsavel')
         app.status = StatusAplicacao.FINALIZADA
-        app.data_fim = datetime.now()
+        
+        # LÓGICA DE FIM DA VISITA
+        app.data_fim = datetime.now() # Log do sistema (upload)
+        
+        # Se o JS mandou a hora da assinatura, usamos ela. Se não, usa agora.
+        # Importante: só atualiza visita_fim se ela ainda estiver vazia (proteção contra reabertura)
+        if not app.visita_fim:
+            if fim_manual_iso:
+                try:
+                    # O JS manda ISO string (ex: 2026-02-08T15:30:00.000Z)
+                    # Cortamos os milissegundos se necessário ou usamos dateutil
+                    # Maneira simples de parsear ISO do JS no Python 3.7+:
+                    app.visita_fim = datetime.fromisoformat(fim_manual_iso.replace('Z', '+00:00'))
+                except:
+                    app.visita_fim = datetime.now()
+            else:
+                app.visita_fim = datetime.now()
         
         db.session.commit()
         log_acao(f"Finalizou app {id}", None, "Aplicacao", id)
@@ -434,8 +465,14 @@ def assinar_finalizar(id):
         return redirect(url_for('cli.visualizar_aplicacao', id=id))
     except Exception as e:
         db.session.rollback()
-        flash(f"Erro ao finalizar: {str(e)}", "danger")
-        return redirect(url_for('cli.gerenciar_nao_conformidades', id=id))
+       # --- ADICIONE ISTO AQUI ---
+        # Gera a lista de pendências para o mês (Ações Corretivas)
+        gerar_acoes_corretivas_automatico(id)
+        # --------------------------
+
+        log_acao(f"Finalizou app {id}", None, "Aplicacao", id)
+        flash("Auditoria finalizada com sucesso! Ações Corretivas geradas.", "success")
+        return redirect(url_for('cli.visualizar_aplicacao', id=id))
 
 @cli_bp.route('/aplicacao/<int:id>/finalizar-definitivo', methods=['POST'])
 @login_required

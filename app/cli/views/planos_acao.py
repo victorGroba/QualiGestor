@@ -16,7 +16,7 @@ from .. import cli_bp, csrf
 from ..utils import render_template_safe, gerar_pdf_seguro, allowed_file, log_acao
 from ...models import (
     db, AplicacaoQuestionario, RespostaPergunta, 
-    Avaliado, Pergunta, Topico, FotoResposta, TipoResposta
+    Avaliado, Pergunta, Topico, FotoResposta, TipoResposta, AcaoCorretiva
 )
 
 # ===================== FUNÇÃO AUXILIAR BASE64 =====================
@@ -234,3 +234,47 @@ def pdf_plano_acao(aplicacao_id):
         current_app.logger.error(f"Erro PDF Plano: {e}")
         flash(f"Erro ao gerar PDF: {e}", "danger")
         return redirect(url_for('cli.detalhe_plano_acao', aplicacao_id=aplicacao_id))
+    
+# Em app/cli/views/planos_acao.py
+
+@cli_bp.route('/aplicacao/<int:id>/acoes-corretivas', methods=['GET', 'POST'])
+@login_required
+def gerenciar_acoes_corretivas(id):
+    """
+    Painel Mensal de Ações Corretivas.
+    Consultora: Preenche Sugestão (pode usar IA).
+    Gestor: Preenche 'O que foi feito' e fecha a ação.
+    """
+    app = AplicacaoQuestionario.query.get_or_404(id)
+    
+    # Segurança básica (verifique se precisa de mais, igual suas outras rotas)
+    if app.avaliado.cliente_id != current_user.cliente_id:
+        flash("Acesso negado.", "danger")
+        return redirect(url_for('cli.index'))
+
+    # Processamento do Formulário (Salvar Edições)
+    if request.method == 'POST':
+        acao_id = request.form.get('acao_id')
+        acao = AcaoCorretiva.query.get(acao_id)
+        
+        if acao and acao.aplicacao_id == app.id:
+            # Fluxo da Consultora (Preenchendo Sugestão)
+            if 'sugestao' in request.form:
+                acao.sugestao_correcao = request.form.get('sugestao')
+            
+            # Fluxo do Gestor (Respondendo a Ação)
+            if 'acao_realizada' in request.form:
+                acao.acao_realizada = request.form.get('acao_realizada')
+                # Se preencheu o que fez, marca como realizado
+                if acao.acao_realizada:
+                    acao.status = 'Realizado'
+                    acao.data_conclusao = datetime.now()
+
+            db.session.commit()
+            flash("Atualizado com sucesso.", "success")
+            return redirect(url_for('cli.gerenciar_acoes_corretivas', id=id))
+
+    # Busca as ações geradas
+    acoes = AcaoCorretiva.query.filter_by(aplicacao_id=id).all()
+
+    return render_template_safe('cli/acoes_corretivas_lista.html', aplicacao=app, acoes=acoes)

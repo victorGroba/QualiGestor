@@ -49,10 +49,19 @@
                     <form method="POST">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         
+                        <div class="mb-5 bg-light p-3 rounded border border-primary border-opacity-25">
+                            <label for="visita_inicio" class="form-label fw-bold text-primary">
+                                <i class="far fa-clock me-1"></i> Horário de Início da Visita
+                            </label>
+                            <input type="datetime-local" class="form-control form-control-lg fw-bold" 
+                                   id="visita_inicio" name="visita_inicio" required>
+                            <div class="form-text small">
+                                Ajuste se você já começou a visita há algum tempo.
+                            </div>
+                        </div>
+
                         <div class="mb-4">
                             <label class="form-label text-dark fw-bold h5 mb-3 d-block text-center">Qual checklist aplicar?</label>
-                            <p class="text-muted text-center small mb-4">Clique na opção desejada abaixo:</p>
-                            
                             <div class="checklist-options">
                                 {% for q in questionarios %}
                                     <div class="mb-2">
@@ -72,8 +81,7 @@
                                     </div>
                                 {% else %}
                                     <div class="alert alert-warning text-center">
-                                        <i class="fas fa-exclamation-triangle me-2"></i>
-                                        Nenhum questionário disponível para este cliente.
+                                        Nenhum questionário disponível.
                                     </div>
                                 {% endfor %}
                             </div>
@@ -83,9 +91,8 @@
                             <button type="submit" class="btn btn-primary btn-lg rounded-pill shadow fw-bold py-3 text-uppercase hover-scale">
                                 <i class="fas fa-rocket me-2"></i> Iniciar Auditoria
                             </button>
-                            
                             <a href="{{ url_for('cli.selecionar_rancho_auditoria') }}" class="btn btn-link text-muted text-decoration-none small text-center">
-                                <i class="fas fa-arrow-left me-1"></i> Trocar Local
+                                Trocar Local
                             </a>
                         </div>
                     </form>
@@ -95,44 +102,25 @@
     </div>
 </div>
 
+<script>
+    // Script para preencher automaticamente o input com a hora atual
+    document.addEventListener('DOMContentLoaded', function() {
+        const now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        document.getElementById('visita_inicio').value = now.toISOString().slice(0, 16);
+    });
+</script>
+
 <style>
     .ls-1 { letter-spacing: 1px; }
-
-    /* Estilo Base do Card de Opção */
-    .checklist-card {
-        border: 1px solid #e9ecef;
-        background-color: #f8f9fa;
-        transition: all 0.2s ease;
-        position: relative;
-    }
-    
-    .checklist-card .icon-wrapper { color: #adb5bd; transition: color 0.2s; }
-    .checklist-card .check-icon { opacity: 0; transform: scale(0.5); transition: all 0.2s; color: white; }
-
-    /* Hover */
-    .checklist-card:hover {
-        background-color: #e9ecef;
-        border-color: #dee2e6;
-        transform: translateY(-2px);
-    }
-
-    /* ESTADO SELECIONADO (CHECKED) */
-    .btn-check:checked + .checklist-card {
-        background-color: var(--bs-primary);
-        border-color: var(--bs-primary);
-        box-shadow: 0 4px 15px rgba(13, 110, 253, 0.3) !important;
-    }
-
+    .checklist-card { border: 1px solid #e9ecef; background-color: #f8f9fa; transition: all 0.2s ease; position: relative; }
+    .checklist-card:hover { background-color: #e9ecef; border-color: #dee2e6; transform: translateY(-2px); }
+    .btn-check:checked + .checklist-card { background-color: var(--bs-primary); border-color: var(--bs-primary); box-shadow: 0 4px 15px rgba(13, 110, 253, 0.3) !important; }
     .btn-check:checked + .checklist-card .text-wrapper span { color: white !important; }
     .btn-check:checked + .checklist-card .text-wrapper small { color: rgba(255,255,255,0.7) !important; }
     .btn-check:checked + .checklist-card .icon-wrapper { color: rgba(255,255,255,0.9); }
-    
-    /* Faz o ícone de check aparecer */
-    .btn-check:checked + .checklist-card .check-icon {
-        opacity: 1;
-        transform: scale(1);
-    }
-
+    .btn-check:checked + .checklist-card .check-icon { opacity: 1; transform: scale(1); }
+    .check-icon { opacity: 0; transform: scale(0.5); transition: all 0.2s; color: white; }
     .hover-scale:hover { transform: scale(1.02); transition: transform 0.2s; }
 </style>
 {% endblock %}

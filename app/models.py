@@ -1,5 +1,5 @@
 # app/models.py
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy import Enum as SqlEnum
 import enum
 from flask_login import UserMixin
@@ -362,37 +362,45 @@ class AplicacaoQuestionario(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     
-    # Dados da aplicação
-    data_inicio = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    data_fim = db.Column(db.DateTime)
+    # --- Dados da aplicação (Controle de Sistema) ---
+    data_inicio = db.Column(db.DateTime, nullable=False, default=datetime.utcnow) # Log de criação
+    data_fim = db.Column(db.DateTime) # Log de envio/sincronização
     status = db.Column(SqlEnum(StatusAplicacao), default=StatusAplicacao.EM_ANDAMENTO)
     
-    # Notas e pontuação
+    # --- NOVOS CAMPOS: Controle real do tempo de visita (Offline/Manual) ---
+    # Estes campos guardam o horário REAL que a consultora estava na loja
+    visita_inicio = db.Column(db.DateTime, nullable=True) 
+    visita_fim = db.Column(db.DateTime, nullable=True)
+    
+    # --- Notas e pontuação ---
     nota_final = db.Column(db.Float)
     pontos_obtidos = db.Column(db.Float)
     pontos_totais = db.Column(db.Float)
     
-    # Observações e comentários
+    # --- Observações e comentários ---
     observacoes = db.Column(db.Text)
     observacoes_finais = db.Column(db.Text)
     
-    # Dados de localização
+    # --- Dados de localização ---
     latitude = db.Column(db.String(50))
     longitude = db.Column(db.String(50))
     endereco_capturado = db.Column(db.String(255))
     
-    # Chaves estrangeiras
+    # --- Chaves estrangeiras ---
     questionario_id = db.Column(db.Integer, db.ForeignKey('questionario.id'), nullable=False)
     avaliado_id = db.Column(db.Integer, db.ForeignKey('avaliado.id'), nullable=False)
     aplicador_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
     
-    # --- ADICIONE ESTA LINHA ---
+    # --- Relacionamentos ---
     aplicador = db.relationship('Usuario', foreign_keys=[aplicador_id])
-    # ---------------------------
-
-    # Relacionamentos
+    
+    # Respostas do Checklist
     respostas = db.relationship('RespostaPergunta', backref='aplicacao', lazy='dynamic', cascade='all, delete-orphan')
     
+    # Ações Corretivas (Novo fluxo mensal)
+    acoes_corretivas = db.relationship('AcaoCorretiva', backref='aplicacao_pai', lazy='dynamic', cascade='all, delete-orphan')
+    
+    # --- Assinatura e Arquivos ---
     assinatura_imagem = db.Column(db.String(255)) 
     assinatura_responsavel = db.Column(db.String(200))
     cargo_responsavel = db.Column(db.String(100))
@@ -620,3 +628,51 @@ def criar_admin_padrao():
         db.session.commit()
         return True
     return False
+
+class AcaoCorretiva(db.Model):
+    """
+    Tabela para o Ciclo Mensal de Correções (Separado do Plano de Ação Semestral).
+    Gerencia o fluxo: Problema -> Sugestão (Consultora/IA) -> Execução (Gestor).
+    """
+    __tablename__ = 'acao_corretiva'
+
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # Vínculos
+    aplicacao_id = db.Column(db.Integer, db.ForeignKey('aplicacao_questionario.id'), nullable=False)
+    pergunta_id = db.Column(db.Integer, db.ForeignKey('pergunta.id'), nullable=False)
+    
+    # O Problema (Snapshot do momento da auditoria)
+    descricao_nao_conformidade = db.Column(db.Text, nullable=False)
+    
+    # A Solução (Fluxo da Consultora)
+    sugestao_correcao = db.Column(db.Text, nullable=True) # Preenchido pela IA ou Consultora
+    
+    # A Execução (Fluxo do Gestor da Loja)
+    acao_realizada = db.Column(db.Text, nullable=True) # O que foi feito na prática
+    foto_evidencia = db.Column(db.String(255), nullable=True) # Foto do conserto
+    
+    # Controle de Status e Criticidade
+    status = db.Column(db.String(20), default='Pendente') # Pendente, Realizado, Validado
+    criticidade = db.Column(db.String(20), default='Média') # Baixa, Média, Alta
+    
+    # Datas e SLA (Regra dos 30 dias)
+    data_criacao = db.Column(db.DateTime, default=datetime.utcnow)
+    data_conclusao = db.Column(db.DateTime, nullable=True)
+
+    # Relacionamentos
+    # Permite acessar a definição da pergunta original (peso, texto, etc)
+    pergunta = db.relationship('Pergunta', backref='historico_acoes_corretivas')
+    
+    # Obs: O acesso à 'aplicacao' é feito via 'self.aplicacao_pai' (definido no backref da outra classe)
+
+    def verificar_atraso(self):
+        """
+        Retorna True se a ação estiver pendente há mais de 30 dias.
+        Utilizado pelo sistema de alertas.
+        """
+        if self.status == 'Pendente' and self.data_criacao:
+            limite = self.data_criacao + timedelta(days=30)
+            if datetime.utcnow() > limite:
+                return True
+        return False

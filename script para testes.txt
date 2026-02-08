@@ -1,0 +1,54 @@
+1. Marcar TUDO como "Sim" (Para Aprovar Tudo)
+
+(function() {
+    let count = 0;
+    // Procura todos os inputs de rádio
+    document.querySelectorAll('input[type="radio"]').forEach(radio => {
+        const val = radio.value.trim().toLowerCase();
+        // Lista de valores considerados positivos
+        if (['sim', 'conforme', 'bom', 'ok', 'c'].includes(val)) {
+            radio.click(); // Simula o clique para disparar o salvamento
+            count++;
+        }
+    });
+    console.log(`✅ Marcados ${count} itens como "Sim/Conforme".`);
+})();
+
+
+2. Marcar TUDO como "Não" (Para Gerar NCs)
+(function() {
+    let count = 0;
+    document.querySelectorAll('.question-card').forEach(card => {
+        // 1. Achar e Clicar no "Não"
+        const radioNao = Array.from(card.querySelectorAll('input[type="radio"]')).find(r => 
+            ['não', 'nao', 'ruim', 'irregular', 'nc'].includes(r.value.trim().toLowerCase())
+        );
+
+        if (radioNao) {
+            radioNao.click(); // Marca o Não
+            count++;
+
+            // 2. Preencher a Observação (Obrigatório para NC)
+            // Espera um pouquinho para o collapse abrir (opcional, mas bom pra visual)
+            setTimeout(() => {
+                const pid = card.dataset.perguntaId;
+                const obsInput = document.getElementById(`obs-${pid}`);
+                if (obsInput) {
+                    obsInput.value = "NC de Teste Automatizado";
+                    // Dispara evento para salvar a observação
+                    obsInput.dispatchEvent(new Event('blur')); 
+                }
+            }, 100);
+        }
+    });
+    console.log(`❌ Marcados ${count} itens como "Não" e observações preenchidas.`);
+})();
+
+
+3. Limpar Tudo (Resetar)
+
+(function() {
+    document.querySelectorAll('input[type="radio"]').forEach(r => r.checked = false);
+    document.querySelectorAll('textarea, input[type="text"]').forEach(t => t.value = '');
+    console.log("🧹 Tudo limpo (Nota: O banco de dados pode manter o histórico até você recarregar ou salvar algo novo).");
+})();

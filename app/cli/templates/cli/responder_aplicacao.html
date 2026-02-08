@@ -73,6 +73,8 @@
                 method="POST" enctype="multipart/form-data">
 
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
+                <input type="hidden" name="visita_fim_manual" id="visita_fim_manual">
 
                 <div class="accordion" id="accordionTopicos">
                     {% for topico in topicos %}
@@ -607,10 +609,7 @@
     // =========================================================
     // 5. UPLOAD DE FOTOS (ATUALIZADO COM COMPRESSÃO)
     // =========================================================
-    // ARQUIVO: app/cli/templates/cli/responder_aplicacao.html
-
-// ARQUIVO: app/cli/templates/cli/responder_aplicacao.html
-
+    
 async function handleFotoUpload(input) {
     if (!input.files || input.files.length === 0) return;
     
@@ -1135,6 +1134,8 @@ async function salvarLocalmente(file, pid, rid) {
         document.querySelector('.modal-title').innerText = texto || 'Assinatura';
         modalAssinatura.show();
     };
+
+    // --- ATUALIZAÇÃO 2: Capturar data/hora no momento da assinatura ---
     window.confirmarAssinaturaModal = () => {
         if (signaturePadGlobal.isEmpty()) { alert('Assine.'); return; }
         const d = signaturePadGlobal.toDataURL();
@@ -1144,9 +1145,18 @@ async function salvarLocalmente(file, pid, rid) {
         if (img) { img.src = d; img.style.display = 'block'; }
         const ph = document.getElementById(`placeholder-${currentPerguntaId}`);
         if (ph) ph.classList.add('d-none');
+        
+        // --- CÓDIGO NOVO INSERIDO ABAIXO ---
+        const fimInput = document.getElementById('visita_fim_manual');
+        if (fimInput) {
+            fimInput.value = new Date().toISOString();
+        }
+        // ------------------------------------
+
         salvarResposta(input); 
         modalAssinatura.hide();
     };
+    
     window.limparCanvasAtual = () => signaturePadGlobal.clear();
 
     // --- UTILS ---

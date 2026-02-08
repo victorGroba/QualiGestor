@@ -1,0 +1,90 @@
+{% extends "base_cliq.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="mb-0"><i class="fas fa-tools text-primary me-2"></i>Ações Corretivas (Mensal)</h3>
+            <p class="text-muted">{{ aplicacao.avaliado.nome }} - {{ aplicacao.data_inicio.strftime('%d/%m/%Y') }}</p>
+        </div>
+        <div>
+            <a href="{{ url_for('cli.visualizar_aplicacao', id=aplicacao.id) }}" class="btn btn-outline-secondary">Voltar</a>
+            <button class="btn btn-danger"><i class="fas fa-file-pdf me-2"></i>Gerar PDF</button>
+        </div>
+    </div>
+
+    {% if not acoes %}
+        <div class="alert alert-success text-center p-5">
+            <h4><i class="fas fa-check-circle fa-2x mb-3"></i></h4>
+            <p>Parabéns! Nenhuma Não Conformidade foi encontrada nesta visita.</p>
+        </div>
+    {% else %}
+
+    <div class="row">
+        {% for acao in acoes %}
+        <div class="col-12 mb-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <span class="fw-bold text-danger">NC #{{ loop.index }}: {{ acao.pergunta.texto }}</span>
+                    <span class="badge {{ 'bg-success' if acao.status == 'Realizado' else 'bg-warning text-dark' }}">
+                        {{ acao.status }}
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="row g-4">
+                        <div class="col-md-5 border-end">
+                            <label class="small text-muted fw-bold text-uppercase">Problema Identificado</label>
+                            <div class="alert alert-light border mt-1">
+                                {{ acao.descricao_nao_conformidade }}
+                            </div>
+                            
+                            <button type="button" class="btn btn-sm btn-outline-info w-100 mt-2" 
+                                    onclick="gerarSugestaoIA({{ acao.id }}, '{{ acao.descricao_nao_conformidade }}')">
+                                <i class="fas fa-magic me-2"></i>Sugerir Correção com IA
+                            </button>
+                        </div>
+
+                        <div class="col-md-7">
+                            <form method="POST">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="acao_id" value="{{ acao.id }}">
+
+                                <div class="mb-3">
+                                    <label class="small text-muted fw-bold text-uppercase">O que deve ser feito? (Sugestão)</label>
+                                    <textarea name="sugestao" id="sugestao_{{ acao.id }}" class="form-control bg-white" rows="3" 
+                                              placeholder="Descreva a correção sugerida...">{{ acao.sugestao_correcao or '' }}</textarea>
+                                </div>
+
+                                <div class="mb-3 p-3 bg-light rounded border">
+                                    <label class="small text-muted fw-bold text-uppercase"><i class="fas fa-user-tie me-1"></i>Espaço do Gestor: O que foi feito?</label>
+                                    <textarea name="acao_realizada" class="form-control" rows="2" 
+                                              placeholder="Gestor descreve a solução aqui...">{{ acao.acao_realizada or '' }}</textarea>
+                                </div>
+
+                                <div class="text-end">
+                                    <button type="submit" class="btn btn-primary btn-sm px-4">Salvar</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    // Função Placeholder para a IA (Vamos implementar na próxima etapa)
+    function gerarSugestaoIA(id, problema) {
+        const campo = document.getElementById('sugestao_' + id);
+        campo.value = "Consultando Gemini... aguarde...";
+        // Aqui faremos a chamada fetch para sua rota de IA existente
+        // Simulação:
+        setTimeout(() => {
+            campo.value = "Sugestão da IA: Realizar manutenção preventiva no equipamento e treinar a equipe sobre o procedimento correto.";
+        }, 1500);
+    }
+</script>
+{% endblock %}
