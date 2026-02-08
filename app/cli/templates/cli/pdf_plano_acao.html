@@ -4,12 +4,8 @@
   <meta charset="UTF-8">
   <title>Plano de Ação - {{ aplicacao.id }}</title>
   <style>
-    /* ==========================================================================
-       1. ESTILOS GERAIS (MANTIDOS ORIGINAIS)
-       ========================================================================== */
     :root {
       --text-dark: #2c3e50;
-      --text-light: #7f8c8d;
       --header-bg: #e67e22;
       --header-bg-gradient: linear-gradient(135deg, #d35400 0%, #e67e22 100%);
     }
@@ -23,61 +19,38 @@
       color: #2c3e50; background: #fff; line-height: 1.3;
     }
 
-    /* ==========================================================================
-       2. ORIENTAÇÃO PAISAGEM
-       ========================================================================== */
     @page {
       size: A4 landscape;
-      margin-top: 3.5cm;    
-      margin-bottom: 2.0cm; 
-      margin-left: 1.0cm;
-      margin-right: 1.0cm;
+      margin-top: 3.5cm; margin-bottom: 2.0cm; margin-left: 1.0cm; margin-right: 1.0cm;
     }
 
-    /* ==========================================================================
-       3. CABEÇALHO FIXO (MANTIDO ORIGINAL)
-       ========================================================================== */
+    /* CABEÇALHO */
     .header-fixed {
       position: fixed; top: -3.5cm; left: -1.0cm; 
-      width: 297mm;
-      height: 3.0cm;
-      background: var(--header-bg-gradient);
-      color: white;
+      width: 297mm; height: 3.0cm;
+      background: var(--header-bg-gradient); color: white;
       display: flex; align-items: center; justify-content: space-between;
       padding-left: 1.0cm; padding-right: 1.0cm; z-index: 1000;
     }
-
     .header-left { display: flex; align-items: center; gap: 15px; flex: 1; }
-    
-    .header-logo { 
-        height: 55px; width: auto; max-width: 180px; 
-        object-fit: contain; 
-        padding: 2px; 
-    }
-    
+    .header-logo { height: 55px; width: auto; max-width: 180px; object-fit: contain; padding: 2px; }
     .header-info h1 { margin: 0; font-size: 16pt; font-weight: 700; color: #fff; text-transform: uppercase; }
     .header-info p { margin: 2px 0 0 0; font-size: 9pt; font-weight: 300; color: rgba(255,255,255,0.9); }
-
     .header-right { text-align: right; color: #fff; flex-shrink: 0; margin-left: 20px; }
     .header-label { font-size: 7pt; text-transform: uppercase; opacity: 0.8; }
     .header-value { font-size: 10pt; font-weight: 500; }
 
-    /* ==========================================================================
-       4. RODAPÉ FIXO (MANTIDO ORIGINAL)
-       ========================================================================== */
+    /* RODAPÉ */
     .footer-fixed {
       position: fixed; bottom: -2.0cm; left: -1.0cm; 
-      width: 297mm;
-      height: 1.5cm;
+      width: 297mm; height: 1.5cm;
       background-color: #f8f9fa; border-top: 1px solid #ecf0f1;
       display: flex; align-items: center; justify-content: space-between;
       font-size: 8pt; color: #7f8c8d; padding-left: 1.0cm; padding-right: 1.0cm;
     }
     .page-number:after { content: "Página " counter(page); }
 
-    /* ==========================================================================
-       5. CONTEÚDO
-       ========================================================================== */
+    /* CONTEÚDO */
     .info-grid { 
       display: table; width: 100%; border-collapse: collapse; 
       margin-bottom: 15px; page-break-inside: avoid;
@@ -86,7 +59,7 @@
     .info-label { display: block; font-size: 7pt; color: #999; text-transform: uppercase; font-weight: 700; }
     .info-value { display: block; font-size: 10pt; font-weight: 500; color: #333; margin-top: 3px; }
 
-    /* Tabela */
+    /* TABELA */
     .table-plans { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; }
     .table-plans th {
         background-color: #fdf2e9; color: #d35400;
@@ -95,61 +68,46 @@
     .table-plans td { border: 1px solid #eee; padding: 8px; vertical-align: top; font-size: 8.5pt; word-wrap: break-word; }
     .table-plans tr:nth-child(even) { background-color: #fcfcfc; }
 
-    /* Elementos Internos */
-    .badge-topico { 
-        display: inline-block; background: #555; color: #fff; 
-        padding: 2px 5px; border-radius: 3px; font-size: 6.5pt; font-weight: bold; margin-bottom: 3px; 
-    }
+    .badge-topico { display: inline-block; background: #555; color: #fff; padding: 2px 5px; border-radius: 3px; font-size: 6.5pt; font-weight: bold; margin-bottom: 3px; }
     .txt-pergunta { font-weight: bold; color: #2c3e50; display: block; margin-bottom: 3px; font-size: 9pt; }
     .txt-obs { font-style: italic; color: #e74c3c; font-size: 8pt; margin-bottom: 2px; display: block; background: #fff5f5; padding: 3px; border-radius: 3px;}
-    
     .txt-setor { font-weight: bold; color: #2980b9; font-size: 8.5pt; }
     .txt-causa { color: #555; font-size: 8pt; line-height: 1.2; }
-
-    .box-plano {
-        background: #fffcf5; border-left: 3px solid #f39c12;
-        padding: 5px; color: #333; margin-top: 0px;
-    }
-    
+    .box-plano { background: #fffcf5; border-left: 3px solid #f39c12; padding: 5px; color: #333; margin-top: 0px; }
     .resp-block { margin-bottom: 5px; border-bottom: 1px dashed #eee; padding-bottom: 4px; }
     .resp-label { font-size: 6.5pt; color: #999; text-transform: uppercase; }
     .resp-val { font-weight: bold; font-size: 8.5pt; color: #2c3e50; }
+    .prazo-tag { display: inline-block; background: #c0392b; color: white; padding: 2px 6px; border-radius: 8px; font-size: 7.5pt; font-weight: bold; white-space: nowrap; margin-top: 2px; }
 
-    .prazo-tag {
-        display: inline-block; background: #c0392b; color: white;
-        padding: 2px 6px; border-radius: 8px; font-size: 7.5pt; font-weight: bold;
-        white-space: nowrap; margin-top: 2px;
-    }
-
-    /* === MUDANÇA: CSS para Grid de Fotos === */
-    .photo-grid {
-        display: flex; 
-        flex-wrap: wrap; 
-        gap: 5px; 
-        justify-content: flex-start; /* Alinha à esquerda ou use center */
+    /* === GRID DE FOTOS COMPACTO === */
+    .photo-container {
+        width: 100%;
+        text-align: center; /* Centraliza o grupo de fotos */
         margin-top: 5px;
+        font-size: 0; /* Remove espaços em branco entre inline-blocks */
     }
-
     .img-evidencia {
-        /* Aumentado levemente para aproveitar a coluna maior */
-        width: 60px; height: 60px; 
+        display: inline-block; 
+        width: 75px;  /* Tamanho reduzido para caberem 3-4 por linha */
+        height: 75px; 
         object-fit: cover; 
-        border: 1px solid #ccc; padding: 2px; background: #fff;
+        border: 1px solid #ccc; 
+        padding: 2px; 
+        background: #fff;
+        margin: 2px; /* Margem pequena para ficarem agrupadas */
+        vertical-align: middle;
     }
 
-    /* ==========================================================================
-       6. ASSINATURAS (MANTIDO ORIGINAL)
-       ========================================================================== */
-    .signatures-block {
-        margin-top: 30px; page-break-inside: avoid;
-        display: table; width: 100%;
-    }
+    /* ASSINATURAS */
+    .signatures-block { margin-top: 30px; page-break-inside: avoid; display: table; width: 100%; }
     .sig-col { display: table-cell; width: 50%; vertical-align: bottom; padding: 0 20px; text-align: center; }
     .sig-line { border-top: 1px solid #2c3e50; margin-top: 5px; width: 100%; }
-    .sig-img { max-height: 70px; max-width: 200px; display: block; margin: 0 auto 5px auto; mix-blend-mode: multiply; }
+    
+    .sig-img { 
+        max-height: 70px; max-width: 200px; display: block; margin: 0 auto 2px auto; mix-blend-mode: multiply; 
+    }
     .sig-name { font-weight: 700; font-size: 9pt; color: #2c3e50; margin-top: 5px; display: block; }
     .sig-role { font-size: 7.5pt; color: #7f8c8d; text-transform: uppercase; display: block; }
-
   </style>
 </head>
 <body>
@@ -198,11 +156,11 @@
   <table class="table-plans">
     <thead>
       <tr>
-        <th width="25%">Não Conformidade (Problema)</th>
+        <th width="23%">Não Conformidade (Problema)</th>
         <th width="10%">Setor</th> 
-        <th width="18%">Causa / Embasamento</th> 
+        <th width="15%">Causa</th> 
         <th width="22%">Ação Corretiva</th>
-        <th width="25%" style="text-align: center;">Resp. / Prazo / Fotos</th>
+        <th width="30%" style="text-align: center;">Resp. / Prazo / Fotos</th>
       </tr>
     </thead>
     <tbody>
@@ -211,49 +169,28 @@
         <td>
             <span class="badge-topico">{{ item.topico_ordem }}. {{ item.topico_nome }}</span>
             <span class="txt-pergunta">{{ item.pergunta_ordem }}. {{ item.pergunta_texto }}</span>
-            
             {% if item.observacao %}
                 <span class="txt-obs">Obs: "{{ item.observacao }}"</span>
             {% endif %}
         </td>
-
-        <td>
-            <div class="txt-setor">
-                {{ item.setor_atuacao or '-' }}
-            </div>
-        </td>
-
-        <td>
-            <div class="txt-causa">
-                {{ item.causa_raiz or 'Não informado' }}
-            </div>
-        </td>
-
-        <td>
-            <div class="box-plano">
-                {{ item.plano_acao }}
-            </div>
-        </td>
-
+        <td><div class="txt-setor">{{ item.setor_atuacao or '-' }}</div></td>
+        <td><div class="txt-causa">{{ item.causa_raiz or 'Não informado' }}</div></td>
+        <td><div class="box-plano">{{ item.plano_acao }}</div></td>
         <td align="center" style="vertical-align: top;">
-            
             <div class="resp-block">
                 <span class="resp-label">Responsável:</span><br>
                 <span class="resp-val">{{ item.responsavel_plano_acao or 'Indefinido' }}</span>
             </div>
-
             {% if item.prazo %}
-                <div class="prazo-tag">
-                    Até {{ item.prazo.strftime('%d/%m/%Y') }}
-                </div>
+                <div class="prazo-tag">Até {{ item.prazo.strftime('%d/%m/%Y') }}</div>
             {% else %}
                 <div style="font-size: 7pt; color: #999; margin-top: 3px;">Sem Prazo</div>
             {% endif %}
 
             {% if item.fotos and item.fotos|length > 0 %}
-                <div class="photo-grid">
-                    {% for foto_uri in item.fotos %}
-                        <img src="{{ foto_uri }}" class="img-evidencia" onerror="this.style.display='none'">
+                <div class="photo-container">
+                    {% for foto_b64 in item.fotos %}
+                        <img src="{{ foto_b64 }}" class="img-evidencia">
                     {% endfor %}
                 </div>
             {% endif %}
@@ -268,18 +205,17 @@
         {% if assinatura_cliente_uri %}
             <img src="{{ assinatura_cliente_uri }}" class="sig-img">
         {% else %}
-            <div style="height: 60px;"></div> {% endif %}
+            <div style="height: 60px;"></div> 
+        {% endif %}
         
         <div class="sig-line"></div>
         <span class="sig-name">{{ assinatura_responsavel or aplicacao.assinatura_responsavel or 'Responsável Local' }}</span>
         <span class="sig-role">{{ cargo_responsavel or aplicacao.cargo_responsavel or 'Gestor da Unidade' }}</span>
     </div>
-
     <div class="sig-col">
         <div style="font-size: 14pt; color: #e67e22; font-weight: bold; height: 60px; padding-top: 20px;">
             VALIDADO PELO SISTEMA
         </div>
-        
         <div class="sig-line"></div>
         <span class="sig-name">{{ aplicacao.aplicador.nome }}</span>
         <span class="sig-role">Consultor / Auditor Técnico</span>
