@@ -73,7 +73,7 @@
                 method="POST" enctype="multipart/form-data">
 
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                
+
                 <input type="hidden" name="visita_fim_manual" id="visita_fim_manual">
 
                 <div class="accordion" id="accordionTopicos">
@@ -292,11 +292,24 @@
 
                 <div class="card shadow border-0 mt-4 mb-5" id="card-conclusao">
                     <div class="card-body p-4">
-                        <h5 class="card-title fw-bold mb-3">Finalização</h5>
+                        <h5 class="card-title fw-bold mb-3">Finalização da Auditoria</h5>
+
                         <div class="mb-3">
                             <label class="form-label text-muted small fw-bold text-uppercase">Observações Gerais</label>
                             <textarea class="form-control bg-light" name="observacoes_finais"
                                 rows="3">{{ aplicacao.observacoes_finais or '' }}</textarea>
+                        </div>
+
+                        <div class="mb-3 p-3 bg-light border rounded">
+                            <label class="form-label fw-bold text-dark mb-1">
+                                <i class="far fa-clock me-1"></i> Horário de Término
+                            </label>
+                            <div class="form-text mb-2 small">
+                                Confirme o horário exato do fim da visita. Este horário será usado mesmo se houver
+                                atraso na sincronização.
+                            </div>
+                            <input type="datetime-local" class="form-control form-control-lg fw-bold"
+                                name="visita_fim_manual" id="visita_fim_manual" required>
                         </div>
 
                         <div class="alert alert-danger d-none shadow-sm" id="alerta-validacao">
@@ -308,15 +321,10 @@
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
                             <a href="{{ url_for('cli.listar_aplicacoes') }}"
                                 class="btn btn-outline-secondary px-4">Voltar</a>
-                            {% if modo_assinatura %}
-                            <button type="submit" class="btn btn-success btn-lg px-5 fw-bold">
-                                <i class="fas fa-check-double me-2"></i> Encerrar
-                            </button>
-                            {% else %}
+
                             <button type="submit" class="btn btn-primary btn-lg px-5 fw-bold">
-                                <i class="fas fa-paper-plane me-2"></i> Concluir
+                                <i class="fas fa-check-double me-2"></i> CONCLUIR E FINALIZAR
                             </button>
-                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -363,9 +371,9 @@
     window.dbLocal = dbLocal;
 
     dbLocal.version(3).stores({
-        respostas_pendentes: 'pergunta_id, aplicacao_id, dados_completos, timestamp', 
-        fotos_pendentes: 'id, aplicacao_id, pergunta_id, resposta_id, blob, nome, timestamp', 
-        fila_deletar: 'id_item, tipo, timestamp' 
+        respostas_pendentes: 'pergunta_id, aplicacao_id, dados_completos, timestamp',
+        fotos_pendentes: 'id, aplicacao_id, pergunta_id, resposta_id, blob, nome, timestamp',
+        fila_deletar: 'id_item, tipo, timestamp'
     });
 
     let signaturePadGlobal = null;
@@ -378,8 +386,8 @@
     // =========================================================
     document.addEventListener('DOMContentLoaded', async () => {
         initCanvas();
-        reconhecerRespostasExistentes(); 
-        
+        reconhecerRespostasExistentes();
+
         // Recupera dados salvos localmente
         await restaurarEstadoOffline();
 
@@ -449,7 +457,7 @@
     // =========================================================
     async function sincronizarUmaResposta(pid) {
         const item = await dbLocal.respostas_pendentes.get(pid);
-        if (!item) return; 
+        if (!item) return;
 
         const icon = document.getElementById(`status-icon-${pid}`);
 
@@ -519,7 +527,7 @@
                 try {
                     await fetch(`/cli/foto/${del.id_item}/deletar`, { method: 'DELETE', headers: { 'X-CSRFToken': CSRF_TOKEN } });
                     await dbLocal.fila_deletar.where('id_item').equals(del.id_item).delete();
-                } catch (e) {}
+                } catch (e) { }
             }
         }
         atualizarContadorPendencias();
@@ -527,12 +535,12 @@
 
     async function verificarFotosPendentes(pid, rid) {
         const fotos = await dbLocal.fotos_pendentes.where('pergunta_id').equals(String(pid)).toArray();
-        for(let f of fotos) {
-            if(!f.resposta_id) {
+        for (let f of fotos) {
+            if (!f.resposta_id) {
                 f.resposta_id = rid;
                 await dbLocal.fotos_pendentes.put(f);
                 const div = document.getElementById(`foto-local-${f.id}`);
-                if(div) enviarFoto(f.blob, f.nome, pid, f.id, rid, div);
+                if (div) enviarFoto(f.blob, f.nome, pid, f.id, rid, div);
             }
         }
     }
@@ -555,8 +563,8 @@
     // =========================================================
     // 5. UPLOAD DE FOTOS (CORRIGIDO PARA ERRO 400)
     // =========================================================
-    
-   // =========================================================
+
+    // =========================================================
     // NOVA FUNÇÃO AUXILIAR: COMPRESSÃO DE IMAGEM
     // Reduz drasticamente o tamanho do arquivo antes de salvar
     // =========================================================
@@ -582,7 +590,7 @@
                     canvas.width = width;
                     canvas.height = height;
                     const ctx = canvas.getContext('2d');
-                    
+
                     // Desenha a imagem no tamanho reduzido
                     ctx.drawImage(img, 0, 0, width, height);
 
@@ -609,110 +617,110 @@
     // =========================================================
     // 5. UPLOAD DE FOTOS (ATUALIZADO COM COMPRESSÃO)
     // =========================================================
-    
-async function handleFotoUpload(input) {
-    if (!input.files || input.files.length === 0) return;
-    
-    const fileOriginal = input.files[0];
-    const pid = input.dataset.perguntaId;
-    let rid = input.dataset.respostaId;
 
-    // 1. TRAVA VISUAL
-    const labelBtn = document.querySelector(`label[for="input-foto-${pid}"]`);
-    const iconeOriginal = labelBtn ? labelBtn.innerHTML : '';
-    if (labelBtn) {
-        labelBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; 
-        labelBtn.classList.add('disabled', 'btn-warning'); 
-        input.disabled = true;
-    }
+    async function handleFotoUpload(input) {
+        if (!input.files || input.files.length === 0) return;
 
-    try {
-        // 2. COMPRESSÃO (Mantendo a que funciona)
-        const file = await comprimirImagem(fileOriginal, 1024, 0.6);
-        input.value = ''; 
+        const fileOriginal = input.files[0];
+        const pid = input.dataset.perguntaId;
+        let rid = input.dataset.respostaId;
 
-        // Garante RID
-        if (!rid) {
-            await salvarResposta(document.querySelector(`[name="resposta-${pid}"]`));
-            const el = document.querySelector(`[data-pergunta-id="${pid}"]`);
-            rid = el ? el.dataset.respostaId : null;
+        // 1. TRAVA VISUAL
+        const labelBtn = document.querySelector(`label[for="input-foto-${pid}"]`);
+        const iconeOriginal = labelBtn ? labelBtn.innerHTML : '';
+        if (labelBtn) {
+            labelBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            labelBtn.classList.add('disabled', 'btn-warning');
+            input.disabled = true;
         }
 
-        // 3. DECISÃO DE SALVAMENTO
-        if (navigator.onLine && rid) {
-            // ONLINE: Tenta envio direto (Bypass do banco)
-            console.log("Online: Tentando envio direto...");
-            await enviarDiretoParaServidor(file, pid, rid);
-        } else {
-            // OFFLINE: Salva no dispositivo
-            console.log("Offline: Salvando no dispositivo...");
-            const tid = Date.now();
-            
-            try {
-                // Tenta salvar como ARQUIVO (Blob)
-                await dbLocal.fotos_pendentes.add({
-                    id: tid,
-                    aplicacao_id: APLICACAO_ID,
-                    pergunta_id: pid,
-                    resposta_id: rid || null,
-                    blob: file, 
-                    tipo: 'blob', // Marcador
-                    nome: file.name, 
-                    timestamp: Date.now()
-                });
-                // CORREÇÃO DO ERRO URL AQUI NA CHAMADA:
-                criarPreviewLocal(pid, tid, file); 
+        try {
+            // 2. COMPRESSÃO (Mantendo a que funciona)
+            const file = await comprimirImagem(fileOriginal, 1024, 0.6);
+            input.value = '';
 
-            } catch (erroBlob) {
-                // SE DER "FEATURE IS DISABLED", ENTRA AQUI (PLANO B)
-                console.warn("Blob bloqueado pelo navegador. Convertendo para Texto...", erroBlob);
-                
+            // Garante RID
+            if (!rid) {
+                await salvarResposta(document.querySelector(`[name="resposta-${pid}"]`));
+                const el = document.querySelector(`[data-pergunta-id="${pid}"]`);
+                rid = el ? el.dataset.respostaId : null;
+            }
+
+            // 3. DECISÃO DE SALVAMENTO
+            if (navigator.onLine && rid) {
+                // ONLINE: Tenta envio direto (Bypass do banco)
+                console.log("Online: Tentando envio direto...");
+                await enviarDiretoParaServidor(file, pid, rid);
+            } else {
+                // OFFLINE: Salva no dispositivo
+                console.log("Offline: Salvando no dispositivo...");
+                const tid = Date.now();
+
                 try {
-                    const base64 = await blobParaBase64(file);
+                    // Tenta salvar como ARQUIVO (Blob)
                     await dbLocal.fotos_pendentes.add({
                         id: tid,
                         aplicacao_id: APLICACAO_ID,
                         pergunta_id: pid,
                         resposta_id: rid || null,
-                        blob: base64, // Salva o texto gigante
-                        tipo: 'base64', // Marcador importante
-                        nome: file.name, 
+                        blob: file,
+                        tipo: 'blob', // Marcador
+                        nome: file.name,
                         timestamp: Date.now()
                     });
+                    // CORREÇÃO DO ERRO URL AQUI NA CHAMADA:
                     criarPreviewLocal(pid, tid, file);
-                    console.log("Salvo com sucesso em modo Texto (Base64).");
-                } catch (erroFatal) {
-                    alert("Erro: Seu dispositivo está impedindo salvar fotos offline.");
-                    console.error(erroFatal);
+
+                } catch (erroBlob) {
+                    // SE DER "FEATURE IS DISABLED", ENTRA AQUI (PLANO B)
+                    console.warn("Blob bloqueado pelo navegador. Convertendo para Texto...", erroBlob);
+
+                    try {
+                        const base64 = await blobParaBase64(file);
+                        await dbLocal.fotos_pendentes.add({
+                            id: tid,
+                            aplicacao_id: APLICACAO_ID,
+                            pergunta_id: pid,
+                            resposta_id: rid || null,
+                            blob: base64, // Salva o texto gigante
+                            tipo: 'base64', // Marcador importante
+                            nome: file.name,
+                            timestamp: Date.now()
+                        });
+                        criarPreviewLocal(pid, tid, file);
+                        console.log("Salvo com sucesso em modo Texto (Base64).");
+                    } catch (erroFatal) {
+                        alert("Erro: Seu dispositivo está impedindo salvar fotos offline.");
+                        console.error(erroFatal);
+                    }
                 }
             }
-        }
 
-    } catch (erroGeral) {
-        console.error("Erro processo:", erroGeral);
-        alert("Falha ao processar foto.");
-    } finally {
-        if (labelBtn) {
-            labelBtn.innerHTML = iconeOriginal;
-            labelBtn.classList.remove('disabled', 'btn-warning');
-            input.disabled = false;
+        } catch (erroGeral) {
+            console.error("Erro processo:", erroGeral);
+            alert("Falha ao processar foto.");
+        } finally {
+            if (labelBtn) {
+                labelBtn.innerHTML = iconeOriginal;
+                labelBtn.classList.remove('disabled', 'btn-warning');
+                input.disabled = false;
+            }
         }
     }
-}
 
-// --- FUNÇÃO DE PREVIEW CORRIGIDA (WINDOW.URL) ---
-function criarPreviewLocal(pid, tid, file) {
-    const g = document.getElementById(`galeria-fotos-${pid}`);
-    const d = document.createElement('div');
-    d.id = `foto-local-${tid}`;
-    d.className = 'position-relative d-inline-block flex-shrink-0 me-2';
-    d.style.width = '70px'; d.style.height = '70px';
-    
-    // CORREÇÃO CRÍTICA 1: Usar window.URL explicitamente
-    const imgUrl = window.URL.createObjectURL(file);
-    
-    // CORREÇÃO CRÍTICA 2: Usar window.URL.revokeObjectURL dentro do HTML string
-    d.innerHTML = `
+    // --- FUNÇÃO DE PREVIEW CORRIGIDA (WINDOW.URL) ---
+    function criarPreviewLocal(pid, tid, file) {
+        const g = document.getElementById(`galeria-fotos-${pid}`);
+        const d = document.createElement('div');
+        d.id = `foto-local-${tid}`;
+        d.className = 'position-relative d-inline-block flex-shrink-0 me-2';
+        d.style.width = '70px'; d.style.height = '70px';
+
+        // CORREÇÃO CRÍTICA 1: Usar window.URL explicitamente
+        const imgUrl = window.URL.createObjectURL(file);
+
+        // CORREÇÃO CRÍTICA 2: Usar window.URL.revokeObjectURL dentro do HTML string
+        d.innerHTML = `
         <img src="${imgUrl}" class="rounded w-100 h-100 border border-warning" 
              style="object-fit:cover;" onload="window.URL.revokeObjectURL(this.src)"> 
         <div class="position-absolute top-50 start-50 translate-middle status-icon">
@@ -723,100 +731,100 @@ function criarPreviewLocal(pid, tid, file) {
             <i class="fas fa-times"></i>
         </button>
     `;
-    g.appendChild(d);
-}
+        g.appendChild(d);
+    }
 
-// Helper para converter Blob em Texto (Base64)
-function blobParaBase64(blob) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-    });
-}
-
-// Helper para converter Blob em Texto (Base64)
-function blobParaBase64(blob) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-    });
-}
-
-// --- FUNÇÃO AUXILIAR 1: ENVIO DIRETO (Sem passar pelo banco local) ---
-async function enviarDiretoParaServidor(file, pid, rid) {
-    // Cria um preview temporário de "Carregando..."
-    const g = document.getElementById(`galeria-fotos-${pid}`);
-    const tempId = 'temp-' + Date.now();
-    const d = document.createElement('div');
-    d.id = tempId;
-    d.className = 'position-relative d-inline-block flex-shrink-0 me-2';
-    d.style.width = '70px'; d.style.height = '70px';
-    d.innerHTML = `<div class="d-flex align-items-center justify-content-center w-100 h-100 bg-light border rounded"><i class="fas fa-circle-notch fa-spin text-primary"></i></div>`;
-    g.appendChild(d);
-
-    try {
-        const fd = new FormData();
-        // Garante nome seguro
-        let safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '');
-        if (!safeName.toLowerCase().endsWith('.jpg')) safeName += '.jpg';
-        
-        fd.append('foto', file, safeName);
-
-        const r = await fetch(`/cli/resposta/${rid}/upload-foto`, {
-            method: 'POST',
-            headers: { 'X-CSRFToken': CSRF_TOKEN },
-            body: fd
+    // Helper para converter Blob em Texto (Base64)
+    function blobParaBase64(blob) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
         });
+    }
 
-        if (r.ok) {
-            const data = await r.json();
-            // SUCESSO! Substitui o loading pela foto oficial do servidor (Borda Verde)
-            d.outerHTML = `
+    // Helper para converter Blob em Texto (Base64)
+    function blobParaBase64(blob) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    }
+
+    // --- FUNÇÃO AUXILIAR 1: ENVIO DIRETO (Sem passar pelo banco local) ---
+    async function enviarDiretoParaServidor(file, pid, rid) {
+        // Cria um preview temporário de "Carregando..."
+        const g = document.getElementById(`galeria-fotos-${pid}`);
+        const tempId = 'temp-' + Date.now();
+        const d = document.createElement('div');
+        d.id = tempId;
+        d.className = 'position-relative d-inline-block flex-shrink-0 me-2';
+        d.style.width = '70px'; d.style.height = '70px';
+        d.innerHTML = `<div class="d-flex align-items-center justify-content-center w-100 h-100 bg-light border rounded"><i class="fas fa-circle-notch fa-spin text-primary"></i></div>`;
+        g.appendChild(d);
+
+        try {
+            const fd = new FormData();
+            // Garante nome seguro
+            let safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '');
+            if (!safeName.toLowerCase().endsWith('.jpg')) safeName += '.jpg';
+
+            fd.append('foto', file, safeName);
+
+            const r = await fetch(`/cli/resposta/${rid}/upload-foto`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': CSRF_TOKEN },
+                body: fd
+            });
+
+            if (r.ok) {
+                const data = await r.json();
+                // SUCESSO! Substitui o loading pela foto oficial do servidor (Borda Verde)
+                d.outerHTML = `
                 <div class="position-relative d-inline-block flex-shrink-0 me-2" id="foto-server-${data.foto_id}" style="width: 70px; height: 70px;">
                     <img src="${URL.createObjectURL(file)}" class="rounded w-100 h-100 border border-success" style="object-fit: cover; cursor: pointer;" onclick="window.open(this.src)">
                     <button type="button" class="btn btn-danger btn-sm p-0 position-absolute top-0 end-0 translate-middle rounded-circle shadow-sm" style="width: 20px; height: 20px; font-size: 10px; z-index: 10;" onclick="deletarFotoServidor(${data.foto_id})">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>`;
-        } else {
-            throw new Error("Servidor rejeitou");
+            } else {
+                throw new Error("Servidor rejeitou");
+            }
+        } catch (e) {
+            console.warn("Falha no envio direto. Caindo para o modo offline...", e);
+            d.remove(); // Remove o loading
+            await salvarLocalmente(file, pid, rid); // FALLBACK: Tenta salvar local
         }
-    } catch (e) {
-        console.warn("Falha no envio direto. Caindo para o modo offline...", e);
-        d.remove(); // Remove o loading
-        await salvarLocalmente(file, pid, rid); // FALLBACK: Tenta salvar local
     }
-}
 
-// --- FUNÇÃO AUXILIAR 2: SALVAR LOCAL (Só usada se estiver offline ou falhar envio) ---
-async function salvarLocalmente(file, pid, rid) {
-    const tid = Date.now();
-    
-    try {
-        await dbLocal.fotos_pendentes.add({
-            id: tid,
-            aplicacao_id: APLICACAO_ID,
-            pergunta_id: pid,
-            resposta_id: rid || null,
-            blob: file, 
-            nome: file.name, 
-            timestamp: Date.now()
-        });
-        atualizarContadorPendencias();
+    // --- FUNÇÃO AUXILIAR 2: SALVAR LOCAL (Só usada se estiver offline ou falhar envio) ---
+    async function salvarLocalmente(file, pid, rid) {
+        const tid = Date.now();
 
-        // Cria Preview Amarelo (Pendente)
-        const g = document.getElementById(`galeria-fotos-${pid}`);
-        const d = document.createElement('div');
-        d.id = `foto-local-${tid}`;
-        d.className = 'position-relative d-inline-block flex-shrink-0 me-2';
-        d.style.width = '70px'; d.style.height = '70px';
-        const imgUrl = URL.createObjectURL(file);
-        
-        d.innerHTML = `
+        try {
+            await dbLocal.fotos_pendentes.add({
+                id: tid,
+                aplicacao_id: APLICACAO_ID,
+                pergunta_id: pid,
+                resposta_id: rid || null,
+                blob: file,
+                nome: file.name,
+                timestamp: Date.now()
+            });
+            atualizarContadorPendencias();
+
+            // Cria Preview Amarelo (Pendente)
+            const g = document.getElementById(`galeria-fotos-${pid}`);
+            const d = document.createElement('div');
+            d.id = `foto-local-${tid}`;
+            d.className = 'position-relative d-inline-block flex-shrink-0 me-2';
+            d.style.width = '70px'; d.style.height = '70px';
+            const imgUrl = URL.createObjectURL(file);
+
+            d.innerHTML = `
             <img src="${imgUrl}" class="rounded w-100 h-100 border border-warning" 
                  style="object-fit:cover;" onload="URL.revokeObjectURL(this.src)"> 
             <div class="position-absolute top-50 start-50 translate-middle status-icon">
@@ -827,24 +835,24 @@ async function salvarLocalmente(file, pid, rid) {
                 <i class="fas fa-times"></i>
             </button>
         `;
-        g.appendChild(d);
+            g.appendChild(d);
 
-    } catch (e) {
-        if (e.name === 'QuotaExceededError') {
-            alert("Memória do celular cheia! Conecte na internet para liberar espaço.");
-        } else {
-            alert("Erro ao salvar foto offline.");
+        } catch (e) {
+            if (e.name === 'QuotaExceededError') {
+                alert("Memória do celular cheia! Conecte na internet para liberar espaço.");
+            } else {
+                alert("Erro ao salvar foto offline.");
+            }
         }
     }
-}
 
-   // --- FUNÇÃO CORRIGIDA E BLINDADA ---
+    // --- FUNÇÃO CORRIGIDA E BLINDADA ---
     async function enviarFoto(blobOuFile, nomeArquivo, pid, tid, rid, div) {
         const fd = new FormData();
-        
+
         // 1. GARANTIA DE NOME (Checklist de Segurança)
         let nomeFinal = nomeArquivo;
-        
+
         // Se veio nulo ou indefinido, cria um genérico
         if (!nomeFinal || nomeFinal === 'undefined') {
             nomeFinal = `foto_recuperada_${Date.now()}.jpg`;
@@ -853,9 +861,9 @@ async function salvarLocalmente(file, pid, rid) {
         // 2. GARANTIA DE EXTENSÃO (O erro 400 acontece aqui)
         // O servidor Python exige que termine com .jpg, .png, etc.
         const nomeLower = nomeFinal.toLowerCase();
-        if (!nomeLower.endsWith('.jpg') && 
-            !nomeLower.endsWith('.jpeg') && 
-            !nomeLower.endsWith('.png') && 
+        if (!nomeLower.endsWith('.jpg') &&
+            !nomeLower.endsWith('.jpeg') &&
+            !nomeLower.endsWith('.png') &&
             !nomeLower.endsWith('.webp')) {
             // Se não tiver extensão, FORÇAMOS .jpg
             nomeFinal += '.jpg';
@@ -888,12 +896,12 @@ async function salvarLocalmente(file, pid, rid) {
                 const data = await r.json();
                 if (data.sucesso) {
                     console.log("[Upload] Sucesso:", data);
-                    
+
                     // Remove do banco local
                     await dbLocal.fotos_pendentes.delete(tid);
-                    
+
                     // Atualiza visual
-                    if(div && div.parentNode) {
+                    if (div && div.parentNode) {
                         div.outerHTML = `
                             <div class="position-relative d-inline-block flex-shrink-0 me-2" id="foto-server-${data.foto_id}" style="width: 70px; height: 70px;">
                                 <img src="${URL.createObjectURL(arquivoParaEnvio)}" class="rounded w-100 h-100 border border-success" style="object-fit: cover; cursor: pointer;" onclick="window.open(this.src)">
@@ -912,10 +920,10 @@ async function salvarLocalmente(file, pid, rid) {
                 // IMPORTANTE: Se o erro for 400 (arquivo inválido), deletamos do local para não travar a fila
                 // Se for arquivo inválido, não adianta tentar de novo.
                 if (r.status === 400) {
-                     console.warn("[Upload] Removendo arquivo corrompido/inválido da fila local.");
-                     await dbLocal.fotos_pendentes.delete(tid);
-                     if(div) div.remove();
-                     atualizarContadorPendencias();
+                    console.warn("[Upload] Removendo arquivo corrompido/inválido da fila local.");
+                    await dbLocal.fotos_pendentes.delete(tid);
+                    if (div) div.remove();
+                    atualizarContadorPendencias();
                 }
             }
         } catch (e) {
@@ -934,7 +942,7 @@ async function salvarLocalmente(file, pid, rid) {
     window.deletarFotoServidor = async (id) => {
         if (!confirm('Apagar esta foto do servidor?')) return;
         const el = document.getElementById(`foto-server-${id}`);
-        if (el) el.remove(); 
+        if (el) el.remove();
 
         if (navigator.onLine) {
             try {
@@ -965,7 +973,7 @@ async function salvarLocalmente(file, pid, rid) {
     }
 
     function verificarConformidade(input) {
-        salvarResposta(input); 
+        salvarResposta(input);
         aplicarRegraConformidade(input);
         atualizarProgressoGlobal();
     }
@@ -1060,7 +1068,7 @@ async function salvarLocalmente(file, pid, rid) {
         pendentes.forEach(item => {
             const pid = item.pergunta_id;
             const dados = item.dados_completos;
-            
+
             const inputTxt = document.querySelector(`[name="resposta-${pid}"]:not([type="radio"])`);
             if (inputTxt && dados.resposta) {
                 inputTxt.value = dados.resposta;
@@ -1109,7 +1117,7 @@ async function salvarLocalmente(file, pid, rid) {
         const c = document.getElementById('canvas-unico');
         if (c) { signaturePadGlobal = new SignaturePad(c, { backgroundColor: 'rgb(255,255,255)' }); resizeCanvas(); }
     }
-    
+
     // Pequeno fix para o erro de aria-hidden
     modalElement.addEventListener('show.bs.modal', () => {
         modalElement.removeAttribute('aria-hidden');
@@ -1145,7 +1153,7 @@ async function salvarLocalmente(file, pid, rid) {
         if (img) { img.src = d; img.style.display = 'block'; }
         const ph = document.getElementById(`placeholder-${currentPerguntaId}`);
         if (ph) ph.classList.add('d-none');
-        
+
         // --- CÓDIGO NOVO INSERIDO ABAIXO ---
         const fimInput = document.getElementById('visita_fim_manual');
         if (fimInput) {
@@ -1153,10 +1161,10 @@ async function salvarLocalmente(file, pid, rid) {
         }
         // ------------------------------------
 
-        salvarResposta(input); 
+        salvarResposta(input);
         modalAssinatura.hide();
     };
-    
+
     window.limparCanvasAtual = () => signaturePadGlobal.clear();
 
     // --- UTILS ---
@@ -1230,12 +1238,14 @@ async function salvarLocalmente(file, pid, rid) {
     window.forcarSincronizacaoManual = sincronizarTudo;
 </script>
 <div style="position: fixed; bottom: 10px; left: 10px; z-index: 9999; display: flex; flex-direction: column; gap: 5px;">
-    
-    <button onclick="debugVerificarBanco()" class="btn btn-dark btn-sm shadow-lg border-white" style="border: 1px solid white;">
+
+    <button onclick="debugVerificarBanco()" class="btn btn-dark btn-sm shadow-lg border-white"
+        style="border: 1px solid white;">
         🕵️ <span id="debug-contador">Ver Banco</span>
     </button>
-    
-    <button onclick="debugLimparBanco()" class="btn btn-danger btn-sm shadow-lg border-white" style="border: 1px solid white; font-size: 10px;">
+
+    <button onclick="debugLimparBanco()" class="btn btn-danger btn-sm shadow-lg border-white"
+        style="border: 1px solid white; font-size: 10px;">
         🗑️ Limpar Forçado
     </button>
 
@@ -1247,7 +1257,7 @@ async function salvarLocalmente(file, pid, rid) {
     async function debugVerificarBanco() {
         const btn = document.getElementById('debug-contador');
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analisando...';
-        
+
         try {
             if (!window.dbLocal || !window.dbLocal.fotos_pendentes) {
                 alert("Erro: Banco não encontrado (window.dbLocal null).");
@@ -1257,7 +1267,7 @@ async function salvarLocalmente(file, pid, rid) {
             // Pega todos os itens para analisar
             const itens = await window.dbLocal.fotos_pendentes.toArray();
             const qtd = itens.length;
-            
+
             btn.innerText = `Itens: ${qtd}`;
 
             if (qtd === 0) {
@@ -1266,9 +1276,9 @@ async function salvarLocalmente(file, pid, rid) {
                 // ANALISA O PRIMEIRO ITEM PARA VER COMO FOI SALVO
                 const item = itens[0];
                 let relatorio = `⚠️ EXISTEM ${qtd} FOTOS OFFLINE:\n\n`;
-                
+
                 relatorio += `📸 FOTO ID: ${item.id}\n`;
-                
+
                 // VERIFICAÇÃO DO TIPO
                 if (item.blob instanceof Blob) {
                     // Cenario Ideal
@@ -1276,14 +1286,14 @@ async function salvarLocalmente(file, pid, rid) {
                     relatorio += `💾 TIPO: BLOB (Arquivo Puro) ✅\n`;
                     relatorio += `📦 TAMANHO: ${tamanhoMB} MB\n`;
                     relatorio += `ℹ️ O iPhone ACEITOU salvar arquivos. Memória RAM está salva!`;
-                } 
+                }
                 else if (typeof item.blob === 'string') {
                     // Cenario de Emergência (Base64)
                     const tamanhoMB = (item.blob.length / 1024 / 1024).toFixed(2); // Aproximado
                     relatorio += `📝 TIPO: BASE64 (Texto) 🛡️\n`;
                     relatorio += `📦 TAMANHO: ~${tamanhoMB} MB\n`;
                     relatorio += `ℹ️ O iPhone BLOQUEOU arquivos, mas o Plano B salvou como texto!`;
-                } 
+                }
                 else {
                     relatorio += `❓ TIPO: DESCONHECIDO (${typeof item.blob})`;
                 }
@@ -1299,8 +1309,8 @@ async function salvarLocalmente(file, pid, rid) {
 
     // 2. Função de Emergência para limpar na marra
     async function debugLimparBanco() {
-        if(!confirm("Tem certeza? Isso vai apagar as fotos que ainda não subiram! Use só se travou tudo.")) return;
-        
+        if (!confirm("Tem certeza? Isso vai apagar as fotos que ainda não subiram! Use só se travou tudo.")) return;
+
         try {
             await window.dbLocal.fotos_pendentes.clear();
             alert("🗑️ Banco esvaziado na força bruta.");
@@ -1309,5 +1319,21 @@ async function salvarLocalmente(file, pid, rid) {
             alert("Erro ao limpar: " + e.message);
         }
     }
+
+    // Adicione isso dentro do seu document.addEventListener('DOMContentLoaded', ...) existente
+document.addEventListener('DOMContentLoaded', async () => {
+    // ... (seu código existente de initCanvas, etc) ...
+
+    // --- LÓGICA DO CAMPO DE DATA MANUAL ---
+    const inputFim = document.getElementById('visita_fim_manual');
+    if (inputFim && !inputFim.value) {
+        // Pega a data/hora atual do dispositivo
+        const now = new Date();
+        // Ajusta para o formato local (ISO sem fuso UTC) para funcionar no input datetime-local
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        // Formata para YYYY-MM-DDTHH:MM
+        inputFim.value = now.toISOString().slice(0, 16);
+    }
+});
 </script>
 {% endblock %}
