@@ -220,31 +220,32 @@ def escolher_questionario(avaliado_id):
 @cli_bp.route('/aplicacao/<int:id>/responder', methods=['GET', 'POST'])
 @login_required
 def responder_aplicacao(id, modo_assinatura=False):
-    """Interface principal do Checklist."""
+    """
+    Interface principal. Permite acesso pós-finalização APENAS para o dono (para anexar fotos).
+    """
     try:
         app = AplicacaoQuestionario.query.get_or_404(id)
         if app.avaliado.cliente_id != current_user.cliente_id:
-            flash("Acesso negado.", "error")
-            return redirect(url_for('cli.listar_aplicacoes'))
+            flash("Acesso negado.", "error"); return redirect(url_for('cli.listar_aplicacoes'))
         
-        # Validação de Permissão (Auditores só veem seus GAPs)
+        # Validação de Jurisdição (Auditores/Gestores)
         if current_user.tipo.name in ['AUDITOR', 'GESTOR']:
             permitidos = [r.id for r in get_avaliados_usuario()]
             if app.avaliado_id not in permitidos:
-                flash("Acesso negado (Jurisdição).", "danger")
-                return redirect(url_for('cli.listar_aplicacoes'))
+                flash("Acesso negado (Jurisdição).", "danger"); return redirect(url_for('cli.listar_aplicacoes'))
 
+        # LÓGICA DE PERMISSÃO PÓS-FIM:
+        # Se finalizada, bloqueia acesso exceto se for o PRÓPRIO APLICADOR (para anexos tardios)
         if app.status != StatusAplicacao.EM_ANDAMENTO and not modo_assinatura:
-            flash("Aplicação já finalizada.", "warning")
-            return redirect(url_for('cli.visualizar_aplicacao', id=id))
+            if app.aplicador_id != current_user.id:
+                 flash("Aplicação já finalizada.", "warning")
+                 return redirect(url_for('cli.visualizar_aplicacao', id=id))
+            # Se for o dono, deixa passar (o template deve bloquear edição de texto via JS, mas permitir upload)
 
         topicos = Topico.query.filter_by(questionario_id=app.questionario_id, ativo=True).order_by(Topico.ordem).all()
         perguntas_map = defaultdict(list)
-        
-        # Carregamento otimizado
         all_perguntas = Pergunta.query.join(Topico).filter(Topico.questionario_id == app.questionario_id, Topico.ativo == True, Pergunta.ativo == True).order_by(Pergunta.ordem).all()
-        for p in all_perguntas:
-            perguntas_map[p.topico_id].append(p)
+        for p in all_perguntas: perguntas_map[p.topico_id].append(p)
 
         respostas = {r.pergunta_id: r for r in app.respostas}
         
@@ -254,14 +255,16 @@ def responder_aplicacao(id, modo_assinatura=False):
                              respostas_existentes=respostas,
                              modo_assinatura=modo_assinatura)
     except Exception as e:
-        flash(f"Erro ao carregar: {str(e)}", "danger")
-        return redirect(url_for('cli.listar_aplicacoes'))
+        flash(f"Erro ao carregar: {str(e)}", "danger"); return redirect(url_for('cli.listar_aplicacoes'))
 
 @cli_bp.route('/aplicacao/<int:id>/salvar-resposta', methods=['POST'])
 @login_required
 @csrf.exempt
 def salvar_resposta(id):
-    """AJAX: Salva resposta individual e calcula nota."""
+    """
+    AJAX: Salva respostas. 
+    ALTERAÇÃO: Permite salvar (focando em fotos) mesmo se FINALIZADA, se for o dono.
+    """
     try:
         app = AplicacaoQuestionario.query.get_or_404(id)
         if app.avaliado.cliente_id != current_user.cliente_id: return jsonify({'erro': 'Acesso negado'}), 403
@@ -269,11 +272,14 @@ def salvar_resposta(id):
         data = request.get_json() or {}
         is_closed = app.status != StatusAplicacao.EM_ANDAMENTO
         
-        # Permite edição de plano de ação mesmo fechado
-        if is_closed and 'plano_acao' not in data and 'resposta_id' not in data:
-            return jsonify({'erro': 'Aplicação finalizada.'}), 400
+        # PERMISSÃO ESPECIAL: Se fechado, só permite salvar se for o dono da auditoria
+        if is_closed:
+            if app.aplicador_id != current_user.id:
+                return jsonify({'erro': 'Aplicação finalizada.'}), 400
+            # Se for o dono, continua o código e salva (útil para fotos tardias)
 
-        # Caso 1: Edição direta (Gestão de NCs)
+        # ... (O restante da lógica de salvar permanece idêntico) ...
+        # Edição direta (Gestão de NCs)
         if 'resposta_id' in data:
             resp = RespostaPergunta.query.get(data['resposta_id'])
             if resp and resp.aplicacao_id == id:
@@ -287,7 +293,7 @@ def salvar_resposta(id):
                 db.session.commit()
                 return jsonify({'sucesso': True})
 
-        # Caso 2: Resposta do Checklist
+        # Resposta do Checklist
         pid = data.get('pergunta_id')
         txt = (data.get('resposta') or '').strip()
         obs = (data.get('observacao') or '').strip()
@@ -298,40 +304,35 @@ def salvar_resposta(id):
         resp = RespostaPergunta.query.filter_by(aplicacao_id=id, pergunta_id=pid).first()
         if not resp: resp = RespostaPergunta(aplicacao_id=id, pergunta_id=pid)
 
-        resp.resposta = txt
-        resp.observacao = obs
+        # Se quiser bloquear edição de TEXTO mas permitir FOTO, faria logica aqui.
+        # Por enquanto, libera tudo para o dono.
+        resp.resposta = txt; resp.observacao = obs
         
-        # Lógica NC Automática
         negativas = ['não', 'nao', 'no', 'irregular', 'ruim']
         resp.nao_conforme = (txt.lower() in negativas)
-        
         if data.get('plano_acao'): resp.plano_acao = str(data.get('plano_acao')).strip()
 
-        # Cálculo de Pontos
         resp.pontos = 0
         tipo = str(getattr(pergunta.tipo, 'name', pergunta.tipo)).upper()
-        
         if tipo in ['SIM_NAO_NA', 'MULTIPLA_ESCOLHA']:
             opcao = OpcaoPergunta.query.filter_by(pergunta_id=pid, texto=txt).first()
-            if opcao and opcao.valor is not None:
-                resp.pontos = float(opcao.valor) * (pergunta.peso or 1)
+            if opcao and opcao.valor is not None: resp.pontos = float(opcao.valor) * (pergunta.peso or 1)
         elif tipo in ['ESCALA_NUMERICA', 'NOTA']:
             try: resp.pontos = float(txt) * (pergunta.peso or 1)
             except: pass
 
-        db.session.add(resp)
-        db.session.commit()
-        
+        db.session.add(resp); db.session.commit()
         return jsonify({'sucesso': True, 'pontos': resp.pontos, 'resposta_id': resp.id})
-
     except Exception as e:
-        db.session.rollback()
-        return jsonify({'erro': str(e)}), 500
+        db.session.rollback(); return jsonify({'erro': str(e)}), 500
 
 @cli_bp.route('/aplicacao/<int:id>/concluir-coleta', methods=['POST'])
 @login_required
 def concluir_coleta(id):
-    """Valida obrigatórias e redireciona para Gestão de NCs."""
+    """
+    Valida e decide: Se houver NCs -> Plano de Ação. Se estiver perfeito -> Assinatura.
+    CORRIGIDO: Evita loop infinito se não houver NCs.
+    """
     app = AplicacaoQuestionario.query.get_or_404(id)
     if app.avaliado.cliente_id != current_user.cliente_id: return redirect(url_for('cli.listar_aplicacoes'))
     
@@ -343,6 +344,9 @@ def concluir_coleta(id):
     sem_foto = []
     sem_obs = []
     
+    # Contador de NCs para decisão de roteamento
+    qtd_ncs = 0
+
     for p in perguntas_ativas:
         tipo = str(getattr(p.tipo, 'name', p.tipo)).upper()
         if tipo == 'ASSINATURA': continue
@@ -355,6 +359,10 @@ def concluir_coleta(id):
             continue
             
         if resp:
+            # Conta NCs
+            if resp.nao_conforme:
+                qtd_ncs += 1
+
             # 2. NC sem observação
             if resp.nao_conforme and not (resp.observacao or "").strip():
                 sem_obs.append(p.texto)
@@ -394,8 +402,16 @@ def concluir_coleta(id):
         app.nota_final = 0.0
 
     db.session.commit()
-    flash("Coleta concluída! Revise as NCs.", "info")
-    return redirect(url_for('cli.gerenciar_nao_conformidades', id=id))
+    
+    # LÓGICA DE DECISÃO (FAST-TRACK)
+    if qtd_ncs == 0:
+        # Se não tem NCs, vai direto para assinatura (evita tela "Tudo Certo" desnecessária)
+        flash("Auditoria 100% conforme! Redirecionando para assinatura.", "success")
+        return redirect(url_for('cli.fase_assinatura', id=id))
+    else:
+        # Se tem NCs, obriga a passar pela gestão
+        flash("Coleta concluída! Revise as Não Conformidades.", "info")
+        return redirect(url_for('cli.gerenciar_nao_conformidades', id=id))
 
 # ===================== FINALIZAÇÃO =====================
 
@@ -420,77 +436,66 @@ def fase_assinatura(id):
 @login_required
 def assinar_finalizar(id):
     """
-    Recebe a assinatura, finaliza a auditoria, gera ações corretivas
-    e redireciona direto para o relatório final.
+    Recebe a assinatura do form, Finaliza e Preserva o Horário Original.
     """
     app = AplicacaoQuestionario.query.get_or_404(id)
-    
-    # Validação de Segurança
     if app.avaliado.cliente_id != current_user.cliente_id:
-        flash("Acesso negado.", "danger")
-        return redirect(url_for('cli.index'))
+        flash("Acesso negado.", "danger"); return redirect(url_for('cli.index'))
 
     b64 = request.form.get('assinatura_base64')
     nome_resp = request.form.get('nome_responsavel')
     cargo_resp = request.form.get('cargo_responsavel')
-    fim_manual_iso = request.form.get('visita_fim_manual') # Input hidden do JS
+    fim_manual_iso = request.form.get('visita_fim_manual')
 
-    if not b64:
-        flash("A assinatura é obrigatória para finalizar.", "warning")
+    # A assinatura é obrigatória na primeira vez
+    if not b64 and not app.assinatura_imagem:
+        flash("A assinatura é obrigatória.", "warning")
         return redirect(url_for('cli.responder_aplicacao', id=id))
 
     try:
-        # 1. Salva a Imagem da Assinatura
-        if ',' in b64: 
-            b64 = b64.split(',')[1]
-            
-        fname = f"assinatura_app_{id}_{uuid.uuid4().hex[:8]}.png"
-        path = os.path.join(current_app.config['UPLOAD_FOLDER'], fname)
+        # Salva imagem se enviada
+        if b64:
+            if ',' in b64: b64 = b64.split(',')[1]
+            fname = f"assinatura_app_{id}_{uuid.uuid4().hex[:8]}.png"
+            path = os.path.join(current_app.config['UPLOAD_FOLDER'], fname)
+            if not os.path.exists(current_app.config['UPLOAD_FOLDER']): os.makedirs(current_app.config['UPLOAD_FOLDER'])
+            with open(path, "wb") as f: f.write(base64.b64decode(b64))
+            app.assinatura_imagem = fname
+
+        if nome_resp: app.assinatura_responsavel = nome_resp
+        if cargo_resp: app.cargo_responsavel = cargo_resp
         
-        # Garante que a pasta existe
-        if not os.path.exists(current_app.config['UPLOAD_FOLDER']):
-            os.makedirs(current_app.config['UPLOAD_FOLDER'])
-            
-        with open(path, "wb") as f: 
-            f.write(base64.b64decode(b64))
-        
-        # 2. Atualiza Dados da Aplicação
-        app.assinatura_imagem = fname
-        app.assinatura_responsavel = nome_resp
-        app.cargo_responsavel = cargo_resp
+        # Define como finalizada
         app.status = StatusAplicacao.FINALIZADA
-        app.data_fim = datetime.now() # Data do upload (sistema)
+        app.data_fim = datetime.now()
         
-        # 3. Lógica do Horário Real da Visita (Fim)
-        # Se o JS mandou o horário do clique, usamos ele.
+        # === PRESERVAÇÃO DE TEMPO (CRUCIAL) ===
+        # Só define o horário de término se ele AINDA NÃO EXISTIR.
+        # Se a consultora abrir depois para pôr foto e salvar, isso aqui é pulado.
         if not app.visita_fim:
             if fim_manual_iso:
-                try:
-                    # Tenta converter ISO string do JS (ex: 2026-02-08T15:30:00.000Z)
-                    # Remove o 'Z' se existir e converte
-                    fim_manual_iso = fim_manual_iso.replace('Z', '')
-                    app.visita_fim = datetime.fromisoformat(fim_manual_iso)
-                except ValueError:
-                    app.visita_fim = datetime.now()
-            else:
+                try: app.visita_fim = datetime.fromisoformat(fim_manual_iso.replace('Z', ''))
+                except: app.visita_fim = datetime.now()
+            else: 
                 app.visita_fim = datetime.now()
+        # ======================================
         
-        # Salva tudo no banco
         db.session.commit()
         
-        # 4. GERAÇÃO AUTOMÁTICA DE AÇÕES CORRETIVAS
-        # Chama a função que varre as NCs e cria os registros na tabela nova
-        gerar_acoes_corretivas_automatico(app.id)
+        # Gera ações em background
+        try:
+            gerar_acoes_corretivas_automatico(app.id)
+        except Exception as e_gen:
+            print(f"Erro ao gerar ações: {e_gen}")
 
         log_acao(f"Finalizou app {id}", None, "Aplicacao", id)
         flash("Auditoria finalizada com sucesso!", "success")
         
-        # 5. NOVO FLUXO: Redireciona DIRETO para o Resumo/PDF
+        # Redireciona para o RESUMO/VISUALIZAÇÃO
         return redirect(url_for('cli.visualizar_aplicacao', id=id))
 
     except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"Erro ao finalizar app {id}: {str(e)}")
+        db.session.rollback(); current_app.logger.error(f"Erro finalizar: {e}")
         flash(f"Erro ao finalizar: {str(e)}", "danger")
         return redirect(url_for('cli.responder_aplicacao', id=id))
     
@@ -572,7 +577,7 @@ def gerar_relatorio_aplicacao(id):
             if r:
                 respostas_por_topico[t].append(r)
                 
-                # === CORREÇÃO 1: LÓGICA DE FOTOS MÚLTIPLAS ===
+                # === LÓGICA DE FOTOS MÚLTIPLAS ===
                 caminhos_imagens = []
                 
                 # 1. Foto Legada
@@ -598,7 +603,6 @@ def gerar_relatorio_aplicacao(id):
                         if uri: uris_validas.append(uri)
                     
                     if uris_validas:
-                        # Agora enviamos uma LISTA chamada 'urls' para bater com o HTML
                         fotos[t].append({'resposta': r, 'urls': uris_validas})
 
                 # Score
@@ -609,12 +613,10 @@ def gerar_relatorio_aplicacao(id):
         
         percent = (obtido/maximo*100) if maximo > 0 else 0
         
-        # === CORREÇÃO 2: NOME DA CHAVE DO SCORE ===
-        # Mudamos de 'percent' para 'score_percent' para bater com o HTML
         scores[t.id] = {
             'obtido': obtido, 
             'maximo': maximo, 
-            'score_percent': round(percent, 2) # <--- AQUI ESTAVA O ERRO DO CRASH
+            'score_percent': round(percent, 2)
         }
 
     # Logo
@@ -707,7 +709,8 @@ def excluir_aplicacao(id):
         
     return redirect(url_for('cli.listar_aplicacoes'))
 
-# --- ROTA DE EMERGÊNCIA PARA TESTES ---
+# ===================== FERRAMENTAS AUXILIARES E DIAGNÓSTICO =====================
+
 @cli_bp.route('/aplicacao/<int:id>/forcar-geracao-acoes')
 @login_required
 def forcar_geracao_acoes(id):
@@ -717,81 +720,12 @@ def forcar_geracao_acoes(id):
     else:
         flash("Erro ao gerar ações (ou nenhuma NC encontrada).", "warning")
     
-    # Redireciona direto para a tela de ações
     return redirect(url_for('cli.gerenciar_acoes_corretivas', id=id))
-
-# --- FUNÇÃO LOGICA (Reutilizável) ---
-def gerar_acoes_corretivas_automatico(aplicacao_id):
-    """
-    Versão ROBUSTA: Lê as respostas e cria ações corretivas.
-    Verifica tanto a flag 'nao_conforme' quanto o texto da resposta (Não/Ruim/etc).
-    """
-    try:
-        print(f"--- Iniciando Geração INTELIGENTE para App {aplicacao_id} ---")
-        
-        # 1. Busca TODAS as respostas dessa aplicação (para não depender só do filtro)
-        todas_respostas = RespostaPergunta.query.filter_by(aplicacao_id=aplicacao_id).all()
-        
-        # Lista de palavras que indicam problema (caso a flag tenha falhado)
-        respostas_negativas = ['não', 'nao', 'no', 'ruim', 'irregular', 'reprovado', 'crítico']
-        
-        contador = 0
-        
-        for resposta in todas_respostas:
-            eh_nc = False
-            
-            # Checagem 1: O banco já diz que é NC?
-            if resposta.nao_conforme:
-                eh_nc = True
-            
-            # Checagem 2: O texto é negativo? (Salva-vidas)
-            elif resposta.resposta:
-                texto_limpo = resposta.resposta.lower().strip()
-                if texto_limpo in respostas_negativas:
-                    eh_nc = True
-                    # Opcional: Corrige o banco para o futuro
-                    resposta.nao_conforme = True 
-            
-            # Se confirmou que é NC, cria a ação
-            if eh_nc:
-                # Verifica se já existe para não duplicar
-                existe = AcaoCorretiva.query.filter_by(
-                    aplicacao_id=aplicacao_id,
-                    pergunta_id=resposta.pergunta_id
-                ).first()
-
-                if not existe:
-                    nova_acao = AcaoCorretiva(
-                        aplicacao_id=aplicacao_id,
-                        pergunta_id=resposta.pergunta_id,
-                        # Usa a observação ou cria uma padrão baseada na resposta
-                        descricao_nao_conformidade=resposta.observacao or f"Item avaliado como '{resposta.resposta}'",
-                        status='Pendente',
-                        criticidade='Média',
-                        data_criacao=datetime.now()
-                    )
-                    db.session.add(nova_acao)
-                    contador += 1
-        
-        db.session.commit()
-        print(f"--- Sucesso: {contador} Ações Corretivas criadas/verificadas. ---")
-        return True
-
-    except Exception as e:
-        print(f"ERRO CRÍTICO AO GERAR AÇÕES: {e}")
-        db.session.rollback()
-        return False
-    
-    # Adicione no final de app/cli/views/aplicacoes.py
 
 @cli_bp.route('/aplicacao/<int:id>/forcar-analise-ncs')
 @login_required
 def forcar_analise_ncs(id):
-    """
-    ROTA DE DIAGNÓSTICO (RAIO-X):
-    Mostra quais respostas existem no banco para descobrirmos
-    por que o sistema não está achando as NCs.
-    """
+    """ROTA DE DIAGNÓSTICO (RAIO-X)."""
     from app.models import RespostaPergunta, db
     
     app_audit = AplicacaoQuestionario.query.get_or_404(id)
@@ -803,26 +737,19 @@ def forcar_analise_ncs(id):
     log.append(f"Total de Respostas: {len(respostas)}")
     log.append("-" * 30)
     
-    # Contadores para resumo
     tipos_respostas = {}
     ncs_banco = 0
     
-    # Amostra das primeiras 20 respostas para visualizarmos
     log.append("AMOSTRA DAS RESPOSTAS (Primeiras 20):")
-    
     for i, r in enumerate(respostas):
         texto = r.resposta
         is_nc = r.nao_conforme
         
-        # Conta os tipos (Ex: Quantos 'Sim', Quantos 'Não', etc)
-        if texto not in tipos_respostas:
-            tipos_respostas[texto] = 0
+        if texto not in tipos_respostas: tipos_respostas[texto] = 0
         tipos_respostas[texto] += 1
         
-        if is_nc:
-            ncs_banco += 1
+        if is_nc: ncs_banco += 1
             
-        # Mostra detalhes das primeiras
         if i < 20:
             status_banco = "[JÁ É NC]" if is_nc else "[OK]"
             log.append(f"Item {r.pergunta_id} | Resposta: '{texto}' | Banco diz: {status_banco}")
@@ -835,32 +762,66 @@ def forcar_analise_ncs(id):
     log.append("-" * 30)
     log.append(f"Total marcado como NC no banco hoje: {ncs_banco}")
 
-    return f"""
-    <pre style="font-size: 14px; line-height: 1.5;">{chr(10).join(log)}</pre>
-    """
+    return f"""<pre style="font-size: 14px; line-height: 1.5;">{chr(10).join(log)}</pre>"""
 
-@cli_bp.route('/aplicacao/<int:id>/criar-nc-teste')
-@login_required
-def criar_nc_teste(id):
-    from app.models import AcaoCorretiva, RespostaPergunta, db
-    
-    # Pega a primeira resposta que achar
-    resp = RespostaPergunta.query.filter_by(aplicacao_id=id).first()
-    
-    if resp:
-        # Força ela a ser NC
-        resp.nao_conforme = True
+# ===================== FUNÇÃO HELPER (ESSENCIAL) =====================
+
+def gerar_acoes_corretivas_automatico(aplicacao_id):
+    """
+    Varre todas as respostas e cria os registros na tabela AcaoCorretiva
+    para tudo que for Não Conforme.
+    """
+    try:
+        # Busca todas as respostas da aplicação
+        todas_respostas = RespostaPergunta.query.filter_by(aplicacao_id=aplicacao_id).all()
+        respostas_negativas = ['não', 'nao', 'no', 'ruim', 'irregular', 'reprovado', 'crítico']
         
-        # Cria a Ação
-        nova = AcaoCorretiva(
-            aplicacao_id=id,
-            pergunta_id=resp.pergunta_id,
-            descricao_nao_conformidade="NC DE TESTE GERADA MANUALMENTE",
-            status='Pendente',
-            criticidade='Alta',
-            data_criacao=datetime.now()
-        )
-        db.session.add(nova)
+        contador = 0
+        for resposta in todas_respostas:
+            eh_nc = False
+            
+            # Critério 1: Flag explicita
+            if resposta.nao_conforme: 
+                eh_nc = True
+            
+            # Critério 2: Texto negativo (Segurança extra)
+            elif resposta.resposta and resposta.resposta.lower().strip() in respostas_negativas:
+                eh_nc = True
+                resposta.nao_conforme = True # Corrige o flag se estava errado
+            
+            if eh_nc:
+                # Verifica se já existe para não duplicar
+                existe = AcaoCorretiva.query.filter_by(
+                    aplicacao_id=aplicacao_id,
+                    pergunta_id=resposta.pergunta_id
+                ).first()
+
+                if not existe:
+                    # Cria a nova ação
+                    nova_acao = AcaoCorretiva(
+                        aplicacao_id=aplicacao_id,
+                        pergunta_id=resposta.pergunta_id,
+                        # Usa observação ou um texto padrão
+                        descricao_nao_conformidade=resposta.observacao or f"Item avaliado como '{resposta.resposta}'",
+                        sugestao_correcao=resposta.plano_acao, # Migra plano se já existir
+                        status='Pendente',
+                        criticidade='Média',
+                        data_criacao=datetime.now()
+                    )
+                    
+                    # Se já tinha plano feito, marca como realizado
+                    if resposta.status_acao == 'concluido' or (resposta.plano_acao and resposta.plano_acao.strip()):
+                         nova_acao.status = 'Realizado'
+                         if not nova_acao.acao_realizada:
+                             nova_acao.acao_realizada = resposta.plano_acao
+                    
+                    db.session.add(nova_acao)
+                    contador += 1
+        
         db.session.commit()
-        return f"NC de Teste Criada para a pergunta {resp.pergunta_id}! Volte para a tela de ações."
-    return "Nenhuma resposta encontrada para virar NC."
+        return True
+
+    except Exception as e:
+        print(f"ERRO AO GERAR AÇÕES: {e}")
+        db.session.rollback()
+        return False

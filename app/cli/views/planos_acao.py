@@ -35,7 +35,9 @@ def get_base64_image(file_path):
         print(f"Erro converter img: {e}")
         return None
 
-# ===================== ROTAS DE LISTAGEM E DETALHE (MANTIDAS) =====================
+# ===================== ROTAS DE LISTAGEM E DETALHE (LEGADO) =====================
+# Estas rotas mantêm a compatibilidade com o sistema antigo de planos de ação
+
 @cli_bp.route('/planos-de-acao')
 @login_required
 def lista_plano_acao():
@@ -114,7 +116,7 @@ def upload_foto_correcao(resposta_id):
 def sugerir_plano_acao():
     return jsonify({'erro': 'Feature IA'}), 500
 
-# ===================== PDF DO PLANO DE AÇÃO (LÓGICA CORRIGIDA 18.1 / 18.3) =====================
+# ===================== PDF DO PLANO DE AÇÃO (LEGADO) =====================
 
 @cli_bp.route('/plano-de-acao/<int:aplicacao_id>/pdf')
 @login_required
@@ -143,7 +145,7 @@ def pdf_plano_acao(aplicacao_id):
             if p.exists(): logo_b64 = get_base64_image(p)
         except: pass
 
-        # 2. ASSINATURA E NOME (Lógica Fixa: Tópico 18.1 e 18.3)
+        # 2. ASSINATURA E NOME
         assinatura_b64 = None 
         nome_responsavel_capturado = None
 
@@ -167,10 +169,9 @@ def pdf_plano_acao(aplicacao_id):
             .first()
             
         if resp_assinatura and resp_assinatura.resposta:
-            # Assinatura digital é salva em Base64 direto no banco ou caminho
             assinatura_b64 = resp_assinatura.resposta
 
-        # Fallback: Se não achou na 18.3, tenta a imagem genérica do app (último recurso)
+        # Fallback: Se não achou na 18.3, tenta a imagem genérica do app
         if not assinatura_b64 and app.assinatura_imagem and upload_folder:
             try:
                 p = Path(upload_folder) / app.assinatura_imagem
@@ -223,7 +224,7 @@ def pdf_plano_acao(aplicacao_id):
             itens=itens,
             logo_pdf_uri=logo_b64, 
             assinatura_cliente_uri=assinatura_b64,
-            assinatura_responsavel=nome_final, # Nome capturado da 18.1
+            assinatura_responsavel=nome_final, 
             cargo_responsavel=app.cargo_responsavel,
             data_geracao=datetime.now()
         )
@@ -235,23 +236,69 @@ def pdf_plano_acao(aplicacao_id):
         current_app.logger.error(f"Erro PDF Plano: {e}")
         flash(f"Erro ao gerar PDF: {e}", "danger")
         return redirect(url_for('cli.detalhe_plano_acao', aplicacao_id=aplicacao_id))
-    
-# Em app/cli/views/planos_acao.py
+
+# ===================== NOVA GESTÃO DE AÇÕES CORRETIVAS =====================
 
 @cli_bp.route('/aplicacao/<int:id>/acoes-corretivas', methods=['GET', 'POST'])
 @login_required
 def gerenciar_acoes_corretivas(id):
     """
     Exibe e gerencia as ações corretivas (Tabela Nova).
+    Inclui Sincronização Robusta: Garante que TODAS as NCs apareçam aqui.
     """
     app_audit = AplicacaoQuestionario.query.get_or_404(id)
     
-    # Segurança
     if app_audit.avaliado.cliente_id != current_user.cliente_id:
         flash("Acesso negado.", "danger")
         return redirect(url_for('cli.index'))
 
-    # Lógica de POST (Salvar) - Já tínhamos feito, mas aqui está completa
+    # === SINCRONIZAÇÃO ROBUSTA ===
+    # 1. Busca TODAS as respostas dessa auditoria
+    todas_respostas = RespostaPergunta.query.filter_by(aplicacao_id=id).all()
+    
+    migrou_algo = False
+    
+    for resp in todas_respostas:
+        # Verifica se é NC (pela flag ou pelo texto negativo)
+        eh_nc = resp.nao_conforme
+        if not eh_nc and resp.resposta:
+            if resp.resposta.lower().strip() in ['não', 'nao', 'ruim', 'irregular', 'não conforme']:
+                eh_nc = True
+        
+        # Se for NC, verifica se já existe na tabela nova
+        if eh_nc:
+            existe = AcaoCorretiva.query.filter_by(
+                aplicacao_id=id,
+                pergunta_id=resp.pergunta_id
+            ).first()
+            
+            if not existe:
+                # Cria a ação que estava faltando
+                nova_acao = AcaoCorretiva(
+                    aplicacao_id=app_audit.id,
+                    pergunta_id=resp.pergunta_id,
+                    # Se não tiver observação, coloca um texto padrão para não ficar vazio
+                    descricao_nao_conformidade=resp.observacao or f"Item marcado como {resp.resposta}",
+                    sugestao_correcao=resp.plano_acao, # Traz o plano antigo se houver
+                    criticidade="Média",
+                    status='Pendente',
+                    data_criacao=datetime.now()
+                )
+                
+                # Se já tinha sido concluído no sistema antigo, atualiza o status
+                if resp.status_acao == 'concluido' or (resp.plano_acao and resp.plano_acao.strip() != ''):
+                     nova_acao.status = 'Realizado'
+                     if not nova_acao.acao_realizada:
+                         nova_acao.acao_realizada = resp.plano_acao
+
+                db.session.add(nova_acao)
+                migrou_algo = True
+    
+    if migrou_algo:
+        db.session.commit()
+    # =========================================
+
+    # Lógica de POST (Salvar)
     if request.method == 'POST':
         acao_id = request.form.get('acao_id')
         acao = AcaoCorretiva.query.get(acao_id)
@@ -277,7 +324,7 @@ def gerenciar_acoes_corretivas(id):
                     acao.data_conclusao = datetime.now()
                 salvou = True
 
-            # Sincronização com Relatório Antigo
+            # Retro-compatibilidade (Manter tabela antiga atualizada também)
             if salvou:
                 resp_antiga = RespostaPergunta.query.filter_by(
                     aplicacao_id=app_audit.id, 
@@ -294,16 +341,14 @@ def gerenciar_acoes_corretivas(id):
             flash("Ação atualizada com sucesso.", "success")
             return redirect(url_for('cli.gerenciar_acoes_corretivas', id=id))
 
-    # --- PARTE IMPORTANTE (GET) ---
-    # Busca as ações na tabela NOVA para enviar ao template
+    # Busca as ações (agora populadas pela migração se fosse necessário)
     acoes_lista = AcaoCorretiva.query.filter_by(aplicacao_id=id).all()
     
     return render_template(
         'cli/acoes_corretivas_lista.html',
         aplicacao=app_audit,
-        acoes=acoes_lista  # <--- O template espera esta variável 'acoes'
+        acoes=acoes_lista 
     )
-# Em app/cli/views/planos_acao.py
 
 @cli_bp.route('/api/ia/sugerir-correcao', methods=['POST'])
 @login_required
@@ -327,7 +372,7 @@ def sugerir_correcao_ia():
             
         genai.configure(api_key=api_key)
         
-        # 3. Definição do Modelo (Use gemini-1.5-flash para velocidade e precisão)
+        # 3. Definição do Modelo (gemini-1.5-flash)
         model = genai.GenerativeModel('gemini-1.5-flash')
         
         # 4. Prompt Otimizado
@@ -353,11 +398,10 @@ def sugerir_correcao_ia():
         if response.text:
             texto_bruto = response.text.strip()
             
-            # 6. Processamento da Resposta (Separa Ação de Criticidade)
+            # 6. Processamento da Resposta
             sugestao_final = texto_bruto
-            criticidade_final = "Média" # Valor padrão de segurança
+            criticidade_final = "Média" # Valor padrão
             
-            # Tenta fazer o parse se o formato vier correto
             if "CRITICIDADE:" in texto_bruto and "ACAO:" in texto_bruto:
                 try:
                     partes = texto_bruto.split("ACAO:")
@@ -366,13 +410,10 @@ def sugerir_correcao_ia():
                     
                     sugestao_final = parte_acao
                     
-                    # Normaliza a criticidade
                     if "Alta" in parte_crit: criticidade_final = "Alta"
                     elif "Baixa" in parte_crit: criticidade_final = "Baixa"
                     else: criticidade_final = "Média"
-                except:
-                    # Se falhar o split, manda tudo como texto
-                    pass
+                except: pass
 
             return jsonify({
                 'sugestao': sugestao_final,
@@ -389,7 +430,7 @@ def sugerir_correcao_ia():
 @cli_bp.route('/aplicacao/<int:id>/pdf-acoes-corretivas')
 @login_required
 def pdf_acoes_corretivas(id):
-    """Gera PDF exclusivo das Ações Corretivas (Vertical, Layout Limpo)."""
+    """Gera PDF exclusivo das Ações Corretivas (Vertical, Layout Limpo) SEM DUPLICAR FOTOS."""
     app = AplicacaoQuestionario.query.get_or_404(id)
     
     if app.avaliado.cliente_id != current_user.cliente_id:
@@ -412,8 +453,10 @@ def pdf_acoes_corretivas(id):
         ).first()
         
         fotos_b64 = []
+        fotos_nomes_processados = set() # SET para evitar duplicatas
+        
         if resposta:
-            # Função auxiliar para pegar B64 (reutiliza a que já existe no arquivo ou cria local)
+            # Função auxiliar para pegar B64
             def get_img(path_abs):
                 try:
                     with open(path_abs, "rb") as image_file:
@@ -421,17 +464,30 @@ def pdf_acoes_corretivas(id):
                         return f"data:image/jpeg;base64,{encoded}"
                 except: return None
 
-            # Fotos Novas
-            for foto in resposta.fotos:
-                p = os.path.join(upload_folder, foto.caminho)
-                b64 = get_img(p)
-                if b64: fotos_b64.append(b64)
+            # 1. Fotos Novas (Tabela FotoResposta)
+            if hasattr(resposta, 'fotos'):
+                for foto in resposta.fotos:
+                    if foto.caminho not in fotos_nomes_processados:
+                        p = os.path.join(upload_folder, foto.caminho)
+                        b64 = get_img(p)
+                        if b64: 
+                            fotos_b64.append(b64)
+                            fotos_nomes_processados.add(foto.caminho)
             
-            # Foto Legado
+            # 2. Foto Legado (Coluna caminho_foto)
             if resposta.caminho_foto:
-                p = os.path.join(current_app.static_folder, 'img', resposta.caminho_foto) # ou upload dependendo da versão
-                b64 = get_img(p)
-                if b64: fotos_b64.append(b64)
+                # Verifica se este arquivo JÁ NÃO FOI processado acima
+                if resposta.caminho_foto not in fotos_nomes_processados:
+                    p = os.path.join(current_app.static_folder, 'img', resposta.caminho_foto)
+                    
+                    # Tenta no upload folder também se não achar no static
+                    if not os.path.exists(p) and upload_folder:
+                        p = os.path.join(upload_folder, resposta.caminho_foto)
+                        
+                    b64 = get_img(p)
+                    if b64: 
+                        fotos_b64.append(b64)
+                        fotos_nomes_processados.add(resposta.caminho_foto)
 
         itens_relatorio.append({
             'topico': acao.pergunta.topico.nome,
