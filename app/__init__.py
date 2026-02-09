@@ -64,7 +64,8 @@ def create_app() -> Flask:
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "chave-secreta-desenvolvimento")
     
     # --- CONFIGURAÇÃO DA IA (ESSENCIAL PARA O GEMINI FUNCIONAR) ---
-    app.config["GEMINI_API_KEY"] = os.getenv("GEMINI_API_KEY")
+    # app/__init__.py (Linha ~46)
+    app.config["GOOGLE_API_KEY"] = os.getenv("GOOGLE_API_KEY")
     # --------------------------------------------------------------
 
     # =========================================================================

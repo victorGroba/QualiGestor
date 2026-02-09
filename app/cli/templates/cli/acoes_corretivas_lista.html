@@ -77,14 +77,56 @@
 
 <script>
     // Função Placeholder para a IA (Vamos implementar na próxima etapa)
-    function gerarSugestaoIA(id, problema) {
+    async function gerarSugestaoIA(id, problema) {
         const campo = document.getElementById('sugestao_' + id);
-        campo.value = "Consultando Gemini... aguarde...";
-        // Aqui faremos a chamada fetch para sua rota de IA existente
-        // Simulação:
-        setTimeout(() => {
-            campo.value = "Sugestão da IA: Realizar manutenção preventiva no equipamento e treinar a equipe sobre o procedimento correto.";
-        }, 1500);
+        
+        // Pega o botão que foi clicado para fazer feedback visual
+        // O event é global no onclick inline
+        const btn = event.currentTarget || event.target; 
+        const textoOriginal = btn.innerHTML;
+        
+        // 1. Estado de Carregamento (Feedback para a usuária)
+        campo.value = "Consultando a Inteligência Artificial...";
+        campo.classList.add('text-muted'); // Deixa o texto cinza
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Pensando...';
+        
+        try {
+            // Pega o token CSRF para segurança
+            const csrfInput = document.querySelector('input[name="csrf_token"]');
+            const csrf = csrfInput ? csrfInput.value : '';
+            
+            // 2. Chamada ao Servidor
+            const response = await fetch('/cli/api/ia/sugerir-correcao', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrf
+                },
+                body: JSON.stringify({ problema: problema })
+            });
+
+            const data = await response.json();
+
+            // 3. Resultado
+            if (response.ok) {
+                campo.value = data.sugestao;
+                campo.classList.remove('text-muted');
+                // Efeito visual de sucesso
+                campo.style.borderColor = '#198754';
+                setTimeout(() => campo.style.borderColor = '', 2000);
+            } else {
+                campo.value = "Erro: " + (data.erro || "Não foi possível gerar sugestão.");
+                campo.classList.add('text-danger');
+            }
+        } catch (e) {
+            console.error(e);
+            campo.value = "Erro de conexão. Verifique sua internet.";
+        } finally {
+            // Restaura o botão
+            btn.disabled = false;
+            btn.innerHTML = textoOriginal;
+        }
     }
 </script>
 {% endblock %}

@@ -370,15 +370,30 @@
                             </div>
                             {% endif %}
 
-                            {% if resposta.plano_acao %}
+                            {# --- LÓGICA HÍBRIDA: Tenta achar na tabela nova, senão usa a antiga --- #}
+                            {% set acao_nova = aplicacao.acoes_corretivas.filter_by(pergunta_id=pergunta.id).first() %}
+                            {% set texto_acao = acao_nova.acao_realizada if acao_nova and acao_nova.acao_realizada else
+                            (acao_nova.sugestao_correcao if acao_nova else resposta.plano_acao) %}
+
+                            {% if texto_acao %}
                             <div class="plano-acao-box ms-3 mt-2">
                                 <div class="fw-bold text-warning-dark mb-1">
-                                    <i class="fas fa-clipboard-list me-1"></i> Plano de Ação Definido
+                                    <i class="fas fa-clipboard-list me-1"></i> Ação Corretiva / Solução
                                 </div>
                                 <div class="mb-1">
-                                    <strong>Ação:</strong> {{ resposta.plano_acao }}
+                                    <strong>Ação:</strong> {{ texto_acao }}
                                 </div>
+
                                 <div class="d-flex gap-3 text-muted small mt-1">
+                                    {% if acao_nova %}
+                                    {# Dados da Tabela Nova #}
+                                    <span><i class="fas fa-info-circle me-1"></i> Status: {{ acao_nova.status }}</span>
+                                    {% if acao_nova.criticidade %}
+                                    <span><i class="fas fa-exclamation me-1"></i> Criticidade: {{ acao_nova.criticidade
+                                        }}</span>
+                                    {% endif %}
+                                    {% else %}
+                                    {# Dados da Tabela Antiga (Legado) #}
                                     {% if resposta.responsavel_plano_acao %}
                                     <span><i class="fas fa-user me-1"></i> Resp: {{ resposta.responsavel_plano_acao
                                         }}</span>
@@ -386,6 +401,7 @@
                                     {% if resposta.prazo_plano_acao %}
                                     <span><i class="fas fa-calendar me-1"></i> Prazo: {{
                                         resposta.prazo_plano_acao.strftime('%d/%m/%Y') }}</span>
+                                    {% endif %}
                                     {% endif %}
                                 </div>
                             </div>
@@ -473,6 +489,11 @@
                         <a href="{{ url_for('cli.gerenciar_nao_conformidades', id=aplicacao.id) }}"
                             class="btn btn-warning text-dark fw-bold">
                             <i class="fas fa-clipboard-check me-2"></i> Planos de Ação
+                        </a>
+
+                        <a href="{{ url_for('cli.gerenciar_acoes_corretivas', id=aplicacao.id) }}"
+                            class="btn btn-warning text-dark fw-bold shadow-sm ms-2">
+                            <i class="fas fa-tools me-2"></i> Ações Corretivas
                         </a>
 
                         <button onclick="reabrirAplicacao()"

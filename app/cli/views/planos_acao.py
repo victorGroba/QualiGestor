@@ -278,3 +278,52 @@ def gerenciar_acoes_corretivas(id):
     acoes = AcaoCorretiva.query.filter_by(aplicacao_id=id).all()
 
     return render_template_safe('cli/acoes_corretivas_lista.html', aplicacao=app, acoes=acoes)
+
+# Em app/cli/views/planos_acao.py
+
+@cli_bp.route('/api/ia/sugerir-correcao', methods=['POST'])
+@login_required
+def sugerir_correcao_ia():
+    """Rota AJAX para consultar o Gemini"""
+    data = request.get_json()
+    problema = data.get('problema')
+    
+    if not problema:
+        return jsonify({'erro': 'Problema não informado'}), 400
+
+    try:
+        # Configuração da API
+        # Tenta pegar do config do App ou direto do ambiente
+        api_key = current_app.config.get("GOOGLE_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+        
+        if not api_key:
+            return jsonify({'erro': 'Chave da API Google não configurada no servidor.'}), 500
+            
+        genai.configure(api_key=api_key)
+        
+        # Instancia o modelo (usando gemini-pro ou gemini-1.5-flash se tiver acesso)
+        model = genai.GenerativeModel('gemini-2.5-pro')
+        
+        # Prompt otimizado para Consultoria Alimentar
+        prompt = f"""
+        Você é um consultor sênior em Segurança dos Alimentos e Qualidade (Food Safety).
+        Foi identificada a seguinte Não Conformidade em uma auditoria:
+        "{problema}"
+
+        Escreva uma sugestão de Ação Corretiva prática, técnica e direta para resolver este problema imediatamente.
+        Use tom profissional. Não use introduções como "Sugiro que". Vá direto ao ponto.
+        Máximo de 3 linhas.
+        """
+        
+        response = model.generate_content(prompt)
+        
+        # Tratamento seguro da resposta
+        if response.text:
+            sugestao = response.text.strip()
+            return jsonify({'sugestao': sugestao})
+        else:
+            return jsonify({'erro': 'IA não retornou texto.'}), 500
+
+    except Exception as e:
+        print(f"Erro IA: {e}")
+        return jsonify({'erro': f"Falha na IA: {str(e)}"}), 500

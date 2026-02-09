@@ -686,3 +686,62 @@ def excluir_aplicacao(id):
         flash(f"Erro: {str(e)}", "danger")
         
     return redirect(url_for('cli.listar_aplicacoes'))
+
+# --- ROTA DE EMERGÊNCIA PARA TESTES ---
+@cli_bp.route('/aplicacao/<int:id>/forcar-geracao-acoes')
+@login_required
+def forcar_geracao_acoes(id):
+    """Gera as ações corretivas manualmente para uma auditoria já finalizada."""
+    if gerar_acoes_corretivas_automatico(id):
+        flash("Geração forçada concluída! Verifique a lista abaixo.", "success")
+    else:
+        flash("Erro ao gerar ações (ou nenhuma NC encontrada).", "warning")
+    
+    # Redireciona direto para a tela de ações
+    return redirect(url_for('cli.gerenciar_acoes_corretivas', id=id))
+
+# --- FUNÇÃO LOGICA (Reutilizável) ---
+def gerar_acoes_corretivas_automatico(aplicacao_id):
+    """Lê as respostas 'Não Conforme' e cria registros na tabela AcaoCorretiva."""
+    try:
+        print(f"--- Iniciando Geração para App {aplicacao_id} ---")
+        
+        # 1. Busca todas as respostas marcadas como 'nao_conforme' no banco
+        # Importante: O script JS tem que ter marcado 'nao_conforme=True' no backend
+        ncs = RespostaPergunta.query.filter_by(
+            aplicacao_id=aplicacao_id, 
+            nao_conforme=True
+        ).all()
+
+        print(f"Encontradas {len(ncs)} respostas com nao_conforme=True")
+
+        contador = 0
+        for resposta in ncs:
+            # 2. Evita criar duplicado se você rodar 2 vezes
+            existe = AcaoCorretiva.query.filter_by(
+                aplicacao_id=aplicacao_id,
+                pergunta_id=resposta.pergunta_id
+            ).first()
+
+            if not existe:
+                # 3. Cria o registro na tabela nova
+                nova_acao = AcaoCorretiva(
+                    aplicacao_id=aplicacao_id,
+                    pergunta_id=resposta.pergunta_id,
+                    # Pega a observação que você digitou/script preencheu
+                    descricao_nao_conformidade=resposta.observacao or "NC sem observação detalhada",
+                    status='Pendente',
+                    criticidade='Média',
+                    data_criacao=datetime.now()
+                )
+                db.session.add(nova_acao)
+                contador += 1
+        
+        db.session.commit()
+        print(f"--- Sucesso: {contador} Ações Corretivas criadas. ---")
+        return True
+
+    except Exception as e:
+        print(f"ERRO CRÍTICO AO GERAR AÇÕES: {e}")
+        db.session.rollback()
+        return False
