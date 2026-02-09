@@ -353,10 +353,9 @@ def gerenciar_acoes_corretivas(id):
 @cli_bp.route('/api/ia/sugerir-correcao', methods=['POST'])
 @login_required
 def sugerir_correcao_ia():
-    """Rota AJAX para consultar o Gemini com Fallback de Modelos"""
+    """Rota AJAX para consultar o Gemini com Lista de Compatibilidade Expandida"""
     data = request.get_json()
     
-    # 1. Extração Segura dos Dados
     item_avaliado = data.get('item_avaliado') or "Item de Checklist"
     observacao_auditor = data.get('observacao') or data.get('problema')
     
@@ -364,34 +363,40 @@ def sugerir_correcao_ia():
         return jsonify({'erro': 'Problema/Observação não informada.'}), 400
 
     try:
-        # 2. Configuração da API Key
         api_key = current_app.config.get("GOOGLE_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-        
         if not api_key:
-            return jsonify({'erro': 'Chave da API Google não configurada no servidor.'}), 500
+            return jsonify({'erro': 'Chave da API Google não configurada.'}), 500
             
         genai.configure(api_key=api_key)
         
-        # 3. Prompt Otimizado
         prompt = f"""
         Atue como um consultor sênior em Segurança dos Alimentos.
-        
         CONTEXTO:
         - Item Avaliado: "{item_avaliado}"
         - Não Conformidade Encontrada: "{observacao_auditor}"
-
         TAREFA:
-        1. Classifique a criticidade deste problema em: Alta, Média ou Baixa.
-        2. Elabore uma Ação Corretiva técnica, direta e prática (máximo 3 linhas).
-
-        FORMATO DE RESPOSTA OBRIGATÓRIO:
-        CRITICIDADE: [Alta/Média/Baixa]
-        ACAO: [Texto da ação corretiva]
+        1. Classifique a criticidade (Alta/Média/Baixa).
+        2. Ação Corretiva prática (máx 3 linhas).
+        FORMATO:
+        CRITICIDADE: [Grau]
+        ACAO: [Texto]
         """
 
-        # 4. Tentativa de Geração com Fallback (Flash -> Pro -> Padrão)
-        # Tenta modelos diferentes caso um não esteja disponível na conta/região
-        modelos_para_tentar = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-pro']
+        # LISTA EXPANDIDA (Tenta todas as variações possíveis)
+        modelos_para_tentar = [
+            'gemini-1.5-flash',
+            'gemini-1.5-flash-latest',
+            'gemini-1.5-flash-001',
+            'gemini-1.5-flash-002',
+            'gemini-1.5-pro',
+            'gemini-1.5-pro-latest',
+            'gemini-1.5-pro-001',
+            'gemini-1.5-pro-002',
+            'gemini-1.0-pro',
+            'gemini-pro',
+            'models/gemini-1.5-flash', # Tenta com prefixo models/
+            'models/gemini-pro'
+        ]
         
         texto_gerado = None
         erro_ultimo = None
@@ -402,34 +407,31 @@ def sugerir_correcao_ia():
                 response = model.generate_content(prompt)
                 if response and response.text:
                     texto_gerado = response.text
-                    break # Sucesso! Sai do loop
+                    print(f"Sucesso com o modelo: {modelo_nome}") # Log para saber qual funcionou
+                    break 
             except Exception as e:
                 erro_ultimo = e
-                print(f"Tentativa falha com {modelo_nome}: {e}")
-                continue # Tenta o próximo da lista
+                # print(f"Falha com {modelo_nome}: {e}") # Descomente para debug pesado
+                continue
 
         if not texto_gerado:
-            raise Exception(f"Nenhum modelo disponível. Último erro: {erro_ultimo}")
+            # Se falhar tudo, retorna o erro original para entendermos
+            raise Exception(f"Nenhum modelo compatível encontrado. Detalhe: {erro_ultimo}")
         
-        # 5. Processamento da Resposta
+        # Processamento da resposta (igual ao anterior)
         texto_bruto = texto_gerado.strip()
         sugestao_final = texto_bruto
-        criticidade_final = "Média" # Valor padrão
+        criticidade_final = "Média"
         
         if "CRITICIDADE:" in texto_bruto and "ACAO:" in texto_bruto:
             try:
-                # Separa usando a palavra chave
                 partes = texto_bruto.split("ACAO:")
                 parte_crit = partes[0].replace("CRITICIDADE:", "").strip()
-                parte_acao = partes[1].strip()
-                
-                sugestao_final = parte_acao
+                sugestao_final = partes[1].strip()
                 
                 if "Alta" in parte_crit: criticidade_final = "Alta"
                 elif "Baixa" in parte_crit: criticidade_final = "Baixa"
-                else: criticidade_final = "Média"
-            except: 
-                pass
+            except: pass
 
         return jsonify({
             'sugestao': sugestao_final,
@@ -438,7 +440,7 @@ def sugerir_correcao_ia():
 
     except Exception as e:
         print(f"Erro IA Crítico: {e}")
-        return jsonify({'erro': f"Falha na comunicação com a IA: {str(e)}"}), 500
+        return jsonify({'erro': f"Falha na IA: {str(e)}"}), 500
     
 @cli_bp.route('/aplicacao/<int:id>/pdf-acoes-corretivas')
 @login_required
