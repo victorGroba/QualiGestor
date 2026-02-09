@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 
 from flask import request, redirect, url_for, flash, jsonify, current_app
+from flask import render_template
 from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
 import google.generativeai as genai
@@ -241,59 +242,84 @@ def pdf_plano_acao(aplicacao_id):
 @login_required
 def gerenciar_acoes_corretivas(id):
     """
-    Painel Mensal de Ações Corretivas.
-    Consultora: Preenche Sugestão (pode usar IA).
-    Gestor: Preenche 'O que foi feito' e fecha a ação.
+    Exibe e gerencia as ações corretivas (Tabela Nova).
     """
-    app = AplicacaoQuestionario.query.get_or_404(id)
+    app_audit = AplicacaoQuestionario.query.get_or_404(id)
     
-    # Segurança básica (verifique se precisa de mais, igual suas outras rotas)
-    if app.avaliado.cliente_id != current_user.cliente_id:
+    # Segurança
+    if app_audit.avaliado.cliente_id != current_user.cliente_id:
         flash("Acesso negado.", "danger")
         return redirect(url_for('cli.index'))
 
-    # Processamento do Formulário (Salvar Edições)
+    # Lógica de POST (Salvar) - Já tínhamos feito, mas aqui está completa
     if request.method == 'POST':
         acao_id = request.form.get('acao_id')
         acao = AcaoCorretiva.query.get(acao_id)
         
-        if acao and acao.aplicacao_id == app.id:
-            # Fluxo da Consultora (Preenchendo Sugestão)
+        if acao and acao.aplicacao_id == app_audit.id:
+            salvou = False
+            
+            # 1. Salva Criticidade
+            if 'criticidade' in request.form:
+                acao.criticidade = request.form.get('criticidade')
+                salvou = True
+
+            # 2. Salva Sugestão (Consultora)
             if 'sugestao' in request.form:
                 acao.sugestao_correcao = request.form.get('sugestao')
+                salvou = True
             
-            # Fluxo do Gestor (Respondendo a Ação)
+            # 3. Salva Execução (Gestor)
             if 'acao_realizada' in request.form:
                 acao.acao_realizada = request.form.get('acao_realizada')
-                # Se preencheu o que fez, marca como realizado
                 if acao.acao_realizada:
                     acao.status = 'Realizado'
                     acao.data_conclusao = datetime.now()
+                salvou = True
+
+            # Sincronização com Relatório Antigo
+            if salvou:
+                resp_antiga = RespostaPergunta.query.filter_by(
+                    aplicacao_id=app_audit.id, 
+                    pergunta_id=acao.pergunta_id
+                ).first()
+                if resp_antiga:
+                    texto = acao.acao_realizada if acao.acao_realizada else acao.sugestao_correcao
+                    if texto: 
+                        resp_antiga.plano_acao = texto
+                        if acao.status == 'Realizado':
+                            resp_antiga.status_acao = 'concluido'
 
             db.session.commit()
-            flash("Atualizado com sucesso.", "success")
+            flash("Ação atualizada com sucesso.", "success")
             return redirect(url_for('cli.gerenciar_acoes_corretivas', id=id))
 
-    # Busca as ações geradas
-    acoes = AcaoCorretiva.query.filter_by(aplicacao_id=id).all()
-
-    return render_template_safe('cli/acoes_corretivas_lista.html', aplicacao=app, acoes=acoes)
-
+    # --- PARTE IMPORTANTE (GET) ---
+    # Busca as ações na tabela NOVA para enviar ao template
+    acoes_lista = AcaoCorretiva.query.filter_by(aplicacao_id=id).all()
+    
+    return render_template(
+        'cli/acoes_corretivas_lista.html',
+        aplicacao=app_audit,
+        acoes=acoes_lista  # <--- O template espera esta variável 'acoes'
+    )
 # Em app/cli/views/planos_acao.py
 
 @cli_bp.route('/api/ia/sugerir-correcao', methods=['POST'])
 @login_required
 def sugerir_correcao_ia():
-    """Rota AJAX para consultar o Gemini"""
+    """Rota AJAX para consultar o Gemini com Contexto Rico e Criticidade"""
     data = request.get_json()
-    problema = data.get('problema')
     
-    if not problema:
-        return jsonify({'erro': 'Problema não informado'}), 400
+    # 1. Extração Segura dos Dados
+    item_avaliado = data.get('item_avaliado') or "Item de Checklist"
+    observacao_auditor = data.get('observacao') or data.get('problema')
+    
+    if not observacao_auditor:
+        return jsonify({'erro': 'Problema/Observação não informada.'}), 400
 
     try:
-        # Configuração da API
-        # Tenta pegar do config do App ou direto do ambiente
+        # 2. Configuração da API Key
         api_key = current_app.config.get("GOOGLE_API_KEY") or os.environ.get("GOOGLE_API_KEY")
         
         if not api_key:
@@ -301,29 +327,137 @@ def sugerir_correcao_ia():
             
         genai.configure(api_key=api_key)
         
-        # Instancia o modelo (usando gemini-pro ou gemini-1.5-flash se tiver acesso)
-        model = genai.GenerativeModel('gemini-2.5-pro')
+        # 3. Definição do Modelo (Use gemini-1.5-flash para velocidade e precisão)
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
-        # Prompt otimizado para Consultoria Alimentar
+        # 4. Prompt Otimizado
         prompt = f"""
-        Você é um consultor sênior em Segurança dos Alimentos e Qualidade (Food Safety).
-        Foi identificada a seguinte Não Conformidade em uma auditoria:
-        "{problema}"
+        Atue como um consultor sênior em Segurança dos Alimentos.
+        
+        CONTEXTO:
+        - Item Avaliado: "{item_avaliado}"
+        - Não Conformidade Encontrada: "{observacao_auditor}"
 
-        Escreva uma sugestão de Ação Corretiva prática, técnica e direta para resolver este problema imediatamente.
-        Use tom profissional. Não use introduções como "Sugiro que". Vá direto ao ponto.
-        Máximo de 3 linhas.
+        TAREFA:
+        1. Classifique a criticidade deste problema em: Alta, Média ou Baixa.
+        2. Elabore uma Ação Corretiva técnica, direta e prática (máximo 3 linhas).
+
+        FORMATO DE RESPOSTA OBRIGATÓRIO:
+        CRITICIDADE: [Alta/Média/Baixa]
+        ACAO: [Texto da ação corretiva]
         """
         
+        # 5. Geração
         response = model.generate_content(prompt)
         
-        # Tratamento seguro da resposta
         if response.text:
-            sugestao = response.text.strip()
-            return jsonify({'sugestao': sugestao})
+            texto_bruto = response.text.strip()
+            
+            # 6. Processamento da Resposta (Separa Ação de Criticidade)
+            sugestao_final = texto_bruto
+            criticidade_final = "Média" # Valor padrão de segurança
+            
+            # Tenta fazer o parse se o formato vier correto
+            if "CRITICIDADE:" in texto_bruto and "ACAO:" in texto_bruto:
+                try:
+                    partes = texto_bruto.split("ACAO:")
+                    parte_crit = partes[0].replace("CRITICIDADE:", "").strip()
+                    parte_acao = partes[1].strip()
+                    
+                    sugestao_final = parte_acao
+                    
+                    # Normaliza a criticidade
+                    if "Alta" in parte_crit: criticidade_final = "Alta"
+                    elif "Baixa" in parte_crit: criticidade_final = "Baixa"
+                    else: criticidade_final = "Média"
+                except:
+                    # Se falhar o split, manda tudo como texto
+                    pass
+
+            return jsonify({
+                'sugestao': sugestao_final,
+                'criticidade': criticidade_final
+            })
+            
         else:
             return jsonify({'erro': 'IA não retornou texto.'}), 500
 
     except Exception as e:
         print(f"Erro IA: {e}")
         return jsonify({'erro': f"Falha na IA: {str(e)}"}), 500
+    
+@cli_bp.route('/aplicacao/<int:id>/pdf-acoes-corretivas')
+@login_required
+def pdf_acoes_corretivas(id):
+    """Gera PDF exclusivo das Ações Corretivas (Vertical, Layout Limpo)."""
+    app = AplicacaoQuestionario.query.get_or_404(id)
+    
+    if app.avaliado.cliente_id != current_user.cliente_id:
+        flash("Acesso negado.", "danger")
+        return redirect(url_for('cli.index'))
+
+    # Busca as ações com as perguntas relacionadas para pegar fotos
+    acoes = AcaoCorretiva.query.filter_by(aplicacao_id=id).all()
+    
+    # Prepara estrutura de dados enriquecida para o template
+    itens_relatorio = []
+    
+    upload_folder = current_app.config.get('UPLOAD_FOLDER')
+    
+    for acao in acoes:
+        # Busca a resposta original para pegar as fotos
+        resposta = RespostaPergunta.query.filter_by(
+            aplicacao_id=app.id, 
+            pergunta_id=acao.pergunta_id
+        ).first()
+        
+        fotos_b64 = []
+        if resposta:
+            # Função auxiliar para pegar B64 (reutiliza a que já existe no arquivo ou cria local)
+            def get_img(path_abs):
+                try:
+                    with open(path_abs, "rb") as image_file:
+                        encoded = base64.b64encode(image_file.read()).decode('utf-8')
+                        return f"data:image/jpeg;base64,{encoded}"
+                except: return None
+
+            # Fotos Novas
+            for foto in resposta.fotos:
+                p = os.path.join(upload_folder, foto.caminho)
+                b64 = get_img(p)
+                if b64: fotos_b64.append(b64)
+            
+            # Foto Legado
+            if resposta.caminho_foto:
+                p = os.path.join(current_app.static_folder, 'img', resposta.caminho_foto) # ou upload dependendo da versão
+                b64 = get_img(p)
+                if b64: fotos_b64.append(b64)
+
+        itens_relatorio.append({
+            'topico': acao.pergunta.topico.nome,
+            'pergunta': acao.pergunta.texto,
+            'problema': acao.descricao_nao_conformidade,
+            'solucao': acao.acao_realizada if acao.acao_realizada else acao.sugestao_correcao,
+            'criticidade': acao.criticidade,
+            'status': acao.status,
+            'fotos': fotos_b64
+        })
+
+    # Logo em B64 para o PDF
+    logo_b64 = None
+    try:
+        p_logo = os.path.join(current_app.static_folder, 'img', 'logo_pdf.png')
+        if os.path.exists(p_logo):
+            with open(p_logo, "rb") as f:
+                logo_b64 = f"data:image/png;base64,{base64.b64encode(f.read()).decode('utf-8')}"
+    except: pass
+
+    html = render_template_safe(
+        'cli/pdf_acoes_corretivas.html',
+        aplicacao=app,
+        itens=itens_relatorio,
+        logo_pdf=logo_b64,
+        data_geracao=datetime.now()
+    )
+    
+    return gerar_pdf_seguro(html, filename=f"Acoes_Corretivas_{id}.pdf")

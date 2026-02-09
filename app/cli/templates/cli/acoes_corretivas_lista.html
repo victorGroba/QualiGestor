@@ -4,67 +4,157 @@
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h3 class="mb-0"><i class="fas fa-tools text-primary me-2"></i>Ações Corretivas (Mensal)</h3>
-            <p class="text-muted">{{ aplicacao.avaliado.nome }} - {{ aplicacao.data_inicio.strftime('%d/%m/%Y') }}</p>
+            <h3 class="mb-0 fw-bold text-dark"><i class="fas fa-clipboard-check text-primary me-2"></i>Ações Corretivas
+            </h3>
+            <p class="text-muted mb-0">{{ aplicacao.avaliado.nome }} | {{ aplicacao.data_inicio.strftime('%d/%m/%Y') }}
+            </p>
         </div>
-        <div>
-            <a href="{{ url_for('cli.visualizar_aplicacao', id=aplicacao.id) }}" class="btn btn-outline-secondary">Voltar</a>
-            <button class="btn btn-danger"><i class="fas fa-file-pdf me-2"></i>Gerar PDF</button>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('cli.visualizar_aplicacao', id=aplicacao.id) }}"
+                class="btn btn-outline-secondary shadow-sm">
+                <i class="fas fa-arrow-left me-2"></i>Voltar
+            </a>
+            <a href="{{ url_for('cli.pdf_acoes_corretivas', id=aplicacao.id) }}" target="_blank"
+                class="btn btn-danger shadow-sm">
+                <i class="fas fa-file-pdf me-2"></i>Gerar Relatório
+            </a>
         </div>
     </div>
 
     {% if not acoes %}
-        <div class="alert alert-success text-center p-5">
-            <h4><i class="fas fa-check-circle fa-2x mb-3"></i></h4>
-            <p>Parabéns! Nenhuma Não Conformidade foi encontrada nesta visita.</p>
-        </div>
+    <div class="alert alert-success text-center p-5 shadow-sm rounded-4">
+        <i class="fas fa-check-circle fa-3x mb-3 text-success"></i>
+        <h4>Tudo Certo!</h4>
+        <p class="text-muted">Nenhuma Não Conformidade foi registrada nesta auditoria.</p>
+    </div>
     {% else %}
 
     <div class="row">
         {% for acao in acoes %}
-        <div class="col-12 mb-4">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                    <span class="fw-bold text-danger">NC #{{ loop.index }}: {{ acao.pergunta.texto }}</span>
-                    <span class="badge {{ 'bg-success' if acao.status == 'Realizado' else 'bg-warning text-dark' }}">
-                        {{ acao.status }}
-                    </span>
+
+        {# Busca a resposta original para pegar as fotos #}
+        {% set resposta = aplicacao.respostas.filter_by(pergunta_id=acao.pergunta_id).first() %}
+
+        <div class="col-12 mb-5">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                <div class="card-header bg-white border-bottom p-4">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <span class="badge bg-light text-dark border mb-2">
+                                {{ acao.pergunta.topico.ordem }}. {{ acao.pergunta.topico.nome }}
+                            </span>
+                            <h5 class="fw-bold text-dark mb-1">
+                                {{ acao.pergunta.topico.ordem }}.{{ acao.pergunta.ordem }} - {{ acao.pergunta.texto }}
+                            </h5>
+                        </div>
+                        <span
+                            class="badge {{ 'bg-success' if acao.status == 'Realizado' else 'bg-warning text-dark' }} px-3 py-2 rounded-pill">
+                            {{ acao.status }}
+                        </span>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <div class="row g-4">
-                        <div class="col-md-5 border-end">
-                            <label class="small text-muted fw-bold text-uppercase">Problema Identificado</label>
-                            <div class="alert alert-light border mt-1">
-                                {{ acao.descricao_nao_conformidade }}
+
+                <div class="card-body p-0">
+                    <div class="row g-0">
+
+                        <div class="col-lg-5 bg-light border-end">
+                            <div class="p-4">
+                                <h6 class="fw-bold text-muted text-uppercase small mb-3">Evidências Encontradas</h6>
+
+                                <div class="alert alert-white border shadow-sm mb-3">
+                                    <i class="fas fa-comment-alt text-danger me-2"></i>
+                                    <span class="fst-italic text-dark">{{ acao.descricao_nao_conformidade }}</span>
+                                </div>
+
+                                {% if resposta and (resposta.fotos or resposta.caminho_foto) %}
+                                <div class="d-flex flex-wrap gap-2">
+                                    {# Fotos novas (Tabela FotoResposta) #}
+                                    {% for foto in resposta.fotos %}
+                                    <div class="position-relative" style="width: 100px; height: 100px;">
+                                        <a href="{{ url_for('cli.uploaded_file', filename=foto.caminho) }}"
+                                            target="_blank">
+                                            <img src="{{ url_for('cli.uploaded_file', filename=foto.caminho) }}"
+                                                class="img-thumbnail w-100 h-100 object-fit-cover shadow-sm"
+                                                style="cursor: zoom-in;">
+                                        </a>
+                                    </div>
+                                    {% endfor %}
+
+                                    {# Foto legado (Coluna caminho_foto) #}
+                                    {% if resposta.caminho_foto %}
+                                    <div class="position-relative" style="width: 100px; height: 100px;">
+                                        <a href="{{ url_for('cli.uploaded_file', filename=resposta.caminho_foto) }}"
+                                            target="_blank">
+                                            <img src="{{ url_for('cli.uploaded_file', filename=resposta.caminho_foto) }}"
+                                                class="img-thumbnail w-100 h-100 object-fit-cover shadow-sm">
+                                        </a>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% else %}
+                                <div class="text-center py-4 text-muted border rounded border-dashed">
+                                    <i class="fas fa-camera-slash mb-2"></i><br>
+                                    Sem fotos anexadas
+                                </div>
+                                {% endif %}
                             </div>
-                            
-                            <button type="button" class="btn btn-sm btn-outline-info w-100 mt-2" 
-                                    onclick="gerarSugestaoIA({{ acao.id }}, '{{ acao.descricao_nao_conformidade }}')">
-                                <i class="fas fa-magic me-2"></i>Sugerir Correção com IA
-                            </button>
                         </div>
 
-                        <div class="col-md-7">
-                            <form method="POST">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <input type="hidden" name="acao_id" value="{{ acao.id }}">
+                        <div class="col-lg-7">
+                            <div class="p-4">
+                                <form method="POST">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="acao_id" value="{{ acao.id }}">
 
-                                <div class="mb-3">
-                                    <label class="small text-muted fw-bold text-uppercase">O que deve ser feito? (Sugestão)</label>
-                                    <textarea name="sugestao" id="sugestao_{{ acao.id }}" class="form-control bg-white" rows="3" 
-                                              placeholder="Descreva a correção sugerida...">{{ acao.sugestao_correcao or '' }}</textarea>
-                                </div>
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <h6 class="fw-bold text-primary text-uppercase small mb-0">Definição da Solução
+                                        </h6>
+                                        <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3"
+                                            onclick="gerarSugestaoIA({{ acao.id }}, '{{ acao.pergunta.texto | replace("'", "") }}'
+                                            , '{{ acao.descricao_nao_conformidade | replace("'", "") }}')">
+                                            <i class="fas fa-magic me-2"></i>Usar IA
+                                        </button>
+                                    </div>
 
-                                <div class="mb-3 p-3 bg-light rounded border">
-                                    <label class="small text-muted fw-bold text-uppercase"><i class="fas fa-user-tie me-1"></i>Espaço do Gestor: O que foi feito?</label>
-                                    <textarea name="acao_realizada" class="form-control" rows="2" 
-                                              placeholder="Gestor descreve a solução aqui...">{{ acao.acao_realizada or '' }}</textarea>
-                                </div>
+                                    <div class="row g-3">
+                                        <div class="col-md-4">
+                                            <label class="form-label small fw-bold text-muted">Criticidade</label>
+                                            <select name="criticidade" class="form-select bg-light border-0 fw-bold">
+                                                <option value="Baixa" {{ 'selected' if acao.criticidade=='Baixa' }}>🟢
+                                                    Baixa</option>
+                                                <option value="Média" {{ 'selected' if acao.criticidade=='Média' }}>🟡
+                                                    Média</option>
+                                                <option value="Alta" {{ 'selected' if acao.criticidade=='Alta' }}>🔴
+                                                    Alta</option>
+                                            </select>
+                                        </div>
 
-                                <div class="text-end">
-                                    <button type="submit" class="btn btn-primary btn-sm px-4">Salvar</button>
-                                </div>
-                            </form>
+                                        <div class="col-md-12">
+                                            <label class="form-label small fw-bold text-muted">Ação Corretiva Sugerida
+                                                (Consultora)</label>
+                                            <textarea name="sugestao" id="sugestao_{{ acao.id }}"
+                                                class="form-control bg-light" rows="3"
+                                                placeholder="Descreva a ação técnica para resolver o problema...">{{ acao.sugestao_correcao or '' }}</textarea>
+                                        </div>
+
+                                        <div class="col-md-12">
+                                            <div class="p-3 rounded border border-warning bg-warning bg-opacity-10">
+                                                <label class="form-label small fw-bold text-dark"><i
+                                                        class="fas fa-user-tie me-1"></i>O que foi feito?
+                                                    (Gestor)</label>
+                                                <textarea name="acao_realizada" class="form-control" rows="2"
+                                                    placeholder="Espaço reservado para o gestor preencher...">{{ acao.acao_realizada or '' }}</textarea>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="text-end mt-3">
+                                        <button type="submit" class="btn btn-primary px-4 fw-bold shadow-sm">
+                                            <i class="fas fa-save me-2"></i>Salvar Ação
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -76,54 +166,39 @@
 </div>
 
 <script>
-    // Função Placeholder para a IA (Vamos implementar na próxima etapa)
-    async function gerarSugestaoIA(id, problema) {
+    async function gerarSugestaoIA(id, itemTexto, observacaoTexto) {
         const campo = document.getElementById('sugestao_' + id);
-        
-        // Pega o botão que foi clicado para fazer feedback visual
-        // O event é global no onclick inline
-        const btn = event.currentTarget || event.target; 
+        const btn = event.currentTarget;
         const textoOriginal = btn.innerHTML;
-        
-        // 1. Estado de Carregamento (Feedback para a usuária)
+
         campo.value = "Consultando a Inteligência Artificial...";
-        campo.classList.add('text-muted'); // Deixa o texto cinza
         btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Pensando...';
-        
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Gerando...';
+
         try {
-            // Pega o token CSRF para segurança
-            const csrfInput = document.querySelector('input[name="csrf_token"]');
-            const csrf = csrfInput ? csrfInput.value : '';
-            
-            // 2. Chamada ao Servidor
+            const csrf = document.querySelector('input[name="csrf_token"]').value;
             const response = await fetch('/cli/api/ia/sugerir-correcao', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrf
-                },
-                body: JSON.stringify({ problema: problema })
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+                body: JSON.stringify({ item_avaliado: itemTexto, observacao: observacaoTexto })
             });
 
             const data = await response.json();
 
-            // 3. Resultado
             if (response.ok) {
                 campo.value = data.sugestao;
-                campo.classList.remove('text-muted');
-                // Efeito visual de sucesso
-                campo.style.borderColor = '#198754';
-                setTimeout(() => campo.style.borderColor = '', 2000);
+                const form = campo.closest('form');
+                const selectCrit = form.querySelector('select[name="criticidade"]');
+                if (selectCrit && data.criticidade) {
+                    selectCrit.value = data.criticidade;
+                }
             } else {
-                campo.value = "Erro: " + (data.erro || "Não foi possível gerar sugestão.");
-                campo.classList.add('text-danger');
+                campo.value = "Erro: " + (data.erro || "Falha na IA.");
             }
         } catch (e) {
             console.error(e);
-            campo.value = "Erro de conexão. Verifique sua internet.";
+            campo.value = "Erro de conexão.";
         } finally {
-            // Restaura o botão
             btn.disabled = false;
             btn.innerHTML = textoOriginal;
         }

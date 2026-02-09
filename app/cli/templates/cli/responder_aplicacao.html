@@ -262,7 +262,7 @@
                                                     <div class="position-relative d-inline-block flex-shrink-0 me-2"
                                                         id="foto-server-{{ foto.id }}"
                                                         style="width: 70px; height: 70px;">
-                                                        <img src="{{ url_for('cli.get_foto_resposta', filename=foto.caminho) }}"
+                                                        <img src="{{ url_for('cli.uploaded_file', filename=foto.caminho) }}"
                                                             class="rounded w-100 h-100 border"
                                                             style="object-fit: cover; cursor: pointer;"
                                                             onclick="window.open(this.src, '_blank')">

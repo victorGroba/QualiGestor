@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Relatório de Ações Corretivas</title>
+    <style>
+        @page { size: A4 portrait; margin: 1cm; }
+        body { font-family: Helvetica, Arial, sans-serif; font-size: 10pt; color: #333; }
+        
+        .header { width: 100%; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px; }
+        .header td { vertical-align: middle; }
+        .title { font-size: 14pt; font-weight: bold; text-transform: uppercase; }
+        
+        table.main-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        table.main-table th { background-color: #f0f0f0; border: 1px solid #999; padding: 8px; text-transform: uppercase; font-size: 8pt; }
+        table.main-table td { border: 1px solid #999; padding: 10px; vertical-align: top; }
+        
+        .col-item { width: 30%; }
+        .col-evidence { width: 35%; }
+        .col-action { width: 35%; }
+        
+        .topic-label { font-size: 7pt; color: #666; text-transform: uppercase; font-weight: bold; display: block; margin-bottom: 4px; }
+        .q-text { font-weight: bold; font-size: 9pt; }
+        
+        .obs-box { background-color: #fff5f5; border-left: 3px solid #dc3545; padding: 5px; margin-bottom: 5px; font-size: 9pt; font-style: italic; }
+        
+        .solucao-box { background-color: #f0fff4; border-left: 3px solid #198754; padding: 5px; font-size: 9pt; }
+        
+        .img-container { text-align: center; margin-top: 5px; }
+        .img-evidence { max-width: 100%; max-height: 120px; border: 1px solid #ddd; padding: 2px; }
+        
+        .badge { display: inline-block; padding: 2px 5px; border-radius: 3px; font-size: 7pt; color: white; font-weight: bold; }
+        .bg-high { background-color: #dc3545; }
+        .bg-med { background-color: #ffc107; color: black; }
+        .bg-low { background-color: #198754; }
+
+        .footer { position: fixed; bottom: 0; left: 0; right: 0; font-size: 8pt; text-align: center; color: #777; border-top: 1px solid #ddd; padding-top: 5px; }
+    </style>
+</head>
+<body>
+
+    <table class="header">
+        <tr>
+            <td width="20%">
+                {% if logo_pdf %}
+                <img src="{{ logo_pdf }}" style="max-height: 50px;">
+                {% else %}
+                <b>QUALIGESTOR</b>
+                {% endif %}
+            </td>
+            <td width="60%" align="center">
+                <div class="title">Plano de Ação Corretiva</div>
+                <div style="font-size: 10pt;">{{ aplicacao.avaliado.nome }}</div>
+            </td>
+            <td width="20%" align="right" style="font-size: 8pt;">
+                Data: {{ aplicacao.data_inicio.strftime('%d/%m/%Y') }}<br>
+                ID: #{{ aplicacao.id }}
+            </td>
+        </tr>
+    </table>
+
+    <table class="main-table">
+        <thead>
+            <tr>
+                <th class="col-item">Item / Questão</th>
+                <th class="col-evidence">Não Conformidade (Evidência)</th>
+                <th class="col-action">Solução (Ação Corretiva)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in itens %}
+            <tr>
+                <td>
+                    <span class="topic-label">{{ item.topico }}</span>
+                    <div class="q-text">{{ item.pergunta }}</div>
+                </td>
+
+                <td>
+                    <div class="obs-box">
+                        <strong>Problema:</strong> {{ item.problema }}
+                    </div>
+                    
+                    {% if item.criticidade %}
+                    <div style="margin-bottom: 5px;">
+                        <span class="badge {% if item.criticidade == 'Alta' %}bg-high{% elif item.criticidade == 'Média' %}bg-med{% else %}bg-low{% endif %}">
+                            Criticidade: {{ item.criticidade }}
+                        </span>
+                    </div>
+                    {% endif %}
+
+                    {% if item.fotos %}
+                    <div class="img-container">
+                        {% for foto in item.fotos %}
+                        <img src="{{ foto }}" class="img-evidence"><br>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </td>
+
+                <td>
+                    {% if item.solucao %}
+                        <div class="solucao-box">
+                            <strong>Ação Definida:</strong><br>
+                            {{ item.solucao }}
+                        </div>
+                        {% if item.status == 'Realizado' %}
+                            <div style="margin-top: 5px; color: #198754; font-weight: bold; font-size: 8pt;">
+                                ✓ RESOLVIDO
+                            </div>
+                        {% else %}
+                            <div style="margin-top: 5px; color: #e67e22; font-size: 8pt;">
+                                ⚠ PENDENTE
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <div style="color: #999; font-style: italic;">
+                            Aguardando definição...
+                        </div>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="footer">
+        Relatório gerado em {{ data_geracao.strftime('%d/%m/%Y às %H:%M') }} via QualiGestor
+    </div>
+
+</body>
+</html>

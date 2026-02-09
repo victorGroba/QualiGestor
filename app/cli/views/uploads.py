@@ -137,12 +137,28 @@ def deletar_foto_por_id(foto_id):
 
 # ===================== SERVIR ARQUIVOS =====================
 
+from werkzeug.exceptions import NotFound # Adicione este import no topo se não tiver, ou use try/except genérico
+
+# ... (restante do código) ...
+
 @cli_bp.route('/uploads/<path:filename>')
 @login_required
-def get_foto_resposta(filename):
-    """Serve a imagem de forma protegida (somente logado)."""
+def uploaded_file(filename):
+    """
+    Rota Inteligente:
+    1. Tenta buscar na pasta de Uploads (Fotos novas).
+    2. Se não achar, busca na pasta Static/img (Fotos antigas/legado).
+    """
+    upload_folder = current_app.config.get('UPLOAD_FOLDER')
+    static_folder = os.path.join(current_app.static_folder, 'img')
+    
+    # Tentativa 1: Pasta de Uploads (Padrão Novo)
     try:
-        upload_folder = current_app.config.get('UPLOAD_FOLDER')
         return send_from_directory(upload_folder, filename)
-    except Exception as e:
-        abort(404)
+    except Exception:
+        # Tentativa 2: Pasta Static (Legado)
+        try:
+            return send_from_directory(static_folder, filename)
+        except Exception:
+            # Se não achar em nenhum dos dois, aí sim é 404
+            abort(404)
