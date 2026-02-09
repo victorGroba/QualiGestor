@@ -353,7 +353,7 @@ def gerenciar_acoes_corretivas(id):
 @cli_bp.route('/api/ia/sugerir-correcao', methods=['POST'])
 @login_required
 def sugerir_correcao_ia():
-    """Rota AJAX para consultar o Gemini com Lista de Compatibilidade Expandida"""
+    """Rota AJAX para consultar o Gemini com Lista de Compatibilidade Atualizada (v2.0+)"""
     data = request.get_json()
     
     item_avaliado = data.get('item_avaliado') or "Item de Checklist"
@@ -382,20 +382,16 @@ def sugerir_correcao_ia():
         ACAO: [Texto]
         """
 
-        # LISTA EXPANDIDA (Tenta todas as variações possíveis)
+        # === LISTA ATUALIZADA COM O SEU LOG ===
+        # Prioriza os modelos que apareceram no seu diagnóstico
         modelos_para_tentar = [
-            'gemini-1.5-flash',
-            'gemini-1.5-flash-latest',
-            'gemini-1.5-flash-001',
-            'gemini-1.5-flash-002',
-            'gemini-1.5-pro',
-            'gemini-1.5-pro-latest',
-            'gemini-1.5-pro-001',
-            'gemini-1.5-pro-002',
-            'gemini-1.0-pro',
-            'gemini-pro',
-            'models/gemini-1.5-flash', # Tenta com prefixo models/
-            'models/gemini-pro'
+            'gemini-2.5-flash',       # Mais novo e rápido
+            'gemini-2.0-flash',       # Versão estável anterior
+            'gemini-flash-latest',    # Alias genérico
+            'gemini-2.5-pro',         # Mais inteligente
+            'models/gemini-2.5-flash', # Formato alternativo
+            'gemini-1.5-flash',       # Fallback antigo
+            'gemini-pro'              # Fallback clássico
         ]
         
         texto_gerado = None
@@ -407,18 +403,17 @@ def sugerir_correcao_ia():
                 response = model.generate_content(prompt)
                 if response and response.text:
                     texto_gerado = response.text
-                    print(f"Sucesso com o modelo: {modelo_nome}") # Log para saber qual funcionou
+                    print(f"Sucesso com o modelo: {modelo_nome}") # Log no terminal
                     break 
             except Exception as e:
                 erro_ultimo = e
-                # print(f"Falha com {modelo_nome}: {e}") # Descomente para debug pesado
+                # print(f"Falha com {modelo_nome}: {e}")
                 continue
 
         if not texto_gerado:
-            # Se falhar tudo, retorna o erro original para entendermos
-            raise Exception(f"Nenhum modelo compatível encontrado. Detalhe: {erro_ultimo}")
+            raise Exception(f"Nenhum modelo compatível. Tentei: {modelos_para_tentar}. Erro: {erro_ultimo}")
         
-        # Processamento da resposta (igual ao anterior)
+        # Processamento da resposta
         texto_bruto = texto_gerado.strip()
         sugestao_final = texto_bruto
         criticidade_final = "Média"
