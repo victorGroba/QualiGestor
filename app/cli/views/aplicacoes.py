@@ -175,7 +175,8 @@ def escolher_questionario(avaliado_id):
     """Passo 2: Escolher Questionário e Criar."""
     rancho = Avaliado.query.get_or_404(avaliado_id)
     
-    # ... (mantenha a validação de segurança existente) ...
+    # ... (mantenha a validação de segurança existente de jurisdição) ...
+    # Se quiser garantir, mantenha o código original de validação aqui
 
     if request.method == 'POST':
         qid = request.form.get('questionario_id')
@@ -183,6 +184,22 @@ def escolher_questionario(avaliado_id):
         inicio_manual_str = request.form.get('visita_inicio')
         
         if qid:
+            # ==============================================================================
+            # NOVA LÓGICA: BLOQUEIO DE DUPLICIDADE
+            # Verifica se já existe uma auditoria ABERTA deste usuário para este local/questionário
+            # ==============================================================================
+            auditoria_existente = AplicacaoQuestionario.query.filter_by(
+                avaliado_id=rancho.id,
+                questionario_id=int(qid),
+                aplicador_id=current_user.id,
+                status=StatusAplicacao.EM_ANDAMENTO
+            ).first()
+
+            if auditoria_existente:
+                flash(f"Você já possui uma auditoria em aberto para {rancho.nome}. Redirecionando para ela...", "info")
+                return redirect(url_for('cli.responder_aplicacao', id=auditoria_existente.id))
+            # ==============================================================================
+
             try:
                 # Tratamento da data manual
                 dt_inicio = datetime.now()
@@ -214,7 +231,6 @@ def escolher_questionario(avaliado_id):
 
     questionarios = Questionario.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).order_by(Questionario.nome).all()
     return render_template_safe('cli/auditoria_passo2.html', rancho=rancho, questionarios=questionarios)
-
 # ===================== EXECUÇÃO (CHECKLIST) =====================
 
 @cli_bp.route('/aplicacao/<int:id>/responder', methods=['GET', 'POST'])

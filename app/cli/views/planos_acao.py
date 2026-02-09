@@ -353,7 +353,7 @@ def gerenciar_acoes_corretivas(id):
 @cli_bp.route('/api/ia/sugerir-correcao', methods=['POST'])
 @login_required
 def sugerir_correcao_ia():
-    """Rota AJAX para consultar o Gemini com Contexto Rico e Criticidade"""
+    """Rota AJAX para consultar o Gemini com Fallback de Modelos"""
     data = request.get_json()
     
     # 1. Extração Segura dos Dados
@@ -372,10 +372,7 @@ def sugerir_correcao_ia():
             
         genai.configure(api_key=api_key)
         
-        # 3. Definição do Modelo (gemini-1.5-flash)
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        
-        # 4. Prompt Otimizado
+        # 3. Prompt Otimizado
         prompt = f"""
         Atue como um consultor sênior em Segurança dos Alimentos.
         
@@ -391,41 +388,57 @@ def sugerir_correcao_ia():
         CRITICIDADE: [Alta/Média/Baixa]
         ACAO: [Texto da ação corretiva]
         """
-        
-        # 5. Geração
-        response = model.generate_content(prompt)
-        
-        if response.text:
-            texto_bruto = response.text.strip()
-            
-            # 6. Processamento da Resposta
-            sugestao_final = texto_bruto
-            criticidade_final = "Média" # Valor padrão
-            
-            if "CRITICIDADE:" in texto_bruto and "ACAO:" in texto_bruto:
-                try:
-                    partes = texto_bruto.split("ACAO:")
-                    parte_crit = partes[0].replace("CRITICIDADE:", "").strip()
-                    parte_acao = partes[1].strip()
-                    
-                    sugestao_final = parte_acao
-                    
-                    if "Alta" in parte_crit: criticidade_final = "Alta"
-                    elif "Baixa" in parte_crit: criticidade_final = "Baixa"
-                    else: criticidade_final = "Média"
-                except: pass
 
-            return jsonify({
-                'sugestao': sugestao_final,
-                'criticidade': criticidade_final
-            })
-            
-        else:
-            return jsonify({'erro': 'IA não retornou texto.'}), 500
+        # 4. Tentativa de Geração com Fallback (Flash -> Pro -> Padrão)
+        # Tenta modelos diferentes caso um não esteja disponível na conta/região
+        modelos_para_tentar = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-pro']
+        
+        texto_gerado = None
+        erro_ultimo = None
+
+        for modelo_nome in modelos_para_tentar:
+            try:
+                model = genai.GenerativeModel(modelo_nome)
+                response = model.generate_content(prompt)
+                if response and response.text:
+                    texto_gerado = response.text
+                    break # Sucesso! Sai do loop
+            except Exception as e:
+                erro_ultimo = e
+                print(f"Tentativa falha com {modelo_nome}: {e}")
+                continue # Tenta o próximo da lista
+
+        if not texto_gerado:
+            raise Exception(f"Nenhum modelo disponível. Último erro: {erro_ultimo}")
+        
+        # 5. Processamento da Resposta
+        texto_bruto = texto_gerado.strip()
+        sugestao_final = texto_bruto
+        criticidade_final = "Média" # Valor padrão
+        
+        if "CRITICIDADE:" in texto_bruto and "ACAO:" in texto_bruto:
+            try:
+                # Separa usando a palavra chave
+                partes = texto_bruto.split("ACAO:")
+                parte_crit = partes[0].replace("CRITICIDADE:", "").strip()
+                parte_acao = partes[1].strip()
+                
+                sugestao_final = parte_acao
+                
+                if "Alta" in parte_crit: criticidade_final = "Alta"
+                elif "Baixa" in parte_crit: criticidade_final = "Baixa"
+                else: criticidade_final = "Média"
+            except: 
+                pass
+
+        return jsonify({
+            'sugestao': sugestao_final,
+            'criticidade': criticidade_final
+        })
 
     except Exception as e:
-        print(f"Erro IA: {e}")
-        return jsonify({'erro': f"Falha na IA: {str(e)}"}), 500
+        print(f"Erro IA Crítico: {e}")
+        return jsonify({'erro': f"Falha na comunicação com a IA: {str(e)}"}), 500
     
 @cli_bp.route('/aplicacao/<int:id>/pdf-acoes-corretivas')
 @login_required
