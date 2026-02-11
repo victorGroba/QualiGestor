@@ -22,7 +22,7 @@ from ..utils import (
     get_avaliados_usuario, verificar_permissao_admin, allowed_file
 )
 
-# === IMPORTAÇÃO DA FUNÇÃO DE CÁLCULO (ADICIONADO) ===
+# === IMPORTAÇÃO DA FUNÇÃO DE CÁLCULO ===
 from ...utils.pontuacao import calcular_pontuacao_auditoria
 
 # Importa Modelos
@@ -184,10 +184,7 @@ def escolher_questionario(avaliado_id):
         inicio_manual_str = request.form.get('visita_inicio')
         
         if qid:
-            # ==============================================================================
             # BLOQUEIO DE DUPLICIDADE
-            # Verifica se já existe uma auditoria ABERTA deste usuário para este local/questionário
-            # ==============================================================================
             auditoria_existente = AplicacaoQuestionario.query.filter_by(
                 avaliado_id=rancho.id,
                 questionario_id=int(qid),
@@ -198,7 +195,6 @@ def escolher_questionario(avaliado_id):
             if auditoria_existente:
                 flash(f"Você já possui uma auditoria em aberto para {rancho.nome}. Redirecionando para ela...", "info")
                 return redirect(url_for('cli.responder_aplicacao', id=auditoria_existente.id))
-            # ==============================================================================
 
             try:
                 # Tratamento da data manual
@@ -251,8 +247,7 @@ def responder_aplicacao(id, modo_assinatura=False):
             if app.avaliado_id not in permitidos:
                 flash("Acesso negado (Jurisdição).", "danger"); return redirect(url_for('cli.listar_aplicacoes'))
 
-        # LÓGICA DE PERMISSÃO PÓS-FIM:
-        # Se finalizada, bloqueia acesso exceto se for o PRÓPRIO APLICADOR (para anexos tardios)
+        # LÓGICA DE PERMISSÃO PÓS-FIM
         if app.status != StatusAplicacao.EM_ANDAMENTO and not modo_assinatura:
             if app.aplicador_id != current_user.id:
                  flash("Aplicação já finalizada.", "warning")
@@ -293,7 +288,6 @@ def salvar_resposta(id):
         if is_closed:
             if app.aplicador_id != current_user.id:
                 return jsonify({'erro': 'Aplicação finalizada.'}), 400
-            # Se for o dono, continua o código e salva (útil para fotos tardias)
 
         # Edição direta (Gestão de NCs)
         if 'resposta_id' in data:
@@ -357,9 +351,7 @@ def concluir_coleta(id):
     if app.avaliado.cliente_id != current_user.cliente_id: 
         return redirect(url_for('cli.listar_aplicacoes'))
     
-    # 1. Validação (Exemplo simplificado, adicione suas regras de negócio aqui se necessário)
-    
-    # 2. Cálculo da Nota e Atualização do Banco (CORREÇÃO AQUI)
+    # 2. Cálculo da Nota e Atualização do Banco
     resultado = calcular_pontuacao_auditoria(app)
     
     if resultado:
@@ -378,7 +370,6 @@ def concluir_coleta(id):
     
     if fim_manual_str:
         try:
-            # O input datetime-local envia: "2023-10-25T14:30"
             app.visita_fim = datetime.strptime(fim_manual_str, '%Y-%m-%dT%H:%M')
         except ValueError:
             app.visita_fim = datetime.now()
@@ -555,7 +546,10 @@ def visualizar_aplicacao(id):
 @cli_bp.route('/aplicacao/<int:id>/relatorio')
 @login_required
 def gerar_relatorio_aplicacao(id):
-    """Gera PDF do Relatório com suporte a MÚLTIPLAS FOTOS."""
+    """
+    Gera PDF do Relatório com suporte a MÚLTIPLAS FOTOS.
+    CORREÇÃO: Implementada lógica de ignorar 'N/A' nos scores por tópico.
+    """
     app = AplicacaoQuestionario.query.get_or_404(id)
     if app.avaliado.cliente_id != current_user.cliente_id: abort(403)
     
@@ -595,15 +589,15 @@ def gerar_relatorio_aplicacao(id):
                     if uris_validas:
                         fotos[t].append({'resposta': r, 'urls': uris_validas})
 
-                # Score por Tópico (Recalcula com lógica básica para exibição)
-                # OBS: Para consistência total, você pode querer chamar calcular_pontuacao_auditoria aqui também,
-                # mas como o relatório é por tópico, mantemos essa lógica local simplificada ou importamos.
-                # Se quiser usar a lógica do N/A aqui também, adapte este trecho:
+                # === CORREÇÃO DA LÓGICA DE SCORE NO PDF ===
+                # Verifica se é N/A para não somar no Máximo
+                valor_resp = (r.resposta or "").upper().strip()
+                lista_na = ['N/A', 'NA', 'N.A.', 'NÃO SE APLICA', 'NAO SE APLICA', 'NÃO APLICÁVEL', '-']
                 
-                valor_resp = (r.resposta or "").upper()
-                if valor_resp in ['N/A', 'NA', 'NÃO SE APLICA']: 
-                    continue # Pula N/A
-                
+                if valor_resp in lista_na:
+                    continue # Pula N/A (não soma na base)
+
+                # Se não for N/A, soma na base e verifica pontos
                 if p.peso:
                     maximo += p.peso
                     if valor_resp in ['SIM', 'CONFORME']:
