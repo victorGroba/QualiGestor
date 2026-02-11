@@ -29,31 +29,34 @@
       margin: 0;
       padding: 0;
       font-family: 'Roboto', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-      font-size: 10pt;
+      font-size: 9pt; /* Reduzi levemente a fonte base para 9pt para caber mais */
       color: #2c3e50;
       background: #fff;
-      line-height: 1.4;
+      line-height: 1.3;
     }
 
     /* ==========================================================================
-       2. CONFIGURAÇÃO DE PÁGINA (Layout Seguro)
+       2. CONFIGURAÇÃO DE PÁGINA (OTIMIZADA)
        ========================================================================== */
     @page {
       size: A4;
+      
+      /* CÁLCULO EXATO:
+         Header tem ~33mm de altura.
+         Margin-top 38mm dá 5mm de respiro.
+         Sem buracos gigantes.
+      */
+      margin-top: 38mm; 
+      margin-bottom: 20mm;
+      margin-left: 10mm;
+      margin-right: 10mm;
 
-      /* Margens ajustadas para não tampar Header/Footer */
-      margin-top: 4.0cm;
-      margin-bottom: 2.5cm;
-      margin-left: 1.0cm;
-      margin-right: 1.0cm;
-
-      /* Numeração de página no canto inferior direito */
       @bottom-right {
         content: "Página " counter(page);
         font-family: 'Roboto', sans-serif;
         font-size: 8pt;
         color: #7f8c8d;
-        margin-bottom: 0.5cm;
+        margin-bottom: 5mm;
       }
     }
 
@@ -62,18 +65,25 @@
        ========================================================================== */
     .header-fixed {
       position: fixed;
-      top: -3.5cm;
-      left: -1.0cm;
-      width: 210mm;
-      height: 3.0cm;
+      /* Sobe para a área da margem */
+      top: -38mm; 
+      left: -10mm;
+      width: 210mm; /* Largura total A4 */
+      height: 33mm; /* Altura compacta */
+      
       background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
       color: white;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding-left: 1.0cm;
-      padding-right: 1.0cm;
+      
+      /* Espaçamento interno lateral */
+      padding-left: 10mm;
+      padding-right: 10mm;
+      
       z-index: 1000;
+      overflow: hidden;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
 
     .header-left {
@@ -84,26 +94,26 @@
     }
 
     .header-logo {
-      height: 55px;
+      height: 45px; /* Logo controlada */
       width: auto;
-      max-width: 180px;
+      max-width: 150px;
       object-fit: contain;
     }
 
     .header-info h1 {
       margin: 0;
-      font-size: 14pt;
+      font-size: 13pt;
       font-weight: 500;
       color: #fff;
       text-transform: uppercase;
-      line-height: 1.2;
+      line-height: 1.1;
     }
 
     .header-info p {
       margin: 2px 0 0 0;
-      font-size: 9pt;
+      font-size: 8pt;
       font-weight: 300;
-      color: rgba(255, 255, 255, 0.9);
+      color: rgba(255, 255, 255, 0.85);
     }
 
     .header-right {
@@ -111,69 +121,68 @@
       color: #fff;
       flex-shrink: 0;
       margin-left: 20px;
-      padding-right: 10px;
+      padding-right: 5px;
     }
 
     .header-label {
-      font-size: 7pt;
+      font-size: 6pt;
       text-transform: uppercase;
-      opacity: 0.8;
+      opacity: 0.7;
       letter-spacing: 1px;
     }
 
     .header-value {
-      font-size: 10pt;
+      font-size: 9pt;
       font-weight: 500;
-      margin-top: 2px;
+      margin-top: 1px;
     }
 
-    /* RODAPÉ (Posicionado bem abaixo) */
+    /* RODAPÉ */
     .footer-fixed {
       position: fixed;
-      bottom: -2.3cm;
-      left: -1.0cm;
+      bottom: -20mm; /* Cola no fim da folha */
+      left: -10mm;
       width: 210mm;
-      height: 1.5cm;
-      background-color: #f8f9fa;
+      height: 12mm; /* Mais fino */
+      background-color: #fff;
       border-top: 1px solid #ecf0f1;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      font-size: 8pt;
-      color: #7f8c8d;
-      padding-left: 1.0cm;
-      padding-right: 1.0cm;
-      z-index: 1000;
+      font-size: 7pt;
+      color: #95a5a6;
+      padding-left: 10mm;
+      padding-right: 10mm;
     }
 
     /* ==========================================================================
-       4. CONTEÚDO PRINCIPAL
+       4. CONTEÚDO PRINCIPAL (Compactado)
        ========================================================================== */
     .info-grid {
       display: table;
       width: 100%;
       border-collapse: collapse;
-      margin-top: 0;
-      margin-bottom: 30px;
-      page-break-inside: avoid;
+      margin-top: 0; /* Começa logo após a margem */
+      margin-bottom: 20px;
+      page-break-inside: avoid !important;
     }
 
     .info-item {
       display: table-cell;
       background: #fff;
       border: 1px solid #ecf0f1;
-      padding: 8px 12px;
+      padding: 6px 10px; /* Menos padding vertical */
       vertical-align: top;
       width: 20%;
     }
 
     .info-label {
       display: block;
-      font-size: 7pt;
+      font-size: 6pt;
       color: #7f8c8d;
       text-transform: uppercase;
       font-weight: 700;
-      margin-bottom: 4px;
+      margin-bottom: 2px;
     }
 
     .info-value {
@@ -185,50 +194,52 @@
 
     .info-item.score {
       background-color: #fcfcfc;
-      border-color: #bdc3c7;
     }
 
     .info-item.score .info-value {
-      color: #2c3e50;
       font-weight: 700;
-      font-size: 12pt;
+      font-size: 11pt;
     }
 
     .topic-container {
-      margin-bottom: 25px;
+      margin-bottom: 20px;
     }
 
     .topic-header {
       background-color: #f0f2f5;
-      border-left: 5px solid #2c3e50;
-      padding: 8px 12px;
-      margin-bottom: 15px;
+      border-left: 4px solid #2c3e50;
+      padding: 6px 10px; /* Header do tópico mais fino */
+      margin-bottom: 10px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      page-break-after: avoid;
+      
+      page-break-after: avoid !important; 
     }
 
     .topic-title {
-      font-size: 11pt;
+      font-size: 10pt;
       font-weight: 700;
       color: #2c3e50;
       text-transform: uppercase;
     }
 
     .topic-score {
-      font-size: 9pt;
+      font-size: 8pt;
       font-weight: 600;
       color: #7f8c8d;
     }
 
+    /* === CHECKLIST === */
     .question-row {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      padding: 8px 0;
+      padding: 6px 0; /* Reduzido para aproximar as perguntas */
       border-bottom: 1px solid #ecf0f1;
-      page-break-inside: avoid;
+      
+      /* Mantém a lógica de não quebrar a pergunta ao meio */
+      page-break-inside: avoid !important;
     }
 
     .question-row:last-child {
@@ -244,102 +255,85 @@
       color: #95a5a6;
       font-weight: 700;
       font-size: 8pt;
-      margin-right: 8px;
+      margin-right: 6px;
     }
 
     .q-text {
-      font-size: 10pt;
+      font-size: 9.5pt;
       font-weight: 400;
       color: #2c3e50;
     }
 
     .q-obs {
       display: block;
-      margin-top: 5px;
-      padding: 5px 10px;
+      margin-top: 4px;
+      padding: 4px 8px;
       background-color: #f9f9f9;
       border-left: 2px solid #e74c3c;
-      font-size: 9pt;
+      font-size: 8.5pt;
       color: #555;
       font-style: italic;
     }
 
     .q-status-col {
-      min-width: 90px;
+      min-width: 80px;
       text-align: right;
     }
 
     .q-status {
-      font-size: 9pt;
+      font-size: 8.5pt;
       font-weight: 700;
       text-transform: uppercase;
     }
 
-    .status-conforme {
-      color: #27ae60;
-    }
-
-    .status-nao {
-      color: #c0392b;
-    }
-
-    .status-na {
-      color: #95a5a6;
-      font-size: 8pt;
-    }
-
-    .status-parcial {
-      color: #e67e22;
-    }
+    .status-conforme { color: #27ae60; }
+    .status-nao { color: #c0392b; }
+    .status-na { color: #95a5a6; font-size: 7.5pt; }
+    .status-parcial { color: #e67e22; }
 
     .signature-row {
-      margin: 15px 0;
-      padding: 10px;
+      margin: 10px 0;
+      padding: 8px;
       border: 1px dashed #bdc3c7;
       background: #fdfdfd;
-      page-break-inside: avoid;
+      page-break-inside: avoid !important;
     }
 
     .signature-label {
       font-weight: 700;
-      font-size: 9pt;
-      margin-bottom: 10px;
+      font-size: 8pt;
+      margin-bottom: 5px;
       color: #2c3e50;
       text-transform: uppercase;
     }
 
     .signature-img {
-      max-height: 80px;
-      max-width: 200px;
+      max-height: 60px; /* Assinatura mais compacta */
+      max-width: 180px;
       display: block;
       margin-top: 5px;
       mix-blend-mode: multiply;
     }
 
-    .signature-placeholder {
-      color: #bdc3c7;
-      font-style: italic;
-      padding: 10px 0;
-    }
-
     /* ==========================================================================
-       5. GALERIA DE FOTOS (1 Card por Foto + Correção de Duplicatas)
+       5. GALERIA (Otimizada para 2 por linha sem desperdício)
        ========================================================================== */
     .gallery-container {
-      margin-top: 25px;
-      padding-top: 15px;
+      margin-top: 20px;
+      padding-top: 10px;
       border-top: 2px dashed #ecf0f1;
     }
 
     .gallery-header {
-      font-size: 9pt;
+      font-size: 8pt;
       font-weight: 700;
       color: #2c3e50;
-      margin-bottom: 15px;
+      margin-bottom: 10px;
       text-transform: uppercase;
       background: #f8f9fa;
-      padding: 5px 10px;
+      padding: 4px 8px;
       border-radius: 4px;
+      page-break-after: avoid !important;
     }
 
     .gallery-grid {
@@ -348,22 +342,17 @@
       width: 100%;
     }
 
-    /* O Card Individual */
     .gallery-item {
       display: inline-block;
-      width: 48%;
-      /* Lado a Lado (2 por linha) */
+      width: 49%; /* Quase metade */
       margin-right: 2%;
-      margin-bottom: 20px;
+      margin-bottom: 15px;
       vertical-align: top;
       background: #fff;
       border: 1px solid #e0e0e0;
-      border-radius: 5px;
+      border-radius: 4px;
       overflow: hidden;
-
-      /* BLINDAGEM CONTRA QUEBRA */
       page-break-inside: avoid !important;
-      break-inside: avoid !important;
     }
 
     .gallery-item:nth-child(2n) {
@@ -372,8 +361,7 @@
 
     .gallery-images-wrapper {
       width: 100%;
-      height: 220px;
-      /* Altura fixa */
+      height: 180px; /* Altura da foto reduzida para economizar papel */
       background: #f0f0f0;
       border-bottom: 1px solid #eee;
       position: relative;
@@ -383,15 +371,14 @@
       width: 100%;
       height: 100%;
       object-fit: cover;
-      /* Preenche o quadro */
       display: block;
     }
 
     .gallery-caption {
-      padding: 10px;
+      padding: 8px;
       background: #fff;
-      font-size: 10pt;
-      line-height: 1.4;
+      font-size: 9pt;
+      line-height: 1.3;
       text-align: left;
     }
 
@@ -399,10 +386,10 @@
       display: block;
       font-weight: 700;
       color: #2c3e50;
-      font-size: 8pt;
-      margin-bottom: 5px;
+      font-size: 7.5pt;
+      margin-bottom: 3px;
       border-bottom: 1px solid #f0f0f0;
-      padding-bottom: 5px;
+      padding-bottom: 3px;
     }
 
     .gallery-ref-text {
@@ -413,10 +400,10 @@
 
     .validation-block {
       text-align: center;
-      margin-top: 40px;
+      margin-top: 30px;
       border-top: 1px solid #ecf0f1;
-      padding-top: 20px;
-      page-break-inside: avoid;
+      padding-top: 15px;
+      page-break-inside: avoid !important;
     }
   </style>
 </head>
@@ -518,16 +505,13 @@
         <span class="q-obs">Obs: {{ resposta.observacao }}</span>
         {% endif %}
         {# --- LÓGICA HÍBRIDA PARA O PDF --- #}
-        {# Busca ação corretiva vinculada a esta pergunta específica #}
         {% set acao_nova = aplicacao.acoes_corretivas.filter_by(pergunta_id=resposta.pergunta.id).first() %}
-
-        {# Prioridade: 1. O que foi feito (Gestor) | 2. Sugestão (Consultora) | 3. Plano Antigo #}
         {% set texto_final = acao_nova.acao_realizada if acao_nova and acao_nova.acao_realizada else
         (acao_nova.sugestao_correcao if acao_nova else resposta.plano_acao) %}
 
         {% if texto_final %}
         <span class="q-obs"
-          style="display: block; margin-top: 4px; padding: 4px 8px; border-left: 3px solid #e67e22; background-color: #fff8e1; font-size: 9pt; color: #d35400;">
+          style="display: block; margin-top: 4px; padding: 4px 8px; border-left: 3px solid #e67e22; background-color: #fff8e1; font-size: 8.5pt; color: #d35400;">
           <strong>Ação Corretiva:</strong> {{ texto_final }}
         </span>
         {% endif %}
@@ -569,24 +553,22 @@
             <span class="gallery-ref-text">
               {{ item.resposta.pergunta.texto }}
             </span>
-            {# --- BLOCO AÇÃO CORRETIVA (MENSAL) --- #}
+            {# --- BLOCO AÇÃO CORRETIVA (GALERIA) --- #}
             {% if item.resposta.nao_conforme and item.resposta.plano_acao %}
             <div
-              style="margin-top: 8px; padding: 6px; background-color: #fff5f5; border-left: 3px solid #e74c3c; border-radius: 4px;">
+              style="margin-top: 6px; padding: 4px; background-color: #fff5f5; border-left: 3px solid #e74c3c; border-radius: 4px;">
               <div
-                style="font-size: 7pt; text-transform: uppercase; color: #c0392b; font-weight: bold; margin-bottom: 3px;">
-                <i class="fas fa-tools"></i> Ação Corretiva / Solução:
+                style="font-size: 7pt; text-transform: uppercase; color: #c0392b; font-weight: bold; margin-bottom: 2px;">
+                <i class="fas fa-tools"></i> Ação Corretiva:
               </div>
-              <div style="font-size: 9pt; color: #2c3e50; font-style: normal;">
+              <div style="font-size: 8.5pt; color: #2c3e50; font-style: normal;">
                 {{ item.resposta.plano_acao }}
               </div>
-
-              {# Selo de Resolvido (Opcional) #}
               {% if item.resposta.status_acao == 'concluido' %}
-              <div style="text-align: right; margin-top: 4px;">
+              <div style="text-align: right; margin-top: 2px;">
                 <span
-                  style="font-size: 7pt; background-color: #27ae60; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold;">
-                  <i class="fas fa-check"></i> RESOLVIDO
+                  style="font-size: 6pt; background-color: #27ae60; color: white; padding: 1px 4px; border-radius: 3px; font-weight: bold;">
+                  RESOLVIDO
                 </span>
               </div>
               {% endif %}
@@ -609,8 +591,8 @@
 
   {% if qr_code_url %}
   <div class="validation-block">
-    <img src="{{ qr_code_url }}" style="width:80px; height:80px;">
-    <div style="font-size:8pt; color:#95a5a6; margin-top:5px; text-transform:uppercase;">Documento Autenticado
+    <img src="{{ qr_code_url }}" style="width:70px; height:70px;">
+    <div style="font-size:7pt; color:#95a5a6; margin-top:5px; text-transform:uppercase;">Documento Autenticado
       Digitalmente</div>
   </div>
   {% endif %}
