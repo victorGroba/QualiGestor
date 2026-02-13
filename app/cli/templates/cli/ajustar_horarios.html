@@ -1,0 +1,38 @@
+{% extends "base_cliq.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-warning text-dark fw-bold">
+            <i class="fas fa-clock me-2"></i> Ajuste Administrativo de Horários
+        </div>
+        <div class="card-body">
+            <h5 class="card-title">{{ aplicacao.avaliado.nome }}</h5>
+            <p class="text-muted mb-4">Questionário: {{ aplicacao.questionario.nome }}</p>
+
+            <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Início da Visita (Real)</label>
+                        <input type="datetime-local" class="form-control" name="visita_inicio"
+                            value="{{ aplicacao.visita_inicio.strftime('%Y-%m-%dT%H:%M') if aplicacao.visita_inicio else '' }}">
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Fim da Visita (Real)</label>
+                        <input type="datetime-local" class="form-control" name="visita_fim"
+                            value="{{ aplicacao.visita_fim.strftime('%Y-%m-%dT%H:%M') if aplicacao.visita_fim else '' }}">
+                    </div>
+                </div>
+
+                <div class="mt-4 d-flex justify-content-end gap-2">
+                    <a href="{{ url_for('cli.visualizar_aplicacao', id=aplicacao.id) }}" class="btn btn-outline-secondary">Cancelar</a>
+                    <button type="submit" class="btn btn-primary fw-bold">Salvar Correção</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

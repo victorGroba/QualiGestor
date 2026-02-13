@@ -243,106 +243,147 @@ def pdf_plano_acao(aplicacao_id):
 @login_required
 def gerenciar_acoes_corretivas(id):
     """
-    Exibe e gerencia as ações corretivas (Tabela Nova).
-    Inclui Sincronização Robusta: Garante que TODAS as NCs apareçam aqui.
+    Exibe e gerencia as ações corretivas com sincronização bidirecional.
+    - Cria ações para itens 'Não Conforme'.
+    - Remove ações se o item for corrigido para 'Sim'.
+    - Ordena corretamente por Tópico > Pergunta.
     """
     app_audit = AplicacaoQuestionario.query.get_or_404(id)
     
+    # Verificação de Segurança
     if app_audit.avaliado.cliente_id != current_user.cliente_id:
         flash("Acesso negado.", "danger")
         return redirect(url_for('cli.index'))
 
-    # === SINCRONIZAÇÃO ROBUSTA ===
-    # 1. Busca TODAS as respostas dessa auditoria
+    # ==============================================================================
+    # 1. SINCRONIZAÇÃO ROBUSTA (Cria o que falta e remove o que foi corrigido)
+    # ==============================================================================
     todas_respostas = RespostaPergunta.query.filter_by(aplicacao_id=id).all()
-    
     migrou_algo = False
     
+    # Listas de verificação de texto
+    respostas_negativas = ['não', 'nao', 'no', 'ruim', 'irregular', 'reprovado', 'crítico', 'não conforme']
+    respostas_ignorar = ['não se aplica', 'n.a.', 'na', 'n/a', 'não avaliado', '---']
+
     for resp in todas_respostas:
-        # Verifica se é NC (pela flag ou pelo texto negativo)
-        eh_nc = resp.nao_conforme
-        if not eh_nc and resp.resposta:
-            if resp.resposta.lower().strip() in ['não', 'nao', 'ruim', 'irregular', 'não conforme']:
-                eh_nc = True
+        texto_resp = (resp.resposta or '').lower().strip()
         
-        # Se for NC, verifica se já existe na tabela nova
-        if eh_nc:
-            existe = AcaoCorretiva.query.filter_by(
-                aplicacao_id=id,
-                pergunta_id=resp.pergunta_id
-            ).first()
+        # --- Lógica: É Não Conformidade? ---
+        eh_nc = False
+        
+        # Regra 1: Se a flag do banco diz que é NC
+        if resp.nao_conforme:
+            eh_nc = True
             
-            if not existe:
-                # Cria a ação que estava faltando
+        # Regra 2: Se o texto for negativo (fallback)
+        elif texto_resp in respostas_negativas:
+            eh_nc = True
+            
+        # EXCEÇÃO FATAL: Se for "Não se Aplica", NUNCA é NC (mesmo que marcado errado)
+        if texto_resp in respostas_ignorar:
+            eh_nc = False
+
+        # --- Verificação no Banco de Ações ---
+        acao_existente = AcaoCorretiva.query.filter_by(
+            aplicacao_id=id,
+            pergunta_id=resp.pergunta_id
+        ).first()
+
+        if eh_nc:
+            # CENÁRIO A: É NC e não tem ação -> CRIAR
+            if not acao_existente:
                 nova_acao = AcaoCorretiva(
                     aplicacao_id=app_audit.id,
                     pergunta_id=resp.pergunta_id,
-                    # Se não tiver observação, coloca um texto padrão para não ficar vazio
-                    descricao_nao_conformidade=resp.observacao or f"Item marcado como {resp.resposta}",
-                    sugestao_correcao=resp.plano_acao, # Traz o plano antigo se houver
+                    descricao_nao_conformidade=resp.observacao or f"Item avaliado como '{resp.resposta}'",
+                    sugestao_correcao=resp.plano_acao,  # Traz legado se houver
                     criticidade="Média",
                     status='Pendente',
                     data_criacao=datetime.now()
                 )
                 
-                # Se já tinha sido concluído no sistema antigo, atualiza o status
-                if resp.status_acao == 'concluido' or (resp.plano_acao and resp.plano_acao.strip() != ''):
+                # Tenta recuperar status antigo se já existia
+                if resp.status_acao == 'concluido' or (resp.plano_acao and len(resp.plano_acao) > 3):
                      nova_acao.status = 'Realizado'
                      if not nova_acao.acao_realizada:
                          nova_acao.acao_realizada = resp.plano_acao
 
                 db.session.add(nova_acao)
                 migrou_algo = True
+        else:
+            # CENÁRIO B: Não é mais NC (virou Sim ou N.A.) mas tem ação -> EXCLUIR
+            if acao_existente:
+                db.session.delete(acao_existente)
+                migrou_algo = True
     
     if migrou_algo:
         db.session.commit()
-    # =========================================
 
-    # Lógica de POST (Salvar)
+    # ==============================================================================
+    # 2. PROCESSAMENTO DO FORMULÁRIO (POST)
+    # ==============================================================================
     if request.method == 'POST':
         acao_id = request.form.get('acao_id')
-        acao = AcaoCorretiva.query.get(acao_id)
         
-        if acao and acao.aplicacao_id == app_audit.id:
-            salvou = False
+        if acao_id:
+            acao = AcaoCorretiva.query.get(acao_id)
             
-            # 1. Salva Criticidade
-            if 'criticidade' in request.form:
-                acao.criticidade = request.form.get('criticidade')
-                salvou = True
+            # Valida se a ação pertence a esta auditoria
+            if acao and acao.aplicacao_id == app_audit.id:
+                salvou = False
+                
+                # Salva Criticidade
+                if 'criticidade' in request.form:
+                    acao.criticidade = request.form.get('criticidade')
+                    salvou = True
 
-            # 2. Salva Sugestão (Consultora)
-            if 'sugestao' in request.form:
-                acao.sugestao_correcao = request.form.get('sugestao')
-                salvou = True
-            
-            # 3. Salva Execução (Gestor)
-            if 'acao_realizada' in request.form:
-                acao.acao_realizada = request.form.get('acao_realizada')
-                if acao.acao_realizada:
-                    acao.status = 'Realizado'
-                    acao.data_conclusao = datetime.now()
-                salvou = True
+                # Salva Sugestão (Consultora)
+                if 'sugestao' in request.form:
+                    acao.sugestao_correcao = request.form.get('sugestao')
+                    salvou = True
+                
+                # Salva Ação Realizada (Gestor)
+                if 'acao_realizada' in request.form:
+                    acao.acao_realizada = request.form.get('acao_realizada')
+                    # Se preencheu algo, marca como realizado
+                    if acao.acao_realizada and len(acao.acao_realizada.strip()) > 0:
+                        acao.status = 'Realizado'
+                        acao.data_conclusao = datetime.now()
+                    else:
+                        acao.status = 'Pendente' # Reabre se apagar o texto
+                    salvou = True
 
-            # Retro-compatibilidade (Manter tabela antiga atualizada também)
-            if salvou:
-                resp_antiga = RespostaPergunta.query.filter_by(
-                    aplicacao_id=app_audit.id, 
-                    pergunta_id=acao.pergunta_id
-                ).first()
-                if resp_antiga:
-                    texto = acao.acao_realizada if acao.acao_realizada else acao.sugestao_correcao
-                    if texto: 
-                        resp_antiga.plano_acao = texto
+                # Sincronia Retroativa (Mantém tabela antiga atualizada para relatórios legados)
+                if salvou:
+                    resp_antiga = RespostaPergunta.query.filter_by(
+                        aplicacao_id=app_audit.id, 
+                        pergunta_id=acao.pergunta_id
+                    ).first()
+                    
+                    if resp_antiga:
+                        # Prioriza o texto da ação realizada, senão usa a sugestão
+                        texto_final = acao.acao_realizada if acao.acao_realizada else acao.sugestao_correcao
+                        resp_antiga.plano_acao = texto_final
+                        
                         if acao.status == 'Realizado':
                             resp_antiga.status_acao = 'concluido'
+                        else:
+                            resp_antiga.status_acao = 'pendente'
 
-            db.session.commit()
-            flash("Ação atualizada com sucesso.", "success")
-            return redirect(url_for('cli.gerenciar_acoes_corretivas', id=id))
+                db.session.commit()
+                flash("Ação atualizada com sucesso.", "success")
+                
+                # Redireciona para evitar reenvio de formulário
+                return redirect(url_for('cli.gerenciar_acoes_corretivas', id=id))
 
-    # Busca as ações (agora populadas pela migração se fosse necessário)
-    acoes_lista = AcaoCorretiva.query.filter_by(aplicacao_id=id).all()
+    # ==============================================================================
+    # 3. BUSCA ORDENADA PARA EXIBIÇÃO
+    # ==============================================================================
+    # Fazemos JOIN com Pergunta e Topico para ordenar corretamente (Checklist visual)
+    acoes_lista = AcaoCorretiva.query.filter_by(aplicacao_id=id) \
+        .join(Pergunta).join(Topico) \
+        .order_by(Topico.ordem, Pergunta.ordem) \
+        .all()
     
     return render_template(
         'cli/acoes_corretivas_lista.html',

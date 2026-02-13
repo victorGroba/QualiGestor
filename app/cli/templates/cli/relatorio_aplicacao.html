@@ -436,39 +436,49 @@
     <div>Relatório Gerado Automaticamente</div>
   </div>
 
-  <div class="info-grid">
+<div class="info-grid">
     <div class="info-item">
       <span class="info-label">Unidade Avaliada</span>
       <span class="info-value">{{ aplicacao.avaliado.nome }}</span>
     </div>
+    
     <div class="info-item">
       <span class="info-label">Avaliador</span>
       <span class="info-value">{{ avaliador.nome if avaliador else 'Sistema' }}</span>
     </div>
+    
     <div class="info-item">
       <span class="info-label">Data Início</span>
-      <span class="info-value">{{ aplicacao.data_inicio.strftime('%d/%m/%Y') }}</span>
+      <span class="info-value">
+        {{ (aplicacao.visita_inicio or aplicacao.data_inicio).strftime('%d/%m/%Y') }}
+      </span>
     </div>
+    
     <div class="info-item">
       <span class="info-label">Duração</span>
       <span class="info-value">
-        {% if aplicacao.data_fim %}
-        {{ ((aplicacao.data_fim - aplicacao.data_inicio).total_seconds() / 60) | round | int }} min
+        {% set inicio_real = aplicacao.visita_inicio or aplicacao.data_inicio %}
+        {% set fim_real = aplicacao.visita_fim or aplicacao.data_fim %}
+        
+        {% if inicio_real and fim_real %}
+          {# Calcula a diferença em minutos #}
+          {{ ((fim_real - inicio_real).total_seconds() / 60) | round | int }} min
         {% else %}
-        -
+          -
         {% endif %}
       </span>
     </div>
+    
     <div class="info-item score">
       <span class="info-label">Nota Final</span>
       {% set nota_segura = nota_final | default(0) | float %}
       {% set cor_nota = '#2c3e50' %}
       {% if nota_segura >= 90 %}{% set cor_nota = '#27ae60' %}
       {% elif nota_segura >= 70 %}{% set cor_nota = '#e67e22' %}
-      {% elif nota_segura < 70 %}{% set cor_nota='#c0392b' %} {% endif %} <span class="info-value"
-        style="color: {{ cor_nota }}">
+      {% elif nota_segura < 70 %}{% set cor_nota='#c0392b' %} {% endif %} 
+      <span class="info-value" style="color: {{ cor_nota }}">
         {{ nota_segura | round(2) }}%
-        </span>
+      </span>
     </div>
   </div>
 

@@ -123,7 +123,8 @@
 <div class="mobile-action-bar d-lg-none no-print">
     <div>
         <small class="text-muted d-block" style="font-size: 0.65rem; text-transform: uppercase;">Nota Atual</small>
-        <span class="fw-bold fs-5 {% if nota_segura >= 70 %}text-success{% elif nota_segura >= 50 %}text-warning{% else %}text-danger{% endif %}">
+        <span
+            class="fw-bold fs-5 {% if nota_segura >= 70 %}text-success{% elif nota_segura >= 50 %}text-warning{% else %}text-danger{% endif %}">
             {{ nota_segura }}%
         </span>
     </div>
@@ -131,29 +132,32 @@
     <div class="d-flex gap-2 align-items-center">
 
         {% if aplicacao.status.name != 'FINALIZADA' and aplicacao.status.value != 'finalizada' %}
-            <a href="{{ url_for('cli.responder_aplicacao', id=aplicacao.id) }}"
-                class="btn btn-primary btn-sm shadow-sm px-3 fw-bold">
-                <i class="fas fa-play me-1"></i> Continuar
-            </a>
+        <a href="{{ url_for('cli.responder_aplicacao', id=aplicacao.id) }}"
+            class="btn btn-primary btn-sm shadow-sm px-3 fw-bold">
+            <i class="fas fa-play me-1"></i> Continuar
+        </a>
         {% else %}
-            <a href="{{ url_for('cli.gerenciar_acoes_corretivas', id=aplicacao.id) }}"
-               class="btn btn-warning btn-sm shadow-sm px-3 fw-bold text-dark">
-               <i class="fas fa-check-double"></i> Ações
-            </a>
-            
-            <a href="{{ url_for('cli.gerar_relatorio_aplicacao', id=aplicacao.id) }}"
-                class="btn btn-dark btn-sm shadow-sm px-3">
-                <i class="fas fa-file-pdf"></i>
-            </a>
+        <a href="{{ url_for('cli.gerenciar_acoes_corretivas', id=aplicacao.id) }}"
+            class="btn btn-warning btn-sm shadow-sm px-3 fw-bold text-dark">
+            <i class="fas fa-check-double"></i> Ações
+        </a>
+
+        <a href="{{ url_for('cli.gerar_relatorio_aplicacao', id=aplicacao.id) }}"
+            class="btn btn-dark btn-sm shadow-sm px-3">
+            <i class="fas fa-file-pdf"></i>
+        </a>
         {% endif %}
 
         <div class="dropup">
-            <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="dropdown"
+                aria-expanded="false">
                 <i class="fas fa-ellipsis-v px-1"></i>
             </button>
             <ul class="dropdown-menu dropdown-menu-end shadow border-0 mb-2">
-                <li><h6 class="dropdown-header">Ações</h6></li>
-                
+                <li>
+                    <h6 class="dropdown-header">Ações</h6>
+                </li>
+
                 <li>
                     <a class="dropdown-item" href="{{ url_for('cli.gerar_relatorio_aplicacao', id=aplicacao.id) }}">
                         <i class="fas fa-file-pdf me-2 text-secondary"></i> Baixar Relatório
@@ -161,14 +165,16 @@
                 </li>
 
                 {% if aplicacao.status.name == 'FINALIZADA' or aplicacao.status.value == 'finalizada' %}
-                <li><hr class="dropdown-divider"></li>
-                
+                <li>
+                    <hr class="dropdown-divider">
+                </li>
+
                 <li>
                     <a class="dropdown-item" href="{{ url_for('cli.gerenciar_acoes_corretivas', id=aplicacao.id) }}">
                         <i class="fas fa-tools me-2 text-warning"></i> Ações Corretivas
                     </a>
                 </li>
-                
+
                 <li>
                     <button class="dropdown-item text-warning" onclick="reabrirAplicacao()">
                         <i class="fas fa-lock-open me-2"></i> Reabrir Edição
@@ -229,10 +235,23 @@
 
                     <div class="col-md-3 border-end-md">
                         <label class="small text-muted text-uppercase fw-bold">Período</label>
-                        <div class="text-dark">{{ aplicacao.data_inicio.strftime('%d/%m/%Y') }}</div>
+
+                        <div class="text-dark">
+                            {{ (aplicacao.visita_inicio or aplicacao.data_inicio).strftime('%d/%m/%Y') }}
+                        </div>
+
                         <small class="text-muted">
-                            {{ aplicacao.data_inicio.strftime('%H:%M') }}
-                            {% if aplicacao.data_fim %} - {{ aplicacao.data_fim.strftime('%H:%M') }}{% endif %}
+                            {{ (aplicacao.visita_inicio or aplicacao.data_inicio).strftime('%H:%M') }}
+
+                            {% set fim_real = aplicacao.visita_fim or aplicacao.data_fim %}
+
+                            {% if fim_real %}
+                            - {{ fim_real.strftime('%H:%M') }}
+                            {% else %}
+                            - Em andamento
+                            {% endif %}
+
+                            
                         </small>
                     </div>
                     <div class="col-md-3">
@@ -478,6 +497,12 @@
                             class="btn btn-light text-warning border-warning btn-sm mt-2">
                             <i class="fas fa-lock-open me-2"></i> Reabrir Edição
                         </button>
+
+                        {% if current_user.tipo.name in ['SUPER_ADMIN', 'ADMIN'] %}
+                        <a href="{{ url_for('cli.ajustar_horarios', id=aplicacao.id) }}" class="btn btn-sm btn-warning">
+                            <i class="fas fa-clock"></i> Corrigir Horário
+                        </a>
+                        {% endif %}
 
                         <button onclick="excluirAplicacao()"
                             class="btn btn-light text-danger border-danger btn-sm mt-1">

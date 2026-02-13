@@ -761,60 +761,100 @@ def forcar_analise_ncs(id):
 
 def gerar_acoes_corretivas_automatico(aplicacao_id):
     """
-    Varre todas as respostas e cria os registros na tabela AcaoCorretiva
-    para tudo que for Não Conforme.
+    Sincroniza a tabela AcaoCorretiva com as Respostas:
+    1. Cria ações para itens Não Conformes.
+    2. Remove ações de itens que foram corrigidos para Sim/Conforme/N.A.
     """
     try:
-        # Busca todas as respostas da aplicação
+        # Busca todas as respostas da auditoria
         todas_respostas = RespostaPergunta.query.filter_by(aplicacao_id=aplicacao_id).all()
-        respostas_negativas = ['não', 'nao', 'no', 'ruim', 'irregular', 'reprovado', 'crítico']
         
-        contador = 0
+        # Definição clara do que é negativo
+        respostas_negativas = ['não', 'nao', 'no', 'ruim', 'irregular', 'reprovado', 'crítico']
+        respostas_ignorar = ['não se aplica', 'n.a.', 'na', 'n/a', 'não avaliado']
+
         for resposta in todas_respostas:
+            texto_resp = (resposta.resposta or '').lower().strip()
+            
+            # --- LÓGICA DE DETECÇÃO DE NÃO CONFORMIDADE ---
             eh_nc = False
             
-            # Critério 1: Flag explicita
-            if resposta.nao_conforme: 
+            # 1. Se for explicitamente marcado como NC e NÃO for 'Não se Aplica'
+            if resposta.nao_conforme and texto_resp not in respostas_ignorar:
                 eh_nc = True
             
-            # Critério 2: Texto negativo (Segurança extra)
-            elif resposta.resposta and resposta.resposta.lower().strip() in respostas_negativas:
+            # 2. Se o texto for negativo (safety check)
+            elif texto_resp in respostas_negativas:
                 eh_nc = True
-                resposta.nao_conforme = True # Corrige o flag se estava errado
+                resposta.nao_conforme = True # Garante a flag
             
-            if eh_nc:
-                # Verifica se já existe para não duplicar
-                existe = AcaoCorretiva.query.filter_by(
-                    aplicacao_id=aplicacao_id,
-                    pergunta_id=resposta.pergunta_id
-                ).first()
+            # --- SINCRONIZAÇÃO (CRIAR ou REMOVER) ---
+            acao_existente = AcaoCorretiva.query.filter_by(
+                aplicacao_id=aplicacao_id, 
+                pergunta_id=resposta.pergunta_id
+            ).first()
 
-                if not existe:
-                    # Cria a nova ação
+            if eh_nc:
+                # SE É NC: Cria se não existir
+                if not acao_existente:
                     nova_acao = AcaoCorretiva(
                         aplicacao_id=aplicacao_id,
                         pergunta_id=resposta.pergunta_id,
-                        # Usa observação ou um texto padrão
                         descricao_nao_conformidade=resposta.observacao or f"Item avaliado como '{resposta.resposta}'",
-                        sugestao_correcao=resposta.plano_acao, # Migra plano se já existir
+                        sugestao_correcao=resposta.plano_acao,
                         status='Pendente',
                         criticidade='Média',
                         data_criacao=datetime.now()
                     )
-                    
-                    # Se já tinha plano feito, marca como realizado
-                    if resposta.status_acao == 'concluido' or (resposta.plano_acao and resposta.plano_acao.strip()):
-                         nova_acao.status = 'Realizado'
-                         if not nova_acao.acao_realizada:
-                             nova_acao.acao_realizada = resposta.plano_acao
-                    
                     db.session.add(nova_acao)
-                    contador += 1
-        
+            else:
+                # SE NÃO É MAIS NC (Virou Sim, N/A, etc): Remove a ação se existir
+                if acao_existente:
+                    db.session.delete(acao_existente)
+
         db.session.commit()
         return True
 
     except Exception as e:
-        print(f"ERRO AO GERAR AÇÕES: {e}")
+        print(f"Erro ao gerar ações corretivas: {e}")
         db.session.rollback()
         return False
+    
+@cli_bp.route('/aplicacao/<int:id>/ajustar-horarios', methods=['GET', 'POST'])
+@login_required
+def ajustar_horarios(id):
+    """
+    Rota administrativa para corrigir horários de visita incorretos.
+    """
+    app = AplicacaoQuestionario.query.get_or_404(id)
+    
+    # 1. Segurança: Apenas Admin ou o próprio aplicador (se a regra permitir)
+    # Sugestão: Restringir a Admins para evitar abusos
+    if current_user.tipo.name not in ['SUPER_ADMIN', 'ADMIN']:
+        flash("Apenas administradores podem corrigir horários.", "danger")
+        return redirect(url_for('cli.visualizar_aplicacao', id=id))
+        
+    if app.avaliado.cliente_id != current_user.cliente_id:
+        abort(403)
+
+    if request.method == 'POST':
+        inicio_str = request.form.get('visita_inicio')
+        fim_str = request.form.get('visita_fim')
+        
+        try:
+            # Converte as strings do input datetime-local para objetos datetime
+            if inicio_str:
+                app.visita_inicio = datetime.strptime(inicio_str, '%Y-%m-%dT%H:%M')
+            
+            if fim_str:
+                app.visita_fim = datetime.strptime(fim_str, '%Y-%m-%dT%H:%M')
+                
+            db.session.commit()
+            log_acao(f"Ajustou horários App {id}", None, "Aplicacao", id)
+            flash("Horários ajustados com sucesso!", "success")
+            return redirect(url_for('cli.visualizar_aplicacao', id=id))
+            
+        except ValueError:
+            flash("Formato de data inválido.", "warning")
+
+    return render_template_safe('cli/ajustar_horarios.html', aplicacao=app)

@@ -309,7 +309,9 @@
                                 atraso na sincronização.
                             </div>
                             <input type="datetime-local" class="form-control form-control-lg fw-bold"
-                                name="visita_fim_manual" id="visita_fim_manual" required>
+                                name="visita_fim_manual" id="visita_fim_manual"
+                                value="{{ aplicacao.visita_fim.strftime('%Y-%m-%dT%H:%M') if aplicacao.visita_fim else '' }}"
+                                required>
                         </div>
 
                         <div class="alert alert-danger d-none shadow-sm" id="alerta-validacao">
@@ -1321,19 +1323,19 @@
     }
 
     // Adicione isso dentro do seu document.addEventListener('DOMContentLoaded', ...) existente
-document.addEventListener('DOMContentLoaded', async () => {
-    // ... (seu código existente de initCanvas, etc) ...
+    document.addEventListener('DOMContentLoaded', async () => {
+        // ... (seu código existente de initCanvas, etc) ...
 
-    // --- LÓGICA DO CAMPO DE DATA MANUAL ---
-    const inputFim = document.getElementById('visita_fim_manual');
-    if (inputFim && !inputFim.value) {
-        // Pega a data/hora atual do dispositivo
-        const now = new Date();
-        // Ajusta para o formato local (ISO sem fuso UTC) para funcionar no input datetime-local
-        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-        // Formata para YYYY-MM-DDTHH:MM
-        inputFim.value = now.toISOString().slice(0, 16);
-    }
-});
+        // --- LÓGICA DO CAMPO DE DATA MANUAL ---
+        const inputFim = document.getElementById('visita_fim_manual');
+        if (inputFim && !inputFim.value) {
+            // Pega a data/hora atual do dispositivo
+            const now = new Date();
+            // Ajusta para o formato local (ISO sem fuso UTC) para funcionar no input datetime-local
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            // Formata para YYYY-MM-DDTHH:MM
+            inputFim.value = now.toISOString().slice(0, 16);
+        }
+    });
 </script>
 {% endblock %}
