@@ -144,8 +144,17 @@
                                                 <label class="form-label small fw-bold text-dark"><i
                                                         class="fas fa-user-tie me-1"></i>O que foi feito?
                                                     (Gestor)</label>
-                                                <textarea name="acao_realizada" class="form-control" rows="2"
-                                                    placeholder="Espaço reservado para o gestor preencher...">{{ acao.acao_realizada or '' }}</textarea>
+                                                {% if acao.acao_realizada %}
+                                                <div
+                                                    class="bg-white p-2 border rounded small fst-italic text-secondary mt-1">
+                                                    {{ acao.acao_realizada }}
+                                                </div>
+                                                {% else %}
+                                                <div
+                                                    class="bg-white p-2 border rounded small fst-italic text-muted mt-1 opacity-75">
+                                                    Aguardando preenchimento do gestor na visão da unidade...
+                                                </div>
+                                                {% endif %}
                                             </div>
                                         </div>
                                     </div>

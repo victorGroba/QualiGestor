@@ -86,9 +86,9 @@
                                 <div class="d-flex gap-2 mt-2 flex-wrap">
                                     {% for foto in item.fotos %}
                                     {% if foto.tipo == 'correcao' %}
-                                    <a href="{{ url_for('cli.get_foto_resposta', filename=foto.caminho) }}"
+                                    <a href="{{ url_for('cli.uploaded_file', filename=foto.caminho) }}"
                                         target="_blank" class="text-decoration-none">
-                                        <img src="{{ url_for('cli.get_foto_resposta', filename=foto.caminho) }}"
+                                        <img src="{{ url_for('cli.uploaded_file', filename=foto.caminho) }}"
                                             class="img-thumbnail border-success"
                                             style="height: 60px; width: 60px; object-fit: cover;" title="Ver evidência">
                                     </a>
@@ -128,7 +128,7 @@
                                 <div id="preview-fotos-{{ item.id }}" class="d-flex gap-1 mt-2">
                                     {% for foto in item.fotos %}
                                     {% if foto.tipo == 'correcao' %}
-                                    <img src="{{ url_for('cli.get_foto_resposta', filename=foto.caminho) }}"
+                                    <img src="{{ url_for('cli.uploaded_file', filename=foto.caminho) }}"
                                         class="img-thumbnail" style="height: 40px;">
                                     {% endif %}
                                     {% endfor %}

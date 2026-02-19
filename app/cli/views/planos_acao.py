@@ -544,7 +544,8 @@ def pdf_acoes_corretivas(id):
             'topico': acao.pergunta.topico.nome,
             'pergunta': acao.pergunta.texto,
             'problema': acao.descricao_nao_conformidade,
-            'solucao': acao.acao_realizada if acao.acao_realizada else acao.sugestao_correcao,
+            'sugestao': acao.sugestao_correcao, # Enviando a da consultora
+            'acao_realizada': acao.acao_realizada, # Enviando a do gestor
             'criticidade': acao.criticidade,
             'status': acao.status,
             'fotos': fotos_b64
@@ -568,3 +569,73 @@ def pdf_acoes_corretivas(id):
     )
     
     return gerar_pdf_seguro(html, filename=f"Acoes_Corretivas_{id}.pdf")
+
+    # ===================== VISÃO EXCLUSIVA DO GESTOR (AÇÕES CORRETIVAS) =====================
+
+@cli_bp.route('/gestor/acoes-corretivas')
+@login_required
+def lista_acoes_gestor():
+    """Lista as aplicações (em cards) para o gestor preencher as NCs."""
+    try:
+        # Busca apenas aplicações que possuem AcaoCorretiva registrada
+        subquery = db.session.query(AcaoCorretiva.aplicacao_id).distinct()
+        query = AplicacaoQuestionario.query.join(Avaliado)\
+            .filter(AplicacaoQuestionario.id.in_(subquery))\
+            .filter(Avaliado.cliente_id == current_user.cliente_id)
+        
+        # Filtros de acesso hierárquico
+        if current_user.avaliado_id:
+            query = query.filter(AplicacaoQuestionario.avaliado_id == current_user.avaliado_id)
+        elif current_user.grupo_id:
+            query = query.filter(Avaliado.grupo_id == current_user.grupo_id)
+        elif hasattr(current_user, 'grupos_acesso') and current_user.grupos_acesso:
+            gaps_ids = [g.id for g in current_user.grupos_acesso]
+            query = query.filter(Avaliado.grupo_id.in_(gaps_ids))
+            
+        aplicacoes = query.order_by(AplicacaoQuestionario.data_inicio.desc()).all()
+        return render_template_safe('cli/gestor_acoes_lista.html', aplicacoes=aplicacoes)
+    except Exception as e:
+        flash(f"Erro ao carregar lista: {e}", "danger")
+        return redirect(url_for('cli.index'))
+
+@cli_bp.route('/gestor/acoes-corretivas/<int:aplicacao_id>', methods=['GET', 'POST'])
+@login_required
+def detalhe_acoes_gestor(aplicacao_id):
+    """Tela onde o gestor visualiza as sugestões da consultora e preenche o que foi feito."""
+    app_audit = AplicacaoQuestionario.query.get_or_404(aplicacao_id)
+    
+    if app_audit.avaliado.cliente_id != current_user.cliente_id:
+        flash("Acesso negado.", "danger")
+        return redirect(url_for('cli.lista_acoes_gestor'))
+
+    if request.method == 'POST':
+        acao_id = request.form.get('acao_id')
+        acao_realizada = request.form.get('acao_realizada')
+        
+        if acao_id and acao_realizada:
+            acao = AcaoCorretiva.query.get(acao_id)
+            if acao and acao.aplicacao_id == app_audit.id:
+                # Atualiza os dados executados pelo gestor
+                acao.acao_realizada = acao_realizada
+                acao.status = 'Realizado'
+                acao.data_conclusao = datetime.now()
+                
+                # Sincronia Retroativa para relatórios legados
+                resp_antiga = RespostaPergunta.query.filter_by(
+                    aplicacao_id=app_audit.id, 
+                    pergunta_id=acao.pergunta_id
+                ).first()
+                
+                if resp_antiga:
+                    resp_antiga.plano_acao = acao_realizada
+                    resp_antiga.status_acao = 'concluido'
+                    
+                db.session.commit()
+                flash("Resposta registrada com sucesso!", "success")
+                return redirect(url_for('cli.detalhe_acoes_gestor', aplicacao_id=aplicacao_id))
+
+    acoes = AcaoCorretiva.query.filter_by(aplicacao_id=aplicacao_id)\
+        .join(Pergunta).join(Topico)\
+        .order_by(Topico.ordem, Pergunta.ordem).all()
+        
+    return render_template_safe('cli/gestor_acoes_detalhe.html', aplicacao=app_audit, acoes=acoes)
