@@ -310,6 +310,12 @@ def gerenciar_acoes_corretivas(id):
 
                 db.session.add(nova_acao)
                 migrou_algo = True
+            else:
+                # FALTAVA ISSO AQUI TAMBÉM: Atualiza o texto se for diferente!
+                texto_atualizado = resp.observacao or f"Item avaliado como '{resp.resposta}'"
+                if acao_existente.descricao_nao_conformidade != texto_atualizado:
+                    acao_existente.descricao_nao_conformidade = texto_atualizado
+                    migrou_algo = True
         else:
             # CENÁRIO B: Não é mais NC (virou Sim ou N.A.) mas tem ação -> EXCLUIR
             if acao_existente:

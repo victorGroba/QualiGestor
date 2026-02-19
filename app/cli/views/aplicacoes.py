@@ -807,6 +807,11 @@ def gerar_acoes_corretivas_automatico(aplicacao_id):
                         data_criacao=datetime.now()
                     )
                     db.session.add(nova_acao)
+                else:
+                    # FALTAVA ISSO: Atualiza a observação se a consultora tiver alterado o texto!
+                    texto_atualizado = resposta.observacao or f"Item avaliado como '{resposta.resposta}'"
+                    if acao_existente.descricao_nao_conformidade != texto_atualizado:
+                        acao_existente.descricao_nao_conformidade = texto_atualizado
             else:
                 # SE NÃO É MAIS NC (Virou Sim, N/A, etc): Remove a ação se existir
                 if acao_existente:
