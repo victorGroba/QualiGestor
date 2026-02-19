@@ -248,7 +248,8 @@
                                                         <i class="fas fa-plus me-1"></i>
                                                     </label>
                                                     <input type="file" class="d-none" id="input-foto-{{ pergunta.id }}"
-                                                        accept="image/*" data-pergunta-id="{{ pergunta.id }}"
+                                                        accept="image/jpeg, image/png, image/*" multiple
+                                                        data-pergunta-id="{{ pergunta.id }}"
                                                         data-criterio-original="{{ pergunta.criterio_foto }}" {% if
                                                         pergunta.criterio_foto=='obrigatoria' %}data-obrigatoria="true"
                                                         {% endif %} onchange="handleFotoUpload(this)">
@@ -321,7 +322,7 @@
                         </div>
 
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
-                            <a href="{{ url_for('cli.listar_aplicacoes') }}"
+                            <a href="{{ url_for('cli.listar_aplicacoes') }}" <input type="file"
                                 class="btn btn-outline-secondary px-4">Voltar</a>
 
                             <button type="submit" class="btn btn-primary btn-lg px-5 fw-bold">
@@ -621,94 +622,108 @@
     // =========================================================
 
     async function handleFotoUpload(input) {
-        if (!input.files || input.files.length === 0) return;
+    if (!input.files || input.files.length === 0) return;
 
-        const fileOriginal = input.files[0];
-        const pid = input.dataset.perguntaId;
-        let rid = input.dataset.respostaId;
+    // Transforma a lista de arquivos do input em um Array iterável
+    const files = Array.from(input.files); 
+    const pid = input.dataset.perguntaId;
+    let rid = input.dataset.respostaId;
 
-        // 1. TRAVA VISUAL
-        const labelBtn = document.querySelector(`label[for="input-foto-${pid}"]`);
-        const iconeOriginal = labelBtn ? labelBtn.innerHTML : '';
-        if (labelBtn) {
-            labelBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-            labelBtn.classList.add('disabled', 'btn-warning');
-            input.disabled = true;
+    // 1. TRAVA VISUAL
+    const labelBtn = document.querySelector(`label[for="input-foto-${pid}"]`);
+    const iconeOriginal = labelBtn ? labelBtn.innerHTML : '';
+    if (labelBtn) {
+        labelBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        labelBtn.classList.add('disabled', 'btn-warning');
+        input.disabled = true;
+    }
+
+    try {
+        // Garante RID: Se a resposta de texto/radio ainda não foi criada, cria antes das fotos
+        if (!rid) {
+            await salvarResposta(document.querySelector(`[name="resposta-${pid}"]`));
+            const el = document.querySelector(`[data-pergunta-id="${pid}"]`);
+            rid = el ? el.dataset.respostaId : null;
         }
 
-        try {
-            // 2. COMPRESSÃO (Mantendo a que funciona)
-            const file = await comprimirImagem(fileOriginal, 1024, 0.6);
-            input.value = '';
+        // Loop para processar e salvar CADA foto selecionada
+        for (let i = 0; i < files.length; i++) {
+            const fileOriginal = files[i];
+            
+            try {
+                // 2. COMPRESSÃO
+                const file = await comprimirImagem(fileOriginal, 1024, 0.6);
 
-            // Garante RID
-            if (!rid) {
-                await salvarResposta(document.querySelector(`[name="resposta-${pid}"]`));
-                const el = document.querySelector(`[data-pergunta-id="${pid}"]`);
-                rid = el ? el.dataset.respostaId : null;
-            }
-
-            // 3. DECISÃO DE SALVAMENTO
-            if (navigator.onLine && rid) {
-                // ONLINE: Tenta envio direto (Bypass do banco)
-                console.log("Online: Tentando envio direto...");
-                await enviarDiretoParaServidor(file, pid, rid);
-            } else {
-                // OFFLINE: Salva no dispositivo
-                console.log("Offline: Salvando no dispositivo...");
-                const tid = Date.now();
-
-                try {
-                    // Tenta salvar como ARQUIVO (Blob)
-                    await dbLocal.fotos_pendentes.add({
-                        id: tid,
-                        aplicacao_id: APLICACAO_ID,
-                        pergunta_id: pid,
-                        resposta_id: rid || null,
-                        blob: file,
-                        tipo: 'blob', // Marcador
-                        nome: file.name,
-                        timestamp: Date.now()
-                    });
-                    // CORREÇÃO DO ERRO URL AQUI NA CHAMADA:
-                    criarPreviewLocal(pid, tid, file);
-
-                } catch (erroBlob) {
-                    // SE DER "FEATURE IS DISABLED", ENTRA AQUI (PLANO B)
-                    console.warn("Blob bloqueado pelo navegador. Convertendo para Texto...", erroBlob);
+                // 3. DECISÃO DE SALVAMENTO
+                if (navigator.onLine && rid) {
+                    // ONLINE: Tenta envio direto
+                    console.log(`Online: Tentando envio direto da foto ${i+1}...`);
+                    await enviarDiretoParaServidor(file, pid, rid);
+                } else {
+                    // OFFLINE: Salva no dispositivo
+                    console.log(`Offline: Salvando foto ${i+1} no dispositivo...`);
+                    // Soma 'i' ao Date.now() para evitar colisões de ID se o loop rodar muito rápido
+                    const tid = Date.now() + i; 
 
                     try {
-                        const base64 = await blobParaBase64(file);
+                        // Tenta salvar como ARQUIVO (Blob)
                         await dbLocal.fotos_pendentes.add({
                             id: tid,
                             aplicacao_id: APLICACAO_ID,
                             pergunta_id: pid,
                             resposta_id: rid || null,
-                            blob: base64, // Salva o texto gigante
-                            tipo: 'base64', // Marcador importante
+                            blob: file,
+                            tipo: 'blob', // Marcador
                             nome: file.name,
                             timestamp: Date.now()
                         });
                         criarPreviewLocal(pid, tid, file);
-                        console.log("Salvo com sucesso em modo Texto (Base64).");
-                    } catch (erroFatal) {
-                        alert("Erro: Seu dispositivo está impedindo salvar fotos offline.");
-                        console.error(erroFatal);
+
+                    } catch (erroBlob) {
+                        // SE DER "FEATURE IS DISABLED", ENTRA AQUI (PLANO B)
+                        console.warn("Blob bloqueado pelo navegador. Convertendo para Texto...", erroBlob);
+
+                        try {
+                            const base64 = await blobParaBase64(file);
+                            await dbLocal.fotos_pendentes.add({
+                                id: tid,
+                                aplicacao_id: APLICACAO_ID,
+                                pergunta_id: pid,
+                               resposta_id: rid || null,
+                                blob: base64, // Salva o texto gigante
+                                tipo: 'base64', // Marcador importante
+                                nome: file.name,
+                                timestamp: Date.now()
+                            });
+                            criarPreviewLocal(pid, tid, file);
+                            console.log(`Foto ${i+1} salva com sucesso em modo Texto (Base64).`);
+                        } catch (erroFatal) {
+                            alert(`Erro na foto ${i+1}: Seu dispositivo está impedindo salvar fotos offline.`);
+                            console.error(erroFatal);
+                        }
                     }
                 }
+            } catch (erroNaFotoAtual) {
+                console.error(`Falha ao processar a foto ${i+1}:`, erroNaFotoAtual);
             }
+        } // fim do loop
+        
+        // Limpa o input no final para garantir que o evento "onchange" 
+        // funcione se o usuário quiser adicionar exatamente a mesma foto depois
+        input.value = ''; 
 
-        } catch (erroGeral) {
-            console.error("Erro processo:", erroGeral);
-            alert("Falha ao processar foto.");
-        } finally {
-            if (labelBtn) {
-                labelBtn.innerHTML = iconeOriginal;
-                labelBtn.classList.remove('disabled', 'btn-warning');
-                input.disabled = false;
-            }
+    } catch (erroGeral) {
+        console.error("Erro processo:", erroGeral);
+        alert("Falha ao processar as fotos.");
+    } finally {
+        // Destrava o visual depois que todas as fotos do loop terminaram
+        if (labelBtn) {
+            labelBtn.innerHTML = iconeOriginal;
+            labelBtn.classList.remove('disabled', 'btn-warning');
+            input.disabled = false;
         }
     }
+}
 
     // --- FUNÇÃO DE PREVIEW CORRIGIDA (WINDOW.URL) ---
     function criarPreviewLocal(pid, tid, file) {

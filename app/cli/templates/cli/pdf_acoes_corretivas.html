@@ -1,117 +1,251 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <title>Relatório de Ações Corretivas</title>
     <style>
-        body { font-family: Arial, sans-serif; font-size: 11px; color: #333; margin: 0; padding: 20px; }
-        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #0056b3; padding-bottom: 10px; }
-        .header img { max-height: 60px; }
-        .info-table { width: 100%; margin-bottom: 20px; border-collapse: collapse; }
-        .info-table td { padding: 5px; border: 1px solid #ddd; }
-        .info-table th { padding: 5px; border: 1px solid #ddd; background-color: #f4f4f4; text-align: left; width: 20%; }
+        /* Configuração da Página e Impressão */
+        @page { size: A4 portrait; margin: 1.5cm 1cm; }
         
-        .main-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        .main-table th { background-color: #0056b3; color: white; padding: 10px; text-align: left; font-size: 12px; }
-        .main-table td { border: 1px solid #ddd; padding: 10px; vertical-align: top; }
-        .main-table tr:nth-child(even) { background-color: #f9f9f9; }
+        * {
+            -webkit-print-color-adjust: exact !important; /* Força a renderização das cores de fundo no PDF */
+            color-adjust: exact !important;
+            box-sizing: border-box;
+        }
+
+        body { 
+            font-family: 'Segoe UI', Helvetica, Arial, sans-serif; 
+            font-size: 10pt; 
+            color: #334155; 
+            margin: 0;
+            padding: 0;
+        }
         
-        .badge { display: inline-block; padding: 3px 6px; border-radius: 3px; font-size: 10px; font-weight: bold; color: white; }
-        .bg-pendente { background-color: #dc3545; }
-        .bg-realizado { background-color: #28a745; }
+        /* Cabeçalho Escuro */
+        .header-container {
+            background-color: #1E293B; /* Azul Escuro Moderno */
+            color: #FFFFFF;
+            width: 100%;
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 25px;
+        }
+
+        table.header { 
+            width: 100%; 
+            border-collapse: collapse; 
+        }
         
-        .fotos-container { margin-top: 10px; }
-        .img-evidencia { max-width: 120px; max-height: 120px; margin-right: 5px; border: 1px solid #ccc; }
+        .header td { vertical-align: middle; }
+        .title { font-size: 16pt; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; color: #FFFFFF;}
+        .subtitle { font-size: 11pt; font-weight: 400; color: #94A3B8; }
+        .header-meta { font-size: 9pt; color: #CBD5E1; line-height: 1.4; }
         
-        .text-muted { color: #666; font-style: italic; }
+        /* Tabela Principal */
+        table.main-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-bottom: 20px; 
+            font-size: 9.5pt;
+        }
+        
+        table.main-table th { 
+            background-color: #F1F5F9; 
+            color: #475569;
+            border: 1px solid #CBD5E1; 
+            padding: 12px 10px; 
+            text-transform: uppercase; 
+            font-size: 8pt; 
+            font-weight: 700;
+            text-align: left;
+        }
+        
+        table.main-table td { 
+            border: 1px solid #CBD5E1; 
+            padding: 12px 10px; 
+            vertical-align: top; 
+            line-height: 1.5;
+        }
+
+        /* Linhas zebradas para facilitar leitura */
+        table.main-table tbody tr:nth-child(even) {
+            background-color: #F8FAFC;
+        }
+        
+        /* Colunas */
+        .col-item { width: 25%; }
+        .col-evidence { width: 38%; }
+        .col-action { width: 37%; }
+        
+        /* Tipografia interna da tabela */
+        .topic-label { 
+            font-size: 7.5pt; 
+            color: #64748B; 
+            text-transform: uppercase; 
+            font-weight: 800; 
+            display: block; 
+            margin-bottom: 5px; 
+            letter-spacing: 0.5px;
+        }
+        
+        .q-text { font-weight: 600; font-size: 9.5pt; color: #0F172A; }
+        
+        /* Caixas de Alerta (Problema e Solução) */
+        .obs-box { 
+            background-color: #FEF2F2; 
+            border-left: 4px solid #EF4444; 
+            color: #7F1D1D;
+            padding: 8px 10px; 
+            margin-bottom: 10px; 
+            font-size: 9pt; 
+            border-radius: 0 4px 4px 0;
+        }
+        
+        .solucao-box { 
+            background-color: #F0FDF4; 
+            border-left: 4px solid #22C55E; 
+            color: #14532D;
+            padding: 8px 10px; 
+            font-size: 9pt; 
+            border-radius: 0 4px 4px 0;
+            margin-bottom: 8px;
+        }
+        
+        /* Imagens (Evidências) */
+        .img-container { margin-top: 10px; }
+        .img-evidence { 
+            max-width: 100%; 
+            max-height: 140px; 
+            border: 1px solid #E2E8F0; 
+            border-radius: 4px;
+            padding: 3px; 
+            background: #FFF;
+            margin-bottom: 5px;
+        }
+        
+        /* Badges de Criticidade */
+        .badge { 
+            display: inline-block; 
+            padding: 3px 8px; 
+            border-radius: 12px; 
+            font-size: 7.5pt; 
+            font-weight: bold; 
+            text-transform: uppercase;
+        }
+        .bg-high { background-color: #EF4444; color: #FFFFFF; }
+        .bg-med  { background-color: #F59E0B; color: #FFFFFF; }
+        .bg-low  { background-color: #10B981; color: #FFFFFF; }
+
+        /* Status Ação */
+        .status-resolvido { color: #16A34A; font-weight: bold; font-size: 8.5pt; display: flex; align-items: center; }
+        .status-pendente { color: #EA580C; font-weight: bold; font-size: 8.5pt; display: flex; align-items: center; }
+
+        /* Rodapé */
+        .footer { 
+            position: fixed; 
+            bottom: -10px; 
+            left: 0; 
+            right: 0; 
+            font-size: 8pt; 
+            text-align: center; 
+            color: #94A3B8; 
+            border-top: 1px solid #E2E8F0; 
+            padding-top: 8px; 
+        }
     </style>
 </head>
 <body>
 
-    <div class="header">
-        {% if logo_pdf %}
-            <img src="{{ logo_pdf }}" alt="Logo">
-        {% else %}
-            <h2>QualiGestor</h2>
-        {% endif %}
-        <h3>Relatório de Ações Corretivas</h3>
+    <div class="header-container">
+        <table class="header">
+            <tr>
+                <td width="25%">
+                    {% if logo_pdf %}
+                    <img src="{{ logo_pdf }}" style="max-height: 55px; object-fit: contain;">
+                    {% else %}
+                    <b style="font-size: 14pt; letter-spacing: 1px;">QUALIGESTOR</b>
+                    {% endif %}
+                </td>
+                <td width="50%" align="center">
+                    <div class="title">Plano de Ação Corretiva</div>
+                    <div class="subtitle">{{ aplicacao.avaliado.nome }}</div>
+                </td>
+                <td width="25%" align="right" class="header-meta">
+                    <b>Data:</b> {{ (aplicacao.visita_inicio or aplicacao.data_inicio).strftime('%d/%m/%Y') }}<br>
+                    <b>Auditoria ID:</b> #{{ aplicacao.id }}
+                </td>
+            </tr>
+        </table>
     </div>
-
-    <table class="info-table">
-        <tr>
-            <th>Unidade Avaliada</th>
-            <td colspan="3"><strong>{{ aplicacao.avaliado.nome }}</strong></td>
-        </tr>
-        <tr>
-            <th>Data da Auditoria</th>
-            <td>{{ (aplicacao.visita_inicio or aplicacao.data_inicio).strftime('%d/%m/%Y') }}</td>
-            <th>Consultora</th>
-            <td>{{ aplicacao.aplicador.nome if aplicacao.aplicador else 'Sistema' }}</td>
-        </tr>
-        <tr>
-            <th>Questionário</th>
-            <td colspan="3">{{ aplicacao.questionario.nome }}</td>
-        </tr>
-    </table>
 
     <table class="main-table">
         <thead>
             <tr>
-                <th style="width: 25%;">Item / Evidência</th>
-                <th style="width: 25%;">Orientação (Consultora)</th>
-                <th style="width: 30%;">O que foi feito (Gestor)</th>
-                <th style="width: 20%;">Status / Criticidade</th>
+                <th class="col-item">Item / Questão</th>
+                <th class="col-evidence">Não Conformidade (Evidência)</th>
+                <th class="col-action">Plano de Ação (Solução)</th>
             </tr>
         </thead>
         <tbody>
             {% for item in itens %}
             <tr>
                 <td>
-                    <strong>{{ item.topico }}</strong><br>
-                    {{ item.pergunta }}<br><br>
-                    <span style="color: #dc3545;"><em>Obs: {{ item.problema }}</em></span>
+                    <span class="topic-label">{{ item.topico }}</span>
+                    <div class="q-text">{{ item.pergunta }}</div>
+                </td>
+
+                <td>
+                    {% if item.criticidade %}
+                    <div style="margin-bottom: 8px;">
+                        <span class="badge {% if item.criticidade == 'Alta' %}bg-high{% elif item.criticidade == 'Média' %}bg-med{% else %}bg-low{% endif %}">
+                            Criticidade: {{ item.criticidade }}
+                        </span>
+                    </div>
+                    {% endif %}
+
+                    <div class="obs-box">
+                        <strong>Problema relatado:</strong><br>
+                        {{ item.problema }}
+                    </div>
                     
                     {% if item.fotos %}
-                    <div class="fotos-container">
-                        {% for foto_b64 in item.fotos %}
-                            <img src="{{ foto_b64 }}" class="img-evidencia">
+                    <div class="img-container">
+                        {% for foto in item.fotos %}
+                        <img src="{{ foto }}" class="img-evidence">
                         {% endfor %}
                     </div>
                     {% endif %}
                 </td>
-                
+
                 <td>
-                    {{ item.sugestao or 'Sem orientação registrada.' }}
-                </td>
-                
-                <td>
-                    {% if item.acao_realizada %}
-                        <span style="color: #28a745;"><strong>Realizado:</strong></span><br>
-                        {{ item.acao_realizada }}
-                    {% else %}
-                        <span class="text-muted">Aguardando preenchimento do gestor da unidade.</span>
-                    {% endif %}
-                </td>
-                
-                <td>
-                    <div style="margin-bottom: 5px;">
+                    {% if item.solucao %}
+                        <div class="solucao-box">
+                            <strong>Ação Definida:</strong><br>
+                            {{ item.solucao }}
+                        </div>
+
                         {% if item.status == 'Realizado' %}
-                            <span class="badge bg-realizado">CONCLUÍDO</span>
+                            <div class="status-resolvido">
+                                ✔ RESOLVIDO
+                            </div>
                         {% else %}
-                            <span class="badge bg-pendente">PENDENTE</span>
+                            <div class="status-pendente">
+                                ⚠ PENDENTE
+                            </div>
                         {% endif %}
-                    </div>
-                    <div>
-                        <strong>Criticidade:</strong> {{ item.criticidade }}
-                    </div>
+                    {% else %}
+                        <div style="color: #94A3B8; font-style: italic; background: #F8FAFC; padding: 10px; border: 1px dashed #CBD5E1; border-radius: 4px; text-align: center;">
+                            Aguardando definição de plano de ação...
+                        </div>
+                    {% endif %}
                 </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 
-    <div style="text-align: right; margin-top: 20px; font-size: 10px; color: #777;">
-        Relatório gerado em: {{ data_geracao.strftime('%d/%m/%Y %H:%M') }}
+    <div class="footer">
+        Relatório gerado em {{ data_geracao.strftime('%d/%m/%Y às %H:%M') }} via Sistema QualiGestor
     </div>
 
 </body>
