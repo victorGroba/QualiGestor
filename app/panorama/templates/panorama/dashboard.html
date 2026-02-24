@@ -4,63 +4,22 @@
 
 {% block head %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
 <style>
-    .metric-card {
-        transition: transform 0.2s ease-in-out;
-    }
-    
-    .metric-card:hover {
-        transform: translateY(-5px);
-    }
-    
-    .chart-container {
-        position: relative;
-        height: 400px;
-        margin-bottom: 20px;
-    }
-    
-    .loading-spinner {
-        display: none;
-        text-align: center;
-        padding: 40px;
-    }
-    
-    .trend-positive {
-        color: #28a745;
-    }
-    
-    .trend-negative {
-        color: #dc3545;
-    }
-    
-    .trend-neutral {
-        color: #6c757d;
-    }
-    
-    .filter-card {
-        background: #f8f9fa;
-        border-radius: 10px;
-        padding: 20px;
-        margin-bottom: 20px;
-    }
-    
-    .ranking-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 10px;
-        border-bottom: 1px solid #e9ecef;
-    }
-    
-    .ranking-item:last-child {
-        border-bottom: none;
-    }
+    .metric-card { transition: transform 0.2s ease-in-out; }
+    .metric-card:hover { transform: translateY(-5px); }
+    .chart-container { position: relative; width: 100%; }
+    .scrollable-chart-area-x { width: 100%; overflow-x: auto; overflow-y: hidden; padding-top: 15px; }
+    #containerAvaliados { height: 400px; }
+    .loading-spinner { display: none; text-align: center; padding: 40px; }
+    .filter-card { background: #f8f9fa; border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+    .ranking-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #e9ecef; }
+    .ranking-item:last-child { border-bottom: none; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <!-- Header com Filtros -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="filter-card">
@@ -69,7 +28,6 @@
                         <i class="fas fa-chart-line me-2"></i>
                         Dashboard de Qualidade
                     </h4>
-                    <!-- BOTÃO NOVO PARA O PARETO -->
                     <a href="{{ url_for('panorama.analise_pareto') }}" class="btn btn-outline-danger">
                         <i class="fas fa-chart-bar me-1"></i>
                         Análise de Pareto (80/20)
@@ -77,8 +35,20 @@
                 </div>
                 
                 <form id="filtroForm" class="row g-3">
-                    <div class="col-md-3">
-                        <label class="form-label">Período</label>
+                    <div class="col-md-2">
+                        <label class="form-label text-primary fw-bold">Filtrar por Mês</label>
+                        <select class="form-select border-primary" name="mes" id="mes">
+                            <option value="">(Ignorar Mês)</option>
+                            {% for m in filtros.meses %}
+                            <option value="{{ m.valor }}" {% if filtros_aplicados.mes == m.valor %}selected{% endif %}>
+                                {{ m.label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="form-label">Ou Período</label>
                         <select class="form-select" name="periodo" id="periodo">
                             <option value="7" {% if filtros_aplicados.periodo == '7' %}selected{% endif %}>Últimos 7 dias</option>
                             <option value="30" {% if filtros_aplicados.periodo == '30' %}selected{% endif %}>Últimos 30 dias</option>
@@ -86,9 +56,21 @@
                             <option value="365" {% if filtros_aplicados.periodo == '365' %}selected{% endif %}>Último ano</option>
                         </select>
                     </div>
+
+                    <div class="col-md-2">
+                        <label class="form-label">GAP (Grupo)</label>
+                        <select class="form-select" name="grupo_id" id="grupo_id">
+                            <option value="">Todos os GAPs</option>
+                            {% for grupo in filtros.grupos %}
+                            <option value="{{ grupo.id }}" {% if filtros_aplicados.grupo_id == grupo.id %}selected{% endif %}>
+                                {{ grupo.nome }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
                     
-                    <div class="col-md-3">
-                        <label class="form-label">Avaliado</label>
+                    <div class="col-md-2">
+                        <label class="form-label">Avaliado (Rancho)</label>
                         <select class="form-select" name="avaliado_id" id="avaliado_id">
                             <option value="">Todos os avaliados</option>
                             {% for avaliado in filtros.avaliados %}
@@ -99,7 +81,7 @@
                         </select>
                     </div>
                     
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label class="form-label">Questionário</label>
                         <select class="form-select" name="questionario_id" id="questionario_id">
                             <option value="">Todos os questionários</option>
@@ -111,14 +93,12 @@
                         </select>
                     </div>
                     
-                    <div class="col-md-3 d-flex align-items-end">
-                        <button type="submit" class="btn btn-primary me-2">
-                            <i class="fas fa-filter me-1"></i>
-                            Filtrar
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary me-2 w-100">
+                            <i class="fas fa-filter me-1"></i> Filtrar
                         </button>
-                        <button type="button" class="btn btn-outline-secondary" onclick="exportarDados()">
-                            <i class="fas fa-download me-1"></i>
-                            Exportar
+                        <button type="button" class="btn btn-outline-secondary" onclick="exportarDados()" title="Exportar Dados">
+                            <i class="fas fa-download"></i>
                         </button>
                     </div>
                 </form>
@@ -126,44 +106,34 @@
         </div>
     </div>
 
-    <!-- Cards de Métricas Principais -->
     <div class="row mb-4">
         <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
             <div class="card metric-card h-100 border-0 shadow-sm">
                 <div class="card-body text-center">
-                    <div class="text-primary mb-2">
-                        <i class="fas fa-clipboard-list fa-2x"></i>
-                    </div>
+                    <div class="text-primary mb-2"><i class="fas fa-clipboard-list fa-2x"></i></div>
                     <h4 class="fw-bold">{{ metricas.total_auditorias }}</h4>
-                    <p class="text-muted mb-0">Total de Aplicações</p>
+                    <p class="text-muted mb-0">Aplicações</p>
                 </div>
             </div>
         </div>
-        
         <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
             <div class="card metric-card h-100 border-0 shadow-sm">
                 <div class="card-body text-center">
-                    <div class="text-success mb-2">
-                        <i class="fas fa-percentage fa-2x"></i>
-                    </div>
+                    <div class="text-success mb-2"><i class="fas fa-percentage fa-2x"></i></div>
                     <h4 class="fw-bold">{{ metricas.pontuacao_media }}%</h4>
-                    <p class="text-muted mb-0">Pontuação Média</p>
+                    <p class="text-muted mb-0">Média Geral</p>
                 </div>
             </div>
         </div>
-        
         <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
             <div class="card metric-card h-100 border-0 shadow-sm">
                 <div class="card-body text-center">
-                    <div class="text-info mb-2">
-                        <i class="fas fa-store fa-2x"></i>
-                    </div>
+                    <div class="text-info mb-2"><i class="fas fa-store fa-2x"></i></div>
                     <h4 class="fw-bold">{{ metricas.lojas_auditadas }}</h4>
                     <p class="text-muted mb-0">Avaliados</p>
                 </div>
             </div>
         </div>
-        
         <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
             <div class="card metric-card h-100 border-0 shadow-sm">
                 <div class="card-body text-center">
@@ -177,25 +147,19 @@
                 </div>
             </div>
         </div>
-        
         <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
             <div class="card metric-card h-100 border-0 shadow-sm">
                 <div class="card-body text-center">
-                    <div class="text-warning mb-2">
-                        <i class="fas fa-exclamation-triangle fa-2x"></i>
-                    </div>
+                    <div class="text-warning mb-2"><i class="fas fa-exclamation-triangle fa-2x"></i></div>
                     <h4 class="fw-bold">{{ metricas.auditorias_criticas }}</h4>
-                    <p class="text-muted mb-0">Aplicações Críticas</p>
+                    <p class="text-muted mb-0">Críticas</p>
                 </div>
             </div>
         </div>
-        
         <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
             <div class="card metric-card h-100 border-0 shadow-sm">
                 <div class="card-body text-center">
-                    <div class="text-success mb-2">
-                        <i class="fas fa-check-circle fa-2x"></i>
-                    </div>
+                    <div class="text-success mb-2"><i class="fas fa-check-circle fa-2x"></i></div>
                     <h4 class="fw-bold">{{ metricas.conformidade_geral }}%</h4>
                     <p class="text-muted mb-0">Conformidade</p>
                 </div>
@@ -203,37 +167,27 @@
         </div>
     </div>
 
-    <!-- Gráficos Principais -->
     <div class="row mb-4">
-        <!-- Evolução da Pontuação -->
-        <div class="col-lg-8 mb-4">
+        <div class="col-lg-6 mb-4">
             <div class="card shadow-sm border-0">
                 <div class="card-header bg-white border-bottom">
-                    <h5 class="mb-0">
-                        <i class="fas fa-line-chart me-2"></i>
-                        Evolução da Pontuação
-                    </h5>
+                    <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i> Evolução Mensal Média (Nota 0-10)</h5>
                 </div>
                 <div class="card-body">
-                    <div class="chart-container">
+                    <div class="chart-container" style="height: 400px;">
                         <canvas id="chartEvolucao"></canvas>
                     </div>
                 </div>
             </div>
         </div>
-        
-        <!-- Distribuição de Notas -->
-        <div class="col-lg-4 mb-4">
+        <div class="col-lg-6 mb-4">
             <div class="card shadow-sm border-0">
                 <div class="card-header bg-white border-bottom">
-                    <h5 class="mb-0">
-                        <i class="fas fa-pie-chart me-2"></i>
-                        Distribuição de Notas
-                    </h5>
+                    <h5 class="mb-0"><i class="fas fa-list-ol me-2"></i> Notas por Tópico (0-10)</h5>
                 </div>
                 <div class="card-body">
-                    <div class="chart-container" style="height: 300px;">
-                        <canvas id="chartDistribuicao"></canvas>
+                    <div class="chart-container" style="height: 400px;">
+                        <canvas id="chartTopicos"></canvas>
                     </div>
                 </div>
             </div>
@@ -241,31 +195,54 @@
     </div>
 
     <div class="row mb-4">
-        <!-- Performance por Avaliado -->
-        <div class="col-lg-8 mb-4">
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-white border-bottom">
-                    <h5 class="mb-0">
-                        <i class="fas fa-store me-2"></i>
-                        Performance por Avaliado
-                    </h5>
+        <div class="col-12 mb-3">
+            <h5 class="fw-bold border-bottom pb-2">
+                <i class="fas fa-chart-bar me-2"></i> Evolução Mensal por Tópico (Nota 0-10)
+            </h5>
+        </div>
+        
+        {% for grafico_topico in graficos.evolucao_topicos %}
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white border-bottom text-center">
+                    <h6 class="mb-0 fw-bold" style="color: {{ grafico_topico.cor }};">
+                        {{ grafico_topico.titulo }} - Evolução Mensal
+                    </h6>
                 </div>
                 <div class="card-body">
-                    <div class="chart-container">
-                        <canvas id="chartAvaliados"></canvas>
+                    <div class="chart-container" style="height: 250px;">
+                        <canvas id="{{ grafico_topico.id }}"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-12">
+            <div class="alert alert-light text-center border">Nenhum dado de evolução de tópicos disponível para o período.</div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-lg-8 mb-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="mb-0"><i class="fas fa-store me-2"></i> Performance Geral (Lista de Avaliados)</h5>
+                </div>
+                <div class="card-body p-2">
+                    <div class="scrollable-chart-area-x" id="scrollContainerAvaliados">
+                        <div class="chart-container" id="containerAvaliados">
+                            <canvas id="chartAvaliados"></canvas>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
         
-        <!-- Ranking de Avaliados -->
         <div class="col-lg-4 mb-4">
-            <div class="card shadow-sm border-0">
+            <div class="card shadow-sm border-0 h-100">
                 <div class="card-header bg-white border-bottom">
-                    <h5 class="mb-0">
-                        <i class="fas fa-trophy me-2"></i>
-                        Ranking de Avaliados
-                    </h5>
+                    <h5 class="mb-0"><i class="fas fa-trophy me-2"></i> Ranking (Top 10)</h5>
                 </div>
                 <div class="card-body">
                     <div id="rankingAvaliados">
@@ -274,18 +251,14 @@
                             <div>
                                 <span class="badge bg-secondary me-2">{{ loop.index }}º</span>
                                 <strong>{{ item.loja }}</strong>
-                                <br>
-                                <small class="text-muted">{{ item.total_auditorias }} aplicaç{{ 'ões' if item.total_auditorias != 1 else 'ão' }}</small>
+                                <br><small class="text-muted">{{ item.total_auditorias }} aplicaç{{ 'ões' if item.total_auditorias != 1 else 'ão' }}</small>
                             </div>
                             <div class="text-end">
                                 <span class="badge bg-{{ item.status }} fs-6">{{ item.media }}%</span>
                             </div>
                         </div>
                         {% else %}
-                        <div class="text-center text-muted py-4">
-                            <i class="fas fa-info-circle fa-2x mb-2"></i>
-                            <p>Nenhum dado disponível</p>
-                        </div>
+                        <div class="text-center text-muted py-4"><i class="fas fa-info-circle fa-2x mb-2"></i><p>Nenhum dado disponível</p></div>
                         {% endfor %}
                     </div>
                 </div>
@@ -293,15 +266,11 @@
         </div>
     </div>
 
-    <!-- Performance por Questionário e Top NCs -->
     <div class="row mb-4">
         <div class="col-lg-6 mb-4">
             <div class="card shadow-sm border-0">
                 <div class="card-header bg-white border-bottom">
-                    <h5 class="mb-0">
-                        <i class="fas fa-clipboard-check me-2"></i>
-                        Performance por Questionário
-                    </h5>
+                    <h5 class="mb-0"><i class="fas fa-clipboard-check me-2"></i> Performance por Questionário</h5>
                 </div>
                 <div class="card-body">
                     <div class="chart-container" style="height: 300px;">
@@ -310,29 +279,20 @@
                 </div>
             </div>
         </div>
-        
         <div class="col-lg-6 mb-4">
             <div class="card shadow-sm border-0">
                 <div class="card-header bg-white border-bottom">
-                    <h5 class="mb-0">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        Top Não Conformidades
-                    </h5>
+                    <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i> Top Não Conformidades</h5>
                 </div>
                 <div class="card-body">
                     <div style="max-height: 300px; overflow-y: auto;">
                         {% for nc in graficos.top_nao_conformidades %}
                         <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded">
-                            <div class="flex-grow-1">
-                                <small class="fw-bold">{{ nc.pergunta[:50] }}{% if nc.pergunta|length > 50 %}...{% endif %}</small>
-                            </div>
+                            <div class="flex-grow-1"><small class="fw-bold">{{ nc.pergunta[:50] }}{% if nc.pergunta|length > 50 %}...{% endif %}</small></div>
                             <span class="badge bg-danger">{{ nc.frequencia }}</span>
                         </div>
                         {% else %}
-                        <div class="text-center text-muted py-4">
-                            <i class="fas fa-check-circle fa-2x mb-2"></i>
-                            <p>Nenhuma não conformidade encontrada</p>
-                        </div>
+                        <div class="text-center text-muted py-4"><i class="fas fa-check-circle fa-2x mb-2"></i><p>Nenhuma não conformidade encontrada</p></div>
                         {% endfor %}
                     </div>
                 </div>
@@ -340,124 +300,170 @@
         </div>
     </div>
 
-    <!-- Loading Spinner -->
     <div class="loading-spinner" id="loadingSpinner">
-        <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Carregando...</span>
-        </div>
+        <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Carregando...</span></div>
         <p class="mt-2">Atualizando dados...</p>
     </div>
 </div>
 
 <script>
-// Variáveis globais para os gráficos
-let chartEvolucao, chartDistribuicao, chartAvaliados, chartQuestionarios;
+Chart.register(ChartDataLabels);
 
-// Dados dos gráficos vindos do backend
+let chartEvolucao, chartTopicos, chartAvaliados, chartQuestionarios;
+let chartsEvolucaoTopicosSeparados = []; // Array para armazenar os gráficos individuais de tópicos
+
 const dadosGraficos = {
     evolucao: {{ graficos.evolucao_pontuacao | tojson }},
+    topicos: {{ graficos.topicos_rancho | tojson }},
+    evolucao_topicos: {{ graficos.evolucao_topicos | tojson }}, 
     distribuicao: {{ graficos.distribuicao_notas | tojson }},
     avaliados: {{ graficos.pontuacao_por_avaliado | tojson }},
     questionarios: {{ graficos.pontuacao_por_questionario | tojson }}
 };
 
-// Configurações padrão dos gráficos
 const defaultOptions = {
     responsive: true,
     maintainAspectRatio: false,
+    layout: { padding: { top: 25, right: 15 } },
     plugins: {
-        legend: {
-            position: 'top',
-        },
+        legend: { position: 'top' },
         tooltip: {
-            backgroundColor: 'rgba(0,0,0,0.8)',
-            titleColor: 'white',
-            bodyColor: 'white',
-            borderColor: '#007bff',
-            borderWidth: 1
+            backgroundColor: 'rgba(0,0,0,0.8)', titleColor: 'white', bodyColor: 'white', borderColor: '#007bff', borderWidth: 1
         }
     }
 };
 
-// Inicializar quando a página carregar
 document.addEventListener('DOMContentLoaded', function() {
+    
+    const selectMes = document.getElementById('mes');
+    const selectPeriodo = document.getElementById('periodo');
+    selectMes.addEventListener('change', function() {
+        if(this.value !== "") {
+            selectPeriodo.value = "30";
+            selectPeriodo.setAttribute('disabled', 'disabled');
+        } else {
+            selectPeriodo.removeAttribute('disabled');
+        }
+    });
+    if(selectMes.value !== "") { selectPeriodo.setAttribute('disabled', 'disabled'); }
+
     initializeCharts();
     setupEventListeners();
 });
 
-// Inicializar todos os gráficos
+function aplicarLarguraDinamica(qtdBarras) {
+    const minWidth = document.getElementById('scrollContainerAvaliados').clientWidth || 600; 
+    const larguraCalculada = Math.max(minWidth, qtdBarras * 60); 
+    document.getElementById('containerAvaliados').style.width = larguraCalculada + 'px';
+}
+
 function initializeCharts() {
-    // Gráfico de Evolução (Linha)
+    
+    // 1. Evolução Mensal Geral (Barra)
     const ctxEvolucao = document.getElementById('chartEvolucao').getContext('2d');
     chartEvolucao = new Chart(ctxEvolucao, {
-        type: 'line',
+        type: 'bar',
         data: dadosGraficos.evolucao,
         options: {
             ...defaultOptions,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    max: 100,
-                    ticks: {
-                        callback: function(value) {
-                            return value + '%';
-                        }
-                    }
-                }
+            scales: { y: { beginAtZero: true, max: 10, ticks: { stepSize: 1 } } },
+            plugins: {
+                ...defaultOptions.plugins,
+                title: { display: false },
+                datalabels: { anchor: 'end', align: 'top', formatter: Math.round, color: '#333', font: { weight: 'bold', size: 14 } }
+            }
+        }
+    });
+
+    // 2. Notas por Tópico (Com Legenda na Direita e Cores Diferentes)
+    const ctxTopicos = document.getElementById('chartTopicos').getContext('2d');
+    chartTopicos = new Chart(ctxTopicos, {
+        type: 'bar',
+        data: dadosGraficos.topicos,
+        options: {
+            ...defaultOptions,
+            scales: { 
+                y: { beginAtZero: true, max: 10, ticks: { stepSize: 1 } },
+                x: { display: false } // OCULTA O EIXO X
             },
             plugins: {
                 ...defaultOptions.plugins,
-                title: {
-                    display: false
+                legend: { 
+                    display: true,
+                    position: 'right', // LEGENDA NA DIREITA
+                    labels: { boxWidth: 15, font: { size: 11 } }
+                },
+                datalabels: { 
+                    anchor: 'end', align: 'top', color: '#333', font: { weight: 'bold', size: 13 } 
                 }
             }
         }
     });
 
-    // Gráfico de Distribuição (Pizza)
-    const ctxDistribuicao = document.getElementById('chartDistribuicao').getContext('2d');
-    chartDistribuicao = new Chart(ctxDistribuicao, {
-        type: 'doughnut',
-        data: dadosGraficos.distribuicao,
-        options: {
-            ...defaultOptions,
-            plugins: {
-                ...defaultOptions.plugins,
-                legend: {
-                    position: 'bottom'
-                }
-            }
-        }
-    });
+    // 2.5 Evolução Mensal POR TÓPICO (SEPARADOS EM CARDS)
+    chartsEvolucaoTopicosSeparados.forEach(chart => chart.destroy());
+    chartsEvolucaoTopicosSeparados = [];
 
-    // Gráfico de Avaliados (Barras)
+    if (dadosGraficos.evolucao_topicos && dadosGraficos.evolucao_topicos.length > 0) {
+        dadosGraficos.evolucao_topicos.forEach(graficoObj => {
+            const canvasEl = document.getElementById(graficoObj.id);
+            if (canvasEl) {
+                const ctx = canvasEl.getContext('2d');
+                const newChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: graficoObj.dados,
+                    options: {
+                        ...defaultOptions,
+                        scales: { 
+                            y: { beginAtZero: true, max: 10, ticks: { stepSize: 2 } } 
+                        },
+                        plugins: {
+                            ...defaultOptions.plugins,
+                            legend: { display: false }, // Legenda falsa pois o título já diz o que é
+                            datalabels: { 
+                                anchor: 'end', 
+                                align: 'top', 
+                                color: '#333', 
+                                font: { weight: 'bold', size: 12 },
+                                formatter: function(value) {
+                                    return value !== null ? value : '';
+                                }
+                            }
+                        }
+                    }
+                });
+                // Guarda a referência no canvas para atualizar via AJAX depois
+                newChart.canvas.id = graficoObj.id; 
+                chartsEvolucaoTopicosSeparados.push(newChart);
+            }
+        });
+    }
+
+    // 3. Avaliados (Barra Vertical com scroll)
+    const dadosAvaliados = dadosGraficos.avaliados;
+    aplicarLarguraDinamica(dadosAvaliados.labels.length); 
+
     const ctxAvaliados = document.getElementById('chartAvaliados').getContext('2d');
     chartAvaliados = new Chart(ctxAvaliados, {
         type: 'bar',
-        data: dadosGraficos.avaliados,
+        data: dadosAvaliados,
         options: {
             ...defaultOptions,
             scales: {
-                y: {
-                    beginAtZero: true,
-                    max: 100,
-                    ticks: {
-                        callback: function(value) {
-                            return value + '%';
-                        }
-                    }
-                }
+                y: { beginAtZero: true, max: 100, ticks: { callback: function(value) { return value + '%'; } } },
+                x: { ticks: { autoSkip: false, maxRotation: 45, minRotation: 45 } } 
             },
             plugins: {
                 ...defaultOptions.plugins,
-                legend: {
-                    display: false
+                legend: { display: false },
+                datalabels: { 
+                    anchor: 'end', align: 'top', formatter: (value) => value + '%', color: '#333', font: { weight: 'bold', size: 13 }
                 }
             }
         }
     });
 
-    // Gráfico de Questionários (Pizza)
+    // 4. Questionários (Pizza)
     const ctxQuestionarios = document.getElementById('chartQuestionarios').getContext('2d');
     chartQuestionarios = new Chart(ctxQuestionarios, {
         type: 'pie',
@@ -466,125 +472,93 @@ function initializeCharts() {
             ...defaultOptions,
             plugins: {
                 ...defaultOptions.plugins,
-                legend: {
-                    position: 'bottom'
-                }
+                legend: { position: 'bottom' },
+                datalabels: { display: false }
             }
         }
     });
 }
 
-// Configurar event listeners
 function setupEventListeners() {
-    // Formulário de filtros
     document.getElementById('filtroForm').addEventListener('submit', function(e) {
         e.preventDefault();
+        document.getElementById('periodo').removeAttribute('disabled');
         aplicarFiltros();
     });
-
-    // Auto-refresh a cada 5 minutos
-    setInterval(function() {
-        atualizarDados();
-    }, 300000); // 5 minutos
+    setInterval(function() { atualizarDados(); }, 300000); 
 }
 
-// Aplicar filtros
 function aplicarFiltros() {
     const formData = new FormData(document.getElementById('filtroForm'));
     const params = new URLSearchParams(formData);
-    
-    // Redirecionar com os novos parâmetros
+    // Recarrega a página ao aplicar filtros, para renderizar perfeitamente as divs do Jinja2
     window.location.href = `${window.location.pathname}?${params.toString()}`;
 }
 
-// Atualizar dados via AJAX
 function atualizarDados() {
     const formData = new FormData(document.getElementById('filtroForm'));
     const params = new URLSearchParams(formData);
     
-    document.getElementById('loadingSpinner').style.display = 'block';
-    
+    // Como a página dá reload ao "Filtrar", este AJAX fica só para o auto-refresh de 5 minutos
     fetch(`/panorama/api/dashboard-data?${params.toString()}`)
         .then(response => response.json())
-        .then(data => {
-            atualizarGraficos(data);
-            atualizarMetricas(data.metricas);
-        })
-        .catch(error => {
-            console.error('Erro ao atualizar dados:', error);
-            showNotification('Erro ao atualizar dados', 'error');
-        })
-        .finally(() => {
-            document.getElementById('loadingSpinner').style.display = 'none';
-        });
+        .then(data => { atualizarGraficos(data); })
+        .catch(error => { console.error(error); });
 }
 
-// Atualizar gráficos com novos dados
 function atualizarGraficos(data) {
-    // Evolução
-    chartEvolucao.data = data.evolucao;
-    chartEvolucao.update();
+    if (chartEvolucao) { chartEvolucao.data = data.evolucao; chartEvolucao.update(); }
+    if (chartTopicos) { chartTopicos.data = data.topicos; chartTopicos.update(); }
+    
+    // Atualizar os gráficos separados por tópicos
+    if (chartsEvolucaoTopicosSeparados.length > 0 && data.evolucao_topicos) {
+        data.evolucao_topicos.forEach(novoGraficoObj => {
+            const chartExistente = chartsEvolucaoTopicosSeparados.find(c => c.canvas.id === novoGraficoObj.id);
+            if(chartExistente) {
+                chartExistente.data = novoGraficoObj.dados;
+                chartExistente.update();
+            }
+        });
+    }
 
-    // Distribuição
-    chartDistribuicao.data = data.distribuicao;
-    chartDistribuicao.update();
-
-    // Avaliados
-    chartAvaliados.data = data.por_avaliado;
-    chartAvaliados.update();
-}
-
-// Atualizar métricas
-function atualizarMetricas(metricas) {
-    // Implementar atualização das métricas nos cards
-    // (opcional - pode simplesmente recarregar a página)
-}
-
-// Exportar dados
-function exportarDados() {
-    const formato = prompt('Escolha o formato de exportação (csv ou json):', 'csv');
-    if (formato && ['csv', 'json'].includes(formato)) {
-        const formData = new FormData(document.getElementById('filtroForm'));
-        const params = new URLSearchParams(formData);
-        params.append('formato', formato);
-        
-        window.open(`/panorama/api/export-data?${params.toString()}`, '_blank');
+    if (chartAvaliados) { 
+        aplicarLarguraDinamica(data.por_avaliado.labels.length); 
+        chartAvaliados.data = data.por_avaliado; 
+        chartAvaliados.update(); 
     }
 }
 
-// Mostrar notificação
+function exportarDados() {
+    const formato = prompt('Escolha o formato de exportação (csv ou json):', 'csv');
+    if (formato && ['csv', 'json'].includes(formato)) {
+        document.getElementById('periodo').removeAttribute('disabled');
+        const formData = new FormData(document.getElementById('filtroForm'));
+        const params = new URLSearchParams(formData);
+        params.append('formato', formato);
+        window.open(`/panorama/api/export-data?${params.toString()}`, '_blank');
+        
+        if(document.getElementById('mes').value !== "") {
+            document.getElementById('periodo').setAttribute('disabled', 'disabled');
+        }
+    }
+}
+
 function showNotification(message, type = 'info') {
     const alertDiv = document.createElement('div');
     alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
     alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
-    alertDiv.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
+    alertDiv.innerHTML = `${message} <button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
     document.body.appendChild(alertDiv);
-    
     setTimeout(() => alertDiv.remove(), 5000);
 }
 
-// Funções para responsividade
 function handleResize() {
     if (chartEvolucao) chartEvolucao.resize();
-    if (chartDistribuicao) chartDistribuicao.resize();
+    if (chartTopicos) chartTopicos.resize();
+    if (chartsEvolucaoTopicosSeparados) { chartsEvolucaoTopicosSeparados.forEach(c => c.resize()); }
     if (chartAvaliados) chartAvaliados.resize();
     if (chartQuestionarios) chartQuestionarios.resize();
 }
-
 window.addEventListener('resize', handleResize);
-
-// Tooltip personalizado para ranking
-document.querySelectorAll('.ranking-item').forEach(item => {
-    item.addEventListener('mouseenter', function() {
-        this.style.backgroundColor = '#f8f9fa';
-    });
-    
-    item.addEventListener('mouseleave', function() {
-        this.style.backgroundColor = 'transparent';
-    });
-});
 </script>
 {% endblock %}
