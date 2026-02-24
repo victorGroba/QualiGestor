@@ -29,7 +29,7 @@ def index():
     """Dashboard principal."""
     
     # 1. Alertas de Atraso (Planos de Ação)
-    verificar_alertas_atraso(current_user)
+    #verificar_alertas_atraso(current_user)
 
     stats = {
         'total_aplicacoes': 0, 'aplicacoes_mes': 0,
@@ -69,7 +69,7 @@ def index():
             stats['media_nota_mes'] = round(float(media or 0), 1)
 
             # Aplicações em Andamento
-           stats['aplicacoes_pendentes'] = AplicacaoQuestionario.query.join(Avaliado).filter(
+            stats['aplicacoes_pendentes'] = AplicacaoQuestionario.query.join(Avaliado).filter(
                 Avaliado.cliente_id == current_user.cliente_id,
                 AplicacaoQuestionario.status == StatusAplicacao.EM_ANDAMENTO
             ).count()
@@ -88,6 +88,7 @@ def index():
             ).limit(5).all()
 
     except Exception as e:
+        db.session.rollback()
         print(f"Erro Dashboard: {e}")
 
     return render_template_safe('cli/index.html', 
