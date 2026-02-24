@@ -52,7 +52,11 @@ def calcular_pontuacao_auditoria(auditoria):
 
     # Verifica se é o modelo novo (AplicacaoQuestionario)
     if hasattr(auditoria, 'data_inicio'):
-        respostas = RespostaPergunta.query.filter_by(aplicacao_id=auditoria.id).all()
+        # Tenta usar o relacionamento em memória (evita N+1). Se for BaseQuery, converte com .all()
+        if hasattr(auditoria.respostas, 'all'):
+            respostas = auditoria.respostas.all()
+        else:
+            respostas = auditoria.respostas
     # Fallback para modelo antigo (Auditoria), se o objeto for compatível
     elif Auditoria and isinstance(auditoria, Auditoria):
         if Resposta:

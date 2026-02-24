@@ -15,10 +15,28 @@
     .filter-card { background: #f8f9fa; border-radius: 10px; padding: 20px; margin-bottom: 20px; }
     .ranking-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #e9ecef; }
     .ranking-item:last-child { border-bottom: none; }
+    
+    /* Overlay para bloquear interações enquanto carrega */
+    #loadingOverlay {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(255,255,255,0.8);
+        z-index: 1050; display: none;
+        align-items: center; justify-content: center; flex-direction: column;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
+
+<div id="loadingOverlay">
+    <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+        <span class="visually-hidden">Carregando...</span>
+    </div>
+    <h5 class="mt-3 fw-bold text-primary">Calculando Resultados...</h5>
+    <p class="text-muted">Aguarde um momento, estamos montando seus gráficos.</p>
+</div>
+
 <div class="container-fluid">
     <div class="row mb-4">
         <div class="col-12">
@@ -106,12 +124,12 @@
         </div>
     </div>
 
-    <div class="row mb-4">
+    <div class="row mb-4" id="metricas-cards">
         <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
             <div class="card metric-card h-100 border-0 shadow-sm">
                 <div class="card-body text-center">
                     <div class="text-primary mb-2"><i class="fas fa-clipboard-list fa-2x"></i></div>
-                    <h4 class="fw-bold">{{ metricas.total_auditorias }}</h4>
+                    <h4 class="fw-bold" id="metrica-auditorias">-</h4>
                     <p class="text-muted mb-0">Aplicações</p>
                 </div>
             </div>
@@ -120,7 +138,7 @@
             <div class="card metric-card h-100 border-0 shadow-sm">
                 <div class="card-body text-center">
                     <div class="text-success mb-2"><i class="fas fa-percentage fa-2x"></i></div>
-                    <h4 class="fw-bold">{{ metricas.pontuacao_media }}%</h4>
+                    <h4 class="fw-bold" id="metrica-media">-</h4>
                     <p class="text-muted mb-0">Média Geral</p>
                 </div>
             </div>
@@ -129,7 +147,7 @@
             <div class="card metric-card h-100 border-0 shadow-sm">
                 <div class="card-body text-center">
                     <div class="text-info mb-2"><i class="fas fa-store fa-2x"></i></div>
-                    <h4 class="fw-bold">{{ metricas.lojas_auditadas }}</h4>
+                    <h4 class="fw-bold" id="metrica-lojas">-</h4>
                     <p class="text-muted mb-0">Avaliados</p>
                 </div>
             </div>
@@ -137,12 +155,10 @@
         <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
             <div class="card metric-card h-100 border-0 shadow-sm">
                 <div class="card-body text-center">
-                    <div class="{% if metricas.tendencia_pontuacao > 0 %}text-success{% elif metricas.tendencia_pontuacao < 0 %}text-danger{% else %}text-secondary{% endif %} mb-2">
-                        <i class="fas fa-trending-{% if metricas.tendencia_pontuacao > 0 %}up{% elif metricas.tendencia_pontuacao < 0 %}down{% else %}flat{% endif %} fa-2x"></i>
+                    <div class="text-secondary mb-2" id="icon-tendencia">
+                        <i class="fas fa-trending-flat fa-2x"></i>
                     </div>
-                    <h4 class="fw-bold {% if metricas.tendencia_pontuacao > 0 %}text-success{% elif metricas.tendencia_pontuacao < 0 %}text-danger{% else %}text-secondary{% endif %}">
-                        {% if metricas.tendencia_pontuacao > 0 %}+{% endif %}{{ metricas.tendencia_pontuacao }}%
-                    </h4>
+                    <h4 class="fw-bold text-secondary" id="metrica-tendencia">-</h4>
                     <p class="text-muted mb-0">Tendência</p>
                 </div>
             </div>
@@ -151,7 +167,7 @@
             <div class="card metric-card h-100 border-0 shadow-sm">
                 <div class="card-body text-center">
                     <div class="text-warning mb-2"><i class="fas fa-exclamation-triangle fa-2x"></i></div>
-                    <h4 class="fw-bold">{{ metricas.auditorias_criticas }}</h4>
+                    <h4 class="fw-bold" id="metrica-criticas">-</h4>
                     <p class="text-muted mb-0">Críticas</p>
                 </div>
             </div>
@@ -160,7 +176,7 @@
             <div class="card metric-card h-100 border-0 shadow-sm">
                 <div class="card-body text-center">
                     <div class="text-success mb-2"><i class="fas fa-check-circle fa-2x"></i></div>
-                    <h4 class="fw-bold">{{ metricas.conformidade_geral }}%</h4>
+                    <h4 class="fw-bold" id="metrica-conformidade">-</h4>
                     <p class="text-muted mb-0">Conformidade</p>
                 </div>
             </div>
@@ -201,26 +217,7 @@
             </h5>
         </div>
         
-        {% for grafico_topico in graficos.evolucao_topicos %}
-        <div class="col-lg-6 mb-4">
-            <div class="card shadow-sm border-0 h-100">
-                <div class="card-header bg-white border-bottom text-center">
-                    <h6 class="mb-0 fw-bold" style="color: {{ grafico_topico.cor }};">
-                        {{ grafico_topico.titulo }} - Evolução Mensal
-                    </h6>
-                </div>
-                <div class="card-body">
-                    <div class="chart-container" style="height: 250px;">
-                        <canvas id="{{ grafico_topico.id }}"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-        {% else %}
-        <div class="col-12">
-            <div class="alert alert-light text-center border">Nenhum dado de evolução de tópicos disponível para o período.</div>
-        </div>
-        {% endfor %}
+        <div id="containerEvolucaoTopicos" class="row w-100 m-0"></div>
     </div>
 
     <div class="row mb-4">
@@ -246,20 +243,7 @@
                 </div>
                 <div class="card-body">
                     <div id="rankingAvaliados">
-                        {% for item in graficos.ranking_avaliados %}
-                        <div class="ranking-item">
-                            <div>
-                                <span class="badge bg-secondary me-2">{{ loop.index }}º</span>
-                                <strong>{{ item.loja }}</strong>
-                                <br><small class="text-muted">{{ item.total_auditorias }} aplicaç{{ 'ões' if item.total_auditorias != 1 else 'ão' }}</small>
-                            </div>
-                            <div class="text-end">
-                                <span class="badge bg-{{ item.status }} fs-6">{{ item.media }}%</span>
-                            </div>
-                        </div>
-                        {% else %}
-                        <div class="text-center text-muted py-4"><i class="fas fa-info-circle fa-2x mb-2"></i><p>Nenhum dado disponível</p></div>
-                        {% endfor %}
+                        <div class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin fa-2x mb-2"></i><p>Carregando ranking...</p></div>
                     </div>
                 </div>
             </div>
@@ -285,24 +269,12 @@
                     <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i> Top Não Conformidades</h5>
                 </div>
                 <div class="card-body">
-                    <div style="max-height: 300px; overflow-y: auto;">
-                        {% for nc in graficos.top_nao_conformidades %}
-                        <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded">
-                            <div class="flex-grow-1"><small class="fw-bold">{{ nc.pergunta[:50] }}{% if nc.pergunta|length > 50 %}...{% endif %}</small></div>
-                            <span class="badge bg-danger">{{ nc.frequencia }}</span>
-                        </div>
-                        {% else %}
-                        <div class="text-center text-muted py-4"><i class="fas fa-check-circle fa-2x mb-2"></i><p>Nenhuma não conformidade encontrada</p></div>
-                        {% endfor %}
+                    <div id="topNcList" style="max-height: 300px; overflow-y: auto;">
+                        <div class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin fa-2x mb-2"></i><p>Carregando problemas...</p></div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
-
-    <div class="loading-spinner" id="loadingSpinner">
-        <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Carregando...</span></div>
-        <p class="mt-2">Atualizando dados...</p>
     </div>
 </div>
 
@@ -311,15 +283,6 @@ Chart.register(ChartDataLabels);
 
 let chartEvolucao, chartTopicos, chartAvaliados, chartQuestionarios;
 let chartsEvolucaoTopicosSeparados = []; // Array para armazenar os gráficos individuais de tópicos
-
-const dadosGraficos = {
-    evolucao: {{ graficos.evolucao_pontuacao | tojson }},
-    topicos: {{ graficos.topicos_rancho | tojson }},
-    evolucao_topicos: {{ graficos.evolucao_topicos | tojson }}, 
-    distribuicao: {{ graficos.distribuicao_notas | tojson }},
-    avaliados: {{ graficos.pontuacao_por_avaliado | tojson }},
-    questionarios: {{ graficos.pontuacao_por_questionario | tojson }}
-};
 
 const defaultOptions = {
     responsive: true,
@@ -347,8 +310,13 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     if(selectMes.value !== "") { selectPeriodo.setAttribute('disabled', 'disabled'); }
 
+    // 1. Inicializa a página visualmente com gráficos vazios (Casca)
     initializeCharts();
     setupEventListeners();
+
+    // 2. Mostra o Spinner Gigante e faz o Ajax buscar os dados
+    document.getElementById('loadingOverlay').style.display = 'flex';
+    atualizarDados();
 });
 
 function aplicarLarguraDinamica(qtdBarras) {
@@ -359,123 +327,41 @@ function aplicarLarguraDinamica(qtdBarras) {
 
 function initializeCharts() {
     
-    // 1. Evolução Mensal Geral (Barra)
+    // Gráficos começam vazios
     const ctxEvolucao = document.getElementById('chartEvolucao').getContext('2d');
     chartEvolucao = new Chart(ctxEvolucao, {
-        type: 'bar',
-        data: dadosGraficos.evolucao,
+        type: 'bar', data: { labels: [], datasets: [] },
         options: {
             ...defaultOptions,
             scales: { y: { beginAtZero: true, max: 10, ticks: { stepSize: 1 } } },
-            plugins: {
-                ...defaultOptions.plugins,
-                title: { display: false },
-                datalabels: { anchor: 'end', align: 'top', formatter: Math.round, color: '#333', font: { weight: 'bold', size: 14 } }
-            }
+            plugins: { ...defaultOptions.plugins, title: { display: false }, datalabels: { anchor: 'end', align: 'top', formatter: Math.round, color: '#333', font: { weight: 'bold', size: 14 } } }
         }
     });
 
-    // 2. Notas por Tópico (Com Legenda na Direita e Cores Diferentes)
     const ctxTopicos = document.getElementById('chartTopicos').getContext('2d');
     chartTopicos = new Chart(ctxTopicos, {
-        type: 'bar',
-        data: dadosGraficos.topicos,
+        type: 'bar', data: { labels: [], datasets: [] },
         options: {
             ...defaultOptions,
-            scales: { 
-                y: { beginAtZero: true, max: 10, ticks: { stepSize: 1 } },
-                x: { display: false } // OCULTA O EIXO X
-            },
-            plugins: {
-                ...defaultOptions.plugins,
-                legend: { 
-                    display: true,
-                    position: 'right', // LEGENDA NA DIREITA
-                    labels: { boxWidth: 15, font: { size: 11 } }
-                },
-                datalabels: { 
-                    anchor: 'end', align: 'top', color: '#333', font: { weight: 'bold', size: 13 } 
-                }
-            }
+            scales: { y: { beginAtZero: true, max: 10, ticks: { stepSize: 1 } }, x: { display: false } },
+            plugins: { ...defaultOptions.plugins, legend: { display: true, position: 'right', labels: { boxWidth: 15, font: { size: 11 } } }, datalabels: { anchor: 'end', align: 'top', color: '#333', font: { weight: 'bold', size: 13 } } }
         }
     });
-
-    // 2.5 Evolução Mensal POR TÓPICO (SEPARADOS EM CARDS)
-    chartsEvolucaoTopicosSeparados.forEach(chart => chart.destroy());
-    chartsEvolucaoTopicosSeparados = [];
-
-    if (dadosGraficos.evolucao_topicos && dadosGraficos.evolucao_topicos.length > 0) {
-        dadosGraficos.evolucao_topicos.forEach(graficoObj => {
-            const canvasEl = document.getElementById(graficoObj.id);
-            if (canvasEl) {
-                const ctx = canvasEl.getContext('2d');
-                const newChart = new Chart(ctx, {
-                    type: 'bar',
-                    data: graficoObj.dados,
-                    options: {
-                        ...defaultOptions,
-                        scales: { 
-                            y: { beginAtZero: true, max: 10, ticks: { stepSize: 2 } } 
-                        },
-                        plugins: {
-                            ...defaultOptions.plugins,
-                            legend: { display: false }, // Legenda falsa pois o título já diz o que é
-                            datalabels: { 
-                                anchor: 'end', 
-                                align: 'top', 
-                                color: '#333', 
-                                font: { weight: 'bold', size: 12 },
-                                formatter: function(value) {
-                                    return value !== null ? value : '';
-                                }
-                            }
-                        }
-                    }
-                });
-                // Guarda a referência no canvas para atualizar via AJAX depois
-                newChart.canvas.id = graficoObj.id; 
-                chartsEvolucaoTopicosSeparados.push(newChart);
-            }
-        });
-    }
-
-    // 3. Avaliados (Barra Vertical com scroll)
-    const dadosAvaliados = dadosGraficos.avaliados;
-    aplicarLarguraDinamica(dadosAvaliados.labels.length); 
 
     const ctxAvaliados = document.getElementById('chartAvaliados').getContext('2d');
     chartAvaliados = new Chart(ctxAvaliados, {
-        type: 'bar',
-        data: dadosAvaliados,
+        type: 'bar', data: { labels: [], datasets: [] },
         options: {
             ...defaultOptions,
-            scales: {
-                y: { beginAtZero: true, max: 100, ticks: { callback: function(value) { return value + '%'; } } },
-                x: { ticks: { autoSkip: false, maxRotation: 45, minRotation: 45 } } 
-            },
-            plugins: {
-                ...defaultOptions.plugins,
-                legend: { display: false },
-                datalabels: { 
-                    anchor: 'end', align: 'top', formatter: (value) => value + '%', color: '#333', font: { weight: 'bold', size: 13 }
-                }
-            }
+            scales: { y: { beginAtZero: true, max: 100, ticks: { callback: function(value) { return value + '%'; } } }, x: { ticks: { autoSkip: false, maxRotation: 45, minRotation: 45 } } },
+            plugins: { ...defaultOptions.plugins, legend: { display: false }, datalabels: { anchor: 'end', align: 'top', formatter: (value) => value + '%', color: '#333', font: { weight: 'bold', size: 13 } } }
         }
     });
 
-    // 4. Questionários (Pizza)
     const ctxQuestionarios = document.getElementById('chartQuestionarios').getContext('2d');
     chartQuestionarios = new Chart(ctxQuestionarios, {
-        type: 'pie',
-        data: dadosGraficos.questionarios,
-        options: {
-            ...defaultOptions,
-            plugins: {
-                ...defaultOptions.plugins,
-                legend: { position: 'bottom' },
-                datalabels: { display: false }
-            }
-        }
+        type: 'pie', data: { labels: [], datasets: [] },
+        options: { ...defaultOptions, plugins: { ...defaultOptions.plugins, legend: { position: 'bottom' }, datalabels: { display: false } } }
     });
 }
 
@@ -485,46 +371,169 @@ function setupEventListeners() {
         document.getElementById('periodo').removeAttribute('disabled');
         aplicarFiltros();
     });
-    setInterval(function() { atualizarDados(); }, 300000); 
+    // Atualiza invisivelmente a cada 5 min
+    setInterval(function() { 
+        // Chama o fetch escondido para não travar a tela
+        fetchDadosAjax(false); 
+    }, 300000); 
 }
 
 function aplicarFiltros() {
+    // Mostra o Overlay Spinner para travar a tela enquanto carrega
+    document.getElementById('loadingOverlay').style.display = 'flex';
+    
+    // Atualiza a URL só por estética (para copiar link) sem refresh real
     const formData = new FormData(document.getElementById('filtroForm'));
     const params = new URLSearchParams(formData);
-    // Recarrega a página ao aplicar filtros, para renderizar perfeitamente as divs do Jinja2
-    window.location.href = `${window.location.pathname}?${params.toString()}`;
+    window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
+    
+    atualizarDados();
 }
 
 function atualizarDados() {
+    fetchDadosAjax(true);
+}
+
+function fetchDadosAjax(showSpinner) {
     const formData = new FormData(document.getElementById('filtroForm'));
     const params = new URLSearchParams(formData);
     
-    // Como a página dá reload ao "Filtrar", este AJAX fica só para o auto-refresh de 5 minutos
     fetch(`/panorama/api/dashboard-data?${params.toString()}`)
         .then(response => response.json())
-        .then(data => { atualizarGraficos(data); })
-        .catch(error => { console.error(error); });
+        .then(data => { 
+            atualizarValoresMetricas(data.metricas);
+            atualizarHTMLAvaliadosENC(data);
+            atualizarGraficos(data); 
+            
+            // Tira a tela de carregamento quando terminar
+            if(showSpinner) {
+                document.getElementById('loadingOverlay').style.display = 'none';
+            }
+        })
+        .catch(error => { 
+            console.error(error); 
+            if(showSpinner) { document.getElementById('loadingOverlay').style.display = 'none'; }
+            showNotification('Erro ao carregar os dados do painel. Tente novamente.', 'danger');
+        });
+}
+
+function atualizarValoresMetricas(metricas) {
+    if(!metricas) return;
+    document.getElementById('metrica-auditorias').innerText = metricas.total_auditorias;
+    document.getElementById('metrica-media').innerText = metricas.pontuacao_media + '%';
+    document.getElementById('metrica-lojas').innerText = metricas.lojas_auditadas;
+    
+    const h4Tendencia = document.getElementById('metrica-tendencia');
+    const divIconTendencia = document.getElementById('icon-tendencia');
+    let sinal = metricas.tendencia_pontuacao > 0 ? '+' : '';
+    h4Tendencia.innerText = sinal + metricas.tendencia_pontuacao + '%';
+    
+    h4Tendencia.className = 'fw-bold ' + (metricas.tendencia_pontuacao > 0 ? 'text-success' : (metricas.tendencia_pontuacao < 0 ? 'text-danger' : 'text-secondary'));
+    divIconTendencia.className = 'mb-2 ' + (metricas.tendencia_pontuacao > 0 ? 'text-success' : (metricas.tendencia_pontuacao < 0 ? 'text-danger' : 'text-secondary'));
+    divIconTendencia.innerHTML = `<i class="fas fa-trending-${metricas.tendencia_pontuacao > 0 ? 'up' : (metricas.tendencia_pontuacao < 0 ? 'down' : 'flat')} fa-2x"></i>`;
+
+    document.getElementById('metrica-criticas').innerText = metricas.auditorias_criticas;
+    document.getElementById('metrica-conformidade').innerText = metricas.conformidade_geral + '%';
+}
+
+function atualizarHTMLAvaliadosENC(data) {
+    // 1. Atualiza o HTML do Ranking
+    const rankingDiv = document.getElementById('rankingAvaliados');
+    if (data.ranking_avaliados && data.ranking_avaliados.length > 0) {
+        let html = '';
+        data.ranking_avaliados.forEach((item, index) => {
+            html += `
+            <div class="ranking-item">
+                <div>
+                    <span class="badge bg-secondary me-2">${index + 1}º</span>
+                    <strong>${item.loja}</strong>
+                    <br><small class="text-muted">${item.total_auditorias} aplicações</small>
+                </div>
+                <div class="text-end">
+                    <span class="badge bg-${item.status} fs-6">${item.media}%</span>
+                </div>
+            </div>`;
+        });
+        rankingDiv.innerHTML = html;
+    } else {
+        rankingDiv.innerHTML = `<div class="text-center text-muted py-4"><i class="fas fa-info-circle fa-2x mb-2"></i><p>Nenhum dado disponível</p></div>`;
+    }
+
+    // 2. Atualiza Top Não Conformidades
+    const ncDiv = document.getElementById('topNcList');
+    if (data.top_nao_conformidades && data.top_nao_conformidades.length > 0) {
+        let htmlNC = '';
+        data.top_nao_conformidades.forEach(nc => {
+            let desc = nc.pergunta.length > 50 ? nc.pergunta.substring(0, 50) + '...' : nc.pergunta;
+            htmlNC += `
+            <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded">
+                <div class="flex-grow-1"><small class="fw-bold">${desc}</small></div>
+                <span class="badge bg-danger">${nc.frequencia}</span>
+            </div>`;
+        });
+        ncDiv.innerHTML = htmlNC;
+    } else {
+        ncDiv.innerHTML = `<div class="text-center text-muted py-4"><i class="fas fa-check-circle fa-2x mb-2"></i><p>Nenhuma não conformidade encontrada</p></div>`;
+    }
 }
 
 function atualizarGraficos(data) {
-    if (chartEvolucao) { chartEvolucao.data = data.evolucao; chartEvolucao.update(); }
-    if (chartTopicos) { chartTopicos.data = data.topicos; chartTopicos.update(); }
-    
-    // Atualizar os gráficos separados por tópicos
-    if (chartsEvolucaoTopicosSeparados.length > 0 && data.evolucao_topicos) {
-        data.evolucao_topicos.forEach(novoGraficoObj => {
-            const chartExistente = chartsEvolucaoTopicosSeparados.find(c => c.canvas.id === novoGraficoObj.id);
-            if(chartExistente) {
-                chartExistente.data = novoGraficoObj.dados;
-                chartExistente.update();
-            }
-        });
-    }
-
-    if (chartAvaliados) { 
+    if (chartEvolucao && data.evolucao) { chartEvolucao.data = data.evolucao; chartEvolucao.update(); }
+    if (chartTopicos && data.topicos) { chartTopicos.data = data.topicos; chartTopicos.update(); }
+    if (chartQuestionarios && data.questionarios) { chartQuestionarios.data = data.questionarios; chartQuestionarios.update(); }
+    if (chartAvaliados && data.por_avaliado) { 
         aplicarLarguraDinamica(data.por_avaliado.labels.length); 
         chartAvaliados.data = data.por_avaliado; 
         chartAvaliados.update(); 
+    }
+
+    // Recriação completa dos cards de tópicos para não encavalar dados ao filtrar
+    const containerTopicos = document.getElementById('containerEvolucaoTopicos');
+    containerTopicos.innerHTML = '';
+    chartsEvolucaoTopicosSeparados.forEach(c => c.destroy());
+    chartsEvolucaoTopicosSeparados = [];
+
+    if (data.evolucao_topicos && data.evolucao_topicos.length > 0) {
+        data.evolucao_topicos.forEach(graficoObj => {
+            // Cria a Div do Card na hora
+            const colDiv = document.createElement('div');
+            colDiv.className = "col-lg-6 mb-4";
+            colDiv.innerHTML = `
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-header bg-white border-bottom text-center">
+                        <h6 class="mb-0 fw-bold" style="color: ${graficoObj.cor};">${graficoObj.titulo} - Evolução Mensal</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container" style="height: 250px;">
+                            <canvas id="${graficoObj.id}"></canvas>
+                        </div>
+                    </div>
+                </div>
+            `;
+            containerTopicos.appendChild(colDiv);
+
+            // Popula o Chart.js na div recém criada
+            const ctxNew = document.getElementById(graficoObj.id).getContext('2d');
+            const newChart = new Chart(ctxNew, {
+                type: 'bar',
+                data: graficoObj.dados,
+                options: {
+                    ...defaultOptions,
+                    scales: { y: { beginAtZero: true, max: 10, ticks: { stepSize: 2 } } },
+                    plugins: {
+                        ...defaultOptions.plugins,
+                        legend: { display: false },
+                        datalabels: { 
+                            anchor: 'end', align: 'top', color: '#333', font: { weight: 'bold', size: 12 },
+                            formatter: function(value) { return value !== null ? value : ''; }
+                        }
+                    }
+                }
+            });
+            chartsEvolucaoTopicosSeparados.push(newChart);
+        });
+    } else {
+        containerTopicos.innerHTML = `<div class="col-12"><div class="alert alert-light text-center border">Nenhum dado de evolução de tópicos disponível para o período.</div></div>`;
     }
 }
 

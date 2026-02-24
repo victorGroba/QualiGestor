@@ -3,6 +3,7 @@ from flask import Blueprint, render_template, request, jsonify, redirect, url_fo
 from flask_login import login_required, current_user
 from sqlalchemy import func, extract, and_, desc
 from datetime import datetime, timedelta
+from sqlalchemy.orm import joinedload, selectinload
 import json
 
 from ..models import (
@@ -28,61 +29,7 @@ def index():
 @panorama_bp.route('/dashboard')
 @login_required
 def dashboard():
-    data_fim = datetime.now()
-    data_inicio = data_fim - timedelta(days=30)
-
-    avaliado_id = request.args.get('avaliado_id', type=int)
-    questionario_id = request.args.get('questionario_id', type=int)
-    grupo_id = request.args.get('grupo_id', type=int) 
-    periodo = request.args.get('periodo', '30')
-    mes_filtro = request.args.get('mes', '')
-
-    if periodo == '7': data_inicio = data_fim - timedelta(days=7)
-    elif periodo == '90': data_inicio = data_fim - timedelta(days=90)
-    elif periodo == '365': data_inicio = data_fim - timedelta(days=365)
-
-    query = AplicacaoQuestionario.query.join(Avaliado)
-    query = aplicar_filtro_hierarquia(query, Avaliado)
-    query = query.filter(AplicacaoQuestionario.status == StatusAplicacao.FINALIZADA)
-
-    if mes_filtro:
-        try:
-            ano, mes = map(int, mes_filtro.split('-'))
-            query = query.filter(
-                extract('year', AplicacaoQuestionario.data_inicio) == ano,
-                extract('month', AplicacaoQuestionario.data_inicio) == mes
-            )
-        except ValueError:
-            pass
-    else:
-        query = query.filter(
-            AplicacaoQuestionario.data_inicio >= data_inicio,
-            AplicacaoQuestionario.data_inicio <= data_fim
-        )
-
-    if avaliado_id: query = query.filter(AplicacaoQuestionario.avaliado_id == avaliado_id)
-    if questionario_id: query = query.filter(AplicacaoQuestionario.questionario_id == questionario_id)
-    if grupo_id: query = query.filter(Avaliado.grupo_id == grupo_id)
-
-    aplicacoes = query.all()
-    from ..utils.pontuacao import calcular_pontuacao_auditoria
-    for app in aplicacoes:
-        # Calcula a pontuação 1 única vez e salva "escondido" no objeto app
-        app._cache_resultado = calcular_pontuacao_auditoria(app)
-    metricas = calcular_metricas_dashboard(aplicacoes)
-
-    # DICIONÁRIO ATUALIZADO COM O NOVO GRÁFICO
-    graficos = {
-        'evolucao_pontuacao': gerar_grafico_evolucao_mensal(aplicacoes),
-        'evolucao_topicos': gerar_grafico_evolucao_topicos(aplicacoes), # <-- NOVO GRÁFICO AQUI
-        'topicos_rancho': gerar_grafico_topicos(aplicacoes),
-        'pontuacao_por_avaliado': gerar_grafico_avaliados(aplicacoes),
-        'pontuacao_por_questionario': gerar_grafico_questionarios(aplicacoes),
-        'distribuicao_notas': gerar_grafico_distribuicao(aplicacoes),
-        'ranking_avaliados': gerar_ranking_avaliados(aplicacoes),
-        'top_nao_conformidades': gerar_top_nao_conformidades(aplicacoes)
-    }
-
+    # Apenas carrega os filtros para a tela abrir instantaneamente (Interface Otimizada)
     meses_opcoes = []
     ano_atual = datetime.now().year
     mes_atual = datetime.now().month
@@ -110,17 +57,18 @@ def dashboard():
         'grupos': query_grupos.order_by(Grupo.nome).all()
     }
 
+    # Enviamos tudo vazio para o HTML montar a casca imediatamente. O JS fará a requisição real.
     return render_template(
         'panorama/dashboard.html',
-        metricas=metricas,
-        graficos=graficos,
+        metricas={'total_auditorias': 0, 'pontuacao_media': 0, 'lojas_auditadas': 0, 'tendencia_pontuacao': 0, 'auditorias_criticas': 0, 'conformidade_geral': 0},
+        graficos={'evolucao_pontuacao': {}, 'evolucao_topicos': [], 'topicos_rancho': {}, 'pontuacao_por_avaliado': {}, 'pontuacao_por_questionario': {}, 'distribuicao_notas': {}, 'ranking_avaliados': [], 'top_nao_conformidades': []},
         filtros=filtros,
         filtros_aplicados={
-            'mes': mes_filtro,
-            'avaliado_id': avaliado_id,
-            'questionario_id': questionario_id,
-            'grupo_id': grupo_id,
-            'periodo': periodo
+            'mes': request.args.get('mes', ''),
+            'avaliado_id': request.args.get('avaliado_id', type=int),
+            'questionario_id': request.args.get('questionario_id', type=int),
+            'grupo_id': request.args.get('grupo_id', type=int),
+            'periodo': request.args.get('periodo', '30')
         }
     )
 
@@ -140,20 +88,31 @@ def api_dashboard_data():
     try:
         data_inicio = request.args.get('data_inicio')
         data_fim = request.args.get('data_fim')
+        periodo = request.args.get('periodo', '30')
+        mes_filtro = request.args.get('mes', '')
         avaliado_id = request.args.get('avaliado_id', type=int)  
         questionario_id = request.args.get('questionario_id', type=int)
         grupo_id = request.args.get('grupo_id', type=int) 
-        mes_filtro = request.args.get('mes', '')
 
-        if data_inicio: data_inicio = datetime.fromisoformat(data_inicio)
-        else: data_inicio = datetime.now() - timedelta(days=30)
-
-        if data_fim: data_fim = datetime.fromisoformat(data_fim)
-        else: data_fim = datetime.now()
+        agora = datetime.now()
+        if not data_fim: data_fim = agora
+        
+        if not data_inicio and not mes_filtro:
+            if periodo == '7': data_inicio = agora - timedelta(days=7)
+            elif periodo == '90': data_inicio = agora - timedelta(days=90)
+            elif periodo == '365': data_inicio = agora - timedelta(days=365)
+            else: data_inicio = agora - timedelta(days=30)
 
         query = AplicacaoQuestionario.query.join(Avaliado).filter(
             Avaliado.cliente_id == current_user.cliente_id,
             AplicacaoQuestionario.status == StatusAplicacao.FINALIZADA
+        )
+
+        # 1. Carrega apenas os relacionamentos diretos (O selectinload foi removido daqui)
+        query = query.options(
+            joinedload(AplicacaoQuestionario.avaliado),
+            joinedload(AplicacaoQuestionario.questionario),
+            joinedload(AplicacaoQuestionario.aplicador)
         )
 
         if mes_filtro:
@@ -172,17 +131,43 @@ def api_dashboard_data():
         if grupo_id: query = query.filter(Avaliado.grupo_id == grupo_id)
 
         aplicacoes = query.all()
+        aplicacao_ids = [app.id for app in aplicacoes]
+
+        # 🚀 SOLUÇÃO DO GARGALO COM POSTGRESQL: Busca TODAS as respostas em lote
+        if aplicacao_ids:
+            todas_respostas = RespostaPergunta.query.options(
+                joinedload(RespostaPergunta.pergunta).joinedload(Pergunta.topico)
+            ).filter(RespostaPergunta.aplicacao_id.in_(aplicacao_ids)).all()
+            
+            respostas_agrupadas = {app_id: [] for app_id in aplicacao_ids}
+            for resp in todas_respostas:
+                respostas_agrupadas[resp.aplicacao_id].append(resp)
+                
+            for app in aplicacoes:
+                app._respostas_carregadas = respostas_agrupadas.get(app.id, [])
+        else:
+            for app in aplicacoes:
+                app._respostas_carregadas = []
+
+        # Calcula a pontuação com os dados que já vieram da memória (super rápido)
+        from ..utils.pontuacao import calcular_pontuacao_auditoria
+        for app in aplicacoes:
+            app._cache_resultado = calcular_pontuacao_auditoria(app)
 
         data = {
             'metricas': calcular_metricas_dashboard(aplicacoes),
             'evolucao': gerar_grafico_evolucao_mensal(aplicacoes), 
-            'evolucao_topicos': gerar_grafico_evolucao_topicos(aplicacoes), # <-- NOVO
+            'evolucao_topicos': gerar_grafico_evolucao_topicos(aplicacoes),
             'topicos': gerar_grafico_topicos(aplicacoes),          
             'por_avaliado': gerar_grafico_avaliados(aplicacoes),  
-            'distribuicao': gerar_grafico_distribuicao(aplicacoes)
+            'distribuicao': gerar_grafico_distribuicao(aplicacoes),
+            'questionarios': gerar_grafico_questionarios(aplicacoes),
+            'ranking_avaliados': gerar_ranking_avaliados(aplicacoes),
+            'top_nao_conformidades': gerar_top_nao_conformidades(aplicacoes)
         }
         return jsonify(data)
     except Exception as e:
+        print("ERRO NO DASHBOARD:", str(e))
         return jsonify({'error': str(e)}), 500
 
 @panorama_bp.route('/api/export-data')
@@ -320,12 +305,19 @@ def gerar_ranking_avaliados(aplicacoes):
 def gerar_top_nao_conformidades(aplicacoes):
     if not aplicacoes: return []
     nao_conformidades = {}
+    
     for aplicacao in aplicacoes:
-        for resposta in aplicacao.respostas:
-            if resposta.resposta and 'não' in resposta.resposta.lower():
+        # Usa a lista pré-carregada na memória ao invés de bater no banco de dados (evita Lazy Load)
+        lista_respostas = getattr(aplicacao, '_respostas_carregadas', [])
+        
+        for resposta in lista_respostas:
+            # Segurança extra para garantir que a resposta existe e é uma string antes do .lower()
+            if resposta.resposta and 'não' in str(resposta.resposta).lower():
                 pergunta_texto = resposta.pergunta.texto
-                if pergunta_texto not in nao_conformidades: nao_conformidades[pergunta_texto] = 0
+                if pergunta_texto not in nao_conformidades: 
+                    nao_conformidades[pergunta_texto] = 0
                 nao_conformidades[pergunta_texto] += 1
+                
     top_ncs = sorted(nao_conformidades.items(), key=lambda x: x[1], reverse=True)[:10]
     return [{'pergunta': pergunta, 'frequencia': freq} for pergunta, freq in top_ncs]
 
@@ -334,7 +326,7 @@ def gerar_top_nao_conformidades(aplicacoes):
 def gerar_grafico_topicos(aplicacoes):
     """Gera notas de 0 a 10 por tópico, cada um sendo um Dataset para gerar a legenda de cor"""
     if not aplicacoes:
-        return {'labels': [''], 'datasets': []} # Label vazia para ocultar o Eixo X
+        return {'labels': [''], 'datasets': []}
 
     from ..utils.pontuacao import calcular_pontuacao_auditoria
     from ..models import Topico 
@@ -343,7 +335,6 @@ def gerar_grafico_topicos(aplicacoes):
     for app in aplicacoes:
         resultado = getattr(app, '_cache_resultado', calcular_pontuacao_auditoria(app)) 
         if not resultado or not resultado.get('detalhes_blocos'): continue
-        
             
         for bloco, detalhes in resultado['detalhes_blocos'].items():
             if bloco not in dados_topicos:
@@ -351,7 +342,6 @@ def gerar_grafico_topicos(aplicacoes):
             dados_topicos[bloco]['obtido'] += detalhes['pontuacao_obtida']
             dados_topicos[bloco]['maximo'] += detalhes['pontuacao_maxima']
 
-    # ORDENAÇÃO OFICIAL DO BANCO DE DADOS
     topicos_banco = Topico.query.order_by(Topico.id).all()
     ordem_oficial_nomes = [t.nome for t in topicos_banco]
 
@@ -364,12 +354,9 @@ def gerar_grafico_topicos(aplicacoes):
         if bloco not in topicos_ordenados:
             topicos_ordenados.append(bloco)
 
-    # PALETA DE CORES PARA OS TÓPICOS
     cores_paleta = ['#4e73df', '#1cc88a', '#f6c23e', '#e74a3b', '#36b9cc', '#858796', '#fd7e14', '#20c9a6', '#6610f2', '#e83e8c']
     
     datasets = []
-    
-    # Cada tópico vira um "dataset" individual. Assim o gráfico cria a legenda colorida!
     for i, topico in enumerate(topicos_ordenados):
         totais = dados_topicos[topico]
         if totais['maximo'] > 0:
@@ -377,15 +364,15 @@ def gerar_grafico_topicos(aplicacoes):
             nota_arredondada = round(nota, 1)
             
             datasets.append({
-                'label': topico, # O nome vai para a legenda
-                'data': [nota_arredondada], # O valor cria a barra
+                'label': topico, 
+                'data': [nota_arredondada], 
                 'backgroundColor': cores_paleta[i % len(cores_paleta)],
                 'borderColor': cores_paleta[i % len(cores_paleta)],
                 'borderWidth': 1
             })
 
-    # Enviamos "labels: ['']" para agrupar todas as barras no mesmo lugar
     return {'labels': [''], 'datasets': datasets}
+
 def gerar_grafico_evolucao_mensal(aplicacoes):
     if not aplicacoes: return {'labels': [], 'datasets': []}
     meses = {1: 'Jan', 2: 'Fev', 3: 'Mar', 4: 'Abr', 5: 'Mai', 6: 'Jun', 7: 'Jul', 8: 'Ago', 9: 'Set', 10: 'Out', 11: 'Nov', 12: 'Dez'}
@@ -412,27 +399,19 @@ def gerar_grafico_evolucao_mensal(aplicacoes):
 
     return {'labels': labels, 'datasets': [{'label': 'Nota Média Mensal (0 a 10)', 'data': valores, 'backgroundColor': '#007bff'}]}
 
-# --- NOVA FUNÇÃO: EVOLUÇÃO MENSAL POR TÓPICO ---
-# --- NOVA FUNÇÃO: EVOLUÇÃO MENSAL SEPARADA POR TÓPICO ---
 def gerar_grafico_evolucao_topicos(aplicacoes):
-    """
-    Gera uma LISTA de gráficos, um para cada Tópico.
-    O eixo X são os Meses e o eixo Y são as Notas (0-10).
-    """
-    if not aplicacoes:
-        return []
+    if not aplicacoes: return []
 
     from ..utils.pontuacao import calcular_pontuacao_auditoria
     from ..models import Topico
 
     meses = {1: 'Jan', 2: 'Fev', 3: 'Mar', 4: 'Abr', 5: 'Mai', 6: 'Jun', 7: 'Jul', 8: 'Ago', 9: 'Set', 10: 'Out', 11: 'Nov', 12: 'Dez'}
     
-    # Estrutura base: { 'Infraestrutura': { 'Jan/2026': [notas...], 'Fev/2026': [notas...] } }
     dados_por_topico = {}
     meses_encontrados = set()
 
     for app in aplicacoes:
-        chave_mes = app.data_inicio.strftime('%Y-%m') # Usado para ordenar
+        chave_mes = app.data_inicio.strftime('%Y-%m')
         mes_numero = int(app.data_inicio.strftime('%m'))
         ano = app.data_inicio.strftime('%Y')
         label_mes = f"{meses[mes_numero]}/{ano}"
@@ -440,8 +419,7 @@ def gerar_grafico_evolucao_topicos(aplicacoes):
         meses_encontrados.add((chave_mes, label_mes))
 
         resultado = getattr(app, '_cache_resultado', calcular_pontuacao_auditoria(app)) 
-        if not resultado or not resultado.get('detalhes_blocos'):
-            continue
+        if not resultado or not resultado.get('detalhes_blocos'): continue
             
         for bloco, detalhes in resultado['detalhes_blocos'].items():
             if detalhes['pontuacao_maxima'] > 0:
@@ -452,7 +430,6 @@ def gerar_grafico_evolucao_topicos(aplicacoes):
                     dados_por_topico[bloco][label_mes] = []
                 dados_por_topico[bloco][label_mes].append(nota)
 
-    # Ordenar Tópicos
     topicos_banco = Topico.query.order_by(Topico.id).all()
     ordem_oficial = [t.nome for t in topicos_banco]
     topicos_ordenados = [t for t in ordem_oficial if t in dados_por_topico]
@@ -460,15 +437,12 @@ def gerar_grafico_evolucao_topicos(aplicacoes):
         if t not in topicos_ordenados:
             topicos_ordenados.append(t)
 
-    # Ordenar Meses
     meses_ordenados_tuples = sorted(list(meses_encontrados), key=lambda x: x[0])
     labels_meses = [m[1] for m in meses_ordenados_tuples]
 
     cores_paleta = ['#4e73df', '#1cc88a', '#f6c23e', '#e74a3b', '#36b9cc', '#858796', '#fd7e14', '#20c9a6', '#6610f2', '#e83e8c']
-    
     lista_graficos_separados = []
     
-    # Criar um objeto de gráfico COMPLETO para CADA tópico
     for i, topico in enumerate(topicos_ordenados):
         valores_topico = []
         for label_mes in labels_meses:
@@ -477,17 +451,17 @@ def gerar_grafico_evolucao_topicos(aplicacoes):
                 media = sum(notas) / len(notas)
                 valores_topico.append(round(media, 1))
             else:
-                valores_topico.append(None) # Omitir barra se não houver nota no mês
+                valores_topico.append(None) 
         
         lista_graficos_separados.append({
-            'titulo': topico, # Nome do tópico para usar no título do card
-            'id': f"chartEvolucaoTopico_{i}", # ID único para o canvas no HTML
-            'cor': cores_paleta[i % len(cores_paleta)], # Cor única para o tópico
+            'titulo': topico, 
+            'id': f"chartEvolucaoTopico_{i}", 
+            'cor': cores_paleta[i % len(cores_paleta)], 
             'dados': {
-                'labels': labels_meses, # Eixo X são os meses
+                'labels': labels_meses, 
                 'datasets': [{
                     'label': 'Nota',
-                    'data': valores_topico, # Eixo Y são as notas
+                    'data': valores_topico, 
                     'backgroundColor': cores_paleta[i % len(cores_paleta)],
                     'borderColor': cores_paleta[i % len(cores_paleta)],
                     'borderWidth': 1
@@ -496,9 +470,6 @@ def gerar_grafico_evolucao_topicos(aplicacoes):
         })
 
     return lista_graficos_separados
-
-
-# ... Resto das rotas (Pareto, Comparativo, etc) permanecem rigorosamente idênticas ...
 
 @panorama_bp.route('/api/indicadores/comparativo')
 @login_required
