@@ -65,6 +65,10 @@ def dashboard():
     if grupo_id: query = query.filter(Avaliado.grupo_id == grupo_id)
 
     aplicacoes = query.all()
+    from ..utils.pontuacao import calcular_pontuacao_auditoria
+    for app in aplicacoes:
+        # Calcula a pontuação 1 única vez e salva "escondido" no objeto app
+        app._cache_resultado = calcular_pontuacao_auditoria(app)
     metricas = calcular_metricas_dashboard(aplicacoes)
 
     # DICIONÁRIO ATUALIZADO COM O NOVO GRÁFICO
@@ -337,8 +341,9 @@ def gerar_grafico_topicos(aplicacoes):
     
     dados_topicos = {}
     for app in aplicacoes:
-        resultado = calcular_pontuacao_auditoria(app)
+        resultado = getattr(app, '_cache_resultado', calcular_pontuacao_auditoria(app)) 
         if not resultado or not resultado.get('detalhes_blocos'): continue
+        
             
         for bloco, detalhes in resultado['detalhes_blocos'].items():
             if bloco not in dados_topicos:
@@ -434,7 +439,7 @@ def gerar_grafico_evolucao_topicos(aplicacoes):
         
         meses_encontrados.add((chave_mes, label_mes))
 
-        resultado = calcular_pontuacao_auditoria(app)
+        resultado = getattr(app, '_cache_resultado', calcular_pontuacao_auditoria(app)) 
         if not resultado or not resultado.get('detalhes_blocos'):
             continue
             
