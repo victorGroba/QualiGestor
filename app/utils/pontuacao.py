@@ -9,8 +9,8 @@ import json
 from datetime import datetime
 from sqlalchemy import desc
 
-# Importa os modelos ATUAIS (Obrigatórios)
-from app.models import AplicacaoQuestionario, RespostaPergunta, Pergunta, OpcaoPergunta
+# Importa os modelos ATUAIS (Obrigatórios) - IMPORTAÇÃO CORRIGIDA PARA A VPS (..)
+from ..models import AplicacaoQuestionario, RespostaPergunta, Pergunta, OpcaoPergunta
 
 # Tenta importar modelos LEGADOS (Opcionais) para manter compatibilidade se existirem
 try:
@@ -26,30 +26,30 @@ except ImportError:
 def calcular_pontuacao_auditoria(auditoria):
     """
     Calcula a pontuação de uma auditoria (AplicacaoQuestionario) baseado nas respostas.
-    
+
     Lógica de Cálculo:
       - SIM / Conforme: Ganha os pontos do peso (100%).
       - NÃO / Não Conforme: Ganha 0 pontos, mas conta na base (reduz a nota).
       - N/A (Não se Aplica): NÃO conta na base (reduz a pontuação máxima possível).
-    
+
     Args:
         auditoria: Objeto AplicacaoQuestionario (ou Auditoria legado)
-    
+
     Returns:
         dict: Dicionário com pontuação obtida, máxima, percentual e detalhes.
     """
-    
+
     if not auditoria:
         return None
-    
+
     pontuacao_obtida = 0
     pontuacao_maxima = 0
     detalhes_blocos = {}
     perguntas_nc = []
-    
+
     # 1. Busca as respostas baseada no tipo de objeto (Novo ou Antigo)
     respostas = []
-    
+
     # Verifica se é o modelo novo (AplicacaoQuestionario)
     if hasattr(auditoria, 'data_inicio'):
         respostas = RespostaPergunta.query.filter_by(aplicacao_id=auditoria.id).all()
@@ -57,7 +57,7 @@ def calcular_pontuacao_auditoria(auditoria):
     elif Auditoria and isinstance(auditoria, Auditoria):
         if Resposta:
             respostas = Resposta.query.filter_by(auditoria_id=auditoria.id).all()
-            
+
     # Se não houver respostas, retorna estrutura zerada
     if not respostas:
         return {
@@ -68,41 +68,41 @@ def calcular_pontuacao_auditoria(auditoria):
 
     for resposta in respostas:
         pergunta = resposta.pergunta
-        
+
         # Ignora perguntas sem peso ou Títulos
         if not pergunta.peso or pergunta.peso == 0:
             continue
         if str(pergunta.tipo).upper() == "TITULO":
             continue
-        
+
         # --- LÓGICA DE N/A (Ajuste Solicitado) ---
         valor = obter_valor_resposta(resposta)
         lista_na = ['N/A', 'NA', 'N.A.', 'NÃO SE APLICA', 'NAO SE APLICA']
-        
+
         # Se for N/A, ignora totalmente (não soma no máximo, nem no obtido)
         # Isso faz com que a "base 100%" seja reduzida para as perguntas restantes.
         if valor and str(valor).upper().strip() in lista_na:
             continue
-            
+
         # Se é resposta válida (Sim ou Não), o peso entra na base de cálculo
         peso_pergunta = float(pergunta.peso)
         pontuacao_maxima += peso_pergunta
-        
+
         # Identificar Bloco/Tópico para estatísticas
         bloco_nome = pergunta.topico.nome if pergunta.topico else "Geral"
-        
+
         if bloco_nome not in detalhes_blocos:
             detalhes_blocos[bloco_nome] = {
                 'pontuacao_obtida': 0, 'pontuacao_maxima': 0,
                 'perguntas_total': 0, 'perguntas_conformes': 0
             }
-        
+
         detalhes_blocos[bloco_nome]['pontuacao_maxima'] += peso_pergunta
         detalhes_blocos[bloco_nome]['perguntas_total'] += 1
-        
+
         # Calcular Pontos da Resposta
         pontos_item = calcular_pontos_resposta(resposta, pergunta)
-        
+
         if pontos_item > 0:
             pontuacao_obtida += pontos_item
             detalhes_blocos[bloco_nome]['pontuacao_obtida'] += pontos_item
@@ -111,15 +111,15 @@ def calcular_pontuacao_auditoria(auditoria):
             # Se pontuou 0, verificamos se é uma Não Conformidade (NC)
             lista_negativa = ['NÃO', 'NAO', 'NO', 'IRREGULAR', 'RUIM', 'REPROVADO']
             val_upper = str(valor).upper().strip()
-            
+
             # É NC se tiver a flag no banco OU se o texto for explicitamente negativo
             eh_nc = getattr(resposta, 'nao_conforme', False) or (val_upper in lista_negativa)
-            
+
             if eh_nc:
                 tipo_nc = 'menor'
                 if pergunta.peso >= 15: tipo_nc = 'critica'
                 elif pergunta.peso >= 10: tipo_nc = 'maior'
-                    
+
                 perguntas_nc.append({
                     'id': pergunta.id,
                     'texto': pergunta.texto,
@@ -127,25 +127,25 @@ def calcular_pontuacao_auditoria(auditoria):
                     'peso': pergunta.peso,
                     'resposta': valor
                 })
-    
+
     # Cálculo Final do Percentual
     percentual = 0
     if pontuacao_maxima > 0:
         percentual = (pontuacao_obtida / pontuacao_maxima) * 100
-    
+
     # Determinação do Status
     if percentual >= 90: status, cor = "Excelente", "success"
     elif percentual >= 75: status, cor = "Bom", "info"
     elif percentual >= 60: status, cor = "Regular", "warning"
     else: status, cor = "Insatisfatório", "danger"
-    
+
     # Percentuais por bloco
     for bloco in detalhes_blocos.values():
         if bloco['pontuacao_maxima'] > 0:
             bloco['percentual'] = (bloco['pontuacao_obtida'] / bloco['pontuacao_maxima']) * 100
         else:
             bloco['percentual'] = 0
-            
+
     return {
         'pontuacao_obtida': round(pontuacao_obtida, 2),
         'pontuacao_maxima': round(pontuacao_maxima, 2),
@@ -161,18 +161,18 @@ def calcular_pontos_resposta(resposta, pergunta):
     """Calcula pontuação de uma resposta única (Helper)"""
     peso = float(pergunta.peso) if pergunta.peso else 0
     valor = obter_valor_resposta(resposta)
-    
+
     if not valor:
         return 0
-        
+
     val_upper = str(valor).upper().strip()
     tipo_upper = str(pergunta.tipo).upper()
-    
+
     # 1. Sim/Não: SIM = Peso Total, NÃO = 0
     if any(x in tipo_upper for x in ["SIM", "BOOLEAN"]):
         if val_upper == "SIM": return peso
         return 0
-        
+
     # 2. Nota/Escala: Proporcional (Nota/10 * Peso)
     elif any(x in tipo_upper for x in ["NOTA", "ESCALA", "NUMERICA"]):
         val_num = obter_valor_numerico(resposta)
@@ -181,7 +181,7 @@ def calcular_pontos_resposta(resposta, pergunta):
             if val_num < 0: val_num = 0
             return (val_num / 10.0) * peso
         return 0
-        
+
     # 3. Múltipla Escolha: Valor da opção ou Peso total
     elif "ESCOLHA" in tipo_upper:
         # Tenta pegar valor específico da opção
@@ -190,11 +190,11 @@ def calcular_pontos_resposta(resposta, pergunta):
             return float(opcao.valor) * peso
         # Se não tiver valor específico, assume que resposta preenchida vale o peso
         return peso if valor else 0
-        
+
     # 4. Texto: Se preenchido ganha ponto (informativo obrigatório)
     elif valor:
         return peso
-        
+
     return 0
 
 def obter_valor_resposta(resposta):
@@ -226,15 +226,15 @@ def gerar_relatorio_pontuacao(auditoria):
     """
     resultado = calcular_pontuacao_auditoria(auditoria)
     if not resultado: return None
-    
+
     resultado['auditoria_id'] = auditoria.id
-    
+
     # Preenche dados de cabeçalho (Compatível com Novo e Antigo)
     if hasattr(auditoria, 'data_inicio'): # Novo
         resultado['data'] = auditoria.data_inicio.strftime('%d/%m/%Y %H:%M') if auditoria.data_inicio else ''
         resultado['usuario'] = auditoria.aplicador.nome if auditoria.aplicador else 'Sistema'
         resultado['formulario'] = auditoria.questionario.nome if auditoria.questionario else ''
-        
+
         # --- Cálculo de Tendência (Novo Modelo) ---
         if auditoria.avaliado_id and auditoria.questionario_id:
             anteriores = AplicacaoQuestionario.query.filter(
@@ -243,13 +243,13 @@ def gerar_relatorio_pontuacao(auditoria):
                 AplicacaoQuestionario.id < auditoria.id,
                 AplicacaoQuestionario.status == 'FINALIZADA'
             ).order_by(desc(AplicacaoQuestionario.id)).limit(3).all()
-            
+
             if anteriores:
                 notas = [a.nota_final for a in anteriores if a.nota_final is not None]
                 if notas:
                     media = sum(notas) / len(notas)
                     diff = resultado['percentual'] - media
-                    
+
                     if diff > 5:
                         resultado['tendencia'] = 'melhora'
                         resultado['tendencia_icon'] = 'fa-arrow-up'
@@ -262,25 +262,25 @@ def gerar_relatorio_pontuacao(auditoria):
                         resultado['tendencia'] = 'estavel'
                         resultado['tendencia_icon'] = 'fa-minus'
                         resultado['tendencia_cor'] = 'warning'
-                    
+
                     resultado['diferenca_percentual'] = round(diff, 2)
 
     elif hasattr(auditoria, 'data'): # Antigo
         resultado['data'] = auditoria.data.strftime('%d/%m/%Y %H:%M') if auditoria.data else ''
         resultado['usuario'] = auditoria.usuario.nome if hasattr(auditoria,'usuario') and auditoria.usuario else ''
         resultado['formulario'] = auditoria.formulario.nome if hasattr(auditoria,'formulario') and auditoria.formulario else ''
-        
+
     return resultado
 
 def exportar_pontuacao_csv(auditorias):
     """Exporta CSV com as pontuações (Compatível com ambos os modelos)"""
     import csv
     from io import StringIO
-    
+
     output = StringIO()
     writer = csv.writer(output)
     writer.writerow(['ID', 'Data', 'Questionário', 'Avaliado', 'Usuário', 'Pontos', 'Máximo', '%', 'Status'])
-    
+
     for aud in auditorias:
         res = calcular_pontuacao_auditoria(aud)
         if res:
@@ -296,11 +296,11 @@ def exportar_pontuacao_csv(auditorias):
                 d_quest = aud.formulario.nome if hasattr(aud,'formulario') and aud.formulario else ''
                 d_aval = aud.avaliado.nome if hasattr(aud,'avaliado') and aud.avaliado else ''
                 d_user = aud.usuario.nome if hasattr(aud,'usuario') and aud.usuario else ''
-                
+
             writer.writerow([
                 d_id, d_data, d_quest, d_aval, d_user,
                 res['pontuacao_obtida'], res['pontuacao_maxima'],
                 f"{res['percentual']}%", res['status']
             ])
-            
+
     return output.getvalue()

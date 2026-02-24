@@ -17,7 +17,7 @@ from ..utils import (
 
 # Importa Modelos
 from ...models import (
-    db, Usuario, Avaliado, Questionario, AplicacaoQuestionario
+    db, Usuario, Avaliado, Questionario, AplicacaoQuestionario, StatusAplicacao
 )
 
 # ===================== DASHBOARD (HOME) =====================
@@ -69,9 +69,9 @@ def index():
             stats['media_nota_mes'] = round(float(media or 0), 1)
 
             # Aplicações em Andamento
-            stats['aplicacoes_pendentes'] = AplicacaoQuestionario.query.join(Avaliado).filter(
+           stats['aplicacoes_pendentes'] = AplicacaoQuestionario.query.join(Avaliado).filter(
                 Avaliado.cliente_id == current_user.cliente_id,
-                AplicacaoQuestionario.status == 'em_andamento'
+                AplicacaoQuestionario.status == StatusAplicacao.EM_ANDAMENTO
             ).count()
 
             # Tabelas
