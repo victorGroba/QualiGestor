@@ -2,283 +2,152 @@
 <html lang="pt-br">
 
 <head>
-   
   <meta charset="UTF-8">
-    <title>{% block title %}Painel - QualiGestor{% endblock %}</title>
-   
+  <title>{% block title %}Painel - QualiGestor{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-     
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-   
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-     
   <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
-   
-  <style>
-    /* Adiciona a fonte que usamos no outro layout */
-    body,
-    .nav-link {
-      font-family: 'Poppins', sans-serif;
-    }
 
-    /* Botão flutuante */
-    #sidebarToggle_float {
-      position: fixed;
-      top: 15px;
-      left: 15px;
-      z-index: 1050;
-      background-color: #ffffff;
-      border: none;
-      border-radius: 50%;
-      width: 50px;
-      height: 50px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.3s ease;
-    }
-
-    #sidebarToggle_float:hover {
-      background-color: #f8f9fa;
-      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
-      transform: translateY(-2px);
-    }
-
-    #sidebarToggle_float:focus {
-      outline: none;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12), 0 0 0 3px rgba(13, 110, 253, 0.25);
-    }
-
-    #sidebarToggle_float i {
-      transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
-      position: absolute;
-    }
-
-    #sidebarToggle_float .icon-close {
-      opacity: 0;
-      transform: scale(0.8) rotate(-90deg);
-    }
-
-    #sidebarToggle_float.is-active .icon-open {
-      opacity: 0;
-      transform: scale(0.8) rotate(90deg);
-    }
-
-    #sidebarToggle_float.is-active .icon-close {
-      opacity: 1;
-      transform: scale(1) rotate(0deg);
-    }
-
-    /* Overlay */
-    .sidebar-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-color: rgba(0, 0, 0, 0.5);
-      z-index: 1030;
-      opacity: 0;
-      visibility: hidden;
-      transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
-    }
-
-    #sidebar.show~.sidebar-overlay {
-      opacity: 1;
-      visibility: visible;
-    }
-
-    /* ==== CSS MOBILE (Sobrescreve o dashboard.css) ==== */
-    @media (max-width: 768px) {
-
-      /* 1. Sobrescreve o header para dar espaço ao botão */
-      nav.navbar {
-        padding-left: 70px !important;
-        left: 0 !important;
-      }
-
-      /* 2. Sobrescreve o conteúdo para ocupar 100% */
-      #page-content-wrapper {
-        margin-left: 0 !important;
-        width: 100% !important;
-        padding-left: 15px;
-        /* Adiciona um respiro */
-        padding-right: 15px;
-      }
-
-      /* 3. Sobrescreve a sidebar para virar "mini-janela" */
-      #sidebar {
-        width: 300px !important;
-        min-width: 300px !important;
-        transform: translateX(calc(-100% - 15px)) !important;
-        z-index: 1040;
-        top: 60px !important;
-        /* Posição abaixo do header */
-        left: 15px !important;
-        bottom: auto !important;
-        max-height: calc(100vh - 80px);
-        border-right: none !important;
-        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
-        border-radius: 12px;
-        transition: transform 0.3s ease-in-out !important;
-      }
-
-      /* 4. Classe .show (do JS) faz o menu aparecer */
-      #sidebar.show {
-        transform: translateX(0) !important;
-      }
-
-      /* 5. Garante que os textos não quebrem a linha */
-      #sidebar .nav-link {
-        white-space: nowrap;
-      }
-    }
-
-    /* ==== FIM CSS MOBILE ==== */
-  </style>
-
-    {% block head %}{% endblock %}
+  {% block head %}{% endblock %}
 </head>
 
 <body>
+  <div id="wrapper">
+    <!-- OVERLAY MOBILE -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-  <button class="btn d-md-none" type="button" id="sidebarToggle_float">
-    <i class="fas fa-bars fs-5 icon-open"></i>
-    <i class="fas fa-times fs-5 icon-close"></i>
-  </button>
-    <div id="wrapper">
-      <div id="sidebar" class="bg-white border-end">
-      <div class="p-3 d-flex justify-content-between align-items-center border-bottom">
-        <img src="{{ url_for('static', filename='img/logo.jpg') }}" alt="Logo" style="width: 160px; height: auto;">
+    <div id="sidebar" class="bg-white">
+      <div class="sidebar-header">
+        <img src="{{ url_for('static', filename='img/logo.jpg') }}" alt="Logo">
+        <button class="sidebar-toggle-btn" id="sidebarClose" title="Recolher menu">
+          <i class="fas fa-times"></i>
+        </button>
       </div>
 
-            <ul class="nav flex-column px-3 pt-3 h-100">
-                        <li class="nav-item">
-                    <a class="nav-link {% if 'cli.' in request.endpoint %}active{% endif %}"            
-            href="{{ url_for('cli.index') }}">
-                        <i class="fas fa-clipboard-check me-2"></i> CLIQ
-                      </a>
-                  </li>
+      <ul class="nav flex-column px-2 pt-3 h-100">
+        <li class="nav-item">
+          <a class="nav-link {% if 'cli.' in request.endpoint %}active{% endif %}" href="{{ url_for('cli.index') }}">
+            <i class="fas fa-clipboard-check"></i> CLIQ
+          </a>
+        </li>
 
-                        <li class="nav-item">
-                    <a class="nav-link {% if 'panorama.' in request.endpoint %}active{% endif %}"            
+        <li class="nav-item">
+          <a class="nav-link {% if 'panorama.' in request.endpoint %}active{% endif %}"
             href="{{ url_for('panorama.index') }}">
-                        <i class="fas fa-chart-bar me-2"></i> Panorama
-                      </a>
-                  </li>
+            <i class="fas fa-chart-bar"></i> Panorama
+          </a>
+        </li>
 
-                {% if current_user.tipo.name in ['SUPER_ADMIN', 'ADMIN'] %}
-                        <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint == 'auth.cadastrar_usuario' %}active{% endif %}"          
-              href="{{ url_for('auth.cadastrar_usuario') }}">
-                        <i class="fas fa-user-plus me-2"></i> Cadastrar Usuário
-                      </a>
-                  </li>
+        {% if current_user.tipo.name in ['SUPER_ADMIN', 'ADMIN'] %}
+        <li class="nav-item">
+          <a class="nav-link {% if request.endpoint == 'auth.cadastrar_usuario' %}active{% endif %}"
+            href="{{ url_for('auth.cadastrar_usuario') }}">
+            <i class="fas fa-user-plus"></i> Cadastrar Usuário
+          </a>
+        </li>
 
-                <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint == 'auth.listar_usuarios' %}active{% endif %}"            
+        <li class="nav-item">
+          <a class="nav-link {% if request.endpoint == 'auth.listar_usuarios' %}active{% endif %}"
             href="{{ url_for('auth.listar_usuarios') }}">
-                        <i class="fas fa-users me-2"></i> Usuários
-                      </a>
-                  </li>
-                {% endif %}
+            <i class="fas fa-users"></i> Usuários
+          </a>
+        </li>
+        {% endif %}
 
-                        <li class="nav-item mt-auto">
-                    <a class="nav-link text-danger" href="{{ url_for('auth.logout') }}">
-                        <i class="fas fa-sign-out-alt me-2"></i> Sair
-                      </a>
-                  </li>
-              </ul>
-
-         
+        <li class="nav-item mt-auto">
+          <a class="nav-link text-danger" href="{{ url_for('auth.logout') }}">
+            <i class="fas fa-sign-out-alt"></i> Sair
+          </a>
+        </li>
+      </ul>
     </div>
 
-    <div class="sidebar-overlay d-md-none" id="sidebarOverlay"></div>
+    <div id="page-content-wrapper">
+      <nav class="navbar navbar-light top-navbar d-flex justify-content-between">
+        <button class="sidebar-toggle-btn" id="sidebarToggle" title="Abrir/fechar menu">
+          <i class="fas fa-bars"></i>
+        </button>
+        <span class="navbar-text fw-medium" style="font-size: 0.9rem;">
+          <i class="fas fa-user-circle me-1 text-muted"></i>
+          {{ session.get('nome', 'Usuário') }}
+        </span>
+      </nav>
 
-            <div id="page-content-wrapper" class="w-100">
-            <nav class="navbar navbar-light bg-light d-flex justify-content-between px-3 border-bottom">
-                <span></span>         <span class="navbar-text">
-                    {{ session.get('nome', 'Usuário') }}
-                  </span>
-              </nav>
+      <main class="container-fluid p-4 mt-2">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="container mt-3">
+          {% for category, message in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
 
-            <main class="container-fluid mt-4">
-                {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                <div class="container mt-3">
-                    {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
-                      </div>
-                    {% endfor %}
-                  </div>
-                {% endif %}
-                {% endwith %}
-
-                {% block content %}{% endblock %}
-              </main>
-          </div>
-     
+        {% block content %}{% endblock %}
+      </main>
+    </div>
   </div>
 
-     
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-   
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const sidebar = document.getElementById('sidebar');
-      const sidebarToggle = document.getElementById('sidebarToggle_float'); // Nosso novo botão
-      const sidebarOverlay = document.getElementById('sidebarOverlay');
 
-      function closeSidebar() {
-        if (sidebar && sidebar.classList.contains('show')) {
-          sidebar.classList.remove('show');
-          if (sidebarToggle) {
-            sidebarToggle.classList.remove('is-active');
-          }
-        }
-      }
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const sidebar = document.getElementById("sidebar");
+      const toggleBtn = document.getElementById("sidebarToggle");
+      const closeBtn = document.getElementById("sidebarClose");
+      const overlay = document.getElementById("sidebarOverlay");
+      const isMobile = () => window.innerWidth <= 992;
 
       function toggleSidebar() {
-        if (sidebar) {
-          sidebar.classList.toggle('show');
-          if (sidebarToggle) {
-            sidebarToggle.classList.toggle('is-active');
-          }
+        if (isMobile()) {
+          sidebar.classList.toggle("mobile-open");
+          overlay.classList.toggle("active");
+        } else {
+          sidebar.classList.toggle("collapsed");
         }
       }
 
-      if (sidebarToggle) {
-        sidebarToggle.addEventListener('click', toggleSidebar);
+      function closeSidebar() {
+        sidebar.classList.remove("mobile-open");
+        sidebar.classList.add("collapsed");
+        overlay.classList.remove("active");
       }
 
-      if (sidebarOverlay) {
-        sidebarOverlay.addEventListener('click', closeSidebar);
+      if (toggleBtn) toggleBtn.addEventListener("click", toggleSidebar);
+      if (closeBtn) closeBtn.addEventListener("click", closeSidebar);
+      if (overlay) overlay.addEventListener("click", () => {
+        sidebar.classList.remove("mobile-open");
+        overlay.classList.remove("active");
+      });
+
+      const sidebarState = localStorage.getItem("sidebarCollapsed");
+      if (sidebarState === "true" && !isMobile()) {
+        sidebar.classList.add("collapsed");
       }
 
-      if (sidebar) {
-        sidebar.addEventListener('click', (e) => {
-          // Fecha a mini-janela se clicar em um link
-          if (e.target.matches('a.nav-link') || e.target.closest('a.nav-link')) {
-            if (window.innerWidth <= 768) {
-              closeSidebar();
-            }
-          }
-        });
-      }
+      const observer = new MutationObserver(() => {
+        if (!isMobile()) {
+          localStorage.setItem("sidebarCollapsed", sidebar.classList.contains("collapsed"));
+        }
+      });
+      observer.observe(sidebar, { attributes: true, attributeFilter: ["class"] });
     });
   </script>
 
-    {% block scripts %}{% endblock %}
+  {% block scripts %}{% endblock %}
 </body>
 
 <footer>
-    <p class="text-muted text-center">Versão {{ versao }}</p>
+  <p class="text-muted text-center">Versão {{ versao }}</p>
 </footer>
 
 </html>

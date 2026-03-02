@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
   <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
-  
+
   <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
   <meta name="theme-color" content="#0d6efd">
 
@@ -18,32 +18,35 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="QualiGestor">
-  
+
   {% block head %}{% endblock %}
 </head>
 
 <body>
   <div id="wrapper">
-    <div id="sidebar" class="bg-white border-end">
-      <div class="p-3 d-flex justify-content-between align-items-center border-bottom">
-        <img src="{{ url_for('static', filename='img/logo.jpg') }}" alt="Logo" style="width: 160px; height: auto;">
-        <button class="btn d-md-none" id="sidebarToggleClose">
+    <!-- OVERLAY MOBILE -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <div id="sidebar" class="bg-white">
+      <div class="sidebar-header">
+        <img src="{{ url_for('static', filename='img/logo.jpg') }}" alt="Logo">
+        <button class="sidebar-toggle-btn" id="sidebarClose" title="Recolher menu">
           <i class="fas fa-times"></i>
         </button>
       </div>
 
-      <ul class="nav flex-column px-3 pt-3">
+      <ul class="nav flex-column px-2 pt-3">
         <li class="nav-item">
           <a class="nav-link {% if request.endpoint == 'cli.index' %}active{% endif %}"
             href="{{ url_for('cli.index') }}">
-            <i class="fas fa-clipboard-check me-2"></i> CLIQ
+            <i class="fas fa-clipboard-check"></i> CLIQ
           </a>
         </li>
 
         <li class="nav-item">
           <a class="nav-link {% if request.endpoint == 'panorama.index' or request.endpoint == 'panorama.listar_auditorias' %}active{% endif %}"
             href="{{ url_for('panorama.index') }}">
-            <i class="fas fa-chart-bar me-2"></i> Panorama
+            <i class="fas fa-chart-bar"></i> Panorama
           </a>
         </li>
 
@@ -51,48 +54,82 @@
         <li class="nav-item">
           <a class="nav-link {% if request.endpoint == 'auth.cadastrar_usuario' %}active{% endif %}"
             href="{{ url_for('auth.cadastrar_usuario') }}">
-            <i class="fas fa-user-plus me-2"></i> Cadastrar Usuário
+            <i class="fas fa-user-plus"></i> Cadastrar Usuário
           </a>
         </li>
         {% endif %}
 
         <li class="nav-item mt-auto">
           <a class="nav-link text-danger" href="{{ url_for('auth.logout') }}">
-            <i class="fas fa-sign-out-alt me-2"></i> Sair
+            <i class="fas fa-sign-out-alt"></i> Sair
           </a>
         </li>
       </ul>
 
     </div>
 
-    <div id="page-content-wrapper" class="w-100">
-      <nav class="navbar navbar-light bg-light d-flex justify-content-between px-3 border-bottom">
-        <button class="btn d-md-none" id="sidebarToggle">
+    <div id="page-content-wrapper">
+      <nav class="navbar navbar-light top-navbar d-flex justify-content-between">
+        <button class="sidebar-toggle-btn" id="sidebarToggle" title="Abrir/fechar menu">
           <i class="fas fa-bars"></i>
         </button>
-        <span class="navbar-text">
+        <span class="navbar-text fw-medium" style="font-size: 0.9rem;">
+          <i class="fas fa-user-circle me-1 text-muted"></i>
           {{ session.get('nome', 'Usuário') }}
         </span>
       </nav>
 
-      <main class="container-fluid mt-4">
+      <main class="container-fluid p-4 mt-2">
         {% block content %}{% endblock %}
       </main>
     </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  
+
   <script>
     document.addEventListener("DOMContentLoaded", function () {
       const sidebar = document.getElementById("sidebar");
-      const openBtn = document.getElementById("sidebarToggle");
-      const closeBtn = document.getElementById("sidebarToggleClose");
+      const toggleBtn = document.getElementById("sidebarToggle");
+      const closeBtn = document.getElementById("sidebarClose");
+      const overlay = document.getElementById("sidebarOverlay");
+      const isMobile = () => window.innerWidth <= 992;
 
-      if (openBtn && closeBtn && sidebar) {
-        openBtn.addEventListener("click", () => sidebar.classList.add("active"));
-        closeBtn.addEventListener("click", () => sidebar.classList.remove("active"));
+      function toggleSidebar() {
+        if (isMobile()) {
+          sidebar.classList.toggle("mobile-open");
+          overlay.classList.toggle("active");
+        } else {
+          sidebar.classList.toggle("collapsed");
+        }
       }
+
+      function closeSidebar() {
+        sidebar.classList.remove("mobile-open");
+        sidebar.classList.add("collapsed");
+        overlay.classList.remove("active");
+      }
+
+      if (toggleBtn) toggleBtn.addEventListener("click", toggleSidebar);
+      if (closeBtn) closeBtn.addEventListener("click", closeSidebar);
+      if (overlay) overlay.addEventListener("click", () => {
+        sidebar.classList.remove("mobile-open");
+        overlay.classList.remove("active");
+      });
+
+      // Salvar preferência no localStorage
+      const sidebarState = localStorage.getItem("sidebarCollapsed");
+      if (sidebarState === "true" && !isMobile()) {
+        sidebar.classList.add("collapsed");
+      }
+
+      // Observer para salvar estado
+      const observer = new MutationObserver(() => {
+        if (!isMobile()) {
+          localStorage.setItem("sidebarCollapsed", sidebar.classList.contains("collapsed"));
+        }
+      });
+      observer.observe(sidebar, { attributes: true, attributeFilter: ["class"] });
     });
   </script>
 
@@ -106,21 +143,24 @@
     }
   </script>
 
-  <div id="ios-install-prompt" class="d-none position-fixed bottom-0 start-0 end-0 bg-white border-top shadow p-3 text-center" style="z-index: 9999;">
+  <div id="ios-install-prompt"
+    class="d-none position-fixed bottom-0 start-0 end-0 bg-white border-top shadow p-3 text-center"
+    style="z-index: 9999;">
     <p class="mb-2 fw-bold text-primary">Instale o App QualiGestor</p>
     <p class="small text-muted mb-3">Para facilitar o acesso, adicione à sua tela de início:</p>
-    
+
     <div class="d-flex justify-content-center align-items-center gap-2 mb-2">
       <span class="small">1. Toque no botão <strong>Compartilhar</strong></span>
       <i class="fas fa-share-from-square fs-5 text-primary"></i>
     </div>
-    
+
     <div class="d-flex justify-content-center align-items-center gap-2 mb-3">
       <span class="small">2. Selecione <strong>"Adicionar à Tela de Início"</strong></span>
       <i class="fas fa-plus-square fs-5 text-secondary"></i>
     </div>
-    
-    <button onclick="document.getElementById('ios-install-prompt').classList.add('d-none')" class="btn btn-sm btn-outline-secondary w-50">
+
+    <button onclick="document.getElementById('ios-install-prompt').classList.add('d-none')"
+      class="btn btn-sm btn-outline-secondary w-50">
       Entendi, fechar
     </button>
   </div>

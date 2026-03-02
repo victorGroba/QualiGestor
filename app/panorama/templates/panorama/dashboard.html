@@ -3,26 +3,367 @@
 {% block title %}Dashboard - Panorama{% endblock %}
 
 {% block head %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+<!-- Leaflet Choropleth -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
 <style>
-    .metric-card { transition: transform 0.2s ease-in-out; }
-    .metric-card:hover { transform: translateY(-5px); }
-    .chart-container { position: relative; width: 100%; }
-    .scrollable-chart-area-x { width: 100%; overflow-x: auto; overflow-y: hidden; padding-top: 15px; }
-    #containerAvaliados { height: 400px; }
-    .loading-spinner { display: none; text-align: center; padding: 40px; }
-    .filter-card { background: #f8f9fa; border-radius: 10px; padding: 20px; margin-bottom: 20px; }
-    .ranking-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #e9ecef; }
-    .ranking-item:last-child { border-bottom: none; }
-    
-    /* Overlay para bloquear interações enquanto carrega */
+    /* ==================== DESIGN SYSTEM PREMIUM ==================== */
+    .container-fluid,
+    .card,
+    .form-select,
+    .form-label,
+    .btn,
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6,
+    p,
+    span,
+    div {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    }
+
+    /* Cards Globais Premium */
+    .card {
+        border-radius: 16px !important;
+        border: none !important;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06) !important;
+        transition: transform 0.25s cubic-bezier(.4, 0, .2, 1), box-shadow 0.25s cubic-bezier(.4, 0, .2, 1) !important;
+    }
+
+    .card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12) !important;
+    }
+
+    .card-header {
+        border-radius: 16px 16px 0 0 !important;
+        font-weight: 600;
+    }
+
+    /* Metric Cards com Gradiente */
+    .metric-card {
+        overflow: hidden;
+        position: relative;
+    }
+
+    .metric-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        border-radius: 16px 16px 0 0;
+    }
+
+    .metric-card:nth-child(1) .card::before,
+    .metric-grad-blue::before {
+        background: linear-gradient(90deg, #667eea, #764ba2);
+    }
+
+    .metric-grad-green::before {
+        background: linear-gradient(90deg, #11998e, #38ef7d);
+    }
+
+    .metric-grad-cyan::before {
+        background: linear-gradient(90deg, #36d1dc, #5b86e5);
+    }
+
+    .metric-grad-purple::before {
+        background: linear-gradient(90deg, #a18cd1, #fbc2eb);
+    }
+
+    .metric-grad-orange::before {
+        background: linear-gradient(90deg, #f093fb, #f5576c);
+    }
+
+    .metric-grad-teal::before {
+        background: linear-gradient(90deg, #4facfe, #00f2fe);
+    }
+
+    .metric-card .metric-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.4rem;
+        margin: 0 auto 12px;
+    }
+
+    .metric-card .metric-value {
+        font-size: 1.8rem;
+        font-weight: 800;
+        line-height: 1;
+        margin-bottom: 4px;
+        letter-spacing: -0.5px;
+    }
+
+    .metric-card .metric-label {
+        font-size: 0.78rem;
+        font-weight: 500;
+        color: #6c757d;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+    }
+
+    /* Chart Cards */
+    .chart-container {
+        position: relative;
+        width: 100%;
+    }
+
+    .scrollable-chart-area-x {
+        width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-top: 15px;
+    }
+
+    #containerAvaliados {
+        height: 400px;
+    }
+
+    /* Filter Bar Premium */
+    .filter-card {
+        background: linear-gradient(135deg, #f8f9ff 0%, #f0f2f8 100%);
+        border-radius: 16px;
+        padding: 24px;
+        margin-bottom: 24px;
+        border: 1px solid rgba(102, 126, 234, 0.08);
+    }
+
+    /* Modo Print / Afinamento de Colunas */
+    body.print-mode-active .card {
+        max-width: 900px;
+        margin-left: auto !important;
+        margin-right: auto !important;
+    }
+
+    body.print-mode-active .container-fluid {
+        padding-left: 5% !important;
+        padding-right: 5% !important;
+    }
+
+    /* Correção de Overflow no Panorama */
+    #page-content-wrapper {
+        overflow-x: hidden;
+        width: 100%;
+        max-width: 100vw;
+    }
+
+    .container-fluid {
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+
+    .row {
+        margin-right: 0;
+        margin-left: 0;
+    }
+
+    /* Mapa Centralizado */
+    #mapaGerencial {
+        height: 600px;
+        width: 100%;
+        background: #f8f9fa;
+        margin: 0 auto;
+    }
+
+    .leaflet-container {
+        background: transparent !important;
+    }
+
+    .filter-card .form-select {
+        border-radius: 10px;
+        font-size: 0.88rem;
+        padding: 8px 12px;
+        border: 1.5px solid #e2e6ea;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .filter-card .form-select:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+    }
+
+    .filter-card .form-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* Ranking Premium */
+    .ranking-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 12px;
+        border-bottom: 1px solid #f0f0f0;
+        border-radius: 10px;
+        margin-bottom: 4px;
+        transition: background 0.2s;
+    }
+
+    .ranking-item:hover {
+        background: #f8f9fa;
+    }
+
+    .ranking-item:last-child {
+        border-bottom: none;
+    }
+
+    .ranking-medal {
+        font-size: 1.3rem;
+        margin-right: 8px;
+    }
+
+    /* Loading Overlay Premium */
     #loadingOverlay {
         position: fixed;
-        top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(255,255,255,0.8);
-        z-index: 1050; display: none;
-        align-items: center; justify-content: center; flex-direction: column;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.92);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        z-index: 1050;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+    }
+
+    .pulse-loader {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        animation: pulse-ring 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .pulse-loader i {
+        color: white;
+        font-size: 1.5rem;
+    }
+
+    @keyframes pulse-ring {
+        0% {
+            transform: scale(0.95);
+            box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.6);
+        }
+
+        70% {
+            transform: scale(1);
+            box-shadow: 0 0 0 20px rgba(102, 126, 234, 0);
+        }
+
+        100% {
+            transform: scale(0.95);
+            box-shadow: 0 0 0 0 rgba(102, 126, 234, 0);
+        }
+    }
+
+    /* Resumo Executivo */
+    .resumo-executivo {
+        background: linear-gradient(135deg, #667eea15, #764ba215);
+        border-left: 4px solid #667eea;
+        border-radius: 0 12px 12px 0;
+        padding: 16px 20px;
+        margin-bottom: 20px;
+        font-size: 0.92rem;
+        color: #495057;
+        line-height: 1.6;
+    }
+
+    .resumo-executivo strong {
+        color: #343a40;
+    }
+
+    /* Section Dividers */
+    .section-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #343a40;
+        padding-bottom: 10px;
+        margin-bottom: 16px;
+        border-bottom: 2px solid #667eea20;
+        display: flex;
+        align-items: center;
+    }
+
+    .section-title i {
+        margin-right: 10px;
+        color: #667eea;
+    }
+
+    /* Mapa Premium */
+    #mapaGerencial {
+        height: 500px;
+        width: 100%;
+        border-radius: 12px;
+        border: 2px solid #e1e5eb;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        z-index: 1;
+        background-color: #f8f9fa;
+    }
+
+    /* Animação de Entrada */
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .animate-in {
+        animation: fadeInUp 0.5s ease-out forwards;
+        opacity: 0;
+    }
+
+    .animate-in:nth-child(1) {
+        animation-delay: 0.05s;
+    }
+
+    .animate-in:nth-child(2) {
+        animation-delay: 0.10s;
+    }
+
+    .animate-in:nth-child(3) {
+        animation-delay: 0.15s;
+    }
+
+    .animate-in:nth-child(4) {
+        animation-delay: 0.20s;
+    }
+
+    .animate-in:nth-child(5) {
+        animation-delay: 0.25s;
+    }
+
+    .animate-in:nth-child(6) {
+        animation-delay: 0.30s;
     }
 </style>
 {% endblock %}
@@ -30,11 +371,11 @@
 {% block content %}
 
 <div id="loadingOverlay">
-    <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
-        <span class="visually-hidden">Carregando...</span>
+    <div class="pulse-loader">
+        <i class="fas fa-chart-pie"></i>
     </div>
-    <h5 class="mt-3 fw-bold text-primary">Calculando Resultados...</h5>
-    <p class="text-muted">Aguarde um momento, estamos montando seus gráficos.</p>
+    <h5 class="mt-4 fw-bold" style="color: #667eea;">Processando Inteligência...</h5>
+    <p class="text-muted small">Analisando dados e preparando seus gráficos.</p>
 </div>
 
 <div class="container-fluid">
@@ -51,14 +392,14 @@
                         Análise de Pareto (80/20)
                     </a>
                 </div>
-                
+
                 <form id="filtroForm" class="row g-3">
                     <div class="col-md-2">
                         <label class="form-label text-primary fw-bold">Filtrar por Mês</label>
                         <select class="form-select border-primary" name="mes" id="mes">
                             <option value="">(Ignorar Mês)</option>
                             {% for m in filtros.meses %}
-                            <option value="{{ m.valor }}" {% if filtros_aplicados.mes == m.valor %}selected{% endif %}>
+                            <option value="{{ m.valor }}" {% if filtros_aplicados.mes==m.valor %}selected{% endif %}>
                                 {{ m.label }}
                             </option>
                             {% endfor %}
@@ -68,10 +409,14 @@
                     <div class="col-md-2">
                         <label class="form-label">Ou Período</label>
                         <select class="form-select" name="periodo" id="periodo">
-                            <option value="7" {% if filtros_aplicados.periodo == '7' %}selected{% endif %}>Últimos 7 dias</option>
-                            <option value="30" {% if filtros_aplicados.periodo == '30' %}selected{% endif %}>Últimos 30 dias</option>
-                            <option value="90" {% if filtros_aplicados.periodo == '90' %}selected{% endif %}>Últimos 90 dias</option>
-                            <option value="365" {% if filtros_aplicados.periodo == '365' %}selected{% endif %}>Último ano</option>
+                            <option value="7" {% if filtros_aplicados.periodo=='7' %}selected{% endif %}>Últimos 7 dias
+                            </option>
+                            <option value="30" {% if filtros_aplicados.periodo=='30' %}selected{% endif %}>Últimos 30
+                                dias</option>
+                            <option value="90" {% if filtros_aplicados.periodo=='90' %}selected{% endif %}>Últimos 90
+                                dias</option>
+                            <option value="365" {% if filtros_aplicados.periodo=='365' %}selected{% endif %}>Último ano
+                            </option>
                         </select>
                     </div>
 
@@ -80,42 +425,63 @@
                         <select class="form-select" name="grupo_id" id="grupo_id">
                             <option value="">Todos os GAPs</option>
                             {% for grupo in filtros.grupos %}
-                            <option value="{{ grupo.id }}" {% if filtros_aplicados.grupo_id == grupo.id %}selected{% endif %}>
+                            <option value="{{ grupo.id }}" {% if filtros_aplicados.grupo_id==grupo.id %}selected{% endif
+                                %}>
                                 {{ grupo.nome }}
                             </option>
                             {% endfor %}
                         </select>
                     </div>
-                    
+
                     <div class="col-md-2">
                         <label class="form-label">Avaliado (Rancho)</label>
                         <select class="form-select" name="avaliado_id" id="avaliado_id">
                             <option value="">Todos os avaliados</option>
                             {% for avaliado in filtros.avaliados %}
-                            <option value="{{ avaliado.id }}" {% if filtros_aplicados.avaliado_id == avaliado.id %}selected{% endif %}>
+                            <option value="{{ avaliado.id }}" {% if filtros_aplicados.avaliado_id==avaliado.id
+                                %}selected{% endif %}>
                                 {{ avaliado.nome }}
                             </option>
                             {% endfor %}
                         </select>
                     </div>
-                    
+
+                    <div class="col-md-2">
+                        <label class="form-label text-success">Categoria / Tópico</label>
+                        <select class="form-select border-success" name="topico_id" id="topico_id">
+                            <option value="">(Nota Global)</option>
+                            {% for topico in filtros.topicos %}
+                            <option value="{{ topico.id }}">
+                                {{ topico.nome }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
                     <div class="col-md-2">
                         <label class="form-label">Questionário</label>
                         <select class="form-select" name="questionario_id" id="questionario_id">
                             <option value="">Todos os questionários</option>
                             {% for questionario in filtros.questionarios %}
-                            <option value="{{ questionario.id }}" {% if filtros_aplicados.questionario_id == questionario.id %}selected{% endif %}>
+                            <option value="{{ questionario.id }}" {% if
+                                filtros_aplicados.questionario_id==questionario.id %}selected{% endif %}>
                                 {{ questionario.nome }}
                             </option>
                             {% endfor %}
                         </select>
                     </div>
-                    
-                    <div class="col-md-2 d-flex align-items-end">
-                        <button type="submit" class="btn btn-primary me-2 w-100">
-                            <i class="fas fa-filter me-1"></i> Filtrar
+
+                    <div class="col-md-12 mt-3 text-end d-flex justify-content-end align-items-center">
+                        <button type="button" id="btnPrintMode" class="btn btn-outline-secondary me-2 rounded-pill px-3"
+                            onclick="togglePrintMode()">
+                            <i class="fas fa-print me-2"></i>Afinar Colunas (Print)
                         </button>
-                        <button type="button" class="btn btn-outline-secondary" onclick="exportarDados()" title="Exportar Dados">
+                        <button type="submit" class="btn btn-primary px-5 me-2 shadow-sm rounded-pill fw-bold">
+                            <i class="fas fa-filter me-2"></i> Aplicar Análise Inteligente
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary rounded-circle"
+                            style="width: 40px; height: 40px;" onclick="exportarDados()"
+                            title="Exportar Dados CSV/JSON">
                             <i class="fas fa-download"></i>
                         </button>
                     </div>
@@ -124,60 +490,108 @@
         </div>
     </div>
 
+    <!-- MAPA SUPERIOR DA SDAB -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="card shadow-lg border-0 rounded-4 overflow-hidden">
+                <div class="card-header bg-dark text-white p-3 d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0 fw-bold">
+                        <i class="fas fa-map-marked-alt text-warning me-2"></i>
+                        Painel Geográfico: Visão Geral das Unidades (Ranchos)
+                    </h4>
+                    <span class="badge bg-warning text-dark fs-6" id="badgeMapaFiltro">Visualizando Nota Global</span>
+                </div>
+                <div class="card-body p-0 position-relative">
+                    <div id="mapaGerencial"></div>
+                </div>
+                <div class="card-footer bg-white p-3 text-center border-top">
+                    <span class="badge bg-success me-2 px-3 py-2"><i class="fas fa-check-circle me-1"></i> Excelente
+                        (80-100)</span>
+                    <span class="badge bg-warning text-dark me-2 px-3 py-2"><i
+                            class="fas fa-exclamation-triangle me-1"></i> Atenção (60-79)</span>
+                    <span class="badge bg-danger px-3 py-2"><i class="fas fa-times-circle me-1"></i> Crítico (<
+                            60)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resumo Executivo Dinâmico -->
+    <div class="resumo-executivo" id="resumoExecutivo" style="display: none;">
+        <i class="fas fa-robot me-2" style="color: #667eea;"></i>
+        <span id="resumoTexto">Carregando análise...</span>
+    </div>
+
     <div class="row mb-4" id="metricas-cards">
-        <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
-            <div class="card metric-card h-100 border-0 shadow-sm">
-                <div class="card-body text-center">
-                    <div class="text-primary mb-2"><i class="fas fa-clipboard-list fa-2x"></i></div>
-                    <h4 class="fw-bold" id="metrica-auditorias">-</h4>
-                    <p class="text-muted mb-0">Aplicações</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
-            <div class="card metric-card h-100 border-0 shadow-sm">
-                <div class="card-body text-center">
-                    <div class="text-success mb-2"><i class="fas fa-percentage fa-2x"></i></div>
-                    <h4 class="fw-bold" id="metrica-media">-</h4>
-                    <p class="text-muted mb-0">Média Geral</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
-            <div class="card metric-card h-100 border-0 shadow-sm">
-                <div class="card-body text-center">
-                    <div class="text-info mb-2"><i class="fas fa-store fa-2x"></i></div>
-                    <h4 class="fw-bold" id="metrica-lojas">-</h4>
-                    <p class="text-muted mb-0">Avaliados</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
-            <div class="card metric-card h-100 border-0 shadow-sm">
-                <div class="card-body text-center">
-                    <div class="text-secondary mb-2" id="icon-tendencia">
-                        <i class="fas fa-trending-flat fa-2x"></i>
+        <div class="col-lg-2 col-md-4 col-sm-6 mb-3 animate-in">
+            <div class="card metric-card h-100 metric-grad-blue">
+                <div class="card-body text-center py-4">
+                    <div class="metric-icon"
+                        style="background: linear-gradient(135deg, #667eea20, #764ba220); color: #667eea;">
+                        <i class="fas fa-clipboard-list"></i>
                     </div>
-                    <h4 class="fw-bold text-secondary" id="metrica-tendencia">-</h4>
-                    <p class="text-muted mb-0">Tendência</p>
+                    <div class="metric-value text-dark" id="metrica-auditorias">-</div>
+                    <div class="metric-label">Aplicações</div>
                 </div>
             </div>
         </div>
-        <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
-            <div class="card metric-card h-100 border-0 shadow-sm">
-                <div class="card-body text-center">
-                    <div class="text-warning mb-2"><i class="fas fa-exclamation-triangle fa-2x"></i></div>
-                    <h4 class="fw-bold" id="metrica-criticas">-</h4>
-                    <p class="text-muted mb-0">Críticas</p>
+        <div class="col-lg-2 col-md-4 col-sm-6 mb-3 animate-in">
+            <div class="card metric-card h-100 metric-grad-green">
+                <div class="card-body text-center py-4">
+                    <div class="metric-icon"
+                        style="background: linear-gradient(135deg, #11998e20, #38ef7d20); color: #11998e;">
+                        <i class="fas fa-percentage"></i>
+                    </div>
+                    <div class="metric-value text-dark" id="metrica-media">-</div>
+                    <div class="metric-label">Média Geral</div>
                 </div>
             </div>
         </div>
-        <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
-            <div class="card metric-card h-100 border-0 shadow-sm">
-                <div class="card-body text-center">
-                    <div class="text-success mb-2"><i class="fas fa-check-circle fa-2x"></i></div>
-                    <h4 class="fw-bold" id="metrica-conformidade">-</h4>
-                    <p class="text-muted mb-0">Conformidade</p>
+        <div class="col-lg-2 col-md-4 col-sm-6 mb-3 animate-in">
+            <div class="card metric-card h-100 metric-grad-cyan">
+                <div class="card-body text-center py-4">
+                    <div class="metric-icon"
+                        style="background: linear-gradient(135deg, #36d1dc20, #5b86e520); color: #36d1dc;">
+                        <i class="fas fa-store"></i>
+                    </div>
+                    <div class="metric-value text-dark" id="metrica-lojas">-</div>
+                    <div class="metric-label">Avaliados</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-2 col-md-4 col-sm-6 mb-3 animate-in">
+            <div class="card metric-card h-100 metric-grad-purple">
+                <div class="card-body text-center py-4">
+                    <div class="metric-icon" id="icon-tendencia"
+                        style="background: linear-gradient(135deg, #a18cd120, #fbc2eb20); color: #a18cd1;">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <div class="metric-value text-secondary" id="metrica-tendencia">-</div>
+                    <div class="metric-label">Tendência</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-2 col-md-4 col-sm-6 mb-3 animate-in">
+            <div class="card metric-card h-100 metric-grad-orange">
+                <div class="card-body text-center py-4">
+                    <div class="metric-icon"
+                        style="background: linear-gradient(135deg, #f093fb20, #f5576c20); color: #f5576c;">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="metric-value text-dark" id="metrica-criticas">-</div>
+                    <div class="metric-label">Críticas</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-2 col-md-4 col-sm-6 mb-3 animate-in">
+            <div class="card metric-card h-100 metric-grad-teal">
+                <div class="card-body text-center py-4">
+                    <div class="metric-icon"
+                        style="background: linear-gradient(135deg, #4facfe20, #00f2fe20); color: #4facfe;">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="metric-value text-dark" id="metrica-conformidade">-</div>
+                    <div class="metric-label">Conformidade</div>
                 </div>
             </div>
         </div>
@@ -216,7 +630,7 @@
                 <i class="fas fa-chart-bar me-2"></i> Evolução Mensal por Tópico (Nota 0-10)
             </h5>
         </div>
-        
+
         <div id="containerEvolucaoTopicos" class="row w-100 m-0"></div>
     </div>
 
@@ -235,15 +649,17 @@
                 </div>
             </div>
         </div>
-        
+
         <div class="col-lg-4 mb-4">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-header bg-white border-bottom">
                     <h5 class="mb-0"><i class="fas fa-trophy me-2"></i> Ranking (Top 10)</h5>
                 </div>
-                <div class="card-body">
+                <div class="card-body p-3" style="max-height: 420px; overflow-y: auto;">
                     <div id="rankingAvaliados">
-                        <div class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin fa-2x mb-2"></i><p>Carregando ranking...</p></div>
+                        <div class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin fa-2x mb-2"></i>
+                            <p>Carregando ranking...</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -270,8 +686,66 @@
                 </div>
                 <div class="card-body">
                     <div id="topNcList" style="max-height: 300px; overflow-y: auto;">
-                        <div class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin fa-2x mb-2"></i><p>Carregando problemas...</p></div>
+                        <div class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin fa-2x mb-2"></i>
+                            <p>Carregando problemas...</p>
+                        </div>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- GRÁFICO 4: AÇÕES CORRETIVAS POR COR DE GRAVIDADE (Stacked Bar) -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="mb-0"><i class="fas fa-tools me-2 text-danger"></i> Ações Corretivas por Gravidade (Visão
+                        por Unidade)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="height: 400px;">
+                        <canvas id="chartAcoesCorretivas"></canvas>
+                    </div>
+                    <div class="text-center mt-3">
+                        <span class="badge bg-success me-2 px-3 py-2"><i class="fas fa-check-circle me-1"></i>
+                            Baixa</span>
+                        <span class="badge bg-warning text-dark me-2 px-3 py-2"><i
+                                class="fas fa-exclamation-triangle me-1"></i> Média</span>
+                        <span class="badge bg-danger px-3 py-2"><i class="fas fa-times-circle me-1"></i> Alta</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Modal Detalhes Região -->
+<div class="modal fade" id="modalRegiao" tabindex="-1" aria-labelledby="modalRegiaoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title fw-bold text-primary" id="modalRegiaoLabel">
+                    <i class="fas fa-map-marker-alt me-2"></i> Unidades Avaliadas na Região
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th class="ps-4">Rancho / UG</th>
+                                <th class="text-center">Auditorias lidas</th>
+                                <th class="text-center">Média Consolidada</th>
+                                <th class="text-end pe-4">Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modalRegiaoCorpo">
+                            <!-- Renderizado Dinamicamente -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -279,226 +753,558 @@
 </div>
 
 <script>
-Chart.register(ChartDataLabels);
+    Chart.register(ChartDataLabels);
 
-let chartEvolucao, chartTopicos, chartAvaliados, chartQuestionarios;
-let chartsEvolucaoTopicosSeparados = []; // Array para armazenar os gráficos individuais de tópicos
+    let chartEvolucao, chartTopicos, chartAvaliados, chartQuestionarios, chartAcoesCorretivas;
+    let chartsEvolucaoTopicosSeparados = []; // Array para armazenar os gráficos individuais de tópicos
+    let leafletMapObj = null;
+    let geojsonLayer = null;
+    let geojsonBrasil = null;
+    let currentMapData = {}; // Cache dos dados globais para Tooltips do mapa
 
-const defaultOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    layout: { padding: { top: 25, right: 15 } },
-    plugins: {
-        legend: { position: 'top' },
-        tooltip: {
-            backgroundColor: 'rgba(0,0,0,0.8)', titleColor: 'white', bodyColor: 'white', borderColor: '#007bff', borderWidth: 1
-        }
-    }
-};
-
-document.addEventListener('DOMContentLoaded', function() {
-    
-    const selectMes = document.getElementById('mes');
-    const selectPeriodo = document.getElementById('periodo');
-    selectMes.addEventListener('change', function() {
-        if(this.value !== "") {
-            selectPeriodo.value = "30";
-            selectPeriodo.setAttribute('disabled', 'disabled');
-        } else {
-            selectPeriodo.removeAttribute('disabled');
-        }
-    });
-    if(selectMes.value !== "") { selectPeriodo.setAttribute('disabled', 'disabled'); }
-
-    // 1. Inicializa a página visualmente com gráficos vazios (Casca)
-    initializeCharts();
-    setupEventListeners();
-
-    // 2. Mostra o Spinner Gigante e faz o Ajax buscar os dados
-    document.getElementById('loadingOverlay').style.display = 'flex';
-    atualizarDados();
-});
-
-function aplicarLarguraDinamica(qtdBarras) {
-    const minWidth = document.getElementById('scrollContainerAvaliados').clientWidth || 600; 
-    const larguraCalculada = Math.max(minWidth, qtdBarras * 60); 
-    document.getElementById('containerAvaliados').style.width = larguraCalculada + 'px';
-}
-
-function initializeCharts() {
-    
-    // Gráficos começam vazios
-    const ctxEvolucao = document.getElementById('chartEvolucao').getContext('2d');
-    chartEvolucao = new Chart(ctxEvolucao, {
-        type: 'bar', data: { labels: [], datasets: [] },
-        options: {
-            ...defaultOptions,
-            scales: { y: { beginAtZero: true, max: 10, ticks: { stepSize: 1 } } },
-            plugins: { ...defaultOptions.plugins, title: { display: false }, datalabels: { anchor: 'end', align: 'top', formatter: Math.round, color: '#333', font: { weight: 'bold', size: 14 } } }
-        }
-    });
-
-    const ctxTopicos = document.getElementById('chartTopicos').getContext('2d');
-    chartTopicos = new Chart(ctxTopicos, {
-        type: 'bar', data: { labels: [], datasets: [] },
-        options: {
-            ...defaultOptions,
-            scales: { y: { beginAtZero: true, max: 10, ticks: { stepSize: 1 } }, x: { display: false } },
-            plugins: { ...defaultOptions.plugins, legend: { display: true, position: 'right', labels: { boxWidth: 15, font: { size: 11 } } }, datalabels: { anchor: 'end', align: 'top', color: '#333', font: { weight: 'bold', size: 13 } } }
-        }
-    });
-
-    const ctxAvaliados = document.getElementById('chartAvaliados').getContext('2d');
-    chartAvaliados = new Chart(ctxAvaliados, {
-        type: 'bar', data: { labels: [], datasets: [] },
-        options: {
-            ...defaultOptions,
-            scales: { y: { beginAtZero: true, max: 100, ticks: { callback: function(value) { return value + '%'; } } }, x: { ticks: { autoSkip: false, maxRotation: 45, minRotation: 45 } } },
-            plugins: { ...defaultOptions.plugins, legend: { display: false }, datalabels: { anchor: 'end', align: 'top', formatter: (value) => value + '%', color: '#333', font: { weight: 'bold', size: 13 } } }
-        }
-    });
-
-    const ctxQuestionarios = document.getElementById('chartQuestionarios').getContext('2d');
-    chartQuestionarios = new Chart(ctxQuestionarios, {
-        type: 'pie', data: { labels: [], datasets: [] },
-        options: { ...defaultOptions, plugins: { ...defaultOptions.plugins, legend: { position: 'bottom' }, datalabels: { display: false } } }
-    });
-}
-
-function setupEventListeners() {
-    document.getElementById('filtroForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        document.getElementById('periodo').removeAttribute('disabled');
-        aplicarFiltros();
-    });
-    // Atualiza invisivelmente a cada 5 min
-    setInterval(function() { 
-        // Chama o fetch escondido para não travar a tela
-        fetchDadosAjax(false); 
-    }, 300000); 
-}
-
-function aplicarFiltros() {
-    // Mostra o Overlay Spinner para travar a tela enquanto carrega
-    document.getElementById('loadingOverlay').style.display = 'flex';
-    
-    // Atualiza a URL só por estética (para copiar link) sem refresh real
-    const formData = new FormData(document.getElementById('filtroForm'));
-    const params = new URLSearchParams(formData);
-    window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
-    
-    atualizarDados();
-}
-
-function atualizarDados() {
-    fetchDadosAjax(true);
-}
-
-function fetchDadosAjax(showSpinner) {
-    const formData = new FormData(document.getElementById('filtroForm'));
-    const params = new URLSearchParams(formData);
-    
-    fetch(`/panorama/api/dashboard-data?${params.toString()}`)
-        .then(response => response.json())
-        .then(data => { 
-            atualizarValoresMetricas(data.metricas);
-            atualizarHTMLAvaliadosENC(data);
-            atualizarGraficos(data); 
-            
-            // Tira a tela de carregamento quando terminar
-            if(showSpinner) {
-                document.getElementById('loadingOverlay').style.display = 'none';
+    const defaultOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 900, easing: 'easeOutQuart' },
+        layout: { padding: { top: 25, right: 15 } },
+        plugins: {
+            legend: {
+                position: 'top',
+                labels: { font: { family: 'Inter', size: 12, weight: '500' }, padding: 16, usePointStyle: true, pointStyleWidth: 10 }
+            },
+            tooltip: {
+                backgroundColor: 'rgba(30, 30, 50, 0.92)',
+                titleColor: '#fff',
+                bodyColor: '#e0e0e0',
+                borderColor: 'rgba(102,126,234,0.4)',
+                borderWidth: 1,
+                cornerRadius: 10,
+                padding: 12,
+                titleFont: { family: 'Inter', size: 13, weight: '700' },
+                bodyFont: { family: 'Inter', size: 12 },
+                displayColors: true,
+                boxPadding: 4
             }
-        })
-        .catch(error => { 
-            console.error(error); 
-            if(showSpinner) { document.getElementById('loadingOverlay').style.display = 'none'; }
-            showNotification('Erro ao carregar os dados do painel. Tente novamente.', 'danger');
+        },
+        scales: {
+            x: {
+                grid: { display: false },
+                ticks: { font: { family: 'Inter', size: 11, weight: '500' }, color: '#6c757d' }
+            },
+            y: {
+                grid: { color: 'rgba(0,0,0,0.04)', drawBorder: false },
+                ticks: { font: { family: 'Inter', size: 11 }, color: '#6c757d' },
+                beginAtZero: true
+            }
+        }
+    };
+
+    // Paleta de Cores Premium
+    const premiumColors = [
+        'rgba(102, 126, 234, 0.8)',  // Roxo-azul
+        'rgba(17, 153, 142, 0.8)',   // Teal
+        'rgba(245, 87, 108, 0.8)',   // Rosa
+        'rgba(255, 193, 7, 0.8)',    // Amarelo
+        'rgba(54, 209, 220, 0.8)',   // Ciano
+        'rgba(161, 140, 209, 0.8)',  // Lilás
+        'rgba(79, 172, 254, 0.8)',   // Azul claro
+        'rgba(56, 239, 125, 0.8)',   // Verde neon
+        'rgba(240, 147, 251, 0.8)', // Pink
+        'rgba(254, 202, 87, 0.8)'   // Dourado
+    ];
+
+    const premiumBorders = premiumColors.map(c => c.replace('0.8)', '1)'));
+
+    document.addEventListener('DOMContentLoaded', function () {
+
+        const selectMes = document.getElementById('mes');
+        const selectPeriodo = document.getElementById('periodo');
+        selectMes.addEventListener('change', function () {
+            if (this.value !== "") {
+                selectPeriodo.value = "30";
+                selectPeriodo.setAttribute('disabled', 'disabled');
+            } else {
+                selectPeriodo.removeAttribute('disabled');
+            }
         });
-}
+        if (selectMes.value !== "") { selectPeriodo.setAttribute('disabled', 'disabled'); }
 
-function atualizarValoresMetricas(metricas) {
-    if(!metricas) return;
-    document.getElementById('metrica-auditorias').innerText = metricas.total_auditorias;
-    document.getElementById('metrica-media').innerText = metricas.pontuacao_media + '%';
-    document.getElementById('metrica-lojas').innerText = metricas.lojas_auditadas;
-    
-    const h4Tendencia = document.getElementById('metrica-tendencia');
-    const divIconTendencia = document.getElementById('icon-tendencia');
-    let sinal = metricas.tendencia_pontuacao > 0 ? '+' : '';
-    h4Tendencia.innerText = sinal + metricas.tendencia_pontuacao + '%';
-    
-    h4Tendencia.className = 'fw-bold ' + (metricas.tendencia_pontuacao > 0 ? 'text-success' : (metricas.tendencia_pontuacao < 0 ? 'text-danger' : 'text-secondary'));
-    divIconTendencia.className = 'mb-2 ' + (metricas.tendencia_pontuacao > 0 ? 'text-success' : (metricas.tendencia_pontuacao < 0 ? 'text-danger' : 'text-secondary'));
-    divIconTendencia.innerHTML = `<i class="fas fa-trending-${metricas.tendencia_pontuacao > 0 ? 'up' : (metricas.tendencia_pontuacao < 0 ? 'down' : 'flat')} fa-2x"></i>`;
+        // 1. Inicializa os Gráficos Vazios e Prepara a Página
+        initializeCharts();
+        setupEventListeners();
 
-    document.getElementById('metrica-criticas').innerText = metricas.auditorias_criticas;
-    document.getElementById('metrica-conformidade').innerText = metricas.conformidade_geral + '%';
-}
+        // 2. O mapa agora usará Leaflet estático + SVG GeoJSON
+        initializeMap();
 
-function atualizarHTMLAvaliadosENC(data) {
-    // 1. Atualiza o HTML do Ranking
-    const rankingDiv = document.getElementById('rankingAvaliados');
-    if (data.ranking_avaliados && data.ranking_avaliados.length > 0) {
-        let html = '';
-        data.ranking_avaliados.forEach((item, index) => {
-            html += `
+        // 3. Mostra o Spinner e Inicia o AJAX
+        document.getElementById('loadingOverlay').style.display = 'flex';
+        atualizarDados();
+    });
+
+    function aplicarLarguraDinamica(qtdBarras) {
+        const minWidth = document.getElementById('scrollContainerAvaliados').clientWidth || 600;
+        const larguraCalculada = Math.max(minWidth, qtdBarras * 60);
+        document.getElementById('containerAvaliados').style.width = larguraCalculada + 'px';
+    }
+
+    function initializeCharts() {
+
+        // ===== Evolução Mensal Média =====
+        const ctxEvolucao = document.getElementById('chartEvolucao').getContext('2d');
+        chartEvolucao = new Chart(ctxEvolucao, {
+            type: 'bar', data: { labels: [], datasets: [] },
+            options: {
+                ...defaultOptions,
+                scales: {
+                    ...defaultOptions.scales,
+                    y: { ...defaultOptions.scales.y, max: 10, ticks: { ...defaultOptions.scales.y.ticks, stepSize: 2 } }
+                },
+                plugins: {
+                    ...defaultOptions.plugins,
+                    title: { display: false },
+                    datalabels: { anchor: 'end', align: 'top', formatter: Math.round, color: '#495057', font: { family: 'Inter', weight: '700', size: 13 } }
+                },
+                elements: { bar: { borderRadius: 6, borderSkipped: false } }
+            }
+        });
+
+        // ===== Demonstrativo de Categorias =====
+        const ctxTopicos = document.getElementById('chartTopicos').getContext('2d');
+        chartTopicos = new Chart(ctxTopicos, {
+            type: 'bar', data: { labels: [], datasets: [] },
+            options: {
+                ...defaultOptions,
+                indexAxis: 'x', // Revertido para Vertical
+                scales: {
+                    x: { ...defaultOptions.scales.x, grid: { display: false } },
+                    y: { ...defaultOptions.scales.y, max: 10, ticks: { ...defaultOptions.scales.y.ticks, stepSize: 2 } }
+                },
+                plugins: {
+                    ...defaultOptions.plugins,
+                    legend: {
+                        display: true,
+                        position: 'right',
+                        labels: {
+                            font: { family: 'Inter', size: 10 },
+                            usePointStyle: true,
+                            padding: 15
+                        }
+                    },
+                    datalabels: { anchor: 'end', align: 'top', color: '#495057', font: { family: 'Inter', weight: '700', size: 12 } }
+                },
+                elements: { bar: { borderRadius: 6, borderSkipped: false } }
+            }
+        });
+
+        // ===== Performance Geral =====
+        const ctxAvaliados = document.getElementById('chartAvaliados').getContext('2d');
+        chartAvaliados = new Chart(ctxAvaliados, {
+            type: 'bar', data: { labels: [], datasets: [] },
+            options: {
+                ...defaultOptions,
+                scales: {
+                    ...defaultOptions.scales,
+                    y: { ...defaultOptions.scales.y, max: 100, ticks: { ...defaultOptions.scales.y.ticks, callback: v => v + '%' } },
+                    x: { ...defaultOptions.scales.x, ticks: { ...defaultOptions.scales.x.ticks, autoSkip: false, maxRotation: 45, minRotation: 45 } }
+                },
+                plugins: {
+                    ...defaultOptions.plugins,
+                    legend: { display: false },
+                    datalabels: { anchor: 'end', align: 'top', formatter: v => v + '%', color: '#495057', font: { family: 'Inter', weight: '700', size: 12 } }
+                },
+                elements: { bar: { borderRadius: 6, borderSkipped: false } }
+            }
+        });
+
+        // ===== Performance por Questionário (Doughnut) =====
+        const ctxQuestionarios = document.getElementById('chartQuestionarios').getContext('2d');
+        chartQuestionarios = new Chart(ctxQuestionarios, {
+            type: 'doughnut', data: { labels: [], datasets: [] },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '55%',
+                plugins: {
+                    ...defaultOptions.plugins,
+                    legend: { position: 'bottom', labels: { font: { family: 'Inter', size: 11, weight: '500' }, padding: 12, usePointStyle: true } },
+                    datalabels: { display: false }
+                }
+            }
+        });
+    }
+
+    function initializeMap() {
+        if (!document.getElementById('mapaGerencial')) return;
+
+        // Inicializa o Leaflet travado no Brasil para dar visual de Dashboard Vetorial
+        leafletMapObj = L.map('mapaGerencial', {
+            zoomControl: false, scrollWheelZoom: false, doubleClickZoom: false, touchZoom: false, dragging: true
+        }).setView([-15.7942, -47.8822], 4); // Centralizado mais em Brasília para melhor visão nacional
+
+        // Fetch assíncrono do GeoJSON oficial do Brasil (Estados) da API livre para visual
+        fetch('https://raw.githubusercontent.com/codeforamerica/click_that_hood/master/public/data/brazil-states.geojson')
+            .then(r => r.json())
+            .then(data => {
+                geojsonBrasil = data;
+                // Renderiza casca cinza logo no carregamento
+                desenharGeoJSON({});
+                // Se o backend/AJAX js já resolveu enquanto viajava o mapa, nós pintamos também
+                if (Object.keys(currentMapData).length > 0) {
+                    desenharGeoJSON(currentMapData);
+                }
+            })
+            .catch(e => console.error("Aviso: Falha ao desenhar vetor do Mapa ", e));
+    }
+
+    function desenharGeoJSON(mapaData) {
+        if (!geojsonBrasil || !leafletMapObj) return;
+        if (geojsonLayer) leafletMapObj.removeLayer(geojsonLayer);
+
+        geojsonLayer = L.geoJSON(geojsonBrasil, {
+            style: function (feature) {
+                // Sigla 'SP', 'RJ', mapData key no Flask está como 'BR-SP'
+                let uf = feature.properties.sigla;
+                let ufData = mapaData["BR-" + uf];
+                let baseColor = "#e9ecef";
+
+                if (ufData) {
+                    if (ufData.status === 'success') baseColor = "#198754";
+                    else if (ufData.status === 'warning') baseColor = "#ffc107";
+                    else if (ufData.status === 'danger') baseColor = "#dc3545";
+                }
+
+                return { fillColor: baseColor, weight: 1.5, opacity: 1, color: 'white', fillOpacity: 1 };
+            },
+            onEachFeature: function (feature, layer) {
+                let uf = feature.properties.sigla;
+                let estadoNome = feature.properties.name;
+                let ufData = mapaData["BR-" + uf];
+
+                // Tooltip Trip Advisor adaptado pro Leaflet
+                if (ufData) {
+                    let sCor = ufData.status === 'success' ? '#198754' : ufData.status === 'warning' ? '#ffc107' : '#dc3545';
+                    let pop = `<div style="text-align:center; min-width:150px; font-family:Inter">
+                        <b style="font-size: 15px;">${estadoNome} (${uf})</b><br>
+                        Média Estadual: <b style="color:${sCor}; font-size:16px;">${ufData.nota}%</b><br>
+                        <small>${ufData.qtd_ranchos} rancho(s) auditado(s)</small><br>
+                        <small class="text-primary mt-1 d-block"><i class="fas fa-hand-pointer"></i> Clique para expandir</small>
+                    </div>`;
+                    layer.bindTooltip(pop, { direction: "top", sticky: true, className: "shadow-sm" });
+
+                    layer.on('click', () => {
+                        // Limpa corpo atual
+                        const modalBody = document.getElementById('modalRegiaoCorpo');
+                        modalBody.innerHTML = '';
+
+                        document.getElementById('modalRegiaoLabel').innerHTML = `<i class="fas fa-map-marker-alt me-2"></i> Visão Detalhada: ${estadoNome} (${uf})`;
+
+                        ufData.detalhes_ranchos.forEach(rancho => {
+                            let badgeClass = rancho.status === 'success' ? 'bg-success' : rancho.status === 'warning' ? 'bg-warning text-dark' : 'bg-danger';
+                            modalBody.innerHTML += `
+                           <tr>
+                              <td class="ps-4 fw-bold text-secondary">${rancho.nome}</td>
+                              <td class="text-center">${rancho.qtd_auditorias}</td>
+                              <td class="text-center"><span class="badge ${badgeClass} fs-6">${rancho.media}%</span></td>
+                              <td class="text-end pe-4"><a href="/panorama/dossie/${rancho.id}" class="btn btn-sm btn-outline-primary rounded-pill">Ver Dossiê <i class="fas fa-arrow-right ms-1"></i></a></td>
+                           </tr>`;
+                        });
+
+                        // Exibe Modal
+                        const modal = new bootstrap.Modal(document.getElementById('modalRegiao'));
+                        modal.show();
+                    });
+                } else {
+                    let pop = `<div style="text-align:center; font-family:Inter">
+                        <b style="font-size: 14px;">${estadoNome} (${uf})</b><br><small class="text-muted">Sem OMs Avaliadas</small>
+                    </div>`;
+                    layer.bindTooltip(pop, { direction: "top", sticky: true, className: "shadow-sm" });
+                }
+
+                // Realce mágico ao passar o mouse
+                layer.on({
+                    mouseover: (e) => e.target.setStyle({ fillOpacity: 0.75, weight: 2, color: '#343a40' }),
+                    mouseout: (e) => geojsonLayer.resetStyle(e.target)
+                });
+            }
+        }).addTo(leafletMapObj);
+    }
+    function setupEventListeners() {
+        document.getElementById('filtroForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            document.getElementById('periodo').removeAttribute('disabled');
+            aplicarFiltros();
+        });
+        // Atualiza invisivelmente a cada 5 min
+        setInterval(function () {
+            // Chama o fetch escondido para não travar a tela
+            fetchDadosAjax(false);
+        }, 300000);
+    }
+
+    function aplicarFiltros() {
+        // Mostra o Overlay Spinner para travar a tela enquanto carrega
+        document.getElementById('loadingOverlay').style.display = 'flex';
+
+        // Atualiza a URL só por estética (para copiar link) sem refresh real
+        const formData = new FormData(document.getElementById('filtroForm'));
+        const params = new URLSearchParams(formData);
+        window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
+
+        atualizarDados();
+    }
+
+    function atualizarDados() {
+        fetchDadosAjax(true);
+    }
+
+    function fetchDadosAjax(showSpinner) {
+        const formData = new FormData(document.getElementById('filtroForm'));
+        const params = new URLSearchParams(formData);
+
+        fetch(`/panorama/api/dashboard-data?${params.toString()}`)
+            .then(response => response.json())
+            .then(data => {
+                atualizarValoresMetricas(data.metricas);
+                atualizarHTMLAvaliadosENC(data);
+                atualizarGraficos(data);
+
+                // Tira a tela de carregamento quando terminar
+                if (showSpinner) {
+                    document.getElementById('loadingOverlay').style.display = 'none';
+                }
+            })
+            .catch(error => {
+                console.error(error);
+                if (showSpinner) { document.getElementById('loadingOverlay').style.display = 'none'; }
+                showNotification('Erro ao carregar os dados do painel. Tente novamente.', 'danger');
+            });
+    }
+
+    // ==================== UTILITÁRIO COUNT-UP ====================
+    function animateCountUp(el, target, suffix = '', duration = 800) {
+        let startTime = null;
+        const start = 0;
+        function step(timestamp) {
+            if (!startTime) startTime = timestamp;
+            const progress = Math.min((timestamp - startTime) / duration, 1);
+            const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+            const current = Math.round(start + (target - start) * eased);
+            el.innerText = current + suffix;
+            if (progress < 1) requestAnimationFrame(step);
+        }
+        requestAnimationFrame(step);
+    }
+
+    function atualizarValoresMetricas(metricas) {
+        if (!metricas) return;
+
+        // Count-Up Animation
+        animateCountUp(document.getElementById('metrica-auditorias'), metricas.total_auditorias);
+        animateCountUp(document.getElementById('metrica-media'), metricas.pontuacao_media, '%');
+        animateCountUp(document.getElementById('metrica-lojas'), metricas.lojas_auditadas);
+        animateCountUp(document.getElementById('metrica-criticas'), metricas.auditorias_criticas);
+        animateCountUp(document.getElementById('metrica-conformidade'), metricas.conformidade_geral, '%');
+
+        const valTendencia = document.getElementById('metrica-tendencia');
+        let sinal = metricas.tendencia_pontuacao > 0 ? '+' : '';
+        valTendencia.innerText = sinal + metricas.tendencia_pontuacao + '%';
+        valTendencia.className = 'metric-value ' + (metricas.tendencia_pontuacao > 0 ? 'text-success' : (metricas.tendencia_pontuacao < 0 ? 'text-danger' : 'text-secondary'));
+
+        const iconTendencia = document.getElementById('icon-tendencia');
+        const iconDir = metricas.tendencia_pontuacao > 0 ? 'up' : (metricas.tendencia_pontuacao < 0 ? 'down' : 'right');
+        const iconColor = metricas.tendencia_pontuacao > 0 ? '#11998e' : (metricas.tendencia_pontuacao < 0 ? '#f5576c' : '#a18cd1');
+        iconTendencia.innerHTML = `<i class="fas fa-arrow-trend-${iconDir}"></i>`;
+        iconTendencia.style.color = iconColor;
+
+        // Resumo Executivo Dinâmico
+        const resumo = document.getElementById('resumoExecutivo');
+        const resumoTexto = document.getElementById('resumoTexto');
+        const tendLabel = metricas.tendencia_pontuacao > 0 ? 'crescimento' : (metricas.tendencia_pontuacao < 0 ? 'queda' : 'estabilidade');
+        const tendEmoji = metricas.tendencia_pontuacao > 0 ? '📈' : (metricas.tendencia_pontuacao < 0 ? '📉' : '➡️');
+        resumoTexto.innerHTML = `No período selecionado, foram realizadas <strong>${metricas.total_auditorias} auditorias</strong> em <strong>${metricas.lojas_auditadas} unidades</strong>. A nota média foi de <strong>${metricas.pontuacao_media}%</strong>, com conformidade geral de <strong>${metricas.conformidade_geral}%</strong>. ${tendEmoji} Tendência de <strong>${tendLabel}</strong> (${sinal}${metricas.tendencia_pontuacao}%) em relação ao período anterior. ${metricas.auditorias_criticas > 0 ? `⚠️ <strong>${metricas.auditorias_criticas} unidade(s)</strong> em situação crítica exigem atenção imediata.` : '✅ Nenhuma unidade em situação crítica.'}`;
+        resumo.style.display = 'block';
+    }
+
+    function atualizarHTMLAvaliadosENC(data) {
+        // 1. Atualiza o HTML do Ranking COM MEDALHAS
+        const rankingDiv = document.getElementById('rankingAvaliados');
+        if (data.ranking_avaliados && data.ranking_avaliados.length > 0) {
+            const medals = ['🥇', '🥈', '🥉'];
+            let html = '';
+            data.ranking_avaliados.forEach((item, index) => {
+                const medalHtml = index < 3
+                    ? `<span class="ranking-medal">${medals[index]}</span>`
+                    : `<span class="badge bg-light text-dark border me-2" style="min-width: 32px;">${index + 1}º</span>`;
+                html += `
             <div class="ranking-item">
-                <div>
-                    <span class="badge bg-secondary me-2">${index + 1}º</span>
-                    <strong>${item.loja}</strong>
-                    <br><small class="text-muted">${item.total_auditorias} aplicações</small>
+                <div class="d-flex align-items-center">
+                    ${medalHtml}
+                    <div>
+                        <strong style="font-size: 0.9rem;">${item.loja}</strong>
+                        <br><small class="text-muted" style="font-size: 0.75rem;">${item.total_auditorias} aplicações</small>
+                    </div>
                 </div>
                 <div class="text-end">
-                    <span class="badge bg-${item.status} fs-6">${item.media}%</span>
+                    <span class="badge bg-${item.status} fs-6" style="border-radius: 8px; padding: 6px 12px;">${item.media}%</span>
                 </div>
             </div>`;
-        });
-        rankingDiv.innerHTML = html;
-    } else {
-        rankingDiv.innerHTML = `<div class="text-center text-muted py-4"><i class="fas fa-info-circle fa-2x mb-2"></i><p>Nenhum dado disponível</p></div>`;
-    }
+            });
+            rankingDiv.innerHTML = html;
+        } else {
+            rankingDiv.innerHTML = `<div class="text-center text-muted py-4"><i class="fas fa-info-circle fa-2x mb-2"></i><p>Nenhum dado disponível</p></div>`;
+        }
 
-    // 2. Atualiza Top Não Conformidades
-    const ncDiv = document.getElementById('topNcList');
-    if (data.top_nao_conformidades && data.top_nao_conformidades.length > 0) {
-        let htmlNC = '';
-        data.top_nao_conformidades.forEach(nc => {
-            let desc = nc.pergunta.length > 50 ? nc.pergunta.substring(0, 50) + '...' : nc.pergunta;
-            htmlNC += `
+        // 2. Atualiza Top Não Conformidades
+        const ncDiv = document.getElementById('topNcList');
+        if (data.top_nao_conformidades && data.top_nao_conformidades.length > 0) {
+            let htmlNC = '';
+            data.top_nao_conformidades.forEach(nc => {
+                let desc = nc.pergunta.length > 50 ? nc.pergunta.substring(0, 50) + '...' : nc.pergunta;
+                htmlNC += `
             <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded">
                 <div class="flex-grow-1"><small class="fw-bold">${desc}</small></div>
-                <span class="badge bg-danger">${nc.frequencia}</span>
+                <span class="badge bg-danger" style="border-radius: 8px;">${nc.frequencia}</span>
             </div>`;
-        });
-        ncDiv.innerHTML = htmlNC;
-    } else {
-        ncDiv.innerHTML = `<div class="text-center text-muted py-4"><i class="fas fa-check-circle fa-2x mb-2"></i><p>Nenhuma não conformidade encontrada</p></div>`;
-    }
-}
-
-function atualizarGraficos(data) {
-    if (chartEvolucao && data.evolucao) { chartEvolucao.data = data.evolucao; chartEvolucao.update(); }
-    if (chartTopicos && data.topicos) { chartTopicos.data = data.topicos; chartTopicos.update(); }
-    if (chartQuestionarios && data.questionarios) { chartQuestionarios.data = data.questionarios; chartQuestionarios.update(); }
-    if (chartAvaliados && data.por_avaliado) { 
-        aplicarLarguraDinamica(data.por_avaliado.labels.length); 
-        chartAvaliados.data = data.por_avaliado; 
-        chartAvaliados.update(); 
+            });
+            ncDiv.innerHTML = htmlNC;
+        } else {
+            ncDiv.innerHTML = `<div class="text-center text-muted py-4"><i class="fas fa-check-circle fa-2x mb-2"></i><p>Nenhuma não conformidade encontrada</p></div>`;
+        }
     }
 
-    // Recriação completa dos cards de tópicos para não encavalar dados ao filtrar
-    const containerTopicos = document.getElementById('containerEvolucaoTopicos');
-    containerTopicos.innerHTML = '';
-    chartsEvolucaoTopicosSeparados.forEach(c => c.destroy());
-    chartsEvolucaoTopicosSeparados = [];
 
-    if (data.evolucao_topicos && data.evolucao_topicos.length > 0) {
-        data.evolucao_topicos.forEach(graficoObj => {
-            // Cria a Div do Card na hora
-            const colDiv = document.createElement('div');
-            colDiv.className = "col-lg-6 mb-4";
-            colDiv.innerHTML = `
+    function aplicarCoresPremium(chartData, isMulticolor = false) {
+        // Aplica cores premium nos datasets que vêm da API
+        if (chartData && chartData.datasets) {
+            chartData.datasets.forEach((ds, i) => {
+                if (isMulticolor) {
+                    // Se for multicolorido (como Tópicos), cada barra recebe uma cor
+                    ds.backgroundColor = premiumColors.slice(0, chartData.labels.length);
+                    ds.borderColor = premiumBorders.slice(0, chartData.labels.length);
+                    ds.borderWidth = 1;
+                } else {
+                    const cor = premiumColors[i % premiumColors.length];
+                    const corBorda = premiumBorders[i % premiumBorders.length];
+                    if (!ds.backgroundColor || (Array.isArray(ds.backgroundColor) && ds.backgroundColor.length === 0)) {
+                        ds.backgroundColor = cor;
+                        ds.borderColor = corBorda;
+                        ds.borderWidth = 2;
+                    }
+                }
+                ds.borderRadius = 6;
+                ds.borderSkipped = false;
+            });
+        }
+        return chartData;
+    }
+
+    function togglePrintMode() {
+        document.body.classList.toggle('print-mode-active');
+        const btn = document.getElementById('btnPrintMode');
+        if (document.body.classList.contains('print-mode-active')) {
+            btn.innerHTML = '<i class="fas fa-expand me-2"></i>Sair do Modo Print';
+            btn.classList.replace('btn-outline-secondary', 'btn-secondary');
+        } else {
+            btn.innerHTML = '<i class="fas fa-print me-2"></i>Afinar Colunas (Print)';
+            btn.classList.replace('btn-secondary', 'btn-outline-secondary');
+        }
+        // Redraw charts to adjust spacing if needed
+        [chartEvolucao, chartTopicos, chartAvaliados].forEach(c => c && c.update());
+    }
+
+    function atualizarGraficos(data) {
+        if (chartEvolucao && data.evolucao) {
+            chartEvolucao.data = aplicarCoresPremium(data.evolucao);
+            chartEvolucao.update();
+        }
+        if (chartTopicos && data.topicos) {
+            chartTopicos.data = aplicarCoresPremium(data.topicos, true); // true para multicolorido
+            chartTopicos.update();
+        }
+        if (chartQuestionarios && data.questionarios) {
+            // Doughnut usa array de cores
+            if (data.questionarios.datasets) {
+                data.questionarios.datasets.forEach(ds => {
+                    if (!ds.backgroundColor || ds.backgroundColor.length === 0) {
+                        ds.backgroundColor = premiumColors.slice(0, data.questionarios.labels.length);
+                        ds.borderColor = '#fff';
+                        ds.borderWidth = 3;
+                    }
+                });
+            }
+            chartQuestionarios.data = data.questionarios;
+            chartQuestionarios.update();
+        }
+        if (chartAvaliados && data.por_avaliado) {
+            aplicarLarguraDinamica(data.por_avaliado.labels.length);
+            chartAvaliados.data = aplicarCoresPremium(data.por_avaliado);
+            chartAvaliados.update();
+        }
+
+        // 🚀 LÓGICA DE ATUALIZAÇAO DO MAPA DE CALOR 
+        if (data.mapa_dados) {
+            atualizarMarcadoresDoMapa(data.mapa_dados);
+
+            // Atualiza Badge Decorativo dependendo do Dropdown
+            const topicSelect = document.getElementById("topico_id");
+            const selectedTopicName = topicSelect.options[topicSelect.selectedIndex].text;
+            const badgeSpan = document.getElementById("badgeMapaFiltro");
+
+            if (topicSelect.value === "") { badgeSpan.innerHTML = "Visualizando Nota Global"; }
+            else { badgeSpan.innerHTML = "Filtro Ativo: " + selectedTopicName; }
+        }
+
+        // 🔴🟡🟢 GRÁFICO 4: AÇÕES CORRETIVAS POR COR (Stacked Bar)
+        if (data.acoes_corretivas && data.acoes_corretivas.labels.length > 0) {
+            const acData = data.acoes_corretivas;
+            if (chartAcoesCorretivas) chartAcoesCorretivas.destroy();
+            const ctxAcoes = document.getElementById('chartAcoesCorretivas').getContext('2d');
+            chartAcoesCorretivas = new Chart(ctxAcoes, {
+                type: 'bar',
+                data: {
+                    labels: acData.labels,
+                    datasets: [
+                        { label: 'Alta', data: acData.alta, backgroundColor: 'rgba(220, 53, 69, 0.85)', borderRadius: 3 },
+                        { label: 'Média', data: acData.media, backgroundColor: 'rgba(255, 193, 7, 0.85)', borderRadius: 3 },
+                        { label: 'Baixa', data: acData.baixa, backgroundColor: 'rgba(25, 135, 84, 0.85)', borderRadius: 3 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: { mode: 'index', intersect: false },
+                        datalabels: { display: false }
+                    },
+                    scales: {
+                        x: { stacked: true, grid: { display: false }, ticks: { autoSkip: false, maxRotation: 45, minRotation: 45 } },
+                        y: { stacked: true, beginAtZero: true, title: { display: true, text: 'Qtd. de Ações' } }
+                    }
+                }
+            });
+        } else {
+            // Sem dados - mostra placeholder no canvas
+            const ctxEmpty = document.getElementById('chartAcoesCorretivas');
+            if (ctxEmpty) {
+                if (chartAcoesCorretivas) chartAcoesCorretivas.destroy();
+                chartAcoesCorretivas = null;
+                ctxEmpty.parentElement.innerHTML = '<div class="text-center text-muted py-5"><i class="fas fa-check-circle fa-3x mb-3 opacity-25"></i><h6>Nenhuma ação corretiva registrada no período.</h6></div>';
+            }
+        }
+
+        // Recriação completa dos cards de tópicos para não encavalar dados ao filtrar
+        const containerTopicos = document.getElementById('containerEvolucaoTopicos');
+        containerTopicos.innerHTML = '';
+        chartsEvolucaoTopicosSeparados.forEach(c => c.destroy());
+        chartsEvolucaoTopicosSeparados = [];
+
+        if (data.evolucao_topicos && data.evolucao_topicos.length > 0) {
+            data.evolucao_topicos.forEach(graficoObj => {
+                // Cria a Div do Card na hora
+                const colDiv = document.createElement('div');
+                colDiv.className = "col-lg-6 mb-4";
+                colDiv.innerHTML = `
                 <div class="card shadow-sm border-0 h-100">
                     <div class="card-header bg-white border-bottom text-center">
                         <h6 class="mb-0 fw-bold" style="color: ${graficoObj.cor};">${graficoObj.titulo} - Evolução Mensal</h6>
@@ -510,64 +1316,68 @@ function atualizarGraficos(data) {
                     </div>
                 </div>
             `;
-            containerTopicos.appendChild(colDiv);
+                containerTopicos.appendChild(colDiv);
 
-            // Popula o Chart.js na div recém criada
-            const ctxNew = document.getElementById(graficoObj.id).getContext('2d');
-            const newChart = new Chart(ctxNew, {
-                type: 'bar',
-                data: graficoObj.dados,
-                options: {
-                    ...defaultOptions,
-                    scales: { y: { beginAtZero: true, max: 10, ticks: { stepSize: 2 } } },
-                    plugins: {
-                        ...defaultOptions.plugins,
-                        legend: { display: false },
-                        datalabels: { 
-                            anchor: 'end', align: 'top', color: '#333', font: { weight: 'bold', size: 12 },
-                            formatter: function(value) { return value !== null ? value : ''; }
+                // Popula o Chart.js na div recém criada
+                const ctxNew = document.getElementById(graficoObj.id).getContext('2d');
+                const newChart = new Chart(ctxNew, {
+                    type: 'bar',
+                    data: graficoObj.dados,
+                    options: {
+                        ...defaultOptions,
+                        scales: { y: { beginAtZero: true, max: 10, ticks: { stepSize: 2 } } },
+                        plugins: {
+                            ...defaultOptions.plugins,
+                            legend: { display: false },
+                            datalabels: {
+                                anchor: 'end', align: 'top', color: '#333', font: { weight: 'bold', size: 12 },
+                                formatter: function (value) { return value !== null ? value : ''; }
+                            }
                         }
                     }
-                }
+                });
+                chartsEvolucaoTopicosSeparados.push(newChart);
             });
-            chartsEvolucaoTopicosSeparados.push(newChart);
-        });
-    } else {
-        containerTopicos.innerHTML = `<div class="col-12"><div class="alert alert-light text-center border">Nenhum dado de evolução de tópicos disponível para o período.</div></div>`;
-    }
-}
-
-function exportarDados() {
-    const formato = prompt('Escolha o formato de exportação (csv ou json):', 'csv');
-    if (formato && ['csv', 'json'].includes(formato)) {
-        document.getElementById('periodo').removeAttribute('disabled');
-        const formData = new FormData(document.getElementById('filtroForm'));
-        const params = new URLSearchParams(formData);
-        params.append('formato', formato);
-        window.open(`/panorama/api/export-data?${params.toString()}`, '_blank');
-        
-        if(document.getElementById('mes').value !== "") {
-            document.getElementById('periodo').setAttribute('disabled', 'disabled');
+        } else {
+            containerTopicos.innerHTML = `<div class="col-12"><div class="alert alert-light text-center border">Nenhum dado de evolução de tópicos disponível para o período.</div></div>`;
         }
     }
-}
 
-function showNotification(message, type = 'info') {
-    const alertDiv = document.createElement('div');
-    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
-    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
-    alertDiv.innerHTML = `${message} <button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
-    document.body.appendChild(alertDiv);
-    setTimeout(() => alertDiv.remove(), 5000);
-}
+    function atualizarMarcadoresDoMapa(mapaData) {
+        currentMapData = mapaData;
+        desenharGeoJSON(mapaData);
+    }
+    function exportarDados() {
+        const formato = prompt('Escolha o formato de exportação (csv ou json):', 'csv');
+        if (formato && ['csv', 'json'].includes(formato)) {
+            document.getElementById('periodo').removeAttribute('disabled');
+            const formData = new FormData(document.getElementById('filtroForm'));
+            const params = new URLSearchParams(formData);
+            params.append('formato', formato);
+            window.open(`/panorama/api/export-data?${params.toString()}`, '_blank');
 
-function handleResize() {
-    if (chartEvolucao) chartEvolucao.resize();
-    if (chartTopicos) chartTopicos.resize();
-    if (chartsEvolucaoTopicosSeparados) { chartsEvolucaoTopicosSeparados.forEach(c => c.resize()); }
-    if (chartAvaliados) chartAvaliados.resize();
-    if (chartQuestionarios) chartQuestionarios.resize();
-}
-window.addEventListener('resize', handleResize);
+            if (document.getElementById('mes').value !== "") {
+                document.getElementById('periodo').setAttribute('disabled', 'disabled');
+            }
+        }
+    }
+
+    function showNotification(message, type = 'info') {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+        alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+        alertDiv.innerHTML = `${message} <button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+        document.body.appendChild(alertDiv);
+        setTimeout(() => alertDiv.remove(), 5000);
+    }
+
+    function handleResize() {
+        if (chartEvolucao) chartEvolucao.resize();
+        if (chartTopicos) chartTopicos.resize();
+        if (chartsEvolucaoTopicosSeparados) { chartsEvolucaoTopicosSeparados.forEach(c => c.resize()); }
+        if (chartAvaliados) chartAvaliados.resize();
+        if (chartQuestionarios) chartQuestionarios.resize();
+    }
+    window.addEventListener('resize', handleResize);
 </script>
 {% endblock %}

@@ -1,7 +1,9 @@
 /* ===== ESTILO GLOBAL ===== */
 body {
-  font-family: 'Segoe UI', sans-serif;
-  background-color: #f8f9fa;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  background-color: #f5f6fa;
+  margin: 0;
+  overflow-x: hidden;
 }
 
 #wrapper {
@@ -12,70 +14,133 @@ body {
 
 #page-content-wrapper {
   flex-grow: 1;
-  background-color: #f8f9fa;
-  padding: 2rem;
-}
-
-/* ===== SIDEBAR PADRÃO ===== */
-#sidebar {
-  width: 240px;
+  background-color: #f5f6fa;
+  padding: 0;
+  transition: margin-left 0.3s cubic-bezier(.4, 0, .2, 1);
+  margin-left: 260px;
   min-height: 100vh;
-  transition: all 0.3s ease;
-  background-color: #ffffff;
-  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
-  z-index: 1000;
 }
 
+/* ===== SIDEBAR PREMIUM RETRÁTIL ===== */
+#sidebar {
+  width: 260px;
+  min-height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1040;
+  transition: transform 0.3s cubic-bezier(.4, 0, .2, 1), box-shadow 0.3s ease;
+  background-color: #ffffff;
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Sidebar colapsada */
+#sidebar.collapsed {
+  transform: translateX(-260px);
+  box-shadow: none;
+}
+
+#sidebar.collapsed ~ #page-content-wrapper {
+  margin-left: 0;
+}
+
+/* Logo e header do sidebar */
+#sidebar .sidebar-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+#sidebar .sidebar-header img {
+  width: 140px;
+  height: auto;
+}
+
+/* Links de navegação */
 #sidebar .nav-link {
-  color: #333;
-  padding: 10px 16px;
-  border-radius: 6px;
-  transition: 0.2s;
+  color: #495057;
+  padding: 11px 18px;
+  border-radius: 10px;
+  transition: all 0.2s ease;
   font-weight: 500;
+  font-size: 0.9rem;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  margin: 2px 8px;
 }
 
-#sidebar .nav-link:hover,
+#sidebar .nav-link:hover {
+  background-color: rgba(102, 126, 234, 0.08);
+  color: #667eea;
+}
+
 #sidebar .nav-link.active {
-  background-color: #e9ecef;
-  color: #007bff;
+  background: linear-gradient(135deg, #667eea15, #764ba215);
+  color: #667eea;
+  font-weight: 600;
 }
 
-/* ===== BOTÃO DE TOGGLE VISÍVEL NO MOBILE ===== */
-#sidebarToggle {
+#sidebar .nav-link i {
+  width: 20px;
+  text-align: center;
+  font-size: 1rem;
+}
+
+/* ===== BOTÃO TOGGLE UNIVERSAL ===== */
+.sidebar-toggle-btn {
   border: none;
   background: none;
-  font-size: 1.2rem;
+  font-size: 1.3rem;
+  color: #495057;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 8px;
+  transition: background 0.2s, color 0.2s;
 }
 
-/* ===== MOBILE: SIDEBAR RETRÁTIL ===== */
-@media (max-width: 768px) {
+.sidebar-toggle-btn:hover {
+  background: rgba(102, 126, 234, 0.1);
+  color: #667eea;
+}
+
+/* ===== NAVBAR SUPERIOR ===== */
+.top-navbar {
+  background: #fff !important;
+  border-bottom: 1px solid #eef0f4;
+  padding: 10px 24px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+}
+
+/* ===== OVERLAY QUANDO SIDEBAR ABERTA NO MOBILE ===== */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.3);
+  z-index: 1035;
+  backdrop-filter: blur(2px);
+}
+
+.sidebar-overlay.active {
+  display: block;
+}
+
+/* ===== RESPONSIVO MOBILE ===== */
+@media (max-width: 992px) {
   #sidebar {
-    position: fixed;
-    top: 0;
-    left: -250px;
-    width: 240px;
-    height: 100%;
-    z-index: 1050;
-    transition: left 0.3s ease;
-    background-color: #fff;
-    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+    transform: translateX(-260px);
   }
 
-  #sidebar.active {
-    left: 0;
+  #sidebar.mobile-open {
+    transform: translateX(0);
   }
 
   #page-content-wrapper {
-    width: 100%;
-    padding-left: 0 !important;
+    margin-left: 0 !important;
   }
-}
-
-.card:hover {
-  transform: translateY(-5px);
-  transition: 0.3s ease;
-  box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.1);
 }

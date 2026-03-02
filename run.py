@@ -18,10 +18,10 @@ try:
     
     if __name__ == '__main__':
         if modo_debug:
-            print("🚀 Iniciando QualiGestor em MODO DESENVOLVIMENTO (Windows)...")
-            print("📍 Acesse: http://localhost:5000")
+            print("-> Iniciando QualiGestor em MODO DESENVOLVIMENTO (Windows)...")
+            print("-> Acesse: http://localhost:5000")
         else:
-            print("🔒 Iniciando QualiGestor em MODO PRODUÇÃO (Linux/VPS)...")
+            print("-> Iniciando QualiGestor em MODO PRODUCAO (Linux/VPS)...")
             
         print("=" * 50)
         
@@ -33,12 +33,12 @@ try:
         )
         
 except ImportError as e:
-    print(f"❌ Erro de importação: {e}")
-    print("\n💡 Verifique se executou:")
+    print(f"Erro de importacao: {e}")
+    print("\nVerifique se executou:")
     print("  1. python inicializar_dados_corrigido.py")
     print("  2. pip install -r requirements.txt")
     
 except Exception as e:
-    print(f"❌ Erro inesperado: {e}")
+    print(f"Erro inesperado: {e}")
     import traceback
     traceback.print_exc()

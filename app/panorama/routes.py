@@ -54,7 +54,8 @@ def dashboard():
         'meses': meses_opcoes,
         'avaliados': query_avaliados.order_by(Avaliado.nome).all(),
         'questionarios': Questionario.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).all(),
-        'grupos': query_grupos.order_by(Grupo.nome).all()
+        'grupos': query_grupos.order_by(Grupo.nome).all(),
+        'topicos': Topico.query.join(Questionario).filter(Questionario.cliente_id == current_user.cliente_id).order_by(Topico.ordem).all()
     }
 
     # Enviamos tudo vazio para o HTML montar a casca imediatamente. O JS fará a requisição real.
@@ -81,6 +82,91 @@ def relatorios():
 @login_required
 def filtros():
     return redirect(url_for('panorama.dashboard'))
+    
+@panorama_bp.route('/dossie/<int:avaliado_id>')
+@login_required
+def dossie(avaliado_id):
+    # Regra de Segurança: Checar Hierarquia (GAP não pode ver Rancho alheio)
+    query_seguranca = Avaliado.query.filter_by(id=avaliado_id, cliente_id=current_user.cliente_id)
+    query_seguranca = aplicar_filtro_hierarquia(query_seguranca)
+    avaliado = query_seguranca.first_or_404()
+    
+    # Busca todas as auditorias consolidadas dessa OM
+    aplicacoes = AplicacaoQuestionario.query.filter_by(
+        avaliado_id=avaliado_id, 
+        status=StatusAplicacao.FINALIZADA
+    ).options(
+        joinedload(AplicacaoQuestionario.questionario),
+        joinedload(AplicacaoQuestionario.aplicador)
+    ).order_by(desc(AplicacaoQuestionario.data_fim)).all()
+    
+    # --- NOVO: Carregar TODAS as respostas para calcular Tópicos ---
+    aplicacao_ids = [app.id for app in aplicacoes]
+    if aplicacao_ids:
+        todas_respostas = RespostaPergunta.query.options(
+            joinedload(RespostaPergunta.pergunta).joinedload(Pergunta.topico)
+        ).filter(RespostaPergunta.aplicacao_id.in_(aplicacao_ids)).all()
+        
+        respostas_agrupadas = {app_id: [] for app_id in aplicacao_ids}
+        for resp in todas_respostas:
+            respostas_agrupadas[resp.aplicacao_id].append(resp)
+            
+        for app in aplicacoes:
+            app._respostas_carregadas = respostas_agrupadas.get(app.id, [])
+    else:
+        for app in aplicacoes:
+            app._respostas_carregadas = []
+    # ---------------------------------------------------------------
+    
+    # Processa os dados cronológicos para injetar no Chart.js do Dossiê
+    grafico_timeline = {
+        'datas': [],
+        'notas': [],
+        'aplicadores': []
+    }
+    
+    topicos_data = {} # Dicionário de Tópicos
+    
+    # Lendo de baixo pra cima (Ascendente para o gráfico ficar da Esquerda -> Direita)
+    for app in reversed(aplicacoes):
+        if app.nota_final is not None:
+            data_label = app.data_fim.strftime('%d/%m/%Y')
+            grafico_timeline['datas'].append(data_label)
+            grafico_timeline['notas'].append(app.nota_final)
+            grafico_timeline['aplicadores'].append(app.aplicador.nome if app.aplicador else 'Desconhecido')
+            
+            # Agrupar respostas por tópico para esta aplicação
+            pontos_por_topico = {}
+            for resp in getattr(app, '_respostas_carregadas', []):
+                if not resp.pergunta or not resp.pergunta.topico: continue
+                t_nome = resp.pergunta.topico.nome
+                if t_nome not in pontos_por_topico:
+                    pontos_por_topico[t_nome] = {'obtido': 0, 'maximo': 0}
+                pontos_por_topico[t_nome]['obtido'] += (resp.pontos or 0)
+                pontos_por_topico[t_nome]['maximo'] += (resp.pergunta.peso or 0)
+                
+            # Calcular nota de cada tópico nesta data e registrar na curva evolutiva global daquele tópico
+            for t_nome, pts in pontos_por_topico.items():
+                if t_nome not in topicos_data:
+                    topicos_data[t_nome] = {'labels': [], 'data': []}
+                
+                nota_pct = (pts['obtido'] / pts['maximo']) * 100 if pts['maximo'] > 0 else 0
+                topicos_data[t_nome]['labels'].append(data_label)
+                topicos_data[t_nome]['data'].append(round(nota_pct, 1))
+            
+    # Média Consolidada Header
+    media_geral = round(sum(grafico_timeline['notas']) / len(grafico_timeline['notas']), 2) if grafico_timeline['notas'] else 0
+    status_atual = 'success' if media_geral >= 80 else 'warning' if media_geral >= 60 else 'danger'
+
+    return render_template(
+        'panorama/dossie.html', 
+        avaliado=avaliado,
+        aplicacoes=aplicacoes,
+        media_geral=media_geral,
+        status_atual=status_atual,
+        grafico_json=json.dumps(grafico_timeline),
+        topicos_json=json.dumps(topicos_data)
+    )
 
 @panorama_bp.route('/api/dashboard-data')
 @login_required
@@ -93,6 +179,7 @@ def api_dashboard_data():
         avaliado_id = request.args.get('avaliado_id', type=int)  
         questionario_id = request.args.get('questionario_id', type=int)
         grupo_id = request.args.get('grupo_id', type=int) 
+        topico_id = request.args.get('topico_id', type=int) 
 
         agora = datetime.now()
         if not data_fim: data_fim = agora
@@ -156,14 +243,16 @@ def api_dashboard_data():
 
         data = {
             'metricas': calcular_metricas_dashboard(aplicacoes),
-            'evolucao': gerar_grafico_evolucao_mensal(aplicacoes), 
-            'evolucao_topicos': gerar_grafico_evolucao_topicos(aplicacoes),
-            'topicos': gerar_grafico_topicos(aplicacoes),          
-            'por_avaliado': gerar_grafico_avaliados(aplicacoes),  
-            'distribuicao': gerar_grafico_distribuicao(aplicacoes),
-            'questionarios': gerar_grafico_questionarios(aplicacoes),
-            'ranking_avaliados': gerar_ranking_avaliados(aplicacoes),
-            'top_nao_conformidades': gerar_top_nao_conformidades(aplicacoes)
+            'evolucao': gerar_grafico_evolucao_mensal(aplicacoes, topico_id), 
+            'evolucao_topicos': gerar_grafico_evolucao_topicos(aplicacoes, topico_id),
+            'topicos': gerar_grafico_topicos(aplicacoes, topico_id),          
+            'por_avaliado': gerar_grafico_avaliados(aplicacoes, topico_id),  
+            'distribuicao': gerar_grafico_distribuicao(aplicacoes, topico_id),
+            'questionarios': gerar_grafico_questionarios(aplicacoes, topico_id),
+            'ranking_avaliados': gerar_ranking_avaliados(aplicacoes, topico_id),
+            'top_nao_conformidades': gerar_top_nao_conformidades(aplicacoes, topico_id),
+            'mapa_dados': gerar_dados_mapa(aplicacoes, topico_id),
+            'acoes_corretivas': gerar_grafico_acoes_corretivas(aplicacao_ids)
         }
         return jsonify(data)
     except Exception as e:
@@ -233,13 +322,20 @@ def calcular_metricas_dashboard(aplicacoes):
         'auditorias_criticas': aplicacoes_criticas, 'conformidade_geral': round(conformidade_geral, 1)
     }
 
-def gerar_grafico_avaliados(aplicacoes):
+def gerar_grafico_avaliados(aplicacoes, topico_id=None):
     if not aplicacoes: return {'labels': [], 'datasets': []}
     dados_por_avaliado = {}
     for aplicacao in aplicacoes:
         avaliado_nome = aplicacao.avaliado.nome 
         if avaliado_nome not in dados_por_avaliado: dados_por_avaliado[avaliado_nome] = []
-        dados_por_avaliado[avaliado_nome].append(aplicacao.nota_final or 0)
+        
+        nota = aplicacao.nota_final or 0
+        if topico_id:
+            total_pontos = sum([resp.pontos or 0 for resp in getattr(aplicacao, '_respostas_carregadas', []) if resp.pergunta.topico_id == topico_id])
+            total_maximo = sum([resp.pergunta.peso or 0 for resp in getattr(aplicacao, '_respostas_carregadas', []) if resp.pergunta.topico_id == topico_id])
+            nota = (total_pontos / total_maximo) * 100 if total_maximo > 0 else 0
+
+        dados_por_avaliado[avaliado_nome].append(nota)
 
     lista_ordenada = []
     for avaliado, pontuacoes in dados_por_avaliado.items():
@@ -257,13 +353,178 @@ def gerar_grafico_avaliados(aplicacoes):
 
     return {'labels': labels, 'datasets': [{'label': 'Pontuação Média (%)', 'data': valores, 'backgroundColor': cores}]}
 
-def gerar_grafico_questionarios(aplicacoes):
+def gerar_dados_mapa(aplicacoes, topico_id=None):
+    """
+    Agrupa as aplicações por 'Rancho', calcula a média e constrói a lista para o mapa do Frontend.
+    """
+    if not aplicacoes: return []
+
+    dados_por_avaliado = {}
+    from ..utils.pontuacao import calcular_pontuacao_auditoria
+    
+    for aplicacao in aplicacoes:
+        avaliado = aplicacao.avaliado
+        if avaliado.id not in dados_por_avaliado: 
+            # Somente exibe ranchos que tenham Lat e Lon (ou o nosso mock temporário)
+            if not avaliado.latitude or not avaliado.longitude:
+                continue
+
+            dados_por_avaliado[avaliado.id] = {
+                'id': avaliado.id,
+                'nome': avaliado.nome,
+                'cidade': avaliado.cidade or 'Não informada',
+                'estado': avaliado.estado or '-',
+                'lat': float(avaliado.latitude) if avaliado.latitude else None,
+                'lng': float(avaliado.longitude) if avaliado.longitude else None,
+                'pontuacoes': []
+            }
+
+        # Filtro de Nota global ou do Topico Selecionado
+        if topico_id:
+            resultado = getattr(aplicacao, '_cache_resultado', calcular_pontuacao_auditoria(aplicacao))
+            if resultado and 'detalhes_blocos_id' in resultado:
+                # Vamos supor que precisamos pegar  percentual por bloco iterando
+                for bloco_nome, pct in resultado.get('percentual_por_bloco', {}).items():
+                    # Para simplificar aqui e como a busca e pelo nome no core antigo, pegamos o topico local
+                    pass
+            # Implementação robusta baseada apenas em respostas para notas especificas
+            total_pontos = 0
+            total_maximo = 0
+            for resp in getattr(aplicacao, '_respostas_carregadas', []):
+                if resp.pergunta.topico_id == topico_id:
+                    total_pontos += (resp.pontos or 0)
+                    total_maximo += (resp.pergunta.peso or 0)
+            
+            nota_filtrada = round((total_pontos / total_maximo) * 100, 1) if total_maximo > 0 else None
+            if nota_filtrada is not None:
+                dados_por_avaliado[avaliado.id]['pontuacoes'].append(nota_filtrada)
+        else:
+            if aplicacao.nota_final is not None:
+                dados_por_avaliado[avaliado.id]['pontuacoes'].append(aplicacao.nota_final)
+
+    retorno_mapa = []
+    import statistics
+    for av_id, av_data in dados_por_avaliado.items():
+        if not av_data['pontuacoes']: continue
+        
+        media_nota = statistics.mean(av_data['pontuacoes'])
+        
+        status = 'success'
+        if media_nota < 60:
+            status = 'danger'
+        elif media_nota < 80:
+            status = 'warning'
+
+        retorno_mapa.append({
+            'id': av_data['id'],
+            'nome': av_data['nome'],
+            'lat': av_data['lat'],
+            'lng': av_data['lng'],
+            'nota_media': round(media_nota, 1),
+            'status': status,
+            'total_apps': len(av_data['pontuacoes'])
+        })
+        
+    return retorno_mapa
+
+def gerar_dados_mapa(aplicacoes, topico_id=None):
+    """
+    Gera dados estruturados para o Mapa Panorâmico (Choropleth/Colorido).
+    Agrupa as aplicações por Estado (UF) para alertar visualmente regiões problemáticas.
+    """
+    if not aplicacoes: return {}
+
+    dados_por_estado = {}
+    
+    for aplicacao in aplicacoes:
+        estado = aplicacao.avaliado.estado
+        if not estado or len(estado) != 2: continue # Ignora se não houver UF
+        estado = estado.upper()
+        
+        if estado not in dados_por_estado:
+            dados_por_estado[estado] = {'pontuacoes': [], 'ranchos': {}}
+            
+        r_id = aplicacao.avaliado.id
+        if r_id not in dados_por_estado[estado]['ranchos']:
+            dados_por_estado[estado]['ranchos'][r_id] = {
+                'id': r_id,
+                'nome': aplicacao.avaliado.nome,
+                'pontuacoes': []
+            }
+        
+        # Filtro Global ou Tópico
+        if topico_id:
+            total_pontos = 0
+            total_maximo = 0
+            for resp in getattr(aplicacao, '_respostas_carregadas', []):
+                if resp.pergunta.topico_id == topico_id:
+                    total_pontos += (resp.pontos or 0)
+                    total_maximo += (resp.pergunta.peso or 0)
+            
+            if total_maximo > 0:
+                nota_pct = (total_pontos / total_maximo) * 100
+                dados_por_estado[estado]['pontuacoes'].append(nota_pct)
+                dados_por_estado[estado]['ranchos'][r_id]['pontuacoes'].append(nota_pct)
+        else:
+            if aplicacao.nota_final is not None:
+                dados_por_estado[estado]['pontuacoes'].append(aplicacao.nota_final)
+                dados_por_estado[estado]['ranchos'][r_id]['pontuacoes'].append(aplicacao.nota_final)
+
+    retorno_mapa = {}
+    import statistics
+    for uf, data in dados_por_estado.items():
+        if not data['pontuacoes']: continue
+        
+        media_nota = round(statistics.mean(data['pontuacoes']), 1)
+        
+        status = 'success'
+        if media_nota < 60:
+            status = 'danger'
+        elif media_nota < 80:
+            status = 'warning'
+
+        # Processar detalhes dos ranchos desse estado
+        detalhes_ranchos = []
+        for r_id, r_info in data['ranchos'].items():
+            if not r_info['pontuacoes']: continue
+            r_media = statistics.mean(r_info['pontuacoes'])
+            r_status = 'success' if r_media >= 80 else 'warning' if r_media >= 60 else 'danger'
+            detalhes_ranchos.append({
+                'id': r_id,
+                'nome': r_info['nome'],
+                'media': round(r_media, 1),
+                'status': r_status,
+                'qtd_auditorias': len(r_info['pontuacoes'])
+            })
+            
+        # Ordenar os ranchos do pior pro melhor
+        detalhes_ranchos = sorted(detalhes_ranchos, key=lambda x: x['media'])
+
+        # Chave ISO ('BR-RJ', 'BR-SP', etc)
+        chave = f"BR-{uf}"
+        retorno_mapa[chave] = {
+            'nota': media_nota,
+            'status': status,
+            'qtd_ranchos': len(detalhes_ranchos),
+            'detalhes_ranchos': detalhes_ranchos
+        }
+        
+    return retorno_mapa
+
+def gerar_grafico_questionarios(aplicacoes, topico_id=None):
     if not aplicacoes: return {'labels': [], 'datasets': []}
     dados_por_questionario = {}
     for aplicacao in aplicacoes:
         quest_nome = aplicacao.questionario.nome
         if quest_nome not in dados_por_questionario: dados_por_questionario[quest_nome] = []
-        dados_por_questionario[quest_nome].append(aplicacao.nota_final or 0)
+        
+        nota = aplicacao.nota_final or 0
+        if topico_id:
+            total_pontos = sum([resp.pontos or 0 for resp in getattr(aplicacao, '_respostas_carregadas', []) if resp.pergunta.topico_id == topico_id])
+            total_maximo = sum([resp.pergunta.peso or 0 for resp in getattr(aplicacao, '_respostas_carregadas', []) if resp.pergunta.topico_id == topico_id])
+            nota = (total_pontos / total_maximo) * 100 if total_maximo > 0 else 0
+
+        dados_por_questionario[quest_nome].append(nota)
 
     labels, valores = [], []
     for questionario, pontuacoes in dados_por_questionario.items():
@@ -273,11 +534,17 @@ def gerar_grafico_questionarios(aplicacoes):
 
     return {'labels': labels, 'datasets': [{'label': 'Pontuação Média (%)', 'data': valores, 'backgroundColor': ['#007bff', '#28a745', '#ffc107', '#dc3545', '#6f42c1', '#fd7e14', '#20c997', '#e83e8c']}]}
 
-def gerar_grafico_distribuicao(aplicacoes):
+def gerar_grafico_distribuicao(aplicacoes, topico_id=None):
     if not aplicacoes: return {'labels': [], 'datasets': []}
     faixas = { '0-20%': 0, '21-40%': 0, '41-60%': 0, '61-80%': 0, '81-100%': 0 }
     for aplicacao in aplicacoes:
         pontuacao = aplicacao.nota_final or 0 
+        
+        if topico_id:
+            total_pontos = sum([resp.pontos or 0 for resp in getattr(aplicacao, '_respostas_carregadas', []) if resp.pergunta.topico_id == topico_id])
+            total_maximo = sum([resp.pergunta.peso or 0 for resp in getattr(aplicacao, '_respostas_carregadas', []) if resp.pergunta.topico_id == topico_id])
+            pontuacao = (total_pontos / total_maximo) * 100 if total_maximo > 0 else 0
+
         if pontuacao <= 20: faixas['0-20%'] += 1
         elif pontuacao <= 40: faixas['21-40%'] += 1
         elif pontuacao <= 60: faixas['41-60%'] += 1
@@ -285,24 +552,37 @@ def gerar_grafico_distribuicao(aplicacoes):
         else: faixas['81-100%'] += 1
     return {'labels': list(faixas.keys()), 'datasets': [{'label': 'Quantidade de Aplicações', 'data': list(faixas.values()), 'backgroundColor': ['#dc3545', '#fd7e14', '#ffc107', '#20c997', '#28a745']}]}
 
-def gerar_ranking_avaliados(aplicacoes):
+def gerar_ranking_avaliados(aplicacoes, topico_id=None):
     if not aplicacoes: return []
     dados_por_avaliado = {}
     for aplicacao in aplicacoes:
         avaliado_id = aplicacao.avaliado_id
         if avaliado_id not in dados_por_avaliado:
             dados_por_avaliado[avaliado_id] = {'nome': aplicacao.avaliado.nome, 'pontuacoes': [], 'total_aplicacoes': 0}
-        dados_por_avaliado[avaliado_id]['pontuacoes'].append(aplicacao.nota_final or 0)
+            
+        nota = aplicacao.nota_final or 0
+        if topico_id:
+            total_pontos = sum([resp.pontos or 0 for resp in getattr(aplicacao, '_respostas_carregadas', []) if resp.pergunta.topico_id == topico_id])
+            total_maximo = sum([resp.pergunta.peso or 0 for resp in getattr(aplicacao, '_respostas_carregadas', []) if resp.pergunta.topico_id == topico_id])
+            nota = (total_pontos / total_maximo) * 100 if total_maximo > 0 else 0
+
+        dados_por_avaliado[avaliado_id]['pontuacoes'].append(nota)
         dados_por_avaliado[avaliado_id]['total_aplicacoes'] += 1
 
-    ranking = []
-    for avaliado_id, dados in dados_por_avaliado.items():
-        media = sum(dados['pontuacoes']) / len(dados['pontuacoes']) if dados['pontuacoes'] else 0
-        ranking.append({'loja': dados['nome'], 'media': round(media, 1), 'total_auditorias': dados['total_aplicacoes'], 'status': 'success' if media >= 80 else 'warning' if media >= 60 else 'danger'})
-    ranking.sort(key=lambda x: x['media'], reverse=True)
-    return ranking[:10]
+    dados = []
+    for avaliado_id, info in dados_por_avaliado.items():
+        media = sum(info['pontuacoes']) / len(info['pontuacoes']) if info['pontuacoes'] else 0
+        item = {
+            'loja': info['nome'], 
+            'media': round(media, 1), 
+            'total_auditorias': info['total_aplicacoes'], 
+            'status': 'success' if media >= 80 else 'warning' if media >= 60 else 'danger'
+        }
+        dados.append(item)
+    
+    return sorted(dados, key=lambda x: x['media'], reverse=True)
 
-def gerar_top_nao_conformidades(aplicacoes):
+def gerar_top_nao_conformidades(aplicacoes, topico_id=None):
     if not aplicacoes: return []
     nao_conformidades = {}
     
@@ -311,6 +591,10 @@ def gerar_top_nao_conformidades(aplicacoes):
         lista_respostas = getattr(aplicacao, '_respostas_carregadas', [])
         
         for resposta in lista_respostas:
+            # Pula de acordo com o topico escolhido no dropdown
+            if topico_id and resposta.pergunta.topico_id != topico_id:
+                continue
+
             # Segurança extra para garantir que a resposta existe e é uma string antes do .lower()
             if resposta.resposta and 'não' in str(resposta.resposta).lower():
                 pergunta_texto = resposta.pergunta.texto
@@ -323,7 +607,7 @@ def gerar_top_nao_conformidades(aplicacoes):
 
 # ===================== NOVAS FUNÇÕES DOS GRÁFICOS (0 A 10 E BARRAS) =====================
 
-def gerar_grafico_topicos(aplicacoes):
+def gerar_grafico_topicos(aplicacoes, topico_id_filtro=None):
     """Gera notas de 0 a 10 por tópico, cada um sendo um Dataset para gerar a legenda de cor"""
     if not aplicacoes:
         return {'labels': [''], 'datasets': []}
@@ -343,6 +627,9 @@ def gerar_grafico_topicos(aplicacoes):
             dados_topicos[bloco]['maximo'] += detalhes['pontuacao_maxima']
 
     topicos_banco = Topico.query.order_by(Topico.id).all()
+    if topico_id_filtro:
+        topicos_banco = [t for t in topicos_banco if t.id == topico_id_filtro]
+
     ordem_oficial_nomes = [t.nome for t in topicos_banco]
 
     topicos_ordenados = []
@@ -373,7 +660,7 @@ def gerar_grafico_topicos(aplicacoes):
 
     return {'labels': [''], 'datasets': datasets}
 
-def gerar_grafico_evolucao_mensal(aplicacoes):
+def gerar_grafico_evolucao_mensal(aplicacoes, topico_id=None):
     if not aplicacoes: return {'labels': [], 'datasets': []}
     meses = {1: 'Jan', 2: 'Fev', 3: 'Mar', 4: 'Abr', 5: 'Mai', 6: 'Jun', 7: 'Jul', 8: 'Ago', 9: 'Set', 10: 'Out', 11: 'Nov', 12: 'Dez'}
 
@@ -385,7 +672,13 @@ def gerar_grafico_evolucao_mensal(aplicacoes):
         label_mes = f"{meses[mes_numero]}/{ano}"
 
         if label_mes not in dados_por_mes: dados_por_mes[label_mes] = {'ordem': chave_mes, 'notas': []}
+        
         nota = (aplicacao.nota_final / 10) if aplicacao.nota_final is not None else 0
+        if topico_id:
+            total_pontos = sum([resp.pontos or 0 for resp in getattr(aplicacao, '_respostas_carregadas', []) if resp.pergunta.topico_id == topico_id])
+            total_maximo = sum([resp.pergunta.peso or 0 for resp in getattr(aplicacao, '_respostas_carregadas', []) if resp.pergunta.topico_id == topico_id])
+            nota = ((total_pontos / total_maximo) * 10) if total_maximo > 0 else 0
+
         dados_por_mes[label_mes]['notas'].append(nota)
 
     meses_ordenados = sorted(dados_por_mes.keys(), key=lambda k: dados_por_mes[k]['ordem'])
@@ -399,7 +692,7 @@ def gerar_grafico_evolucao_mensal(aplicacoes):
 
     return {'labels': labels, 'datasets': [{'label': 'Nota Média Mensal (0 a 10)', 'data': valores, 'backgroundColor': '#007bff'}]}
 
-def gerar_grafico_evolucao_topicos(aplicacoes):
+def gerar_grafico_evolucao_topicos(aplicacoes, topico_id_filtro=None):
     if not aplicacoes: return []
 
     from ..utils.pontuacao import calcular_pontuacao_auditoria
@@ -431,6 +724,9 @@ def gerar_grafico_evolucao_topicos(aplicacoes):
                 dados_por_topico[bloco][label_mes].append(nota)
 
     topicos_banco = Topico.query.order_by(Topico.id).all()
+    if topico_id_filtro:
+        topicos_banco = [t for t in topicos_banco if t.id == topico_id_filtro]
+
     ordem_oficial = [t.nome for t in topicos_banco]
     topicos_ordenados = [t for t in ordem_oficial if t in dados_por_topico]
     for t in dados_por_topico.keys():
@@ -616,3 +912,55 @@ def api_indicadores_quantitativos():
         return jsonify({'labels': labels, 'datasets': datasets})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+# ==================== GRÁFICO 4: AÇÕES CORRETIVAS POR COR ====================
+
+def gerar_grafico_acoes_corretivas(aplicacao_ids):
+    """
+    Agrega todas as 'AcaoCorretiva' nas aplicações filtradas
+    e as agrupa por Rancho (Nome) e por Gravidade (Baixa, Média, Alta).
+    Output: Stacked Bar Chart das Ações Corretivas.
+    """
+    if not aplicacao_ids:
+        return {'labels': [], 'baixa': [], 'media': [], 'alta': []}
+        
+    from ..models import AcaoCorretiva
+    
+    # Busca todas as Ações Corretivas filhas destas aplicações puxando também o Nome do Rancho
+    acoes = db.session.query(
+        Avaliado.nome.label('rancho_nome'),
+        AcaoCorretiva.criticidade
+    ).join(
+        AplicacaoQuestionario, AplicacaoQuestionario.id == AcaoCorretiva.aplicacao_id
+    ).join(
+        Avaliado, Avaliado.id == AplicacaoQuestionario.avaliado_id
+    ).filter(
+        AcaoCorretiva.aplicacao_id.in_(aplicacao_ids)
+    ).all()
+    
+    # Agrupador: { 'Rancho A': {'Baixa': 1, 'Média': 3, 'Alta': 0} ... }
+    mapa_ranchos = {}
+    for acao in acoes:
+        r_nome = acao.rancho_nome
+        criticidade = str(acao.criticidade).strip().capitalize() if acao.criticidade else 'Média'
+        
+        if r_nome not in mapa_ranchos:
+            mapa_ranchos[r_nome] = {'Baixa': 0, 'Média': 0, 'Alta': 0}
+            
+        if criticidade not in ['Baixa', 'Média', 'Alta']:
+            criticidade = 'Média'
+            
+        mapa_ranchos[r_nome][criticidade] += 1
+        
+    # Desmembra pros eixos do Chart.js
+    labels = list(mapa_ranchos.keys())
+    data_baixa = [mapa_ranchos[r]['Baixa'] for r in labels]
+    data_media = [mapa_ranchos[r]['Média'] for r in labels]
+    data_alta = [mapa_ranchos[r]['Alta'] for r in labels]
+    
+    return {
+        'labels': labels,
+        'baixa': data_baixa,
+        'media': data_media,
+        'alta': data_alta
+    }

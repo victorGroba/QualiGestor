@@ -140,6 +140,8 @@ class Avaliado(db.Model):
     cidade = db.Column(db.String(100))
     estado = db.Column(db.String(2))
     cep = db.Column(db.String(9))
+    latitude = db.Column(db.String(50), nullable=True)
+    longitude = db.Column(db.String(50), nullable=True)
     
     # Contato
     telefone = db.Column(db.String(20))

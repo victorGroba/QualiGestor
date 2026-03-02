@@ -1,0 +1,327 @@
+{% extends 'base.html' %}
+
+{% block title %}Dossiê Individual - {{ avaliado.nome }}{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+<style>
+    .timeline {
+        position: relative;
+        padding-left: 30px;
+        margin-top: 20px;
+    }
+
+    .timeline::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 10px;
+        height: 100%;
+        width: 3px;
+        background-color: #dee2e6;
+        border-radius: 5px;
+    }
+
+    .timeline-item {
+        position: relative;
+        margin-bottom: 30px;
+    }
+
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        top: 15px;
+        left: -27px;
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        background-color: #0d6efd;
+        border: 3px solid #fff;
+        box-shadow: 0 0 0 2px #0d6efd;
+        z-index: 1;
+    }
+
+    .timeline-item.success::before {
+        background-color: #198754;
+        box-shadow: 0 0 0 2px #198754;
+    }
+
+    .timeline-item.warning::before {
+        background-color: #ffc107;
+        box-shadow: 0 0 0 2px #ffc107;
+    }
+
+    .timeline-item.danger::before {
+        background-color: #dc3545;
+        box-shadow: 0 0 0 2px #dc3545;
+    }
+
+    .timeline-card {
+        border-radius: 12px;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .timeline-card:hover {
+        transform: translateX(5px);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08) !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-3">
+    <!-- Header Ficha Cadastral do Rancho -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                <div class="card-body p-4 p-md-5 d-flex flex-column flex-md-row justify-content-between align-items-center"
+                    style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-left: 8px solid var(--bs-{{ status_atual }});">
+                    <div class="mb-3 mb-md-0 text-center text-md-start">
+                        <span
+                            class="badge bg-{{ status_atual }} px-3 py-2 mb-2 rounded-pill shadow-sm fs-6 text-uppercase"
+                            style="letter-spacing: 1px;">
+                            {{ avaliado.estado if avaliado.estado else 'Brasil' }} - {{ avaliado.municipio if
+                            avaliado.municipio else 'Sede' }}
+                        </span>
+                        <h1 class="display-5 fw-bold text-dark mb-1">{{ avaliado.nome }}</h1>
+                        <p class="text-secondary fs-5 mb-0"><i class="fas fa-sitemap me-2"></i>Vinculação GAP: {{
+                            avaliado.grupo.nome if avaliado.grupo else 'Não Vinculado' }}</p>
+                    </div>
+                    <div class="text-center bg-white p-4 rounded-4 shadow-sm" style="min-width: 220px;">
+                        <h6 class="text-muted fw-bold text-uppercase mb-1">Média Histórica</h6>
+                        <div class="display-3 fw-bold text-{{ status_atual }}">{{ media_geral }}%</div>
+                        <div class="small text-muted mt-2"><i class="fas fa-history me-1"></i>Baseado em {{
+                            aplicacoes|length }} auditoria(s)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Esquerda: Gráfico de Evolução Nativo (isolado do Dashboard geral) -->
+        <div class="col-lg-7 mb-4">
+            <div class="card shadow-sm border-0 h-100 rounded-4">
+                <div class="card-header bg-white border-bottom-0 pt-4 pb-0 px-4">
+                    <h5 class="card-title fw-bold text-dark mb-0"><i class="fas fa-chart-line text-primary me-2"></i>
+                        Curva de Evolução da Qualidade</h5>
+                </div>
+                <div class="card-body p-4">
+                    <div style="position: relative; height: 350px; width: 100%">
+                        <canvas id="chartEvolucaoRancho"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Direita: Timeline Vertical Estilizada -->
+        <div class="col-lg-5 mb-4">
+            <div class="card shadow-sm border-0 h-100 rounded-4">
+                <div
+                    class="card-header bg-white border-bottom-0 pt-4 pb-0 px-4 d-flex justify-content-between align-items-center">
+                    <h5 class="card-title fw-bold text-dark mb-0"><i class="fas fa-tasks text-success me-2"></i>
+                        Inspeções Anteriores</h5>
+                    <span class="badge bg-secondary rounded-pill">{{ aplicacoes|length }}</span>
+                </div>
+                <div class="card-body p-4" style="max-height: 800px; overflow-y: auto;">
+
+                    {% if not aplicacoes %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-clipboard-list fa-4x text-muted mb-3 opacity-25"></i>
+                        <h5 class="text-muted">Nenhuma inspeção consolidada.</h5>
+                        <p class="text-secondary small">As aplicações precisam estar na aba 'Concluídos' para alimentar
+                            o Dossiê.</p>
+                    </div>
+                    {% else %}
+                    <div class="timeline">
+                        {% for app in aplicacoes %}
+                        {% set app_status = 'success' %}
+                        {% if app.nota_final < 60 %}{% set app_status='danger' %} {% elif app.nota_final < 80 %}{% set
+                            app_status='warning' %} {% endif %} <div class="timeline-item {{ app_status }}">
+                            <div class="card timeline-card shadow-sm border-0 bg-light">
+                                <div class="card-body p-3 border-start border-4 border-{{ app_status }}">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <h6 class="fw-bold mb-0 text-dark">{{ app.data_fim.strftime('%d de %B, %Y') }}
+                                        </h6>
+                                        <div class="badge bg-{{ app_status }} fs-6">{{ app.nota_final }}%</div>
+                                    </div>
+                                    <div class="small text-secondary mb-3 d-flex flex-column gap-1">
+                                        <span><i class="fas fa-file-signature text-muted me-1"></i> {{
+                                            app.questionario.nome if app.questionario else 'Formulário Deletado'
+                                            }}</span>
+                                        <span><i class="fas fa-user-check text-muted me-1"></i> Inspecionado por: {{
+                                            app.aplicador.nome if app.aplicador else 'Desconhecido' }}</span>
+                                    </div>
+                                    <a href="{{ url_for('cli.visualizar_aplicacao', id=app.id) }}"
+                                        class="btn btn-sm btn-outline-{{ app_status }} w-100 fw-bold">Ver Questionário
+                                        Completo</a>
+                                </div>
+                            </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Grid Dinâmico de Evolução por Tópicos -->
+    <h4 class="fw-bold mt-4 mb-3 text-dark"><i class="fas fa-layer-group text-primary me-2"></i> Evolução de Performance
+        por Tópico Avaliado</h4>
+    <div class="row" id="topicosGrid">
+        <!-- Gerado via Javascript dinamicamente -->
+    </div>
+
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        Chart.register(ChartDataLabels);
+
+        // O backend Flask passou um Dicionário Python como JSON com as notas de cada data
+        const gData = {{ grafico_json | safe
+    }};
+
+    // Arrays que montarão o gráfico
+    const labels = gData.datas;
+    const dataPoints = gData.notas;
+
+    // Pintar bolinhas baseado na nota individual
+    const pointColors = dataPoints.map(val => val >= 80 ? '#198754' : val >= 60 ? '#ffc107' : '#dc3545');
+
+    const ctx = document.getElementById('chartEvolucaoRancho').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Nota Global Obtida (%)',
+                data: dataPoints,
+                borderColor: '#0d6efd',
+                backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                borderWidth: 3,
+                pointBackgroundColor: pointColors,
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: 6,
+                pointHoverRadius: 8,
+                fill: true,
+                tension: 0.3 // Curva sexy
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            layout: { padding: { top: 30, right: 20, bottom: 10, left: 0 } },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(33, 37, 41, 0.95)',
+                    titleColor: '#fff',
+                    bodyColor: '#fff',
+                    padding: 12,
+                    callbacks: {
+                        label: function (context) {
+                            let idx = context.dataIndex;
+                            return [
+                                `Nota Final: ${context.parsed.y}%`,
+                                `Inspetor: ${gData.aplicadores[idx]}`
+                            ];
+                        }
+                    }
+                },
+                datalabels: {
+                    anchor: 'end',
+                    align: 'top',
+                    formatter: Math.round,
+                    color: '#343a40',
+                    font: { weight: 'bold', size: 14, family: 'Inter' }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    grid: { borderDash: [5, 5], color: '#e9ecef' },
+                    ticks: { callback: function (value) { return value + '%'; }, font: { size: 12 } }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { font: { size: 13, weight: '500' } }
+                }
+            }
+        }
+    });
+
+    // -------------------------------------------------------------
+    // GERAÇÃO DINÂMICA DE GRÁFICOS ISOLADOS POR TÓPICO
+    // -------------------------------------------------------------
+    const topicosData = {{ topicos_json | safe }};
+    const gridContainer = document.getElementById('topicosGrid');
+
+    Object.keys(topicosData).forEach((topicoNome, index) => {
+        const tData = topicosData[topicoNome];
+
+        // Cria o Card HTML Dinamicamente para cada Tópico
+        const col = document.createElement('div');
+        col.className = 'col-lg-6 mb-4';
+        col.innerHTML = `
+            <div class="card shadow-sm border-0 h-100 rounded-4">
+                <div class="card-header bg-white border-bottom-0 pt-3 pb-1 px-4">
+                    <h6 class="card-title fw-bold text-secondary mb-0"><i class="fas fa-chart-bar me-2"></i> ${topicoNome}</h6>
+                </div>
+                <div class="card-body p-3">
+                    <div style="position: relative; height: 260px; width: 100%">
+                        <canvas id="chartTopico_${index}"></canvas>
+                    </div>
+                </div>
+            </div>
+        `;
+        gridContainer.appendChild(col);
+
+        // Pinta a cor da barra baseado na nota daquele mês específico
+        const ptColors = tData.data.map(val => val >= 80 ? 'rgba(25, 135, 84, 0.85)' : val >= 60 ? 'rgba(255, 193, 7, 0.85)' : 'rgba(220, 53, 69, 0.85)');
+
+        const ctxTopico = document.getElementById(`chartTopico_${index}`).getContext('2d');
+        new Chart(ctxTopico, {
+            type: 'bar',
+            data: {
+                labels: tData.labels,
+                datasets: [{
+                    label: 'Nota alcançada (%)',
+                    data: tData.data,
+                    backgroundColor: ptColors,
+                    borderRadius: 6,
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: { padding: { top: 25 } },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(33, 37, 41, 0.95)',
+                        callbacks: { label: function (context) { return `Nota: ${context.parsed.y}%`; } }
+                    },
+                    datalabels: {
+                        anchor: 'end',
+                        align: 'top',
+                        color: '#495057',
+                        formatter: Math.round,
+                        font: { weight: 'bold', size: 12, family: 'Inter' }
+                    }
+                },
+                scales: {
+                    y: { beginAtZero: true, max: 100, border: { display: false }, ticks: { callback: function (v) { return v + '%'; }, font: { size: 11 } } },
+                    x: { grid: { display: false }, ticks: { font: { size: 11, weight: '500' } } }
+                }
+            }
+        });
+    });
+
+});
+</script>
+{% endblock %}
