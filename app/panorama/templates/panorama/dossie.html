@@ -107,9 +107,11 @@
                     <h5 class="card-title fw-bold text-dark mb-0"><i class="fas fa-chart-line text-primary me-2"></i>
                         Curva de Evolução da Qualidade</h5>
                 </div>
-                <div class="card-body p-4">
-                    <div style="position: relative; height: 350px; width: 100%">
-                        <canvas id="chartEvolucaoRancho"></canvas>
+                <div class="card-body p-4 w-100 overflow-hidden">
+                    <div style="width: 100%; overflow-x: auto;">
+                        <div id="chartContainer" style="position: relative; height: 350px; min-width: 100%;">
+                            <canvas id="chartEvolucaoRancho"></canvas>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -190,25 +192,28 @@
     // Pintar bolinhas baseado na nota individual
     const pointColors = dataPoints.map(val => val >= 80 ? '#198754' : val >= 60 ? '#ffc107' : '#dc3545');
 
+    // --- NOVO: Ajuste dinâmico da largura do gráfico baseado na quantidade de dados ---
+    const chartContainer = document.getElementById('chartContainer');
+    const minWidthPerPoint = 60; // Largura mínima ideal por coluna (em pixels)
+    const calculatedWidth = Math.max(labels.length * minWidthPerPoint, chartContainer.parentElement.clientWidth);
+    chartContainer.style.width = calculatedWidth + 'px';
+    // ----------------------------------------------------------------------------------
+
     const ctx = document.getElementById('chartEvolucaoRancho').getContext('2d');
     new Chart(ctx, {
-        type: 'line',
+        type: 'bar', // Apenas colunas de barras agora
         data: {
             labels: labels,
-            datasets: [{
-                label: 'Nota Global Obtida (%)',
-                data: dataPoints,
-                borderColor: '#0d6efd',
-                backgroundColor: 'rgba(13, 110, 253, 0.1)',
-                borderWidth: 3,
-                pointBackgroundColor: pointColors,
-                pointBorderColor: '#fff',
-                pointBorderWidth: 2,
-                pointRadius: 6,
-                pointHoverRadius: 8,
-                fill: true,
-                tension: 0.3 // Curva sexy
-            }]
+            datasets: [
+                {
+                    label: 'Nota Global (%)',
+                    data: dataPoints,
+                    backgroundColor: pointColors,
+                    borderRadius: 6,
+                    borderWidth: 0,
+                    maxBarThickness: 40
+                }
+            ]
         },
         options: {
             responsive: true,
@@ -234,7 +239,9 @@
                 datalabels: {
                     anchor: 'end',
                     align: 'top',
-                    formatter: Math.round,
+                    formatter: function (value) {
+                        return Math.round(value) + '%';
+                    },
                     color: '#343a40',
                     font: { weight: 'bold', size: 14, family: 'Inter' }
                 }
@@ -261,19 +268,34 @@
     const gridContainer = document.getElementById('topicosGrid');
 
     Object.keys(topicosData).forEach((topicoNome, index) => {
+        // Ignora os tópicos "Assinaturas" e "Conclusão"
+        if (topicoNome === 'Assinaturas' || topicoNome === 'Conclusão') {
+            return;
+        }
+
         const tData = topicosData[topicoNome];
 
-        // Cria o Card HTML Dinamicamente para cada Tópico
+        // --- NOVO: Define a largura mínima dinamicamente para cada gráfico de tópico ---
+        const minTopicWidth = 50;
+        // Agora dividimos por 3 no desktop porque usaremos col-lg-4
+        const parentColWidth = document.getElementById('topicosGrid').clientWidth / 3 || 320;
+        const calcTopicWidth = Math.max(tData.labels.length * minTopicWidth, parentColWidth - 40); // 40px de margin/padding
+
+        // Cria o Card HTML Dinamicamente para cada Tópico com Scroll
         const col = document.createElement('div');
-        col.className = 'col-lg-6 mb-4';
+        col.className = 'col-lg-4 col-md-6 mb-4'; // Melhor aproveitamento de espaço em telas grandes
         col.innerHTML = `
             <div class="card shadow-sm border-0 h-100 rounded-4">
                 <div class="card-header bg-white border-bottom-0 pt-3 pb-1 px-4">
-                    <h6 class="card-title fw-bold text-secondary mb-0"><i class="fas fa-chart-bar me-2"></i> ${topicoNome}</h6>
+                    <h6 class="card-title fw-bold text-secondary mb-0" style="font-size: 0.95rem;">
+                        <i class="fas fa-chart-bar me-2"></i> ${topicoNome}
+                    </h6>
                 </div>
-                <div class="card-body p-3">
-                    <div style="position: relative; height: 260px; width: 100%">
-                        <canvas id="chartTopico_${index}"></canvas>
+                <div class="card-body p-3 w-100 overflow-hidden">
+                    <div style="width: 100%; overflow-x: auto;">
+                        <div style="position: relative; height: 180px; min-width: 100%; width: ${calcTopicWidth}px">
+                            <canvas id="chartTopico_${index}"></canvas>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -293,7 +315,8 @@
                     data: tData.data,
                     backgroundColor: ptColors,
                     borderRadius: 6,
-                    borderWidth: 0
+                    borderWidth: 0,
+                    maxBarThickness: 40
                 }]
             },
             options: {
@@ -310,7 +333,9 @@
                         anchor: 'end',
                         align: 'top',
                         color: '#495057',
-                        formatter: Math.round,
+                        formatter: function (value) {
+                            return Math.round(value) + '%';
+                        },
                         font: { weight: 'bold', size: 12, family: 'Inter' }
                     }
                 },

@@ -123,7 +123,16 @@ def laudos_rancho(avaliado_id):
 @panorama_bp.route('/dossie/<int:avaliado_id>')
 @login_required
 def dossie(avaliado_id):
+    # Trava de Segurança
+    query_seguranca = Avaliado.query.filter_by(id=avaliado_id, cliente_id=current_user.cliente_id)
+    query_seguranca = aplicar_filtro_hierarquia(query_seguranca)
+    avaliado = query_seguranca.first_or_404()
     
+    aplicacoes = AplicacaoQuestionario.query.filter_by(
+        avaliado_id=avaliado_id, 
+        status=StatusAplicacao.FINALIZADA
+    ).order_by(desc(AplicacaoQuestionario.data_fim)).all()
+
     # --- NOVO: Carregar TODAS as respostas para calcular Tópicos ---
     aplicacao_ids = [app.id for app in aplicacoes]
     if aplicacao_ids:
@@ -152,6 +161,17 @@ def dossie(avaliado_id):
     topicos_data = {} # Dicionário de Tópicos
     
     # Lendo de baixo pra cima (Ascendente para o gráfico ficar da Esquerda -> Direita)
+    
+    # --- NOVO: Mapear a ordem oficial dos Tópicos para exibição correta ---
+    ordem_topicos_map = {}
+    if aplicacao_ids:
+        # Pega a ordem de todos os tópicos vinculados aos questionários destas aplicações
+        quest_ids = list(set([app.questionario_id for app in aplicacoes if app.questionario_id]))
+        topicos_oficiais = Topico.query.join(Questionario).filter(Questionario.id.in_(quest_ids)).all()
+        for t in topicos_oficiais:
+             ordem_topicos_map[t.nome] = t.ordem
+    # -------------------------------------------------------------------------
+
     for app in reversed(aplicacoes):
         if app.nota_final is not None:
             data_label = app.data_fim.strftime('%d/%m/%Y')
@@ -172,11 +192,14 @@ def dossie(avaliado_id):
             # Calcular nota de cada tópico nesta data e registrar na curva evolutiva global daquele tópico
             for t_nome, pts in pontos_por_topico.items():
                 if t_nome not in topicos_data:
-                    topicos_data[t_nome] = {'labels': [], 'data': []}
+                    topicos_data[t_nome] = {'labels': [], 'data': [], 'ordem': ordem_topicos_map.get(t_nome, 999)}
                 
                 nota_pct = (pts['obtido'] / pts['maximo']) * 100 if pts['maximo'] > 0 else 0
                 topicos_data[t_nome]['labels'].append(data_label)
                 topicos_data[t_nome]['data'].append(round(nota_pct, 1))
+
+    # Ordenar o dicionário topicos_data com base na chave 'ordem' antes de enviar ao template
+    topicos_data_ordenado = dict(sorted(topicos_data.items(), key=lambda item: item[1].get('ordem', 999)))
             
     # Média Consolidada Header
     media_geral = round(sum(grafico_timeline['notas']) / len(grafico_timeline['notas']), 2) if grafico_timeline['notas'] else 0
@@ -350,8 +373,9 @@ def gerar_grafico_avaliados(aplicacoes, topico_id=None):
     if not aplicacoes: return {'labels': [], 'datasets': []}
     dados_por_avaliado = {}
     for aplicacao in aplicacoes:
+        avaliado_id = aplicacao.avaliado_id
         avaliado_nome = aplicacao.avaliado.nome 
-        if avaliado_nome not in dados_por_avaliado: dados_por_avaliado[avaliado_nome] = []
+        if avaliado_id not in dados_por_avaliado: dados_por_avaliado[avaliado_id] = {'nome': avaliado_nome, 'notas': []}
         
         nota = aplicacao.nota_final or 0
         if topico_id:
@@ -359,23 +383,24 @@ def gerar_grafico_avaliados(aplicacoes, topico_id=None):
             total_maximo = sum([resp.pergunta.peso or 0 for resp in getattr(aplicacao, '_respostas_carregadas', []) if resp.pergunta.topico_id == topico_id])
             nota = (total_pontos / total_maximo) * 100 if total_maximo > 0 else 0
 
-        dados_por_avaliado[avaliado_nome].append(nota)
+        dados_por_avaliado[avaliado_id]['notas'].append(nota)
 
     lista_ordenada = []
-    for avaliado, pontuacoes in dados_por_avaliado.items():
-        media = sum(pontuacoes) / len(pontuacoes) if pontuacoes else 0
-        lista_ordenada.append({'avaliado': avaliado, 'media': round(media, 1)})
+    for avaliado_id, avalInfo in dados_por_avaliado.items():
+        media = sum(avalInfo['notas']) / len(avalInfo['notas']) if avalInfo['notas'] else 0
+        lista_ordenada.append({'id': avaliado_id, 'avaliado': avalInfo['nome'], 'media': round(media, 1)})
     lista_ordenada.sort(key=lambda x: x['media'])
 
-    labels, valores, cores = [], [], []
+    labels, valores, cores, avaliados_ids = [], [], [], []
     for item in lista_ordenada:
         labels.append(item['avaliado'])
         valores.append(item['media'])
+        avaliados_ids.append(item['id'])
         if item['media'] >= 80: cores.append('#28a745')
         elif item['media'] >= 60: cores.append('#ffc107')
         else: cores.append('#dc3545')
 
-    return {'labels': labels, 'datasets': [{'label': 'Pontuação Média (%)', 'data': valores, 'backgroundColor': cores}]}
+    return {'labels': labels, 'avaliados_ids': avaliados_ids, 'datasets': [{'label': 'Pontuação Média (%)', 'data': valores, 'backgroundColor': cores}]}
 
 def gerar_dados_mapa(aplicacoes, topico_id=None):
     """
