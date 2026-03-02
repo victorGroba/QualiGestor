@@ -874,7 +874,7 @@
             type: 'bar', data: { labels: [], datasets: [] },
             options: {
                 ...defaultOptions,
-                indexAxis: 'x', // Revertido para Vertical
+                indexAxis: 'x', // Vertical
                 scales: {
                     x: { ...defaultOptions.scales.x, grid: { display: false } },
                     y: { ...defaultOptions.scales.y, max: 10, ticks: { ...defaultOptions.scales.y.ticks, stepSize: 2 } }
@@ -885,14 +885,21 @@
                         display: true,
                         position: 'right',
                         labels: {
-                            font: { family: 'Inter', size: 10 },
-                            usePointStyle: true,
-                            padding: 15
+                            font: { family: 'Inter', size: 11, weight: '600' },
+                            usePointStyle: false, // O print usa quadrados na legenda
+                            boxWidth: 15,
+                            padding: 10
                         }
                     },
-                    datalabels: { anchor: 'end', align: 'top', color: '#495057', font: { family: 'Inter', weight: '700', size: 12 } }
+                    datalabels: {
+                        anchor: 'end',
+                        align: 'top',
+                        color: '#333',
+                        font: { family: 'Inter', weight: 'bold', size: 13 },
+                        formatter: function (value) { return value; }
+                    }
                 },
-                elements: { bar: { borderRadius: 6, borderSkipped: false } }
+                elements: { bar: { borderRadius: 0, borderSkipped: false } }
             }
         });
 
@@ -1180,18 +1187,17 @@
                 if (isMulticolor) {
                     // Se for multicolorido (como Tópicos), cada barra recebe uma cor
                     ds.backgroundColor = premiumColors.slice(0, chartData.labels.length);
-                    ds.borderColor = premiumBorders.slice(0, chartData.labels.length);
-                    ds.borderWidth = 1;
+                    ds.borderColor = premiumColors.slice(0, chartData.labels.length); // Tira a borda "dura"
+                    ds.borderWidth = 0; // Remove a linha de borda extra para ficar como o print
                 } else {
                     const cor = premiumColors[i % premiumColors.length];
-                    const corBorda = premiumBorders[i % premiumBorders.length];
                     if (!ds.backgroundColor || (Array.isArray(ds.backgroundColor) && ds.backgroundColor.length === 0)) {
                         ds.backgroundColor = cor;
-                        ds.borderColor = corBorda;
-                        ds.borderWidth = 2;
+                        ds.borderColor = cor;
+                        ds.borderWidth = 0;
                     }
                 }
-                ds.borderRadius = 6;
+                ds.borderRadius = 0; // Garantir quadrados
                 ds.borderSkipped = false;
             });
         }
@@ -1218,7 +1224,7 @@
             chartEvolucao.update();
         }
         if (chartTopicos && data.topicos) {
-            chartTopicos.data = aplicarCoresPremium(data.topicos, true); // true para multicolorido
+            chartTopicos.data = aplicarCoresPremium(data.topicos, false); // false para manter cores originais do backend
             chartTopicos.update();
         }
         if (chartQuestionarios && data.questionarios) {
