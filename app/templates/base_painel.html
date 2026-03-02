@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css', v='1.2') }}">
 
   {% block head %}{% endblock %}
 </head>
@@ -23,7 +23,7 @@
 
     <div id="sidebar" class="bg-white">
       <div class="sidebar-header">
-        <img src="{{ url_for('static', filename='img/logo.jpg') }}" alt="Logo">
+        <img src="{{ url_for('static', filename='img/logo.jpg') }}" alt="Logo" style="max-width: 140px; height: auto;">
         <button class="sidebar-toggle-btn" id="sidebarClose" title="Recolher menu">
           <i class="fas fa-times"></i>
         </button>
