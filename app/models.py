@@ -407,6 +407,8 @@ class AplicacaoQuestionario(db.Model):
     assinatura_responsavel = db.Column(db.String(200))
     cargo_responsavel = db.Column(db.String(100))
     fluxograma_arquivo = db.Column(db.String(255), nullable=True)
+    relatorio_mensal_arquivo = db.Column(db.String(255), nullable=True)
+    laudo_laboratorio_arquivo = db.Column(db.String(255), nullable=True)
 
 class RespostaPergunta(db.Model):
     """Respostas dadas às perguntas durante uma aplicação"""

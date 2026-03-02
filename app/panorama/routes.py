@@ -83,22 +83,46 @@ def relatorios():
 def filtros():
     return redirect(url_for('panorama.dashboard'))
     
-@panorama_bp.route('/dossie/<int:avaliado_id>')
+@panorama_bp.route('/laudos')
 @login_required
-def dossie(avaliado_id):
-    # Regra de Segurança: Checar Hierarquia (GAP não pode ver Rancho alheio)
+def laudos():
+    # Visão SDAB: Todos os GAPs e seus Ranchos
+    query_grupos = Grupo.query.filter_by(cliente_id=current_user.cliente_id, ativo=True)
+    if current_user.grupo_id:
+        # Visão GAP: Apenas o seu GAP
+        query_grupos = query_grupos.filter(Grupo.id == current_user.grupo_id)
+    
+    # Se for um usuário local de Rancho (sem grupo, ou com avaliado_id setado) que pularia o dashboard hierarquico:
+    if current_user.avaliado_id:
+        return redirect(url_for('panorama.laudos_rancho', avaliado_id=current_user.avaliado_id))
+
+    grupos = query_grupos.order_by(Grupo.nome).all()
+    
+    # Organizar ranchos por grupo
+    dados_hierarquia = {}
+    for grupo in grupos:
+        dados_hierarquia[grupo.nome] = Avaliado.query.filter_by(grupo_id=grupo.id, ativo=True).order_by(Avaliado.nome).all()
+        
+    return render_template('panorama/laudos_dashboard.html', hierarquia=dados_hierarquia)
+
+@panorama_bp.route('/laudos/<int:avaliado_id>')
+@login_required
+def laudos_rancho(avaliado_id):
+    # Trava de Segurança
     query_seguranca = Avaliado.query.filter_by(id=avaliado_id, cliente_id=current_user.cliente_id)
     query_seguranca = aplicar_filtro_hierarquia(query_seguranca)
     avaliado = query_seguranca.first_or_404()
     
-    # Busca todas as auditorias consolidadas dessa OM
     aplicacoes = AplicacaoQuestionario.query.filter_by(
         avaliado_id=avaliado_id, 
         status=StatusAplicacao.FINALIZADA
-    ).options(
-        joinedload(AplicacaoQuestionario.questionario),
-        joinedload(AplicacaoQuestionario.aplicador)
     ).order_by(desc(AplicacaoQuestionario.data_fim)).all()
+    
+    return render_template('panorama/laudos_rancho.html', avaliado=avaliado, aplicacoes=aplicacoes)
+
+@panorama_bp.route('/dossie/<int:avaliado_id>')
+@login_required
+def dossie(avaliado_id):
     
     # --- NOVO: Carregar TODAS as respostas para calcular Tópicos ---
     aplicacao_ids = [app.id for app in aplicacoes]

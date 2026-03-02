@@ -251,7 +251,7 @@
                             - Em andamento
                             {% endif %}
 
-                            
+
                         </small>
                     </div>
                     <div class="col-md-3">
@@ -300,7 +300,6 @@
                             {% else %}
                             <div class="alert alert-secondary py-4 text-center border-dashed">
                                 <i class="fas fa-file-invoice text-muted fa-2x mb-2"></i><br>
-                                <span class="text-muted fw-bold">Nenhum fluxograma anexado.</span>
                             </div>
                             {% endif %}
                         </div>
@@ -336,6 +335,98 @@
                     </div>
                 </div>
             </div>
+
+            <!-- MÓDULO: Relatório Mensal e Laudo -->
+            <div class="card mb-4 shadow-sm border-0">
+                <div class="card-header bg-white py-3">
+                    <h6 class="mb-0 text-success fw-bold">
+                        <i class="fas fa-file-contract me-2"></i>Documentação Mensal Pós-Auditoria
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Relatório Mensal da Consultoria -->
+                        <div class="col-md-6 border-end-md mb-4 mb-md-0">
+                            <h6 class="fw-bold text-dark mb-3"><i
+                                    class="fas fa-file-signature text-primary me-2"></i>Relatório Mensal</h6>
+
+                            {% if aplicacao.relatorio_mensal_arquivo %}
+                            <div
+                                class="alert alert-success d-flex flex-column align-items-start p-3 border-success border-opacity-25 bg-success bg-opacity-10 mb-3">
+                                <div class="d-flex align-items-center mb-2">
+                                    <i class="fas fa-check-circle text-success fa-lg me-2"></i>
+                                    <strong class="text-success small">Anexado</strong>
+                                </div>
+                                <a href="{{ url_for('cli.visualizar_documento_mensal', id=aplicacao.id, tipo='relatorio') }}"
+                                    target="_blank" class="btn btn-outline-success btn-sm fw-bold w-100 mt-2">
+                                    <i class="fas fa-download me-1"></i> Baixar Relatório
+                                </a>
+                            </div>
+                            {% else %}
+                            <div class="alert alert-secondary py-3 text-center border-dashed mb-3">
+                                <span class="text-muted small fw-bold"><i class="fas fa-clock me-1"></i> Aguardando
+                                    Relatório</span>
+                            </div>
+                            {% endif %}
+
+                            <!-- Somente Consultora/Admin pode upar isso -->
+                            {% if current_user.tipo.name in ['SUPER_ADMIN', 'ADMIN', 'GESTOR', 'AUDITOR'] %}
+                            <form action="{{ url_for('cli.upload_documento_mensal', id=aplicacao.id) }}" method="POST"
+                                enctype="multipart/form-data" class="p-2 bg-light rounded border border-light">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                                <input type="hidden" name="tipo_documento" value="relatorio" />
+                                <div class="input-group input-group-sm">
+                                    <input type="file" class="form-control" name="documento" required
+                                        accept=".pdf,.doc,.docx">
+                                    <button class="btn btn-primary" type="submit"><i class="fas fa-upload"></i></button>
+                                </div>
+                            </form>
+                            {% endif %}
+                        </div>
+
+                        <!-- Laudo do Laboratório -->
+                        <div class="col-md-6 ps-md-3">
+                            <h6 class="fw-bold text-dark mb-3"><i class="fas fa-microscope text-info me-2"></i>Laudo do
+                                Laboratório</h6>
+
+                            {% if aplicacao.laudo_laboratorio_arquivo %}
+                            <div
+                                class="alert alert-info d-flex flex-column align-items-start p-3 border-info border-opacity-25 bg-info bg-opacity-10 mb-3">
+                                <div class="d-flex align-items-center mb-2">
+                                    <i class="fas fa-check-circle text-info fa-lg me-2"></i>
+                                    <strong class="text-info small">Anexado</strong>
+                                </div>
+                                <a href="{{ url_for('cli.visualizar_documento_mensal', id=aplicacao.id, tipo='laudo') }}"
+                                    target="_blank" class="btn btn-outline-info btn-sm fw-bold w-100 mt-2">
+                                    <i class="fas fa-download me-1"></i> Baixar Laudo
+                                </a>
+                            </div>
+                            {% else %}
+                            <div class="alert alert-secondary py-3 text-center border-dashed mb-3">
+                                <span class="text-muted small fw-bold"><i class="fas fa-clock me-1"></i> Aguardando
+                                    Laudo</span>
+                            </div>
+                            {% endif %}
+
+                            <!-- Somente quem emite o Laudo (Admin/Lab) - assumindo que quem lança é nivel admin ou gestor -->
+                            {% if current_user.tipo.name in ['SUPER_ADMIN', 'ADMIN', 'GESTOR'] %}
+                            <form action="{{ url_for('cli.upload_documento_mensal', id=aplicacao.id) }}" method="POST"
+                                enctype="multipart/form-data" class="p-2 bg-light rounded border border-light">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                                <input type="hidden" name="tipo_documento" value="laudo" />
+                                <div class="input-group input-group-sm">
+                                    <input type="file" class="form-control" name="documento" required
+                                        accept=".pdf,.jpg,.jpeg,.png">
+                                    <button class="btn btn-info text-white" type="submit"><i
+                                            class="fas fa-upload"></i></button>
+                                </div>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="card-clean p-4">
                 <h5 class="mb-4 fw-bold border-bottom pb-2">Detalhamento</h5>
 

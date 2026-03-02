@@ -661,6 +661,52 @@ def visualizar_fluxograma(id):
     if not app.fluxograma_arquivo: abort(404)
     return send_from_directory(current_app.config['UPLOAD_FOLDER'], app.fluxograma_arquivo)
 
+@cli_bp.route('/aplicacao/<int:id>/upload-documento-mensal', methods=['POST'])
+@login_required
+def upload_documento_mensal(id):
+    """Realiza o Upload do Relatório Mensal ou Laudo do Laboratório."""
+    app = AplicacaoQuestionario.query.get_or_404(id)
+    if app.avaliado.cliente_id != current_user.cliente_id: return redirect(url_for('cli.visualizar_aplicacao', id=id))
+    
+    tipo_doc = request.form.get('tipo_documento') # 'relatorio' ou 'laudo'
+    f = request.files.get('documento')
+    
+    if f and allowed_file(f.filename, {'pdf', 'png', 'jpg', 'jpeg', 'doc', 'docx'}):
+        fname = secure_filename(f.filename)
+        ext = fname.rsplit('.', 1)[1].lower()
+        novo_nome = f"{tipo_doc}_{id}_{uuid.uuid4().hex[:8]}.{ext}"
+        path = os.path.join(current_app.config['UPLOAD_FOLDER'], novo_nome)
+        f.save(path)
+        
+        if tipo_doc == 'relatorio':
+            app.relatorio_mensal_arquivo = novo_nome
+            flash("Relatório Mensal anexado com sucesso.", "success")
+        elif tipo_doc == 'laudo':
+            app.laudo_laboratorio_arquivo = novo_nome
+            flash("Laudo do Laboratório anexado com sucesso.", "success")
+            
+        db.session.commit()
+    else:
+        flash("Arquivo inválido. Formatos aceitos: PDF, Imagens e Word.", "error")
+        
+    return redirect(url_for('cli.visualizar_aplicacao', id=id))
+
+@cli_bp.route('/aplicacao/<int:id>/documento-mensal/<tipo>', methods=['GET'])
+@login_required
+def visualizar_documento_mensal(id, tipo):
+    """Download/Visualização do documento mensal."""
+    app = AplicacaoQuestionario.query.get_or_404(id)
+    if app.avaliado.cliente_id != current_user.cliente_id: abort(403)
+    
+    arquivo = None
+    if tipo == 'relatorio' and app.relatorio_mensal_arquivo:
+        arquivo = app.relatorio_mensal_arquivo
+    elif tipo == 'laudo' and app.laudo_laboratorio_arquivo:
+        arquivo = app.laudo_laboratorio_arquivo
+        
+    if not arquivo: abort(404)
+    return send_from_directory(current_app.config['UPLOAD_FOLDER'], arquivo)
+
 # ===================== OPERAÇÕES DE RISCO =====================
 
 @cli_bp.route('/aplicacao/<int:id>/reabrir', methods=['POST'])

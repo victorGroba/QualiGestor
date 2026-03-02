@@ -37,8 +37,16 @@
         </li>
 
         <li class="nav-item">
-          <a class="nav-link active" href="{{ url_for('panorama.index') }}">
+          <a class="nav-link {% if request.endpoint == 'panorama.index' or request.endpoint == 'panorama.listar_auditorias' %}active{% endif %}"
+            href="{{ url_for('panorama.index') }}">
             <i class="fas fa-chart-bar"></i> Panorama
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link {% if 'laudos' in request.endpoint %}active{% endif %}"
+            href="{{ url_for('panorama.laudos') }}">
+            <i class="fas fa-file-contract"></i> Documentos
           </a>
         </li>
 
