@@ -526,11 +526,14 @@
     <div class="row mb-4">
         <div class="col-lg-12 mb-4">
             <div class="card shadow-sm border-0 h-100">
-                <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0"><i class="fas fa-store me-2 text-primary"></i> Performance Geral (Lista de
-                        Avaliados)</h5>
-                    <small class="text-muted"><i class="fas fa-hand-pointer"></i> Clique em uma barra para acessar o
-                        Dossiê</small>
+                <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-start">
+                    <div>
+                        <h5 class="mb-0"><i class="fas fa-store me-2 text-primary"></i> Performance Geral (Lista de
+                            Avaliados)</h5>
+                        <small class="text-primary fw-bold" id="lblFiltroPerformance"></small>
+                    </div>
+                    <small class="text-muted mt-1"><i class="fas fa-hand-pointer"></i> Clique em uma barra para acessar
+                        o Dossiê</small>
                 </div>
                 <div class="card-body p-2">
                     <div class="scrollable-chart-area-x" id="scrollContainerAvaliados">
@@ -620,7 +623,7 @@
 
     <div class="row mb-4">
         <div class="col-lg-6 mb-4">
-            <div class="card shadow-sm border-0">
+            <div class="card shadow-sm border-0 h-100">
                 <div class="card-header bg-white border-bottom">
                     <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i> Evolução Mensal Média (Nota 0-10)</h5>
                 </div>
@@ -632,9 +635,10 @@
             </div>
         </div>
         <div class="col-lg-6 mb-4">
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-white border-bottom">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white border-bottom flex-column align-items-start">
                     <h5 class="mb-0"><i class="fas fa-list-ol me-2"></i> Demonstrativo de categorias</h5>
+                    <small class="text-primary fw-bold" id="lblFiltroCategorias"></small>
                 </div>
                 <div class="card-body">
                     <div class="chart-container" style="height: 400px;">
@@ -643,6 +647,17 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- NOVO: Ranking por Tópico (Visão por Unidade) -->
+    <div class="row mb-4">
+        <div class="col-12 mb-3">
+            <h5 class="fw-bold border-bottom text-primary pb-2">
+                <i class="fas fa-layer-group me-2"></i> Ranking por Tópico (Avaliados)
+            </h5>
+        </div>
+
+        <div id="containerRankingTopicos" class="row w-100 m-0"></div>
     </div>
 
     <div class="row mb-4">
@@ -916,6 +931,19 @@
             type: 'bar', data: { labels: [], datasets: [] },
             options: {
                 ...defaultOptions,
+                onClick: function (e, elements) {
+                    if (elements.length > 0) {
+                        const index = elements[0].index;
+                        // O ID vem do array injetado pelo backend em 'chartAvaliados.data.avaliados_ids'
+                        if (chartAvaliados.data.avaliados_ids && chartAvaliados.data.avaliados_ids[index]) {
+                            const avaliadoId = chartAvaliados.data.avaliados_ids[index];
+                            window.location.href = `/panorama/dossie/${avaliadoId}`;
+                        }
+                    }
+                },
+                onHover: (event, chartElement) => {
+                    event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                },
                 scales: {
                     ...defaultOptions.scales,
                     y: { ...defaultOptions.scales.y, max: 100, ticks: { ...defaultOptions.scales.y.ticks, callback: v => v + '%' } },
@@ -1254,17 +1282,26 @@
             chartAvaliados.update();
         }
 
+        // Atualizar Subtítulos Dinâmicos
+        const selectPeriodo = document.getElementById("periodo");
+        const selectMes = document.getElementById("mes");
+        const selectTopico = document.getElementById("topico_id");
+
+        let txPeriodo = selectMes.value ? `Mês: ${selectMes.options[selectMes.selectedIndex].text}` : `Período: ${selectPeriodo.options[selectPeriodo.selectedIndex].text}`;
+        let txTopico = selectTopico.value ? ` | Tópico: ${selectTopico.options[selectTopico.selectedIndex].text}` : ` | Tópico: Geral`;
+        let filtroTexto = `${txPeriodo}${txTopico}`;
+
+        document.getElementById('lblFiltroPerformance').innerHTML = filtroTexto;
+        document.getElementById('lblFiltroCategorias').innerHTML = txPeriodo; // Categorias normalmente mostra todos, então só período faz sentido
+
         // 🚀 LÓGICA DE ATUALIZAÇAO DO MAPA DE CALOR 
         if (data.mapa_dados) {
             atualizarMarcadoresDoMapa(data.mapa_dados);
 
-            // Atualiza Badge Decorativo dependendo do Dropdown
-            const topicSelect = document.getElementById("topico_id");
-            const selectedTopicName = topicSelect.options[topicSelect.selectedIndex].text;
+            // Atualiza Badge Decorativo do Mapa
             const badgeSpan = document.getElementById("badgeMapaFiltro");
-
-            if (topicSelect.value === "") { badgeSpan.innerHTML = "Visualizando Nota Global"; }
-            else { badgeSpan.innerHTML = "Filtro Ativo: " + selectedTopicName; }
+            if (selectTopico.value === "") { badgeSpan.innerHTML = "Visualizando Nota Global"; }
+            else { badgeSpan.innerHTML = "Filtro Ativo: " + selectTopico.options[selectTopico.selectedIndex].text; }
         }
 
         // 🔴🟡🟢 GRÁFICO 4: AÇÕES CORRETIVAS POR COR (Stacked Bar)
@@ -1354,7 +1391,84 @@
         } else {
             containerTopicos.innerHTML = `<div class="col-12"><div class="alert alert-light text-center border">Nenhum dado de evolução de tópicos disponível para o período.</div></div>`;
         }
-    }
+
+        // ... RECRIAÇÃO DOS GRÁFICOS DE RANKING POR TÓPICO ...
+        const containerRanking = document.getElementById('containerRankingTopicos');
+        if (containerRanking) {
+            containerRanking.innerHTML = '';
+            if (window.chartsRankingTopicosSeparados) {
+                window.chartsRankingTopicosSeparados.forEach(c => c.destroy());
+            }
+            window.chartsRankingTopicosSeparados = [];
+
+            if (data.ranking_por_topico && data.ranking_por_topico.length > 0) {
+                data.ranking_por_topico.forEach((graficoObj, idx) => {
+                    const colDiv = document.createElement('div');
+                    colDiv.className = "col-lg-6 mb-4";
+
+                    // Altura dinâmica baseada na quantidade de ranchos para não espremer barras
+                    const qtdRanchos = graficoObj.dados.labels.length;
+                    const minHeight = Math.max(250, qtdRanchos * 35);
+
+                    colDiv.innerHTML = `
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-header bg-white border-bottom flex-column align-items-start">
+                            <h6 class="mb-0 fw-bold text-dark"><i class="fas fa-list me-2 text-primary"></i> ${graficoObj.titulo}</h6>
+                            <small class="text-muted"><i class="fas fa-hand-pointer"></i> Clique em uma unidade para ver o Dossiê</small>
+                        </div>
+                        <div class="card-body p-2">
+                            <div class="scrollable-chart-area-y" style="height: ${minHeight}px; max-height: 400px; overflow-y: auto; overflow-x: hidden;">
+                                <div class="chart-container" style="height: ${minHeight}px; position: relative;">
+                                    <canvas id="${graficoObj.id_canvas}_${idx}"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                    containerRanking.appendChild(colDiv);
+
+                    const ctxRank = document.getElementById(`${graficoObj.id_canvas}_${idx}`).getContext('2d');
+                    const newRankChart = new Chart(ctxRank, {
+                        type: 'bar',
+                        data: graficoObj.dados,
+                        options: {
+                            ...defaultOptions,
+                            indexAxis: 'y', // Barra Horizontal
+                            maintainAspectRatio: false,
+                            onClick: function (e, elements) {
+                                if (elements.length > 0) {
+                                    const index = elements[0].index;
+                                    const a_ids = this.data.avaliados_ids;
+                                    if (a_ids && a_ids[index]) {
+                                        window.location.href = `/panorama/dossie/${a_ids[index]}`;
+                                    }
+                                }
+                            },
+                            onHover: (event, chartElement) => {
+                                event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                            },
+                            scales: {
+                                x: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' } },
+                                y: { grid: { display: false }, ticks: { font: { family: 'Inter', size: 11, weight: 'bold' } } }
+                            },
+                            plugins: {
+                                ...defaultOptions.plugins,
+                                legend: { display: false },
+                                datalabels: {
+                                    anchor: 'end', align: 'end', color: '#333', font: { weight: 'bold', size: 11 },
+                                    formatter: v => v + '%'
+                                }
+                            }
+                        }
+                    }); // End Chart
+
+                    window.chartsRankingTopicosSeparados.push(newRankChart);
+                }); // End forEach
+            } else {
+                containerRanking.innerHTML = `<div class="col-12"><div class="alert alert-light text-center border">Nenhum dado de ranking de tópicos disponível.</div></div>`;
+            }
+        } // End if ranking_por_topico exist
+    } // Fim atualizarGraficos
 
     function atualizarMarcadoresDoMapa(mapaData) {
         currentMapData = mapaData;

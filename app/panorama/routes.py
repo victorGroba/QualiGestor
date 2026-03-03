@@ -299,12 +299,102 @@ def api_dashboard_data():
             'ranking_avaliados': gerar_ranking_avaliados(aplicacoes, topico_id),
             'top_nao_conformidades': gerar_top_nao_conformidades(aplicacoes, topico_id),
             'mapa_dados': gerar_dados_mapa(aplicacoes, topico_id),
-            'acoes_corretivas': gerar_grafico_acoes_corretivas(aplicacao_ids)
+            'acoes_corretivas': gerar_grafico_acoes_corretivas(aplicacao_ids),
+            'ranking_por_topico': gerar_graficos_ranking_topicos(aplicacoes, topico_id)
         }
         return jsonify(data)
     except Exception as e:
         print("ERRO NO DASHBOARD:", str(e))
         return jsonify({'error': str(e)}), 500
+
+def gerar_graficos_ranking_topicos(aplicacoes, topico_id_filtro=None):
+    """
+    Gera dados para gráficos de barra (um por Tópico) onde o eixo X são as Lojas (Avaliados)
+    eixo Y é a nota média da loja naquele tópico, ordenado da pior para a melhor loja.
+    """
+    if not aplicacoes: return []
+    
+    # 1. Agrupar dados: { 'Higiene': { loja_id1: {'nome': 'Rancho X', 'obtido': 100, 'maximo': 200}, loja_id2: ...} }
+    dados_por_topico = {}
+    
+    # Pegar ordem oficial para printar os gráficos na mesma ordem do questionário
+    quest_ids = list(set([app.questionario_id for app in aplicacoes if app.questionario_id]))
+    topicos_oficiais = Topico.query.join(Questionario).filter(Questionario.id.in_(quest_ids)).order_by(Topico.ordem).all()
+    
+    topicos_nomes = [t.nome for t in topicos_oficiais]
+    if topico_id_filtro:
+        t_obj = Topico.query.get(topico_id_filtro)
+        if t_obj: topicos_nomes = [t_obj.nome]
+
+    for app in aplicacoes:
+        aval_id = app.avaliado_id
+        aval_nome = app.avaliado.nome
+        
+        for resp in getattr(app, '_respostas_carregadas', []):
+            if not resp.pergunta or not resp.pergunta.topico: continue
+            
+            t_nome = resp.pergunta.topico.nome
+            # Ignora Assinaturas e Conclusão se houver
+            if t_nome == 'Assinaturas' or t_nome == 'Conclusão': continue
+            
+            if t_nome not in topicos_nomes: continue # Filtro
+            
+            if t_nome not in dados_por_topico:
+                dados_por_topico[t_nome] = {}
+            if aval_id not in dados_por_topico[t_nome]:
+                dados_por_topico[t_nome][aval_id] = {'nome': aval_nome, 'obtido': 0, 'maximo': 0}
+                
+            dados_por_topico[t_nome][aval_id]['obtido'] += (resp.pontos or 0)
+            dados_por_topico[t_nome][aval_id]['maximo'] += (resp.pergunta.peso or 0)
+            
+    # 2. Processar e formatar para o Chart.js
+    lista_graficos = []
+    
+    for t_nome in topicos_nomes:
+        if t_nome not in dados_por_topico: continue
+        
+        lojas_pontuacoes = []
+        for a_id, dados_loja in dados_por_topico[t_nome].items():
+            if dados_loja['maximo'] > 0:
+                nota_pct = (dados_loja['obtido'] / dados_loja['maximo']) * 100
+                lojas_pontuacoes.append({
+                    'id': a_id,
+                    'nome': dados_loja['nome'],
+                    'nota': round(nota_pct, 1)
+                })
+                
+        if not lojas_pontuacoes: continue
+        
+        # Ordenar da pior para a melhor loja (ajuda na tomada de decisão)
+        lojas_pontuacoes.sort(key=lambda x: x['nota'])
+        
+        labels_lojas = [lp['nome'] for lp in lojas_pontuacoes]
+        notas_lojas = [lp['nota'] for lp in lojas_pontuacoes]
+        avaliados_ids = [lp['id'] for lp in lojas_pontuacoes]
+        
+        # Cores tipo semáforo baseadas na pontuação
+        cores_barras = []
+        for n in notas_lojas:
+            if n >= 80: cores_barras.append('rgba(25, 135, 84, 0.85)') # success
+            elif n >= 60: cores_barras.append('rgba(255, 193, 7, 0.85)') # warning
+            else: cores_barras.append('rgba(220, 53, 69, 0.85)') # danger
+            
+        lista_graficos.append({
+            'titulo': t_nome,
+            'id_canvas': f'chartRankingTopic_{abs(hash(t_nome))}',
+            'dados': {
+                'labels': labels_lojas,
+                'avaliados_ids': avaliados_ids,
+                'datasets': [{
+                    'label': 'Nota Média (%)',
+                    'data': notas_lojas,
+                    'backgroundColor': cores_barras,
+                    'borderRadius': 4
+                }]
+            }
+        })
+
+    return lista_graficos
 
 @panorama_bp.route('/api/export-data')
 @login_required
