@@ -522,14 +522,12 @@ def gerar_graficos_ranking_topicos(aplicacoes, topico_id_filtro=None):
     # 1. Agrupar dados: { 'Higiene': { loja_id1: {'nome': 'Rancho X', 'obtido': 100, 'maximo': 200}, loja_id2: ...} }
     dados_por_topico = {}
     
-    # Pegar ordem oficial para printar os gráficos na mesma ordem do questionário
-    quest_ids = list(set([app.questionario_id for app in aplicacoes if app.questionario_id]))
-    topicos_oficiais = Topico.query.join(Questionario).filter(Questionario.id.in_(quest_ids)).order_by(Topico.ordem).all()
+    # Extrair todos os tópicos reais diretamente das respostas, garantindo dados reais e com ordem
+    topicos_encontrados = {} 
     
-    topicos_nomes = [t.nome for t in topicos_oficiais]
-    if topico_id_filtro:
-        t_obj = Topico.query.get(topico_id_filtro)
-        if t_obj: topicos_nomes = [t_obj.nome]
+    # Se tiver filtro
+    t_obj = Topico.query.get(topico_id_filtro) if topico_id_filtro else None
+    filtro_nome = t_obj.nome if t_obj else None
 
     for app in aplicacoes:
         aval_id = app.avaliado_id
@@ -539,10 +537,14 @@ def gerar_graficos_ranking_topicos(aplicacoes, topico_id_filtro=None):
             if not resp.pergunta or not resp.pergunta.topico: continue
             
             t_nome = resp.pergunta.topico.nome
+            
             # Ignora Assinaturas e Conclusão se houver
             if t_nome == 'Assinaturas' or t_nome == 'Conclusão': continue
             
-            if t_nome not in topicos_nomes: continue # Filtro
+            if filtro_nome and t_nome != filtro_nome: continue # Filtro
+            
+            if t_nome not in topicos_encontrados:
+                topicos_encontrados[t_nome] = resp.pergunta.topico.ordem or 99
             
             if t_nome not in dados_por_topico:
                 dados_por_topico[t_nome] = {}
@@ -555,7 +557,10 @@ def gerar_graficos_ranking_topicos(aplicacoes, topico_id_filtro=None):
     # 2. Processar e formatar para o Chart.js
     lista_graficos = []
     
-    for t_nome in topicos_nomes:
+    # Ordena os tópicos pela ordem original do questionário (coletada do db)
+    topicos_nomes_ordenados = sorted(topicos_encontrados.keys(), key=lambda k: topicos_encontrados[k])
+    
+    for t_nome in topicos_nomes_ordenados:
         if t_nome not in dados_por_topico: continue
         
         lojas_pontuacoes = []
