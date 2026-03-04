@@ -27,7 +27,7 @@ def str_para_tipo_usuario(valor: str) -> TipoUsuario:
     }
     return mapa.get(v, TipoUsuario.VISUALIZADOR)
 
-@auth_bp.app_before_request
+@auth_bp.before_app_request
 def verificar_primeiro_login():
     """
     Verifica se o usuário atual logou com a senha padrão (123456).
