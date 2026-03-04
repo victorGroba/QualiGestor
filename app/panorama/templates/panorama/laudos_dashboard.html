@@ -1,5 +1,5 @@
 {% extends 'base_panorama.html' %}
-{% block title %}Dashboard de Laudos e Relatórios{% endok %}
+{% block title %}Dashboard de Laudos e Relatórios{% endblock %}
 
 {% block content %}
 <div class="container-fluid py-4">
@@ -18,47 +18,151 @@
         <i class="fas fa-info-circle mr-2"></i>Nenhuma unidade cadastrada ou autorizada para o seu perfil.
     </div>
     {% else %}
-    {% for nome_grupo, ranchos in hierarquia.items() %}
-    <div class="card shadow mb-4">
-        <div class="card-header py-3 bg-gradient-primary">
-            <h6 class="m-0 font-weight-bold text-white">
-                <i class="fas fa-layer-group mr-2"></i>{{ nome_grupo }}
-            </h6>
+    <!-- Filtros de Busca -->
+    <div class="card shadow-sm border-0 rounded-4 mb-4 bg-white">
+        <div class="card-body p-4">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-bold small text-muted text-uppercase mb-2">Buscar Unidade</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0"><i
+                                class="fas fa-search text-primary"></i></span>
+                        <input type="text" id="searchInput" class="form-control border-start-0 ps-0 bg-light"
+                            placeholder="Ex: Rancho da Felicidade...">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold small text-muted text-uppercase mb-2">Filtrar por
+                        Grupamento</label>
+                    <select id="gapFilter" class="form-select bg-light">
+                        <option value="all">Todos os Grupamentos</option>
+                        {% for nome_grupo in hierarquia.keys() %}
+                        <option value="{{ nome_grupo }}">{{ nome_grupo }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
         </div>
-        <div class="card-body">
-            {% if not ranchos %}
-            <p class="text-muted mb-0">Nenhum Rancho ativo neste Grupamento.</p>
-            {% else %}
-            <div class="row">
-                {% for rancho in ranchos %}
-                <div class="col-xl-3 col-md-6 mb-4">
-                    <a href="{{ url_for('panorama.laudos_rancho', avaliado_id=rancho.id) }}"
-                        class="text-decoration-none">
-                        <div class="card border-left-info shadow h-100 py-2 hover-card">
-                            <div class="card-body">
-                                <div class="row no-gutters align-items-center">
-                                    <div class="col mr-2">
-                                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                                            ACESSAR DOCUMENTOS
+    </div>
+    <!-- Container da Hierarquia -->
+    <div id="hierarquiaContainer">
+        {% for nome_grupo, ranchos in hierarquia.items() %}
+        <div class="card shadow mb-4 gap-card" data-gap="{{ nome_grupo }}">
+            <div class="card-header py-3 bg-gradient-primary">
+                <h6 class="m-0 font-weight-bold text-white">
+                    <i class="fas fa-layer-group mr-2"></i>{{ nome_grupo }}
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if not ranchos %}
+                <p class="text-muted mb-0">Nenhum Rancho ativo neste Grupamento.</p>
+                {% else %}
+                <div class="row">
+                    {% for rancho in ranchos %}
+                    <div class="col-xl-3 col-md-6 mb-4 rancho-item">
+                        <a href="{{ url_for('panorama.laudos_rancho', avaliado_id=rancho.id) }}"
+                            class="text-decoration-none">
+                            <div class="card border-left-info shadow h-100 py-2 hover-card">
+                                <div class="card-body">
+                                    <div class="row no-gutters align-items-center">
+                                        <div class="col mr-2">
+                                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                                ACESSAR DOCUMENTOS
+                                            </div>
+                                            <div class="h5 mb-0 font-weight-bold text-gray-800 rancho-name">{{
+                                                rancho.nome }}</div>
                                         </div>
-                                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ rancho.nome }}</div>
-                                    </div>
-                                    <div class="col-auto">
-                                        <i class="fas fa-folder-open fa-2x text-gray-300"></i>
+                                        <div class="col-auto">
+                                            <i class="fas fa-folder-open fa-2x text-gray-300"></i>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    </a>
+                        </a>
+                    </div>
+                    {% endfor %}
                 </div>
-                {% endfor %}
+                {% endif %}
             </div>
-            {% endif %}
+        </div>
+        {% endfor %}
+    </div> <!-- Fim do hierarquiaContainer -->
+
+    <!-- Mensagem de "Nenhum resultado" da busca -->
+    <div id="noResultsMsg"
+        class="alert alert-warning border-0 shadow-sm rounded-4 gap-3 d-flex align-items-center p-4 d-none">
+        <i class="fas fa-search-minus fa-2x"></i>
+        <div>
+            <h5 class="fw-bold mb-1">Nenhum resultado encontrado</h5>
+            <p class="mb-0">Tente ajustar os filtros de busca para encontrar o que procura.</p>
         </div>
     </div>
-    {% endfor %}
     {% endif %}
 </div>
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const searchInput = document.getElementById("searchInput");
+        const gapFilter = document.getElementById("gapFilter");
+        const gapCards = document.querySelectorAll(".gap-card");
+        const noResultsMsg = document.getElementById("noResultsMsg");
+
+        function filterList() {
+            if (!searchInput) return;
+
+            const searchTerm = searchInput.value.toLowerCase();
+            const selectedGap = gapFilter.value;
+            let anyVisibleCard = false;
+
+            gapCards.forEach(card => {
+                const cardGap = card.getAttribute("data-gap");
+                let gapMatches = (selectedGap === "all" || selectedGap === cardGap);
+
+                let anyVisibleRowInCard = false;
+                const rows = card.querySelectorAll(".rancho-item");
+                const emptyMessage = card.querySelector(".text-muted.mb-0");
+
+                if (rows.length > 0) {
+                    rows.forEach(row => {
+                        const rowName = row.querySelector(".rancho-name").textContent.toLowerCase();
+                        const nameMatches = rowName.includes(searchTerm);
+
+                        if (gapMatches && nameMatches) {
+                            row.style.display = "";
+                            anyVisibleRowInCard = true;
+                        } else {
+                            row.style.display = "none";
+                        }
+                    });
+                } else if (emptyMessage && gapMatches && searchTerm === "") {
+                    anyVisibleRowInCard = true;
+                }
+
+                // Mostra/Oculta o card inteiro do GAP
+                if (anyVisibleRowInCard) {
+                    card.style.display = "";
+                    anyVisibleCard = true;
+                } else {
+                    card.style.display = "none";
+                }
+            });
+
+            // Mostra/Oculta a mensagem de nenhum resultado
+            if (noResultsMsg) {
+                if (anyVisibleCard) {
+                    noResultsMsg.classList.add("d-none");
+                } else {
+                    noResultsMsg.classList.remove("d-none");
+                }
+            }
+        }
+
+        if (searchInput) searchInput.addEventListener("input", filterList);
+        if (gapFilter) gapFilter.addEventListener("change", filterList);
+    });
+</script>
+{% endblock scripts %}
 
 <style>
     .hover-card {

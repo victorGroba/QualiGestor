@@ -1,0 +1,273 @@
+{% extends "base_panorama.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold text-dark"><i class="fas fa-graduation-cap me-2 text-info"></i> Módulo de Treinamentos
+            </h3>
+            <p class="text-muted">Gestão de capacitações e histórico por unidade.</p>
+        </div>
+        <button class="btn btn-info text-white fw-bold px-4 rounded-pill" data-bs-toggle="modal"
+            data-bs-target="#modalNovoTreino">
+            <i class="fas fa-plus me-1"></i> Novo Treinamento
+        </button>
+    </div>
+
+    <div class="row">
+        <!-- Estatísticas Rápidas -->
+        <div class="col-md-4 mb-4">
+            <div class="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
+                <div class="d-flex align-items-center">
+                    <div class="rounded-circle bg-info bg-opacity-10 p-3 me-3 text-info">
+                        <i class="fas fa-chalkboard-teacher fa-2x"></i>
+                    </div>
+                    <div>
+                        <h6 class="text-muted mb-0">Total no Período</h6>
+                        <h4 class="fw-bold mb-0">{{ treinamentos|length }}</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Adicionar mais analytics se necessário -->
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="card-header bg-white py-3 border-bottom-0">
+            <h5 class="mb-0 fw-bold">Histórico de Atividades</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="ps-4">Data</th>
+                            <th>Tema</th>
+                            <th>GAP / Unidade</th>
+                            <th>Material</th>
+                            <th class="text-center">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for treino in treinamentos %}
+                        <tr>
+                            <td class="ps-4">
+                                <div class="fw-bold">{{ treino.data.strftime('%d/%m/%Y') }}</div>
+                            </td>
+                            <td>
+                                <div class="fw-bold text-dark">{{ treino.tema }}</div>
+                                <small class="text-muted text-truncate d-block" style="max-width: 250px;">{{
+                                    treino.conteudo }}</small>
+                            </td>
+                            <td>
+                                {% if treino.avaliado %}
+                                <span class="badge bg-light text-dark">{{ treino.avaliado.nome }}</span>
+                                {% elif treino.grupo %}
+                                <span class="badge bg-secondary-soft text-secondary">GAP: {{ treino.grupo.nome }}</span>
+                                {% else %}
+                                <span class="badge bg-primary-soft text-primary">Geral Cliente</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if treino.materiais_arquivo %}
+                                <a href="{{ url_for('cli.download_arquivo', filename=treino.materiais_arquivo) }}"
+                                    target="_blank" class="btn btn-link btn-sm text-info p-0">
+                                    <i class="fas fa-file-download me-1"></i> Material
+                                </a>
+                                {% else %}
+                                <span class="text-muted small">Nenhum</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <button class="btn btn-outline-secondary btn-sm rounded-pill px-3"
+                                    onclick="abrirParticipantes({{ treino.id }}, '{{ treino.tema | replace("'", "\\'") }}')">
+                                    <i class="fas fa-users me-1"></i> Participantes
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Participantes -->
+<div class="modal fade" id="modalParticipantes" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content rounded-4 border-0">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold">Participantes: <span id="treinoTitulo" class="text-info"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formAddParticipante" class="mb-4">
+                    <div class="row g-2">
+                        <div class="col-8">
+                            <input type="text" id="pNome" class="form-control" placeholder="Nome do participante"
+                                required>
+                        </div>
+                        <div class="col-4">
+                            <input type="text" id="pMatricula" class="form-control" placeholder="Matrícula">
+                        </div>
+                        <div class="col-12 mt-2">
+                            <button type="submit" class="btn btn-primary w-100 fw-bold">Adicionar</button>
+                        </div>
+                    </div>
+                </form>
+                <div id="listaParticipantes" class="list-group list-group-flush border rounded-3 overflow-hidden">
+                    <!-- Preenchido via JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Novo Treinamento -->
+<div class="modal fade" id="modalNovoTreino" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content rounded-4 border-0">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold">Registrar Novo Treinamento</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('panorama.treinamento_novo') }}" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label class="form-label fw-bold">Tema do Treinamento</label>
+                            <input type="text" name="tema" class="form-control" required
+                                placeholder="Ex: Higiene e Manipulação">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Data</label>
+                            <input type="date" name="data" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">GAP (Opcional)</label>
+                            <select name="grupo_id" class="form-select">
+                                <option value="">Todos da GAP</option>
+                                {% for g in grupos %}
+                                <option value="{{ g.id }}">{{ g.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Unidade (Rancho - Opcional)</label>
+                            <select name="avaliado_id" class="form-select">
+                                <option value="">Geral GAP / Unidades</option>
+                                {% for a in avaliados %}
+                                <option value="{{ a.id }}">{{ a.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold">Conteúdo Resumido</label>
+                            <textarea name="conteudo" class="form-control" rows="3"></textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold">Anexar Material (Apostila, Fotos, PPT)</label>
+                            <input type="file" name="material" class="form-control">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-info text-white fw-bold px-4">Salvar Treinamento</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .bg-secondary-soft {
+        background-color: rgba(108, 117, 125, 0.1);
+    }
+
+    .bg-primary-soft {
+        background-color: rgba(78, 115, 223, 0.1);
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let currentTreinoId = null;
+    const modalP = new bootstrap.Modal(document.getElementById('modalParticipantes'));
+
+    function abrirParticipantes(id, titulo) {
+        currentTreinoId = id;
+        document.getElementById('treinoTitulo').innerText = titulo;
+        carregarParticipantes();
+        modalP.show();
+    }
+
+    function carregarParticipantes() {
+        fetch(`/panorama/treinamento/${currentTreinoId}/participantes`)
+            .then(r => r.json())
+            .then(data => {
+                const lista = document.getElementById('listaParticipantes');
+                lista.innerHTML = '';
+                if (data.participantes.length === 0) {
+                    lista.innerHTML = '<div class="p-4 text-center text-muted">Nenhum participante registrado.</div>';
+                }
+                data.participantes.forEach(p => {
+                    lista.innerHTML += `
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="fw-bold small text-dark">${p.nome}</div>
+                                <small class="text-muted">${p.matricula || 'Sem matrícula'}</small>
+                            </div>
+                            <button class="btn btn-sm btn-light text-danger" onclick="excluirParticipante(${p.id})">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </div>
+                    `;
+                });
+            });
+    }
+
+    document.getElementById('formAddParticipante').onsubmit = function (e) {
+        e.preventDefault();
+        const nome = document.getElementById('pNome').value;
+        const matricula = document.getElementById('pMatricula').value;
+
+        const formData = new FormData();
+        formData.append('nome', nome);
+        formData.append('matricula', matricula);
+        formData.append('csrf_token', '{{ csrf_token() }}');
+
+        fetch(`/panorama/treinamento/${currentTreinoId}/participantes`, {
+            method: 'POST',
+            body: formData
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (data.sucesso) {
+                    document.getElementById('pNome').value = '';
+                    document.getElementById('pMatricula').value = '';
+                    carregarParticipantes();
+                }
+            });
+    };
+
+    function excluirParticipante(id) {
+        if (!confirm('Deseja remover este participante?')) return;
+
+        const formData = new FormData();
+        formData.append('csrf_token', '{{ csrf_token() }}');
+
+        fetch(`/panorama/treinamento/participante/${id}/excluir`, {
+            method: 'POST',
+            body: formData
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (data.sucesso) carregarParticipantes();
+            });
+    }
+</script>
+{% endblock %}

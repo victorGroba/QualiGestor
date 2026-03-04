@@ -402,13 +402,26 @@ class AplicacaoQuestionario(db.Model):
     # Ações Corretivas (Novo fluxo mensal)
     acoes_corretivas = db.relationship('AcaoCorretiva', backref='aplicacao_pai', lazy='dynamic', cascade='all, delete-orphan')
     
+    # NOVAS PLANILHAS (Múltiplas por visita)
+    planilhas = db.relationship('PlanilhaVisita', backref='aplicacao', lazy='dynamic', cascade='all, delete-orphan')
+    
     # --- Assinatura e Arquivos ---
     assinatura_imagem = db.Column(db.String(255)) 
     assinatura_responsavel = db.Column(db.String(200))
     cargo_responsavel = db.Column(db.String(100))
     fluxograma_arquivo = db.Column(db.String(255), nullable=True)
     relatorio_mensal_arquivo = db.Column(db.String(255), nullable=True)
-    laudo_laboratorio_arquivo = db.Column(db.String(255), nullable=True)
+    laudo_laboratorio_arquivo = db.Column(db.String(255), nullable=True) # Legado
+
+    # NOVOS LAUDOS (3 CAMPOS)
+    laudo_alimentos_arquivo = db.Column(db.String(255), nullable=True)
+    laudo_ambiental_arquivo = db.Column(db.String(255), nullable=True)
+    laudo_materia_prima_arquivo = db.Column(db.String(255), nullable=True)
+
+    # NOVOS RELATÓRIOS
+    checklist_arquivo = db.Column(db.String(255), nullable=True)
+    acao_corretiva_arquivo = db.Column(db.String(255), nullable=True)
+    manual_boas_praticas_arquivo = db.Column(db.String(255), nullable=True)
 
 class RespostaPergunta(db.Model):
     """Respostas dadas às perguntas durante uma aplicação"""
@@ -632,6 +645,55 @@ def criar_admin_padrao():
         db.session.commit()
         return True
     return False
+
+# ==================== MÓDULO DE TREINAMENTO ====================
+
+class Treinamento(db.Model):
+    """Módulo de Treinamento e Capacitação"""
+    __tablename__ = "treinamento"
+
+    id = db.Column(db.Integer, primary_key=True)
+    tema = db.Column(db.String(200), nullable=False)
+    data = db.Column(db.DateTime, default=datetime.utcnow)
+    conteudo = db.Column(db.Text)
+    materiais_arquivo = db.Column(db.String(255)) # PDF, PPT, etc
+    
+    # Vínculo Hierárquico
+    cliente_id = db.Column(db.Integer, db.ForeignKey('cliente.id'), nullable=False)
+    grupo_id = db.Column(db.Integer, db.ForeignKey('grupo.id'), nullable=True)
+    avaliado_id = db.Column(db.Integer, db.ForeignKey('avaliado.id'), nullable=True)
+
+    # Metadados
+    criado_em = db.Column(db.DateTime, default=datetime.utcnow)
+    criado_por_id = db.Column(db.Integer, db.ForeignKey('usuario.id'))
+
+    # Relacionamentos
+    participantes = db.relationship('TreinamentoParticipante', backref='treinamento', lazy='dynamic', cascade='all, delete-orphan')
+    criado_por = db.relationship('Usuario', foreign_keys=[criado_por_id])
+    avaliado = db.relationship('Avaliado', backref='treinamentos')
+    grupo = db.relationship('Grupo', backref='treinamentos')
+
+class TreinamentoParticipante(db.Model):
+    """Lista de presença do treinamento"""
+    __tablename__ = "treinamento_participante"
+
+    id = db.Column(db.Integer, primary_key=True)
+    treinamento_id = db.Column(db.Integer, db.ForeignKey('treinamento.id'), nullable=False)
+    nome = db.Column(db.String(150), nullable=False)
+    matricula = db.Column(db.String(50))
+    assinatura_arquivo = db.Column(db.String(255))
+
+# ==================== MÓDULO DE PLANILHAS (VISITAS) ====================
+
+class PlanilhaVisita(db.Model):
+    """Planilhas variadas anexadas em uma visita"""
+    __tablename__ = "planilha_visita"
+
+    id = db.Column(db.Integer, primary_key=True)
+    aplicacao_id = db.Column(db.Integer, db.ForeignKey('aplicacao_questionario.id'), nullable=False)
+    caminho = db.Column(db.String(255), nullable=False)
+    nome_original = db.Column(db.String(200))
+    data_upload = db.Column(db.DateTime, default=datetime.utcnow)
 
 class AcaoCorretiva(db.Model):
     """

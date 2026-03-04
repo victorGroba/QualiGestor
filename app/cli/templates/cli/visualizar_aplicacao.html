@@ -269,159 +269,280 @@
                 </div>
             </div>
 
-            <div class="card mb-4 shadow-sm border-0">
-                <div class="card-header bg-white py-3">
-                    <h6 class="mb-0 text-primary fw-bold">
-                        <i class="fas fa-project-diagram me-2"></i>Fluxograma do Processo
-                    </h6>
-                </div>
-                <div class="card-body">
-                    <div class="row align-items-center">
+            <!-- ACCORDION PRINCIPAL -->
+            <div class="accordion mb-4 shadow-sm rounded-4" id="accordionDocumentos">
 
-                        <div class="col-md-7 mb-3 mb-md-0">
-                            {% if aplicacao.fluxograma_arquivo %}
-                            <div
-                                class="alert alert-success d-flex flex-column flex-md-row align-items-center justify-content-between p-3 border-success border-opacity-25 bg-success bg-opacity-10">
-                                <div class="d-flex align-items-center mb-3 mb-md-0">
-                                    <i class="fas fa-check-circle text-success fa-2x me-3"></i>
-                                    <div>
-                                        <strong class="text-success">Arquivo Anexado!</strong><br>
-                                        <small class="text-muted text-break">{{ aplicacao.fluxograma_arquivo }}</small>
+                <!-- 1️⃣ FLUXOGRAMA -->
+                <div class="accordion-item border-0 rounded-4 mb-3 card-clean">
+                    <h2 class="accordion-header" id="headingFluxograma">
+                        <button class="accordion-button collapsed px-4 py-3 fw-bold bg-white text-primary rounded-4"
+                            type="button" data-bs-toggle="collapse" data-bs-target="#collapseFluxograma"
+                            aria-expanded="false" aria-controls="collapseFluxograma">
+                            <div class="d-flex flex-column w-100 me-3">
+                                <div class="mb-1"><i class="fas fa-project-diagram me-2"></i> Fluxograma do Processo
+                                </div>
+                                <div class="d-flex text-muted small fw-normal gap-4 mt-1">
+                                    <span><strong>Status atual:</strong> {% if aplicacao.fluxograma_arquivo %}<span
+                                            class="text-success fw-bold">Anexado</span>{% else %}<span
+                                            class="text-warning fw-bold">Pendente</span>{% endif %}</span>
+                                    <span><strong>Última atualização:</strong> {{
+                                        aplicacao.data_inicio.strftime('%d/%m/%Y') if aplicacao.data_inicio else '--'
+                                        }}</span>
+                                    <span><strong>Próxima prevista:</strong> --</span>
+                                </div>
+                            </div>
+                        </button>
+                    </h2>
+                    <div id="collapseFluxograma" class="accordion-collapse collapse" aria-labelledby="headingFluxograma"
+                        data-bs-parent="#accordionDocumentos">
+                        <div class="accordion-body p-4 border-top">
+                            <div class="row align-items-center">
+                                <div class="col-md-7 mb-3 mb-md-0">
+                                    {% if aplicacao.fluxograma_arquivo %}
+                                    <div
+                                        class="alert alert-success d-flex flex-column flex-md-row align-items-center justify-content-between p-3 border-success border-opacity-25 bg-success bg-opacity-10 mb-0">
+                                        <div class="d-flex align-items-center mb-3 mb-md-0">
+                                            <i class="fas fa-check-circle text-success fa-2x me-3"></i>
+                                            <div>
+                                                <strong class="text-success">Arquivo Anexado!</strong><br>
+                                                <small class="text-muted text-break">{{ aplicacao.fluxograma_arquivo
+                                                    }}</small>
+                                            </div>
+                                        </div>
+                                        <div class="ms-auto">
+                                            <a href="{{ url_for('cli.visualizar_fluxograma', id=aplicacao.id) }}"
+                                                target="_blank"
+                                                class="btn btn-success shadow-sm fw-bold px-4 py-2 mt-2 mt-md-0 w-100 w-md-auto">
+                                                <i class="fas fa-eye me-2"></i> Visualizar
+                                            </a>
+                                        </div>
                                     </div>
+                                    {% else %}
+                                    <div class="alert alert-secondary py-4 text-center border-dashed mb-0">
+                                        <i class="fas fa-file-invoice text-muted fa-2x mb-2"></i><br>
+                                        <span class="text-muted small">Nenhum fluxograma anexado</span>
+                                    </div>
+                                    {% endif %}
                                 </div>
-                                <div class="ms-auto">
-                                    <a href="{{ url_for('cli.visualizar_fluxograma', id=aplicacao.id) }}"
-                                        target="_blank"
-                                        class="btn btn-success shadow-sm fw-bold px-4 py-2 mt-2 mt-md-0 w-100 w-md-auto">
-                                        <i class="fas fa-eye me-2"></i> Visualizar
-                                    </a>
+
+                                {% if current_user.tipo.name in ['SUPER_ADMIN', 'ADMIN'] and aplicacao.status.name !=
+                                'CANCELADA' and aplicacao.status.value != 'cancelada' %}
+                                <div class="col-md-5 border-start-md ps-md-4">
+                                    <form action="{{ url_for('cli.upload_fluxograma', id=aplicacao.id) }}" method="POST"
+                                        enctype="multipart/form-data" class="p-3 bg-light rounded border">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                                        <label class="form-label fw-bold text-dark mb-2">
+                                            <i class="fas fa-cloud-upload-alt me-1"></i>{% if
+                                            aplicacao.fluxograma_arquivo %}Substituir Arquivo{% else %}Anexar Novo
+                                            Arquivo{% endif %}
+                                        </label>
+                                        <div class="mb-2">
+                                            <input type="file" class="form-control" name="fluxograma" required
+                                                accept=".pdf, .jpg, .jpeg, .png">
+                                        </div>
+                                        <button class="btn btn-primary btn-sm w-100 fw-bold shadow-sm" type="submit">
+                                            <i class="fas fa-upload me-2"></i> Enviar
+                                        </button>
+                                    </form>
                                 </div>
+                                {% endif %}
                             </div>
-                            {% else %}
-                            <div class="alert alert-secondary py-4 text-center border-dashed">
-                                <i class="fas fa-file-invoice text-muted fa-2x mb-2"></i><br>
-                            </div>
-                            {% endif %}
                         </div>
-
-                        {% if aplicacao.status.name != 'CANCELADA' and aplicacao.status.value != 'cancelada' %}
-                        <div class="col-md-5 border-start-md ps-md-4">
-                            <form action="{{ url_for('cli.upload_fluxograma', id=aplicacao.id) }}" method="POST"
-                                enctype="multipart/form-data" class="p-3 bg-light rounded border">
-
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-
-                                <label class="form-label fw-bold text-dark mb-2">
-                                    <i class="fas fa-cloud-upload-alt me-1"></i>
-                                    {% if aplicacao.fluxograma_arquivo %}Substituir Arquivo{% else %}Anexar Novo
-                                    Arquivo{% endif %}
-                                </label>
-
-                                <div class="mb-3">
-                                    <input type="file" class="form-control form-control-lg" name="fluxograma" required
-                                        accept=".pdf, .jpg, .jpeg, .png" style="min-height: 50px;">
-                                </div>
-
-                                <button class="btn btn-primary btn-lg w-100 fw-bold shadow-sm py-2" type="submit">
-                                    <i class="fas fa-upload me-2"></i> Enviar Fluxograma
-                                </button>
-
-                                <small class="text-muted d-block text-center mt-2" style="font-size: 0.75rem;">
-                                    Formatos aceitos: PDF, JPG, PNG
-                                </small>
-                            </form>
-                        </div>
-                        {% endif %}
                     </div>
                 </div>
+
+                <!-- 2️⃣ DOCUMENTAÇÃO MENSAL -->
+                <div class="accordion-item border-0 rounded-4 mb-3 card-clean">
+                    <h2 class="accordion-header" id="headingDocumentacao">
+                        <button class="accordion-button collapsed px-4 py-3 fw-bold bg-white text-info rounded-4"
+                            type="button" data-bs-toggle="collapse" data-bs-target="#collapseDocumentacao"
+                            aria-expanded="false" aria-controls="collapseDocumentacao">
+                            <i class="fas fa-file-invoice-dollar me-2"></i> Documentação e Certificações Mensais
+                        </button>
+                    </h2>
+                    <div id="collapseDocumentacao" class="accordion-collapse collapse"
+                        aria-labelledby="headingDocumentacao" data-bs-parent="#accordionDocumentos">
+                        <div class="accordion-body p-4 border-top">
+                            <div class="row">
+                                {% set doc_mensais = [
+                                {'label': 'Laudo de Alimentos', 'campo': 'laudo_alimentos_arquivo', 'tipo':
+                                'laudo_alimentos', 'icon': 'fa-microscope'},
+                                {'label': 'Laudo Ambiental', 'campo': 'laudo_ambiental_arquivo', 'tipo':
+                                'laudo_ambiental', 'icon': 'fa-vial'},
+                                {'label': 'Laudo de Matéria-Prima', 'campo': 'laudo_materia_prima_arquivo', 'tipo':
+                                'laudo_materia_prima', 'icon': 'fa-flask'},
+                                {'label': 'Relatório Mensal', 'campo': 'relatorio_mensal_arquivo', 'tipo': 'relatorio',
+                                'icon': 'fa-file-signature'}
+                                ] %}
+
+                                {% for doc in doc_mensais %}
+                                <div class="col-md-3 mb-4">
+                                    <label class="small fw-bold text-muted mb-2 d-block"><i
+                                            class="fas {{ doc.icon }} me-1 text-info"></i> {{ doc.label }}</label>
+                                    {% set file = aplicacao[doc.campo] %}
+                                    {% if file %}
+                                    <div
+                                        class="alert alert-info d-flex align-items-center justify-content-between p-2 mb-2 border-0 bg-info bg-opacity-10">
+                                        <i class="fas fa-check-circle text-info me-2"></i>
+                                        <a href="{{ url_for('cli.visualizar_documento_mensal', id=aplicacao.id, tipo=doc.tipo) }}"
+                                            target="_blank"
+                                            class="text-info fw-bold small text-decoration-none text-truncate">Ver
+                                            Anexo</a>
+                                    </div>
+                                    {% else %}
+                                    <div
+                                        class="alert alert-secondary py-2 text-center border-dashed mb-2 small text-muted">
+                                        Aguardando</div>
+                                    {% endif %}
+
+                                    {% if current_user.tipo.name in ['SUPER_ADMIN', 'ADMIN'] %}
+                                    <form action="{{ url_for('cli.upload_documento_mensal', id=aplicacao.id) }}"
+                                        method="POST" enctype="multipart/form-data">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                                        <input type="hidden" name="tipo_documento" value="{{ doc.tipo }}" />
+                                        <div class="input-group input-group-sm">
+                                            <input type="file" class="form-control" name="documento" required>
+                                            <button class="btn btn-info text-white" type="submit"><i
+                                                    class="fas fa-upload"></i></button>
+                                        </div>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3️⃣ RELATÓRIOS -->
+                <div class="accordion-item border-0 rounded-4 card-clean">
+                    <h2 class="accordion-header" id="headingRelatorios">
+                        <button class="accordion-button collapsed px-4 py-3 fw-bold bg-white text-success rounded-4"
+                            type="button" data-bs-toggle="collapse" data-bs-target="#collapseRelatorios"
+                            aria-expanded="false" aria-controls="collapseRelatorios">
+                            <i class="fas fa-file-pdf me-2"></i> Relatórios da Aplicação
+                        </button>
+                    </h2>
+                    <div id="collapseRelatorios" class="accordion-collapse collapse" aria-labelledby="headingRelatorios"
+                        data-bs-parent="#accordionDocumentos">
+                        <div class="accordion-body p-4 border-top">
+                            <div class="row">
+                                {% set relatorios = [
+                                {'label': 'Checklist em PDF', 'campo': 'checklist_arquivo', 'tipo': 'checklist', 'icon':
+                                'fa-clipboard-check', 'color': 'success'},
+                                {'label': 'Relatório de AC', 'campo': 'acao_corretiva_arquivo', 'tipo':
+                                'acao_corretiva', 'icon': 'fa-tools', 'color': 'warning'},
+                                {'label': 'Manual B.P.', 'campo': 'manual_boas_praticas_arquivo', 'tipo': 'manual',
+                                'icon': 'fa-book', 'color': 'dark'}
+                                ] %}
+
+                                <div class="col-md-3 mb-3">
+                                    <label class="small fw-bold text-muted mb-2 d-block"><i
+                                            class="fas fa-file-pdf me-1 text-danger"></i> Baixar Relatório</label>
+                                    <a href="{{ url_for('cli.gerar_relatorio_aplicacao', id=aplicacao.id) }}"
+                                        class="btn btn-outline-danger btn-sm w-100 fw-bold mb-2">
+                                        <i class="fas fa-download me-1"></i> PDF do Sistema
+                                    </a>
+                                </div>
+
+                                {% for r in relatorios %}
+                                <div class="col-md-3 mb-3">
+                                    <label class="small fw-bold text-muted mb-2 d-block"><i
+                                            class="fas {{ r.icon }} me-1 text-{{ r.color }}"></i> {{ r.label }}</label>
+                                    {% set file = aplicacao[r.campo] %}
+                                    {% if file %}
+                                    <a href="{{ url_for('cli.visualizar_documento_mensal', id=aplicacao.id, tipo=r.tipo) }}"
+                                        target="_blank" class="btn btn-outline-{{ r.color }} btn-sm w-100 fw-bold mb-2">
+                                        <i class="fas fa-download me-1"></i> Baixar
+                                    </a>
+                                    {% else %}
+                                    <div class="alert alert-light py-2 text-center border mb-2 small text-muted">Não
+                                        disponível</div>
+                                    {% endif %}
+
+                                    {% if current_user.tipo.name in ['SUPER_ADMIN', 'ADMIN'] %}
+                                    <form action="{{ url_for('cli.upload_documento_mensal', id=aplicacao.id) }}"
+                                        method="POST" enctype="multipart/form-data">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                                        <input type="hidden" name="tipo_documento" value="{{ r.tipo }}" />
+                                        <div class="input-group input-group-sm">
+                                            <input type="file" class="form-control" name="documento" required>
+                                            <button class="btn btn-outline-{{ r.color }}" type="submit"><i
+                                                    class="fas fa-upload"></i></button>
+                                        </div>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
 
-            <!-- MÓDULO: Relatório Mensal e Laudo -->
-            <div class="card mb-4 shadow-sm border-0">
-                <div class="card-header bg-white py-3">
+            <!-- MÓDULO: Planilhas da Visita -->
+            <div class="card mb-4 shadow-sm border-0 rounded-4 overflow-hidden">
+                <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
                     <h6 class="mb-0 text-success fw-bold">
-                        <i class="fas fa-file-contract me-2"></i>Documentação Mensal Pós-Auditoria
+                        <i class="fas fa-file-excel me-2"></i>Planilhas e Controles Auxiliares
                     </h6>
+                    <span class="badge bg-success bg-opacity-10 text-success">{{ aplicacao.planilhas.count() }}
+                        arquivos</span>
                 </div>
-                <div class="card-body">
-                    <div class="row">
-                        <!-- Relatório Mensal da Consultoria -->
-                        <div class="col-md-6 border-end-md mb-4 mb-md-0">
-                            <h6 class="fw-bold text-dark mb-3"><i
-                                    class="fas fa-file-signature text-primary me-2"></i>Relatório Mensal</h6>
-
-                            {% if aplicacao.relatorio_mensal_arquivo %}
-                            <div
-                                class="alert alert-success d-flex flex-column align-items-start p-3 border-success border-opacity-25 bg-success bg-opacity-10 mb-3">
-                                <div class="d-flex align-items-center mb-2">
-                                    <i class="fas fa-check-circle text-success fa-lg me-2"></i>
-                                    <strong class="text-success small">Anexado</strong>
+                <div class="card-body p-4">
+                    <div class="row g-3">
+                        <div class="col-md-7">
+                            <div class="list-group list-group-flush border rounded">
+                                {% if aplicacao.planilhas.count() > 0 %}
+                                {% for p in aplicacao.planilhas %}
+                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-file-excel text-success me-3 fa-lg"></i>
+                                        <div>
+                                            <div class="fw-bold small text-dark">{{ p.nome_original }}</div>
+                                            <small class="text-muted">{{ p.data_upload.strftime('%d/%m/%Y %H:%M')
+                                                }}</small>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <a href="{{ url_for('cli.download_arquivo', filename=p.caminho) }}"
+                                            target="_blank" class="btn btn-sm btn-light border">
+                                            <i class="fas fa-download text-primary"></i>
+                                        </a>
+                                        {% if current_user.tipo.name in ['SUPER_ADMIN', 'ADMIN'] %}
+                                        <form action="{{ url_for('cli.excluir_planilha', planilha_id=p.id) }}"
+                                            method="POST" onsubmit="return confirm('Excluir planilha?')">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button class="btn btn-sm btn-light border text-danger" type="submit">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </div>
                                 </div>
-                                <a href="{{ url_for('cli.visualizar_documento_mensal', id=aplicacao.id, tipo='relatorio') }}"
-                                    target="_blank" class="btn btn-outline-success btn-sm fw-bold w-100 mt-2">
-                                    <i class="fas fa-download me-1"></i> Baixar Relatório
-                                </a>
-                            </div>
-                            {% else %}
-                            <div class="alert alert-secondary py-3 text-center border-dashed mb-3">
-                                <span class="text-muted small fw-bold"><i class="fas fa-clock me-1"></i> Aguardando
-                                    Relatório</span>
-                            </div>
-                            {% endif %}
-
-                            <!-- Somente Consultora/Admin pode upar isso -->
-                            {% if current_user.tipo.name in ['SUPER_ADMIN', 'ADMIN', 'GESTOR', 'AUDITOR'] %}
-                            <form action="{{ url_for('cli.upload_documento_mensal', id=aplicacao.id) }}" method="POST"
-                                enctype="multipart/form-data" class="p-2 bg-light rounded border border-light">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                                <input type="hidden" name="tipo_documento" value="relatorio" />
-                                <div class="input-group input-group-sm">
-                                    <input type="file" class="form-control" name="documento" required
-                                        accept=".pdf,.doc,.docx">
-                                    <button class="btn btn-primary" type="submit"><i class="fas fa-upload"></i></button>
+                                {% endfor %}
+                                {% else %}
+                                <div class="p-4 text-center text-muted">
+                                    <i class="fas fa-info-circle mb-2"></i><br>Nenhuma planilha anexada.
                                 </div>
-                            </form>
-                            {% endif %}
+                                {% endif %}
+                            </div>
                         </div>
-
-                        <!-- Laudo do Laboratório -->
-                        <div class="col-md-6 ps-md-3">
-                            <h6 class="fw-bold text-dark mb-3"><i class="fas fa-microscope text-info me-2"></i>Laudo do
-                                Laboratório</h6>
-
-                            {% if aplicacao.laudo_laboratorio_arquivo %}
+                        <div class="col-md-5">
                             <div
-                                class="alert alert-info d-flex flex-column align-items-start p-3 border-info border-opacity-25 bg-info bg-opacity-10 mb-3">
-                                <div class="d-flex align-items-center mb-2">
-                                    <i class="fas fa-check-circle text-info fa-lg me-2"></i>
-                                    <strong class="text-info small">Anexado</strong>
-                                </div>
-                                <a href="{{ url_for('cli.visualizar_documento_mensal', id=aplicacao.id, tipo='laudo') }}"
-                                    target="_blank" class="btn btn-outline-info btn-sm fw-bold w-100 mt-2">
-                                    <i class="fas fa-download me-1"></i> Baixar Laudo
-                                </a>
+                                class="p-3 bg-light rounded border border-dashed text-center h-100 d-flex flex-column justify-content-center">
+                                <h6 class="fw-bold text-dark">Anexar Novas Planilhas</h6>
+                                <p class="small text-muted mb-3">Selecione um ou mais arquivos (XLS, PDF, CSV)</p>
+                                <form action="{{ url_for('cli.upload_planilha', id=aplicacao.id) }}" method="POST"
+                                    enctype="multipart/form-data">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                                    <input type="file" name="planilhas" class="form-control mb-2" multiple required>
+                                    <button class="btn btn-success w-100 fw-bold" type="submit">
+                                        <i class="fas fa-cloud-upload-alt me-1"></i> Enviar Arquivos
+                                    </button>
+                                </form>
                             </div>
-                            {% else %}
-                            <div class="alert alert-secondary py-3 text-center border-dashed mb-3">
-                                <span class="text-muted small fw-bold"><i class="fas fa-clock me-1"></i> Aguardando
-                                    Laudo</span>
-                            </div>
-                            {% endif %}
-
-                            <!-- Somente quem emite o Laudo (Admin/Lab) - assumindo que quem lança é nivel admin ou gestor -->
-                            {% if current_user.tipo.name in ['SUPER_ADMIN', 'ADMIN', 'GESTOR'] %}
-                            <form action="{{ url_for('cli.upload_documento_mensal', id=aplicacao.id) }}" method="POST"
-                                enctype="multipart/form-data" class="p-2 bg-light rounded border border-light">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                                <input type="hidden" name="tipo_documento" value="laudo" />
-                                <div class="input-group input-group-sm">
-                                    <input type="file" class="form-control" name="documento" required
-                                        accept=".pdf,.jpg,.jpeg,.png">
-                                    <button class="btn btn-info text-white" type="submit"><i
-                                            class="fas fa-upload"></i></button>
-                                </div>
-                            </form>
-                            {% endif %}
                         </div>
                     </div>
                 </div>

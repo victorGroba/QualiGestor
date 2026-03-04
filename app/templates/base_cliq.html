@@ -359,6 +359,7 @@
         </h2>
       </div>
 
+      {% if current_user.tipo.name in ['SUPER_ADMIN', 'ADMIN'] %}
       <div class="accordion-item bg-transparent border-0">
         <h2 class="accordion-header">
           <button class="accordion-button nav-link collapsed" type="button" data-bs-toggle="collapse"
@@ -417,6 +418,7 @@
           </div>
         </div>
       </div>
+      {% endif %}
 
       <div class="accordion-item bg-transparent border-0">
         <h2 class="accordion-header">
@@ -432,7 +434,7 @@
           </div>
         </div>
       </div>
-      
+
       {% if current_user.tipo_id == 1 or current_user.tipo.name == 'SUPER_ADMIN' %}
 
       <li class="nav-item">
@@ -577,7 +579,7 @@
   </script>
 
   <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
-  
+
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
@@ -593,70 +595,71 @@
   <script>
     // 1. Encontra todos os links de "Sair" na página (Sidebar, Menu Superior, etc)
     document.addEventListener("DOMContentLoaded", () => {
-        // Procura links que contenham 'logout' ou 'sair'
-        const logoutLinks = document.querySelectorAll('a[href*="logout"], a[href*="sair"]');
-        
-        logoutLinks.forEach(link => {
-            link.addEventListener('click', async (e) => {
-                e.preventDefault(); // Impede o sair imediato
-                
-                // Muda o texto para dar feedback (opcional)
-                const originalText = link.innerText;
-                link.innerHTML = '<i class="fas fa-sync fa-spin"></i> Limpando...';
-                
-                try {
-                    console.log("Iniciando Protocolo de Limpeza...");
+      // Procura links que contenham 'logout' ou 'sair'
+      const logoutLinks = document.querySelectorAll('a[href*="logout"], a[href*="sair"]');
 
-                    // A. DESTRÓI O BANCO DE DADOS (Resolve QuotaExceeded e Blobs travados)
-                    // Como o Dexie já está carregado, usamos ele
-                    await Dexie.delete('QualiGestorDB');
-                    console.log("Banco de dados deletado.");
+      logoutLinks.forEach(link => {
+        link.addEventListener('click', async (e) => {
+          e.preventDefault(); // Impede o sair imediato
 
-                    // B. LIMPA TODOS OS CACHES (Resolve conflito v7 vs v8)
-                    if ('caches' in window) {
-                        const keys = await caches.keys();
-                        await Promise.all(keys.map(key => caches.delete(key)));
-                        console.log("Caches limpos.");
-                    }
+          // Muda o texto para dar feedback (opcional)
+          const originalText = link.innerText;
+          link.innerHTML = '<i class="fas fa-sync fa-spin"></i> Limpando...';
 
-                    // C. REMOVE SERVICE WORKERS (Garante atualização imediata)
-                    if ('serviceWorker' in navigator) {
-                        const registrations = await navigator.serviceWorker.getRegistrations();
-                        for (let registration of registrations) {
-                            await registration.unregister();
-                        }
-                        console.log("Service Workers removidos.");
-                    }
-                    
-                    // D. LIMPA LOCALSTORAGE (Dados de sessão antigos)
-                    localStorage.clear();
+          try {
+            console.log("Iniciando Protocolo de Limpeza...");
 
-                } catch (error) {
-                    console.error("Erro durante limpeza (não crítico):", error);
-                } finally {
-                    // E. REDIRECIONA PARA O LOGIN (Agora limpo)
-                    window.location.href = "{{ url_for('auth.logout') }}";
-                }
-            });
-        });
-        
-        // --- EXTRA: AUTO-CORREÇÃO NA CHEGADA (OPCIONAL) ---
-        // Se você quiser garantir que a V8 limpe a V7 automaticamente na primeira vez que abre:
-        const versaoAtual = 'v8-clean-fixed';
-        if (localStorage.getItem('versao_sistema') !== versaoAtual) {
-            console.log("Nova versão detectada! Limpando caches antigos...");
+            // A. DESTRÓI O BANCO DE DADOS (Resolve QuotaExceeded e Blobs travados)
+            // Como o Dexie já está carregado, usamos ele
+            await Dexie.delete('QualiGestorDB');
+            console.log("Banco de dados deletado.");
+
+            // B. LIMPA TODOS OS CACHES (Resolve conflito v7 vs v8)
             if ('caches' in window) {
-                caches.keys().then(keys => {
-                    keys.forEach(key => {
-                        if (!key.includes('v8')) caches.delete(key);
-                    });
-                });
+              const keys = await caches.keys();
+              await Promise.all(keys.map(key => caches.delete(key)));
+              console.log("Caches limpos.");
             }
-            localStorage.setItem('versao_sistema', versaoAtual);
-        }
-    });
-</script>
 
-{% block extra_js %}{% endblock %}
+            // C. REMOVE SERVICE WORKERS (Garante atualização imediata)
+            if ('serviceWorker' in navigator) {
+              const registrations = await navigator.serviceWorker.getRegistrations();
+              for (let registration of registrations) {
+                await registration.unregister();
+              }
+              console.log("Service Workers removidos.");
+            }
+
+            // D. LIMPA LOCALSTORAGE (Dados de sessão antigos)
+            localStorage.clear();
+
+          } catch (error) {
+            console.error("Erro durante limpeza (não crítico):", error);
+          } finally {
+            // E. REDIRECIONA PARA O LOGIN (Agora limpo)
+            window.location.href = "{{ url_for('auth.logout') }}";
+          }
+        });
+      });
+
+      // --- EXTRA: AUTO-CORREÇÃO NA CHEGADA (OPCIONAL) ---
+      // Se você quiser garantir que a V8 limpe a V7 automaticamente na primeira vez que abre:
+      const versaoAtual = 'v8-clean-fixed';
+      if (localStorage.getItem('versao_sistema') !== versaoAtual) {
+        console.log("Nova versão detectada! Limpando caches antigos...");
+        if ('caches' in window) {
+          caches.keys().then(keys => {
+            keys.forEach(key => {
+              if (!key.includes('v8')) caches.delete(key);
+            });
+          });
+        }
+        localStorage.setItem('versao_sistema', versaoAtual);
+      }
+    });
+  </script>
+
+  {% block extra_js %}{% endblock %}
 </body>
+
 </html>

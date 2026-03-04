@@ -1,0 +1,175 @@
+{% extends "base_panorama.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold text-dark"><i class="fas {{ icone }} me-2 text-{{ cor }}"></i> {{ titulo }}</h3>
+            <p class="text-muted">Selecione um GAP para visualizar os dados agrupados.</p>
+        </div>
+        <a href="{{ url_for('panorama.dashboard') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Voltar
+        </a>
+    </div>
+
+    <div class="row">
+        <!-- Lista de GAPs e Ranchos -->
+        {% if not grupos %}
+        <div class="alert alert-info border-0 shadow-sm rounded-4 gap-3 d-flex align-items-center p-4">
+            <i class="fas fa-info-circle fa-2x"></i>
+            <div>
+                <h5 class="fw-bold mb-1">Nenhum dado encontrado</h5>
+                <p class="mb-0">Nenhuma unidade cadastrada ou autorizada para o seu perfil.</p>
+            </div>
+        </div>
+        {% else %}
+
+        <!-- Filtros de Busca -->
+        <div class="card shadow-sm border-0 rounded-4 mb-4 bg-white">
+            <div class="card-body p-4">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small text-muted text-uppercase mb-2">Buscar Unidade</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-end-0"><i
+                                    class="fas fa-search text-primary"></i></span>
+                            <input type="text" id="searchInput" class="form-control border-start-0 ps-0 bg-light"
+                                placeholder="Ex: Rancho da Felicidade...">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small text-muted text-uppercase mb-2">Filtrar por
+                            Grupamento</label>
+                        <select id="gapFilter" class="form-select bg-light">
+                            <option value="all">Todos os Grupamentos</option>
+                            {% for grupo in grupos %}
+                            <option value="{{ grupo.nome }}">{{ grupo.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Container da Hierarquia -->
+        <div id="hierarquiaContainer">
+            {% for grupo in grupos %}
+            <div class="col-12 mb-4">
+                <div class="card border-0 shadow-sm rounded-4 overflow-hidden gap-card" data-gap="{{ grupo.nome }}">
+                    <div
+                        class="card-header bg-white py-3 border-bottom-0 d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0 fw-bold text-dark"><i class="fas fa-layer-group me-2 text-primary"></i> {{
+                            grupo.nome }}</h5>
+                        <span class="badge bg-light text-dark border">{{ grupo.avaliados.count() }} Unidades
+                            (Ranchos)</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="bg-light">
+                                    <tr>
+                                        <th class="ps-4">Unidade (Rancho)</th>
+                                        <th>Endereço</th>
+                                        <th class="text-center" style="width: 200px;">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for rancho in grupo.avaliados %}
+                                    <tr class="rancho-row">
+                                        <td class="ps-4 fw-bold text-dark rancho-name">{{ rancho.nome }}</td>
+                                        <td class="text-muted small">{{ rancho.endereco or '---' }}</td>
+                                        <td class="text-center">
+                                            <a href="{{ url_for(endpoint_rancho, avaliado_id=rancho.id) }}"
+                                                class="btn btn-{{ cor }} btn-sm px-3 rounded-pill">
+                                                Acessar <i class="fas fa-chevron-right ms-1"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div> <!-- Fim do hierarquiaContainer -->
+
+        <!-- Mensagem de "Nenhum resultado" da busca -->
+        <div id="noResultsMsg"
+            class="alert alert-warning border-0 shadow-sm rounded-4 gap-3 d-flex align-items-center p-4 d-none">
+            <i class="fas fa-search-minus fa-2x"></i>
+            <div>
+                <h5 class="fw-bold mb-1">Nenhum resultado encontrado</h5>
+                <p class="mb-0">Tente ajustar os filtros de busca para encontrar o que procura.</p>
+            </div>
+        </div>
+
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const searchInput = document.getElementById("searchInput");
+        const gapFilter = document.getElementById("gapFilter");
+        const gapCards = document.querySelectorAll(".gap-card");
+        const noResultsMsg = document.getElementById("noResultsMsg");
+
+        function filterList() {
+            if (!searchInput) return;
+
+            const searchTerm = searchInput.value.toLowerCase();
+            const selectedGap = gapFilter.value;
+            let anyVisibleCard = false;
+
+            gapCards.forEach(card => {
+                const cardGap = card.getAttribute("data-gap");
+                let gapMatches = (selectedGap === "all" || selectedGap === cardGap);
+
+                let anyVisibleRowInCard = false;
+                const rows = card.querySelectorAll(".rancho-row");
+
+                rows.forEach(row => {
+                    const rowName = row.querySelector(".rancho-name").textContent.toLowerCase();
+                    const nameMatches = rowName.includes(searchTerm);
+
+                    if (gapMatches && nameMatches) {
+                        row.style.display = "";
+                        anyVisibleRowInCard = true;
+                    } else {
+                        row.style.display = "none";
+                    }
+                });
+
+                // Mostra/Oculta o card inteiro do GAP
+                if (anyVisibleRowInCard) {
+                    card.style.display = "";
+                    anyVisibleCard = true;
+                } else {
+                    card.style.display = "none";
+                }
+            });
+
+            // Mostra/Oculta a mensagem de nenhum resultado
+            if (noResultsMsg) {
+                if (anyVisibleCard) {
+                    noResultsMsg.classList.add("d-none");
+                } else {
+                    noResultsMsg.classList.remove("d-none");
+                }
+            }
+        }
+
+        if (searchInput) searchInput.addEventListener("input", filterList);
+        if (gapFilter) gapFilter.addEventListener("change", filterList);
+    });
+</script>
+<style>
+    .hover-card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+</style>
+{% endblock %}

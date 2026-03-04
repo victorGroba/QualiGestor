@@ -1,0 +1,102 @@
+{% extends "base_panorama.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold text-dark"><i class="fas {{ icone }} me-2 text-{{ cor }}"></i> {{ titulo }}</h3>
+            <p class="text-muted">Unidade: <strong>{{ avaliado.nome }}</strong></p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ request.referrer or url_for('panorama.dashboard') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i> Voltar
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="ps-4">Data da Visita</th>
+                                    <th>Auditores</th>
+                                    <th>Status</th>
+                                    <th class="text-center">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if aplicacoes %}
+                                {% for app in aplicacoes %}
+                                <td class="ps-4">
+                                    <div class="fw-bold text-dark">{{ app.data_fim.strftime('%d/%m/%Y') if app.data_fim
+                                        else app.data_inicio.strftime('%d/%m/%Y') }}</div>
+                                    <small class="text-muted">{{ app.data_fim.strftime('%H:%M') if app.data_fim else ''
+                                        }}</small>
+                                </td>
+                                <td>
+                                    <div class="small">{{ app.aplicador.nome if app.aplicador else '---' }}</div>
+                                </td>
+                                <td>
+                                    <div class="d-flex gap-1">
+                                        <!-- Laudos -->
+                                        {% if app.laudo_alimentos_arquivo or app.laudo_ambiental_arquivo or
+                                        app.laudo_materia_prima_arquivo %}
+                                        <i class="fas fa-microscope text-info" title="Laudos Disponíveis"></i>
+                                        {% endif %}
+
+                                        <!-- Planilhas -->
+                                        {% if app.planilhas.count() > 0 %}
+                                        <i class="fas fa-file-excel text-success"
+                                            title="{{ app.planilhas.count() }} Planilhas"></i>
+                                        {% endif %}
+
+                                        <!-- Relatórios -->
+                                        {% if app.relatorio_mensal_arquivo %}
+                                        <i class="fas fa-file-signature text-primary" title="Relatório Mensal"></i>
+                                        {% endif %}
+                                        {% if app.checklist_arquivo %}
+                                        <i class="fas fa-clipboard-check text-success" title="Checklist PDF"></i>
+                                        {% endif %}
+                                        {% if app.acao_corretiva_arquivo %}
+                                        <i class="fas fa-tools text-warning" title="Ação Corretiva"></i>
+                                        {% endif %}
+                                        {% if app.manual_boas_praticas_arquivo %}
+                                        <i class="fas fa-book text-dark" title="Manual B.P."></i>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td class="text-center">
+                                    <a href="{{ url_for('cli.visualizar_aplicacao', id=app.id) }}"
+                                        class="btn btn-light btn-sm border rounded-pill px-3">
+                                        <i class="fas fa-eye me-1"></i> Acessar
+                                    </a>
+                                </td>
+                                </tr>
+                                {% endfor %}
+                                {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-5 text-muted">
+                                        <i class="fas fa-info-circle fa-2x mb-3 d-block"></i>
+                                        Nenhuma visita finalizada encontrada para este critério.
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .bg-success-soft {
+        background-color: rgba(28, 200, 138, 0.1);
+    }
+</style>
+{% endblock %}

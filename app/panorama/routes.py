@@ -11,15 +11,32 @@ from ..models import (
     Pergunta, StatusAplicacao, TipoResposta, Cliente, Grupo, CategoriaIndicador, Topico
 )
 
+from ..cli.utils import get_avaliados_usuario
+
 def aplicar_filtro_hierarquia(query, model_avaliado=Avaliado):
-    query = query.filter(model_avaliado.cliente_id == current_user.cliente_id)
-    if current_user.avaliado_id:
-        query = query.filter(model_avaliado.id == current_user.avaliado_id)
-    elif current_user.grupo_id:
-        query = query.filter(model_avaliado.grupo_id == current_user.grupo_id)
-    return query
+    """Aplica o filtro de acessos hierárquicos à query (seja de dashboard, avaliados, etc)"""
+    # 1. Busca os ranchos aos quais este usuário tem permissão
+    avaliados_permitidos = get_avaliados_usuario()
+    ids_permitidos = [a.id for a in avaliados_permitidos]
+    
+    # 2. Se a lista estiver vazia, retorna ID falso para garantir que nada apareça
+    if not ids_permitidos:
+        return query.filter(model_avaliado.id == -1)
+        
+    # 3. Se for Super Admin / Admin, IDs permitidos conteria TODOS os ranchos,
+    # então a query .in_() já vai filtrar naturalmente. 
+    return query.filter(model_avaliado.id.in_(ids_permitidos))
 
 panorama_bp = Blueprint('panorama', __name__, template_folder='templates')
+
+from flask import flash
+
+@panorama_bp.before_request
+def restrict_consultoras():
+    """Bloqueia Consultoras de acessarem as rotas do Panorama/Dashboard."""
+    if current_user.is_authenticated and current_user.tipo.name == 'AUDITOR':
+        flash("Acesso restrito: O seu perfil de Consultora não tem acesso às métricas do Panorama.", "warning")
+        return redirect(url_for('main.painel'))
 
 @panorama_bp.route('/')
 @login_required
@@ -118,7 +135,194 @@ def laudos_rancho(avaliado_id):
         status=StatusAplicacao.FINALIZADA
     ).order_by(desc(AplicacaoQuestionario.data_fim)).all()
     
-    return render_template('panorama/laudos_rancho.html', avaliado=avaliado, aplicacoes=aplicacoes)
+    return render_template('panorama/laudos_rancho.html',
+                           avaliado=avaliado,
+                           aplicacoes=aplicacoes)
+
+# ======================== MÓDULO PLANILHAS (Hierárquico) ========================
+
+@panorama_bp.route('/planilhas')
+@login_required
+def planilhas():
+    """Atalho gerencial para listar planilhas via GAPs"""
+    query_grupos = Grupo.query.filter_by(cliente_id=current_user.cliente_id, ativo=True)
+    if current_user.grupo_id:
+        query_grupos = query_grupos.filter(Grupo.id == current_user.grupo_id)
+    
+    if current_user.avaliado_id:
+        return redirect(url_for('panorama.planilhas_rancho', avaliado_id=current_user.avaliado_id))
+
+    grupos = query_grupos.order_by(Grupo.nome).all()
+    return render_template('panorama/hierarquia_lista.html', 
+                           titulo="Central de Planilhas",
+                           icone="fa-file-excel",
+                           cor="success",
+                           grupos=grupos,
+                           endpoint_rancho="panorama.planilhas_rancho")
+
+@panorama_bp.route('/planilhas/rancho/<int:avaliado_id>')
+@login_required
+def planilhas_rancho(avaliado_id):
+    """Lista visitas de um rancho que possuam planilhas"""
+    avaliado = Avaliado.query.get_or_404(avaliado_id)
+    if avaliado.cliente_id != current_user.cliente_id: abort(403)
+    
+    # Busca aplicações que tenham planilhas vinculadas
+    from ..models import PlanilhaVisita
+    aplicacoes = AplicacaoQuestionario.query.join(PlanilhaVisita).filter(
+        AplicacaoQuestionario.avaliado_id == avaliado_id,
+        AplicacaoQuestionario.status == StatusAplicacao.FINALIZADA
+    ).distinct().order_by(desc(AplicacaoQuestionario.data_fim)).all()
+
+    return render_template('panorama/visitas_lista.html',
+                           titulo="Planilhas por Visita",
+                           icone="fa-file-excel",
+                           cor="success",
+                           avaliado=avaliado,
+                           aplicacoes=aplicacoes,
+                           tipo_anexo="planilhas")
+
+# ======================== MÓDULO RELATÓRIOS (Hierárquico) ========================
+
+@panorama_bp.route('/relatorios-hierarquia')
+@login_required
+def relatorios_hierarquia():
+    """Atalho gerencial para listar relatórios via GAPs"""
+    query_grupos = Grupo.query.filter_by(cliente_id=current_user.cliente_id, ativo=True)
+    if current_user.grupo_id:
+        query_grupos = query_grupos.filter(Grupo.id == current_user.grupo_id)
+    
+    if current_user.avaliado_id:
+        return redirect(url_for('panorama.relatorios_rancho', avaliado_id=current_user.avaliado_id))
+
+    grupos = query_grupos.order_by(Grupo.nome).all()
+    return render_template('panorama/hierarquia_lista.html', 
+                           titulo="Central de Relatórios",
+                           icone="fa-file-pdf",
+                           cor="danger",
+                           grupos=grupos,
+                           endpoint_rancho="panorama.relatorios_rancho")
+
+@panorama_bp.route('/relatorios/rancho/<int:avaliado_id>')
+@login_required
+def relatorios_rancho(avaliado_id):
+    """Lista visitas de um rancho com foco em relatórios"""
+    avaliado = Avaliado.query.get_or_404(avaliado_id)
+    if avaliado.cliente_id != current_user.cliente_id: abort(403)
+    
+    aplicacoes = AplicacaoQuestionario.query.filter_by(
+        avaliado_id=avaliado_id,
+        status=StatusAplicacao.FINALIZADA
+    ).order_by(desc(AplicacaoQuestionario.data_fim)).all()
+
+    return render_template('panorama/visitas_lista.html',
+                           titulo="Relatórios da Unidade",
+                           icone="fa-file-pdf",
+                           cor="danger",
+                           avaliado=avaliado,
+                           aplicacoes=aplicacoes,
+                           tipo_anexo="relatorios")
+
+# ======================== MÓDULO TREINAMENTO ========================
+
+@panorama_bp.route('/treinamento')
+@login_required
+def treinamento():
+    """Acesso ao módulo de Treinamento"""
+    from ..models import Treinamento
+    query = Treinamento.query.filter_by(cliente_id=current_user.cliente_id)
+    
+    if current_user.avaliado_id:
+        query = query.filter(Treinamento.avaliado_id == current_user.avaliado_id)
+    elif current_user.grupo_id:
+        query = query.filter(Treinamento.grupo_id == current_user.grupo_id)
+        
+    treinamentos = query.order_by(desc(Treinamento.data)).all()
+    
+    # Filtros para novo cadastro
+    query_grupos = Grupo.query.filter_by(cliente_id=current_user.cliente_id, ativo=True)
+    query_avaliados = Avaliado.query.filter_by(cliente_id=current_user.cliente_id, ativo=True)
+    
+    if current_user.grupo_id:
+        query_grupos = query_grupos.filter(Grupo.id == current_user.grupo_id)
+        query_avaliados = query_avaliados.filter(Avaliado.grupo_id == current_user.grupo_id)
+        
+    return render_template('panorama/treinamento_dashboard.html',
+                           treinamentos=treinamentos,
+                           grupos=query_grupos.all(),
+                           avaliados=query_avaliados.all())
+
+@panorama_bp.route('/treinamento/novo', methods=['POST'])
+@login_required
+def treinamento_novo():
+    """Salva um novo treinamento"""
+    from ..models import Treinamento
+    try:
+        data_str = request.form.get('data')
+        data_obj = datetime.strptime(data_str, '%Y-%m-%d') if data_str else datetime.utcnow()
+        
+        novo = Treinamento(
+            tema=request.form.get('tema'),
+            data=data_obj,
+            conteudo=request.form.get('conteudo'),
+            cliente_id=current_user.cliente_id,
+            grupo_id=request.form.get('grupo_id') or None,
+            avaliado_id=request.form.get('avaliado_id') or None,
+            criado_por_id=current_user.id
+        )
+        
+        # Upload de material se houver
+        if 'material' in request.files:
+            file = request.files['material']
+            if file and file.filename != '':
+                import uuid
+                ext = file.filename.rsplit('.', 1)[1].lower()
+                filename = f"treino_{uuid.uuid4().hex[:8]}.{ext}"
+                file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], filename))
+                novo.materiais_arquivo = filename
+                
+        db.session.add(novo)
+        db.session.commit()
+        return redirect(url_for('panorama.treinamento'))
+    except Exception as e:
+        db.session.rollback()
+        return f"Erro ao salvar treinamento: {str(e)}", 500
+
+@panorama_bp.route('/treinamento/<int:treinamento_id>/participantes', methods=['GET', 'POST'])
+@login_required
+def treinamento_participantes(treinamento_id):
+    """Gerenciamento de participantes via AJAX/Modal"""
+    from ..models import Treinamento, TreinamentoParticipante
+    treino = Treinamento.query.get_or_404(treinamento_id)
+    
+    if request.method == 'POST':
+        try:
+            nome = request.form.get('nome')
+            matricula = request.form.get('matricula')
+            if nome:
+                novo = TreinamentoParticipante(
+                    treinamento_id=treinamento_id,
+                    nome=nome,
+                    matricula=matricula
+                )
+                db.session.add(novo)
+                db.session.commit()
+                return jsonify({'sucesso': True, 'participante': {'id': novo.id, 'nome': novo.nome, 'matricula': novo.matricula}})
+        except Exception as e:
+            return jsonify({'erro': str(e)}), 500
+            
+    participantes = [{'id': p.id, 'nome': p.nome, 'matricula': p.matricula} for p in treino.participantes]
+    return jsonify({'participantes': participantes})
+
+@panorama_bp.route('/treinamento/participante/<int:id>/excluir', methods=['POST'])
+@login_required
+def treinamento_participante_excluir(id):
+    from ..models import TreinamentoParticipante
+    p = TreinamentoParticipante.query.get_or_404(id)
+    tid = p.treinamento_id
+    db.session.delete(p)
+    db.session.commit()
+    return jsonify({'sucesso': True})
 
 @panorama_bp.route('/dossie/<int:avaliado_id>')
 @login_required
@@ -241,6 +445,7 @@ def api_dashboard_data():
             Avaliado.cliente_id == current_user.cliente_id,
             AplicacaoQuestionario.status == StatusAplicacao.FINALIZADA
         )
+        query = aplicar_filtro_hierarquia(query)
 
         # 1. Carrega apenas os relacionamentos diretos (O selectinload foi removido daqui)
         query = query.options(
@@ -399,11 +604,12 @@ def gerar_graficos_ranking_topicos(aplicacoes, topico_id_filtro=None):
 @panorama_bp.route('/api/export-data')
 @login_required
 def api_export_data():
-    formato = request.args.get('formato', 'json')  
-    aplicacoes = AplicacaoQuestionario.query.join(Avaliado).filter(
+    query = AplicacaoQuestionario.query.join(Avaliado).filter(
         Avaliado.cliente_id == current_user.cliente_id,
         AplicacaoQuestionario.status == StatusAplicacao.FINALIZADA
-    ).all()
+    )
+    query = aplicar_filtro_hierarquia(query)
+    aplicacoes = query.all()
 
     if formato == 'json':
         data = []
@@ -911,7 +1117,9 @@ def gerar_grafico_evolucao_topicos(aplicacoes, topico_id_filtro=None):
 def api_comparativo_indicadores():
     try:
         categorias = CategoriaIndicador.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).order_by(CategoriaIndicador.ordem).all()
-        ranchos = Avaliado.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).all()
+        query_ranchos = Avaliado.query.filter_by(cliente_id=current_user.cliente_id, ativo=True)
+        query_ranchos = aplicar_filtro_hierarquia(query_ranchos)
+        ranchos = query_ranchos.all()
         dados_painel = []
 
         for cat in categorias:
@@ -940,7 +1148,9 @@ def api_comparativo_indicadores():
 @panorama_bp.route('/pareto')
 @login_required
 def analise_pareto():
-    avaliados = Avaliado.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).all()
+    query_avaliados = Avaliado.query.filter_by(cliente_id=current_user.cliente_id, ativo=True)
+    query_avaliados = aplicar_filtro_hierarquia(query_avaliados)
+    avaliados = query_avaliados.all()
     questionarios = Questionario.query.filter_by(cliente_id=current_user.cliente_id, ativo=True).all()
     return render_template('panorama/pareto.html', avaliados=avaliados, questionarios=questionarios)
 
@@ -964,6 +1174,7 @@ def api_pareto_data():
              RespostaPergunta.nao_conforme == True,
              AplicacaoQuestionario.status == StatusAplicacao.FINALIZADA
          )
+        query = aplicar_filtro_hierarquia(query)
 
         if data_inicio: query = query.filter(AplicacaoQuestionario.data_inicio >= datetime.strptime(data_inicio, '%Y-%m-%d'))
         if data_fim:
@@ -1009,6 +1220,7 @@ def api_indicadores_quantitativos():
              Avaliado.cliente_id == current_user.cliente_id,
              Pergunta.tipo == 'numerico'
          )
+        query = aplicar_filtro_hierarquia(query)
 
         if data_inicio: query = query.filter(AplicacaoQuestionario.data_inicio >= datetime.strptime(data_inicio, '%Y-%m-%d'))
         if data_fim:

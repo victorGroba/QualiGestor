@@ -50,6 +50,38 @@
           </a>
         </li>
 
+        {% if current_user.tipo.name in ['SUPER_ADMIN', 'ADMIN', 'GESTOR'] %}
+        <hr class="mx-3 my-2 text-muted">
+        <li class="nav-item px-3 mb-1">
+          <small class="text-uppercase text-muted fw-bold" style="font-size: 0.7rem;">Módulos SDAB</small>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if 'laudos' in request.endpoint %}active{% endif %}"
+            href="{{ url_for('panorama.laudos') }}">
+            <i class="fas fa-file-contract"></i> Laudos
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if 'planilhas' in request.endpoint %}active{% endif %}"
+            href="{{ url_for('panorama.planilhas') }}">
+            <i class="fas fa-file-excel"></i> Planilhas
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if 'treinamento' in request.endpoint %}active{% endif %}"
+            href="{{ url_for('panorama.treinamento') }}">
+            <i class="fas fa-graduation-cap"></i> Treinamento
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if 'relatorios' in request.endpoint %}active{% endif %}"
+            href="{{ url_for('panorama.relatorios_hierarquia') }}">
+            <i class="fas fa-file-pdf"></i> Relatórios
+          </a>
+        </li>
+        <hr class="mx-3 my-2 text-muted">
+        {% endif %}
+
         {% if current_user.perfil == 'admin' %}
         <li class="nav-item">
           <a class="nav-link {% if request.endpoint == 'auth.cadastrar_usuario' %}active{% endif %}"

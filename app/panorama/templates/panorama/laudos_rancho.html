@@ -66,7 +66,8 @@
                                 {% endif %}
                             </td>
                             <td class="text-center align-middle">
-                                <a href="{{ url_for('aplicacao.detalhes', id=app.id) }}" class="btn btn-primary btn-sm">
+                                <a href="{{ url_for('cli.visualizar_aplicacao', id=app.id) }}"
+                                    class="btn btn-primary btn-sm">
                                     <i class="fas fa-folder-open mr-1"></i> Acessar Pasta
                                 </a>
                             </td>

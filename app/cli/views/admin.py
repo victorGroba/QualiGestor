@@ -617,6 +617,8 @@ def perfil():
                     return redirect(url_for('cli.perfil'))
                 
                 usuario_db.senha_hash = generate_password_hash(nova_senha)
+                from flask import session
+                session.pop('primeiro_login_obrigatorio', None)
                 flash("Senha alterada! Faça login novamente.", "success")
             else:
                 flash("Perfil atualizado!", "success")

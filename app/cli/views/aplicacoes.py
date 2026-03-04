@@ -684,6 +684,24 @@ def upload_documento_mensal(id):
         elif tipo_doc == 'laudo':
             app.laudo_laboratorio_arquivo = novo_nome
             flash("Laudo do Laboratório anexado com sucesso.", "success")
+        elif tipo_doc == 'laudo_alimentos':
+            app.laudo_alimentos_arquivo = novo_nome
+            flash("Laudo de Alimentos anexado.", "success")
+        elif tipo_doc == 'laudo_ambiental':
+            app.laudo_ambiental_arquivo = novo_nome
+            flash("Laudo Ambiental anexado.", "success")
+        elif tipo_doc == 'laudo_materia_prima':
+            app.laudo_materia_prima_arquivo = novo_nome
+            flash("Laudo de Matéria-Prima anexado.", "success")
+        elif tipo_doc == 'checklist':
+            app.checklist_arquivo = novo_nome
+            flash("Checklist anexado.", "success")
+        elif tipo_doc == 'acao_corretiva':
+            app.acao_corretiva_arquivo = novo_nome
+            flash("Relatório de Ação Corretiva anexado.", "success")
+        elif tipo_doc == 'manual':
+            app.manual_boas_praticas_arquivo = novo_nome
+            flash("Manual de Boas Práticas anexado.", "success")
             
         db.session.commit()
     else:
@@ -699,13 +717,62 @@ def visualizar_documento_mensal(id, tipo):
     if app.avaliado.cliente_id != current_user.cliente_id: abort(403)
     
     arquivo = None
-    if tipo == 'relatorio' and app.relatorio_mensal_arquivo:
-        arquivo = app.relatorio_mensal_arquivo
-    elif tipo == 'laudo' and app.laudo_laboratorio_arquivo:
-        arquivo = app.laudo_laboratorio_arquivo
+    if tipo == 'relatorio': arquivo = app.relatorio_mensal_arquivo
+    elif tipo == 'laudo': arquivo = app.laudo_laboratorio_arquivo
+    elif tipo == 'laudo_alimentos': arquivo = app.laudo_alimentos_arquivo
+    elif tipo == 'laudo_ambiental': arquivo = app.laudo_ambiental_arquivo
+    elif tipo == 'laudo_materia_prima': arquivo = app.laudo_materia_prima_arquivo
+    elif tipo == 'checklist': arquivo = app.checklist_arquivo
+    elif tipo == 'acao_corretiva': arquivo = app.acao_corretiva_arquivo
+    elif tipo == 'manual': arquivo = app.manual_boas_praticas_arquivo
         
     if not arquivo: abort(404)
     return send_from_directory(current_app.config['UPLOAD_FOLDER'], arquivo)
+
+@cli_bp.route('/aplicacao/<int:id>/upload-planilha', methods=['POST'])
+@login_required
+def upload_planilha(id):
+    """Upload de múltiplas planilhas para uma visita."""
+    app = AplicacaoQuestionario.query.get_or_404(id)
+    if app.avaliado.cliente_id != current_user.cliente_id: abort(403)
+    
+    files = request.files.getlist('planilhas')
+    from app.models import PlanilhaVisita
+    
+    for f in files:
+        if f and allowed_file(f.filename, {'xls', 'xlsx', 'csv', 'pdf'}):
+            fname = secure_filename(f.filename)
+            ext = fname.rsplit('.', 1)[1].lower()
+            novo_nome = f"planilha_{id}_{uuid.uuid4().hex[:8]}.{ext}"
+            path = os.path.join(current_app.config['UPLOAD_FOLDER'], novo_nome)
+            f.save(path)
+            
+            nova_p = PlanilhaVisita(
+                aplicacao_id=id,
+                caminho=novo_nome,
+                nome_original=fname
+            )
+            db.session.add(nova_p)
+            
+    db.session.commit()
+    flash("Planilhas enviadas com sucesso.", "success")
+    return redirect(url_for('cli.visualizar_aplicacao', id=id))
+
+@cli_bp.route('/aplicacao/planilha/<int:planilha_id>/excluir', methods=['POST'])
+@login_required
+def excluir_planilha(planilha_id):
+    from app.models import PlanilhaVisita
+    p = PlanilhaVisita.query.get_or_404(planilha_id)
+    if p.aplicacao.avaliado.cliente_id != current_user.cliente_id: abort(403)
+    
+    # Remove arquivo se desejar
+    # try: os.remove(os.path.join(current_app.config['UPLOAD_FOLDER'], p.caminho))
+    # except: pass
+    
+    db.session.delete(p)
+    db.session.commit()
+    flash("Planilha removida.", "info")
+    return redirect(url_for('cli.visualizar_aplicacao', id=p.aplicacao_id))
 
 # ===================== OPERAÇÕES DE RISCO =====================
 

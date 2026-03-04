@@ -27,6 +27,24 @@ def str_para_tipo_usuario(valor: str) -> TipoUsuario:
     }
     return mapa.get(v, TipoUsuario.VISUALIZADOR)
 
+@auth_bp.app_before_request
+def verificar_primeiro_login():
+    """
+    Verifica se o usuário atual logou com a senha padrão (123456).
+    Se for o caso, bloqueia navegação para outras telas até que altere a senha no Perfil.
+    """
+    if current_user.is_authenticated:
+        # Pula rotas estáticas, rotas de autenticação (logout) e a própria página de perfil
+        if request.endpoint and (request.endpoint.startswith('static') or \
+                                 request.endpoint.startswith('auth.') or \
+                                 request.endpoint == 'cli.perfil'):
+            return
+            
+        # Verifica se o flag de segurança foi ativado no login
+        if session.get('primeiro_login_obrigatorio'):
+            flash('Por segurança, você precisa alterar sua senha padrão no primeiro acesso.', 'warning')
+            return redirect(url_for('cli.perfil'))
+
 def exige_admin():
     """Retorna True se o usuário atual for ADMIN ou SUPER_ADMIN."""
     if not current_user.is_authenticated:
@@ -57,6 +75,12 @@ def login():
             # Isso garante que o cookie não seja apagado ao fechar o navegador.
             session.permanent = True
             # ===============================================
+
+            # Verifica se o usuário ainda usa a senha padrão (123456)
+            if usuario.check_password('123456'):
+                session['primeiro_login_obrigatorio'] = True
+            else:
+                session.pop('primeiro_login_obrigatorio', None)
 
             # Salva dados úteis na sessão
             tipo_str = usuario.tipo.name if hasattr(usuario.tipo, "name") else str(usuario.tipo)
