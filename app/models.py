@@ -409,18 +409,26 @@ class AplicacaoQuestionario(db.Model):
     assinatura_imagem = db.Column(db.String(255)) 
     assinatura_responsavel = db.Column(db.String(200))
     cargo_responsavel = db.Column(db.String(100))
+    # === ARQUIVOS E RELATÓRIOS DA VISITA (Legado mantido por segurança) ===
     fluxograma_arquivo = db.Column(db.String(255), nullable=True)
     relatorio_mensal_arquivo = db.Column(db.String(255), nullable=True)
-    laudo_laboratorio_arquivo = db.Column(db.String(255), nullable=True) # Legado
-
-    # NOVOS LAUDOS (3 CAMPOS)
-    laudo_alimentos_arquivo = db.Column(db.String(255), nullable=True)
-    laudo_ambiental_arquivo = db.Column(db.String(255), nullable=True)
+    laudo_laboratorio_arquivo = db.Column(db.String(255), nullable=True) 
     laudo_materia_prima_arquivo = db.Column(db.String(255), nullable=True)
-
-    # NOVOS RELATÓRIOS
     checklist_arquivo = db.Column(db.String(255), nullable=True)
     acao_corretiva_arquivo = db.Column(db.String(255), nullable=True)
+
+    # === LAUDOS (Atualizados) ===
+    laudo_alimentos_arquivo = db.Column(db.String(255), nullable=True)
+    laudo_ambiental_arquivo = db.Column(db.String(255), nullable=True)
+    laudo_materia_prima_micro_arquivo = db.Column(db.String(255), nullable=True)
+    laudo_materia_prima_fq_arquivo = db.Column(db.String(255), nullable=True)
+    
+    # === RELATÓRIOS OPERACIONAIS ===
+    relatorio_monitoramento_arquivo = db.Column(db.String(255), nullable=True) # Ex: Word
+    avaliacao_cardapio_arquivo = db.Column(db.String(255), nullable=True)
+    ordem_servico_1_arquivo = db.Column(db.String(255), nullable=True)
+    ordem_servico_2_arquivo = db.Column(db.String(255), nullable=True)
+    plano_capacitacao_arquivo = db.Column(db.String(255), nullable=True)
     manual_boas_praticas_arquivo = db.Column(db.String(255), nullable=True)
 
 class RespostaPergunta(db.Model):

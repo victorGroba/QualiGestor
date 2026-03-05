@@ -30,14 +30,24 @@ with app.app_context():
 
     print("\nAdicionando colunas de arquivos na aplicacao_questionario...")
     novas_colunas = [
+        # Antigas/Legado
         ('fluxograma_arquivo', 'VARCHAR(255)'),
         ('relatorio_mensal_arquivo', 'VARCHAR(255)'),
         ('laudo_laboratorio_arquivo', 'VARCHAR(255)'),
-        ('laudo_alimentos_arquivo', 'VARCHAR(255)'),
-        ('laudo_ambiental_arquivo', 'VARCHAR(255)'),
         ('laudo_materia_prima_arquivo', 'VARCHAR(255)'),
         ('checklist_arquivo', 'VARCHAR(255)'),
         ('acao_corretiva_arquivo', 'VARCHAR(255)'),
+        # Novas - Laudos
+        ('laudo_alimentos_arquivo', 'VARCHAR(255)'),
+        ('laudo_ambiental_arquivo', 'VARCHAR(255)'),
+        ('laudo_materia_prima_micro_arquivo', 'VARCHAR(255)'),
+        ('laudo_materia_prima_fq_arquivo', 'VARCHAR(255)'),
+        # Novas - SDAB/Doc
+        ('relatorio_monitoramento_arquivo', 'VARCHAR(255)'),
+        ('avaliacao_cardapio_arquivo', 'VARCHAR(255)'),
+        ('ordem_servico_1_arquivo', 'VARCHAR(255)'),
+        ('ordem_servico_2_arquivo', 'VARCHAR(255)'),
+        ('plano_capacitacao_arquivo', 'VARCHAR(255)'),
         ('manual_boas_praticas_arquivo', 'VARCHAR(255)')
     ]
 

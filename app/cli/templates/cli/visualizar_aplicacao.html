@@ -369,10 +369,26 @@
                                 'laudo_alimentos', 'icon': 'fa-microscope'},
                                 {'label': 'Laudo Ambiental', 'campo': 'laudo_ambiental_arquivo', 'tipo':
                                 'laudo_ambiental', 'icon': 'fa-vial'},
-                                {'label': 'Laudo de Matéria-Prima', 'campo': 'laudo_materia_prima_arquivo', 'tipo':
-                                'laudo_materia_prima', 'icon': 'fa-flask'},
-                                {'label': 'Relatório Mensal', 'campo': 'relatorio_mensal_arquivo', 'tipo': 'relatorio',
-                                'icon': 'fa-file-signature'}
+                                {'label': 'Laudo Matéria Prima MICRO', 'campo': 'laudo_materia_prima_micro_arquivo',
+                                'tipo':
+                                'laudo_materia_prima_micro', 'icon': 'fa-flask'},
+                                {'label': 'Laudo Matéria Prima FQ', 'campo': 'laudo_materia_prima_fq_arquivo', 'tipo':
+                                'laudo_materia_prima_fq', 'icon': 'fa-vial'},
+                                {'label': 'Relatório de Monitoramento', 'campo': 'relatorio_monitoramento_arquivo',
+                                'tipo': 'relatorio_monitoramento',
+                                'icon': 'fa-file-word'},
+                                {'label': 'Avaliação do Cardápio', 'campo': 'avaliacao_cardapio_arquivo', 'tipo':
+                                'avaliacao_cardapio',
+                                'icon': 'fa-utensils'},
+                                {'label': 'Ordem de Serviço 1° Visita', 'campo': 'ordem_servico_1_arquivo', 'tipo':
+                                'ordem_servico_1',
+                                'icon': 'fa-file-contract'},
+                                {'label': 'Ordem de Serviço 2° Visita', 'campo': 'ordem_servico_2_arquivo', 'tipo':
+                                'ordem_servico_2',
+                                'icon': 'fa-file-signature'},
+                                {'label': 'Plano Mensal de Capacitação', 'campo': 'plano_capacitacao_arquivo', 'tipo':
+                                'plano_capacitacao',
+                                'icon': 'fa-chalkboard-teacher'}
                                 ] %}
 
                                 {% for doc in doc_mensais %}
@@ -428,10 +444,6 @@
                         <div class="accordion-body p-4 border-top">
                             <div class="row">
                                 {% set relatorios = [
-                                {'label': 'Checklist em PDF', 'campo': 'checklist_arquivo', 'tipo': 'checklist', 'icon':
-                                'fa-clipboard-check', 'color': 'success'},
-                                {'label': 'Relatório de AC', 'campo': 'acao_corretiva_arquivo', 'tipo':
-                                'acao_corretiva', 'icon': 'fa-tools', 'color': 'warning'},
                                 {'label': 'Manual B.P.', 'campo': 'manual_boas_praticas_arquivo', 'tipo': 'manual',
                                 'icon': 'fa-book', 'color': 'dark'}
                                 ] %}

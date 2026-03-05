@@ -678,27 +678,33 @@ def upload_documento_mensal(id):
         path = os.path.join(current_app.config['UPLOAD_FOLDER'], novo_nome)
         f.save(path)
         
-        if tipo_doc == 'relatorio':
-            app.relatorio_mensal_arquivo = novo_nome
-            flash("Relatório Mensal anexado com sucesso.", "success")
-        elif tipo_doc == 'laudo':
-            app.laudo_laboratorio_arquivo = novo_nome
-            flash("Laudo do Laboratório anexado com sucesso.", "success")
+        if tipo_doc == 'relatorio_monitoramento':
+            app.relatorio_monitoramento_arquivo = novo_nome
+            flash("Relatório de monitoramento anexado com sucesso.", "success")
+        elif tipo_doc == 'avaliacao_cardapio':
+            app.avaliacao_cardapio_arquivo = novo_nome
+            flash("Avaliação do cardápio anexada.", "success")
         elif tipo_doc == 'laudo_alimentos':
             app.laudo_alimentos_arquivo = novo_nome
             flash("Laudo de Alimentos anexado.", "success")
         elif tipo_doc == 'laudo_ambiental':
             app.laudo_ambiental_arquivo = novo_nome
             flash("Laudo Ambiental anexado.", "success")
-        elif tipo_doc == 'laudo_materia_prima':
-            app.laudo_materia_prima_arquivo = novo_nome
-            flash("Laudo de Matéria-Prima anexado.", "success")
-        elif tipo_doc == 'checklist':
-            app.checklist_arquivo = novo_nome
-            flash("Checklist anexado.", "success")
-        elif tipo_doc == 'acao_corretiva':
-            app.acao_corretiva_arquivo = novo_nome
-            flash("Relatório de Ação Corretiva anexado.", "success")
+        elif tipo_doc == 'laudo_materia_prima_micro':
+            app.laudo_materia_prima_micro_arquivo = novo_nome
+            flash("Laudo Matéria Prima MICRO anexado.", "success")
+        elif tipo_doc == 'laudo_materia_prima_fq':
+            app.laudo_materia_prima_fq_arquivo = novo_nome
+            flash("Laudo Matéria Prima FQ anexado.", "success")
+        elif tipo_doc == 'ordem_servico_1':
+            app.ordem_servico_1_arquivo = novo_nome
+            flash("Ordem de serviço 1° visita anexada.", "success")
+        elif tipo_doc == 'ordem_servico_2':
+            app.ordem_servico_2_arquivo = novo_nome
+            flash("Ordem de serviço 2° visita anexada.", "success")
+        elif tipo_doc == 'plano_capacitacao':
+            app.plano_capacitacao_arquivo = novo_nome
+            flash("Plano mensal de capacitação anexado.", "success")
         elif tipo_doc == 'manual':
             app.manual_boas_praticas_arquivo = novo_nome
             flash("Manual de Boas Práticas anexado.", "success")
@@ -717,13 +723,15 @@ def visualizar_documento_mensal(id, tipo):
     if app.avaliado.cliente_id != current_user.cliente_id: abort(403)
     
     arquivo = None
-    if tipo == 'relatorio': arquivo = app.relatorio_mensal_arquivo
-    elif tipo == 'laudo': arquivo = app.laudo_laboratorio_arquivo
+    if tipo == 'relatorio_monitoramento': arquivo = app.relatorio_monitoramento_arquivo
+    elif tipo == 'avaliacao_cardapio': arquivo = app.avaliacao_cardapio_arquivo
     elif tipo == 'laudo_alimentos': arquivo = app.laudo_alimentos_arquivo
     elif tipo == 'laudo_ambiental': arquivo = app.laudo_ambiental_arquivo
-    elif tipo == 'laudo_materia_prima': arquivo = app.laudo_materia_prima_arquivo
-    elif tipo == 'checklist': arquivo = app.checklist_arquivo
-    elif tipo == 'acao_corretiva': arquivo = app.acao_corretiva_arquivo
+    elif tipo == 'laudo_materia_prima_micro': arquivo = app.laudo_materia_prima_micro_arquivo
+    elif tipo == 'laudo_materia_prima_fq': arquivo = app.laudo_materia_prima_fq_arquivo
+    elif tipo == 'ordem_servico_1': arquivo = app.ordem_servico_1_arquivo
+    elif tipo == 'ordem_servico_2': arquivo = app.ordem_servico_2_arquivo
+    elif tipo == 'plano_capacitacao': arquivo = app.plano_capacitacao_arquivo
     elif tipo == 'manual': arquivo = app.manual_boas_praticas_arquivo
         
     if not arquivo: abort(404)
