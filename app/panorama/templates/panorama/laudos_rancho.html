@@ -51,26 +51,39 @@
                                 {{ app.data_fim.strftime('%d/%m/%Y') }}
                             </td>
                             <td class="align-middle">
-                                {% if app.relatorio_mensal_arquivo %}
-                                <span class="badge badge-success"><i class="fas fa-check mr-1"></i> Relatório
-                                    Anexado</span>
+                                {% if app.data_inicio.month == 1 %}
+                                <div class="d-flex flex-column">
+                                    <span
+                                        class="badge {% if app.plano_capacitacao_arquivo %}badge-success text-white{% else %}badge-light text-muted border{% endif %} text-left"
+                                        style="font-size: 0.85em;">
+                                        <i class="fas fa-book-open mr-1"></i> Plano Mensal: {% if
+                                        app.plano_capacitacao_arquivo %}Anexado{% else %}Pendente{% endif %}
+                                    </span>
+                                </div>
                                 {% else %}
-                                <span class="badge badge-warning text-dark"><i
-                                        class="fas fa-exclamation-triangle mr-1"></i> Sem Relatório</span>
-                                {% endif %}
-
-                                {% if app.laudo_laboratorio_arquivo %}
-                                <span class="badge badge-success ml-2"><i class="fas fa-check mr-1"></i> Laudo
-                                    Anexado</span>
-                                {% else %}
-                                <span class="badge badge-warning text-dark ml-2"><i
-                                        class="fas fa-exclamation-triangle mr-1"></i> Sem Laudo</span>
+                                {% set laudos_count = (1 if app.laudo_alimentos_arquivo else 0) + (1 if
+                                app.laudo_ambiental_arquivo else 0) + (1 if app.laudo_materia_prima_micro_arquivo else
+                                0) + (1 if app.laudo_materia_prima_fq_arquivo else 0) %}
+                                {% set relats_count = (1 if app.relatorio_monitoramento_arquivo else 0) + (1 if
+                                app.avaliacao_cardapio_arquivo else 0) + (1 if app.ordem_servico_1_arquivo else 0) %}
+                                <div class="d-flex flex-column">
+                                    <span
+                                        class="badge {% if laudos_count == 4 %}badge-success text-white{% elif laudos_count > 0 %}badge-warning text-dark{% else %}badge-light text-muted border{% endif %} text-left mb-1"
+                                        style="font-size: 0.85em;">
+                                        <i class="fas fa-microscope mr-1"></i> Laudos: {{ laudos_count }}/4
+                                    </span>
+                                    <span
+                                        class="badge {% if relats_count == 3 %}badge-success text-white{% elif relats_count > 0 %}badge-warning text-dark{% else %}badge-light text-muted border{% endif %} text-left"
+                                        style="font-size: 0.85em;">
+                                        <i class="fas fa-file-alt mr-1"></i> Relatórios: {{ relats_count }}/3
+                                    </span>
+                                </div>
                                 {% endif %}
                             </td>
                             <td class="text-center align-middle">
-                                <a href="{{ url_for('cli.visualizar_aplicacao', id=app.id) }}"
-                                    class="btn btn-primary btn-sm">
-                                    <i class="fas fa-folder-open mr-1"></i> Acessar Pasta
+                                <a href="{{ url_for('cli.visualizar_aplicacao', id=app.id) }}#accordionDocumentos"
+                                    class="btn btn-primary btn-sm font-weight-bold shadow-sm">
+                                    <i class="fas fa-folder-open mr-1"></i> Gerenciar Arquivos Deste Mês
                                 </a>
                             </td>
                         </tr>

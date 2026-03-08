@@ -409,27 +409,17 @@ class AplicacaoQuestionario(db.Model):
     assinatura_imagem = db.Column(db.String(255)) 
     assinatura_responsavel = db.Column(db.String(200))
     cargo_responsavel = db.Column(db.String(100))
-    # === ARQUIVOS E RELATÓRIOS DA VISITA (Legado mantido por segurança) ===
-    fluxograma_arquivo = db.Column(db.String(255), nullable=True)
-    relatorio_mensal_arquivo = db.Column(db.String(255), nullable=True)
-    laudo_laboratorio_arquivo = db.Column(db.String(255), nullable=True) 
-    laudo_materia_prima_arquivo = db.Column(db.String(255), nullable=True)
-    checklist_arquivo = db.Column(db.String(255), nullable=True)
-    acao_corretiva_arquivo = db.Column(db.String(255), nullable=True)
-
-    # === LAUDOS (Atualizados) ===
+    # === LAUDOS (Específicos do Rancho) ===
     laudo_alimentos_arquivo = db.Column(db.String(255), nullable=True)
     laudo_ambiental_arquivo = db.Column(db.String(255), nullable=True)
     laudo_materia_prima_micro_arquivo = db.Column(db.String(255), nullable=True)
     laudo_materia_prima_fq_arquivo = db.Column(db.String(255), nullable=True)
     
-    # === RELATÓRIOS OPERACIONAIS ===
+    # === RELATÓRIOS E TREINAMENTOS LOCAIS ===
     relatorio_monitoramento_arquivo = db.Column(db.String(255), nullable=True) # Ex: Word
     avaliacao_cardapio_arquivo = db.Column(db.String(255), nullable=True)
     ordem_servico_1_arquivo = db.Column(db.String(255), nullable=True)
-    ordem_servico_2_arquivo = db.Column(db.String(255), nullable=True)
     plano_capacitacao_arquivo = db.Column(db.String(255), nullable=True)
-    manual_boas_praticas_arquivo = db.Column(db.String(255), nullable=True)
 
 class RespostaPergunta(db.Model):
     """Respostas dadas às perguntas durante uma aplicação"""
@@ -751,3 +741,22 @@ class AcaoCorretiva(db.Model):
             if datetime.utcnow() > limite:
                 return True
         return False
+
+# ==================== DOCUMENTOS GERAIS ====================
+
+class DocumentoMensal(db.Model):
+    """Documentos gerais enviados mensalmente (Planilhas, Provas e Treinamentos Gerais)"""
+    __tablename__ = "documento_mensal"
+    
+    id = db.Column(db.Integer, primary_key=True)
+    mes_ano = db.Column(db.String(10), nullable=False) # Ex: '03/2026' ou '2026-03'
+    categoria = db.Column(db.String(50), nullable=False) # 'treinamento' ou 'planilha'
+    tipo_documento = db.Column(db.String(50), nullable=False) # 'treinamento_geral', 'prova_geral', 'rankingesta', 'ranchos_obra'
+    nome_arquivo = db.Column(db.String(255), nullable=False)
+    caminho_arquivo = db.Column(db.String(255), nullable=False)
+    
+    # Vínculo com quem subiu
+    criado_por_id = db.Column(db.Integer, db.ForeignKey('usuario.id'))
+    data_upload = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    criado_por = db.relationship('Usuario', foreign_keys=[criado_por_id])

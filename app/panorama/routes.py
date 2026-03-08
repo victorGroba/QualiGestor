@@ -1,5 +1,7 @@
 # app/panorama/routes.py - DASHBOARD FUNCIONAL
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for
+import os
+from werkzeug.utils import secure_filename
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for, current_app, flash
 from flask_login import login_required, current_user
 from sqlalchemy import func, extract, and_, desc
 from datetime import datetime, timedelta
@@ -8,7 +10,7 @@ import json
 
 from ..models import (
     db, AplicacaoQuestionario, Avaliado, Questionario, RespostaPergunta,
-    Pergunta, StatusAplicacao, TipoResposta, Cliente, Grupo, CategoriaIndicador, Topico
+    Pergunta, StatusAplicacao, TipoResposta, Cliente, Grupo, CategoriaIndicador, Topico, DocumentoMensal
 )
 
 from ..cli.utils import get_avaliados_usuario
@@ -1389,3 +1391,103 @@ def gerar_grafico_acoes_corretivas(aplicacao_ids):
         'media': data_media,
         'alta': data_alta
     }
+
+# ==========================================
+# ROTAS GLOBAIS DE DOCUMENTOS MENSAIS
+# ==========================================
+
+@panorama_bp.route('/treinamentos_gerais', methods=['GET', 'POST'])
+@login_required
+def treinamentos_gerais():
+    if request.method == 'POST':
+        mes_ano = request.form.get('mes_ano')
+        tipo_doc = request.form.get('tipo_documento') # 'treinamento_geral' ou 'prova_geral'
+        arq = request.files.get('arquivo')
+        
+        if arq:
+            filename = secure_filename(arq.filename)
+            upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'mensais')
+            os.makedirs(upload_folder, exist_ok=True)
+            caminho_salvo = os.path.join(upload_folder, filename)
+            arq.save(caminho_salvo)
+            
+            novo_doc = DocumentoMensal(
+                mes_ano=mes_ano,
+                categoria='treinamento',
+                tipo_documento=tipo_doc,
+                nome_arquivo=filename,
+                caminho_arquivo=f"uploads/mensais/{filename}",
+                criado_por_id=current_user.id
+            )
+            db.session.add(novo_doc)
+            db.session.commit()
+            flash('Documento de Treinamento anexado com sucesso!', 'success')
+            return redirect(url_for('panorama.treinamentos_gerais'))
+            
+    # Listar documentos gerais de treinamento
+    docs_gerais = DocumentoMensal.query.filter_by(categoria='treinamento').order_by(DocumentoMensal.data_upload.desc()).all()
+    
+    # Listar os Planos Locais de todos os ranchos via Aplicação
+    planos_locais = AplicacaoQuestionario.query.filter(
+        AplicacaoQuestionario.plano_capacitacao_arquivo.isnot(None),
+        AplicacaoQuestionario.status == StatusAplicacao.FINALIZADA
+    ).order_by(AplicacaoQuestionario.data_inicio.desc()).all()
+
+    return render_template('panorama/treinamentos_dashboard.html', docs_gerais=docs_gerais, planos_locais=planos_locais)
+
+
+@panorama_bp.route('/planilhas_gerais', methods=['GET', 'POST'])
+@login_required
+def planilhas_gerais():
+    if request.method == 'POST':
+        mes_ano = request.form.get('mes_ano')
+        tipo_doc = request.form.get('tipo_documento') # 'rankingesta' ou 'ranchos_obra'
+        arq = request.files.get('arquivo')
+        
+        if arq:
+            filename = secure_filename(arq.filename)
+            upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'mensais')
+            os.makedirs(upload_folder, exist_ok=True)
+            caminho_salvo = os.path.join(upload_folder, filename)
+            arq.save(caminho_salvo)
+            
+            novo_doc = DocumentoMensal(
+                mes_ano=mes_ano,
+                categoria='planilha',
+                tipo_documento=tipo_doc,
+                nome_arquivo=filename,
+                caminho_arquivo=f"uploads/mensais/{filename}",
+                criado_por_id=current_user.id
+            )
+            db.session.add(novo_doc)
+            db.session.commit()
+            flash('Planilha anexada com sucesso!', 'success')
+            return redirect(url_for('panorama.planilhas_gerais'))
+            
+    docs_planilhas = DocumentoMensal.query.filter_by(categoria='planilha').order_by(DocumentoMensal.data_upload.desc()).all()
+    return render_template('panorama/planilhas_dashboard.html', docs_planilhas=docs_planilhas)
+
+@panorama_bp.route('/excluir_documento_mensal/<int:id>', methods=['POST'])
+@login_required
+def excluir_documento_mensal(id):
+    if current_user.tipo.name not in ['SUPER_ADMIN', 'ADMIN']:
+        flash('Acesso negado', 'danger')
+        return redirect(request.referrer or url_for('panorama.index'))
+        
+    doc = DocumentoMensal.query.get_or_404(id)
+    cat = doc.categoria
+    
+    import os
+    file_path = os.path.join(current_app.root_path, 'static', doc.caminho_arquivo)
+    if os.path.exists(file_path):
+        os.remove(file_path)
+        
+    db.session.delete(doc)
+    db.session.commit()
+    flash('Documento removido com sucesso.', 'success')
+    
+    if cat == 'treinamento':
+        return redirect(url_for('panorama.treinamentos_gerais'))
+    else:
+        return redirect(url_for('panorama.planilhas_gerais'))
+
