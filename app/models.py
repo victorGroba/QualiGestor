@@ -420,6 +420,7 @@ class AplicacaoQuestionario(db.Model):
     avaliacao_cardapio_arquivo = db.Column(db.String(255), nullable=True)
     ordem_servico_1_arquivo = db.Column(db.String(255), nullable=True)
     plano_capacitacao_arquivo = db.Column(db.String(255), nullable=True)
+    fluxograma_arquivo = db.Column(db.String(255), nullable=True)
 
 class RespostaPergunta(db.Model):
     """Respostas dadas às perguntas durante uma aplicação"""
