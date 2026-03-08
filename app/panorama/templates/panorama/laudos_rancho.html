@@ -54,16 +54,17 @@
                                 {% if app.data_inicio.month == 1 %}
                                 <div class="d-flex flex-column">
                                     <span
-                                        class="badge {% if app.fluxograma_arquivo %}badge-success text-white{% else %}badge-light text-muted border{% endif %} text-left mb-1"
+                                        class="badge {% if app.fluxograma_arquivo %}bg-success text-white{% else %}bg-light text-muted border{% endif %} text-left mb-1"
                                         style="font-size: 0.85em;">
                                         <i class="fas fa-project-diagram mr-1"></i> Fluxograma: {% if
                                         app.fluxograma_arquivo %}Anexado{% else %}Pendente{% endif %}
                                     </span>
+                                    {% set plano_ok = app.acao_corretiva_arquivo or app.check_plano_acao_preenchido %}
                                     <span
-                                        class="badge {% if app.acao_corretiva_arquivo %}badge-success text-white{% else %}badge-light text-muted border{% endif %} text-left"
+                                        class="badge {% if plano_ok %}bg-success text-white{% else %}bg-light text-muted border{% endif %} text-left"
                                         style="font-size: 0.85em;">
                                         <i class="fas fa-hammer mr-1"></i> Plano de Ação: {% if
-                                        app.acao_corretiva_arquivo %}Anexado{% else %}Pendente{% endif %}
+                                        plano_ok %}Preenchido{% else %}Pendente{% endif %}
                                     </span>
                                 </div>
                                 {% else %}
@@ -74,12 +75,12 @@
                                 app.avaliacao_cardapio_arquivo else 0) + (1 if app.ordem_servico_1_arquivo else 0) %}
                                 <div class="d-flex flex-column">
                                     <span
-                                        class="badge {% if laudos_count == 4 %}badge-success text-white{% elif laudos_count > 0 %}badge-warning text-dark{% else %}badge-light text-muted border{% endif %} text-left mb-1"
+                                        class="badge {% if laudos_count == 4 %}bg-success text-white{% elif laudos_count > 0 %}bg-warning text-dark{% else %}bg-light text-muted border{% endif %} text-left mb-1"
                                         style="font-size: 0.85em;">
                                         <i class="fas fa-microscope mr-1"></i> Laudos: {{ laudos_count }}/4
                                     </span>
                                     <span
-                                        class="badge {% if relats_count == 3 %}badge-success text-white{% elif relats_count > 0 %}badge-warning text-dark{% else %}badge-light text-muted border{% endif %} text-left"
+                                        class="badge {% if relats_count == 3 %}bg-success text-white{% elif relats_count > 0 %}bg-warning text-dark{% else %}bg-light text-muted border{% endif %} text-left"
                                         style="font-size: 0.85em;">
                                         <i class="fas fa-file-alt mr-1"></i> Relatórios: {{ relats_count }}/3
                                     </span>

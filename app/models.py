@@ -405,6 +405,19 @@ class AplicacaoQuestionario(db.Model):
     # NOVAS PLANILHAS (Múltiplas por visita)
     planilhas = db.relationship('PlanilhaVisita', backref='aplicacao', lazy='dynamic', cascade='all, delete-orphan')
     
+    @property
+    def check_plano_acao_preenchido(self):
+        """Nova verificação: A aplicação possui algum plano de ação preenchido?"""
+        # Verifica no novo sistema (Ação Corretiva Pós-auditoria)
+        for acao in self.acoes_corretivas:
+            if acao.sugestao_correcao or acao.acao_realizada:
+                return True
+        # Verifica no legado
+        for r in self.respostas:
+            if r.plano_acao and str(r.plano_acao).strip() != "":
+                return True
+        return False
+        
     # --- Assinatura e Arquivos ---
     assinatura_imagem = db.Column(db.String(255)) 
     assinatura_responsavel = db.Column(db.String(200))

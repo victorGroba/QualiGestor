@@ -59,7 +59,18 @@ def lista_plano_acao():
             query = query.filter(Avaliado.grupo_id.in_(gaps_ids))
             
         aplicacoes_pendentes = query.order_by(AplicacaoQuestionario.data_inicio.desc()).all()
-        return render_template_safe('cli/plano_acao_lista.html', aplicacoes=aplicacoes_pendentes)
+        
+        # Agrupar por GAP
+        from collections import defaultdict
+        grouped_apps = defaultdict(list)
+        for app in aplicacoes_pendentes:
+            gap_nome = app.avaliado.grupo.nome if app.avaliado.grupo else 'Sem GAP'
+            grouped_apps[gap_nome].append(app)
+            
+        # Ordenar as chaves se necessário
+        grouped_apps = dict(sorted(grouped_apps.items()))
+        
+        return render_template_safe('cli/plano_acao_lista.html', grouped_apps=grouped_apps)
     except Exception as e:
         print(f"Erro: {e}"); return redirect(url_for('cli.index'))
 
