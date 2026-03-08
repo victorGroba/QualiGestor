@@ -138,6 +138,8 @@
                     </div>
                     {% else %}
                     <div class="timeline">
+                        {% set meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto',
+                        'Setembro', 'Outubro', 'Novembro', 'Dezembro'] %}
                         {% for app in aplicacoes %}
                         {% set nota_base10 = (app.nota_final / 10) if app.nota_final else 0 %}
                         {% set app_status = 'success' %}
@@ -146,7 +148,8 @@
                             <div class="card timeline-card shadow-sm border-0 bg-light">
                                 <div class="card-body p-3 border-start border-4 border-{{ app_status }}">
                                     <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <h6 class="fw-bold mb-0 text-dark">{{ app.data_fim.strftime('%d de %B, %Y') }}
+                                        <h6 class="fw-bold mb-0 text-dark">{{ app.data_inicio.day }} de {{
+                                            meses[app.data_inicio.month - 1] }}, {{ app.data_inicio.year }}
                                         </h6>
                                         <div class="badge bg-{{ app_status }} fs-6">{{ '%.1f'|format(nota_base10) }}
                                         </div>
@@ -370,7 +373,7 @@
         gridContainer.appendChild(col);
 
         // Converte os dados do tópico para Base 10
-        const topicoDataPoints = tData.data.map(val => Number((val / 10).toFixed(1)));
+        const topicoDataPoints = tData.data.map(val => Number((val).toFixed(1)));
 
         // Pinta a cor da barra baseado na nota daquele mês específico (>=7 Verde, <7 Vermelho)
         const ptColors = topicoDataPoints.map(val => val >= 7.0 ? 'rgba(25, 135, 84, 0.85)' : 'rgba(220, 53, 69, 0.85)');

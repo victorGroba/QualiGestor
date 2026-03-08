@@ -40,10 +40,12 @@
                         </tr>
                     </thead>
                     <tbody>
+                        {% set meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto',
+                        'Setembro', 'Outubro', 'Novembro', 'Dezembro'] %}
                         {% for app in aplicacoes %}
                         <tr>
                             <td class="align-middle font-weight-bold">
-                                {{ app.data_fim.strftime('%B / %Y').title() }}
+                                {{ meses[app.data_inicio.month - 1] }} / {{ app.data_inicio.year }}
                             </td>
                             <td class="align-middle">
                                 {{ app.data_fim.strftime('%d/%m/%Y') }}

@@ -347,10 +347,15 @@ def dossie(avaliado_id):
     query_seguranca = aplicar_filtro_hierarquia(query_seguranca)
     avaliado = query_seguranca.first_or_404()
     
+    # 🚀 NOVO: Ignorar a primeira aplicação de cada rancho
+    ids_excluidos = _obter_ids_primeiras_aplicacoes()
+    
     aplicacoes = AplicacaoQuestionario.query.filter_by(
         avaliado_id=avaliado_id, 
         status=StatusAplicacao.FINALIZADA
-    ).order_by(desc(AplicacaoQuestionario.data_fim)).all()
+    ).filter(
+        ~AplicacaoQuestionario.id.in_(ids_excluidos)
+    ).order_by(desc(AplicacaoQuestionario.data_inicio)).all()
 
     # Buscar treinamentos do Rancho
     from ..models import Treinamento
@@ -397,7 +402,7 @@ def dossie(avaliado_id):
 
     for app in reversed(aplicacoes):
         if app.nota_final is not None:
-            data_label = app.data_fim.strftime('%d/%m/%Y')
+            data_label = app.data_inicio.strftime('%d/%m/%Y')
             grafico_timeline['datas'].append(data_label)
             grafico_timeline['notas'].append(app.nota_final)
             grafico_timeline['aplicadores'].append(app.aplicador.nome if app.aplicador else 'Desconhecido')
@@ -436,7 +441,7 @@ def dossie(avaliado_id):
         media_geral=media_geral,
         status_atual=status_atual,
         grafico_json=json.dumps(grafico_timeline),
-        topicos_json=json.dumps(topicos_data)
+        topicos_json=json.dumps(topicos_data_ordenado)
     )
 
 @panorama_bp.route('/api/dashboard-data')
