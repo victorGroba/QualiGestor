@@ -6,49 +6,49 @@
 <div class="container py-4">
   <h2 class="mb-4">Visualizar Checklist - {{ checklist.formulario.nome }}</h2>
 
-  <p><strong>Data:</strong> {{ checklist.data.strftime('%d/%m/%Y %H:%M') }}</p>
+  <p><strong>Data:</strong> {{ checklist.data.strftime('%d/%m/%Y') }}</p>
   <p><strong>Loja:</strong> {{ checklist.loja.nome }}</p>
   <p><strong>Usuário:</strong> {{ checklist.usuario.nome }}</p>
   {% if checklist.percentual is defined %}
-    <p><strong>Pontuação:</strong> {{ checklist.percentual }}%</p>
+  <p><strong>Pontuação:</strong> {{ checklist.percentual }}%</p>
   {% endif %}
 
   {% for bloco in checklist.formulario.blocos %}
-    <div class="mb-4 p-3 border rounded bg-light">
-      <h5 class="mb-3">{{ bloco.ordem }}. {{ bloco.nome }}</h5>
+  <div class="mb-4 p-3 border rounded bg-light">
+    <h5 class="mb-3">{{ bloco.ordem }}. {{ bloco.nome }}</h5>
 
-      {% for pergunta in bloco.perguntas %}
-        {% set resposta = None %}
-        {% for r in checklist.respostas %}
-          {% if r.pergunta_id == pergunta.id %}
-            {% set resposta = r %}
-          {% endif %}
+    {% for pergunta in bloco.perguntas %}
+    {% set resposta = None %}
+    {% for r in checklist.respostas %}
+    {% if r.pergunta_id == pergunta.id %}
+    {% set resposta = r %}
+    {% endif %}
+    {% endfor %}
+    <div class="mb-3">
+      <label class="form-label">{{ pergunta.texto }}</label>
+      {% if resposta %}
+      {% if resposta.valor_opcoes_selecionadas %}
+      {% set opcoes = resposta.valor_opcoes_selecionadas | from_json %}
+      <ul>
+        {% for op in opcoes %}
+        <li>{{ op }}</li>
         {% endfor %}
-        <div class="mb-3">
-          <label class="form-label">{{ pergunta.texto }}</label>
-          {% if resposta %}
-            {% if resposta.valor_opcoes_selecionadas %}
-              {% set opcoes = resposta.valor_opcoes_selecionadas | from_json %}
-              <ul>
-                {% for op in opcoes %}
-                  <li>{{ op }}</li>
-                {% endfor %}
-              </ul>
-            {% elif resposta.valor_texto %}
-              <p>{{ resposta.valor_texto }}</p>
-            {% elif resposta.valor_numero is not none %}
-              <p>{{ resposta.valor_numero }}</p>
-            {% elif resposta.valor_boolean is not none %}
-              <p>{{ 'Sim' if resposta.valor_boolean else 'Não' }}</p>
-            {% else %}
-              <p><em>Sem resposta</em></p>
-            {% endif %}
-          {% else %}
-            <p><em>Sem resposta</em></p>
-          {% endif %}
-        </div>
-      {% endfor %}
+      </ul>
+      {% elif resposta.valor_texto %}
+      <p>{{ resposta.valor_texto }}</p>
+      {% elif resposta.valor_numero is not none %}
+      <p>{{ resposta.valor_numero }}</p>
+      {% elif resposta.valor_boolean is not none %}
+      <p>{{ 'Sim' if resposta.valor_boolean else 'Não' }}</p>
+      {% else %}
+      <p><em>Sem resposta</em></p>
+      {% endif %}
+      {% else %}
+      <p><em>Sem resposta</em></p>
+      {% endif %}
     </div>
+    {% endfor %}
+  </div>
   {% endfor %}
 </div>
 {% endblock %}

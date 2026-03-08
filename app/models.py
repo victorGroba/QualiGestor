@@ -664,7 +664,8 @@ class Treinamento(db.Model):
     tema = db.Column(db.String(200), nullable=False)
     data = db.Column(db.DateTime, default=datetime.utcnow)
     conteudo = db.Column(db.Text)
-    materiais_arquivo = db.Column(db.String(255)) # PDF, PPT, etc
+    materiais_arquivo = db.Column(db.String(255)) # PPT, PDF de material
+    lista_presenca_arquivo = db.Column(db.String(255)) # PDF de Presença (novo)
     
     # Vínculo Hierárquico
     cliente_id = db.Column(db.Integer, db.ForeignKey('cliente.id'), nullable=False)

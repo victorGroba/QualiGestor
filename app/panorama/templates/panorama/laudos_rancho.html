@@ -6,11 +6,11 @@
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h1 class="h3 mb-0 text-gray-800">
+            <h1 class="h3 mb-0 text-dark" style="color: #2c3e50 !important;">
                 <i class="fas fa-file-alt text-primary mr-2"></i>
                 Documentação Mensal
             </h1>
-            <h5 class="text-muted mt-2 mb-0">{{ avaliado.nome }}</h5>
+            <h5 class="mt-2 mb-0" style="color: #4a5568 !important;">{{ avaliado.nome }}</h5>
         </div>
         <div>
             {% if not current_user.avaliado_id %}
@@ -46,7 +46,7 @@
                                 {{ app.data_fim.strftime('%B / %Y').title() }}
                             </td>
                             <td class="align-middle">
-                                {{ app.data_fim.strftime('%d/%m/%Y às %H:%M') }}
+                                {{ app.data_fim.strftime('%d/%m/%Y') }}
                             </td>
                             <td class="align-middle">
                                 {% if app.relatorio_mensal_arquivo %}

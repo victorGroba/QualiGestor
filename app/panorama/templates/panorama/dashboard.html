@@ -365,6 +365,51 @@
     .animate-in:nth-child(6) {
         animation-delay: 0.30s;
     }
+
+    /* Tela Cheia Gráficos */
+    .fullscreen-card {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        z-index: 9999 !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+        background-color: #f8f9fa !important;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .fullscreen-card .card-body {
+        flex: 1;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .fullscreen-card .scrollable-chart-area-y {
+        flex: 1;
+        height: 100% !important;
+        max-height: none !important;
+    }
+
+    body.fs-active {
+        overflow: hidden !important;
+    }
+
+    .btn-fs-toggle {
+        background: none;
+        border: none;
+        color: #6c757d;
+        cursor: pointer;
+        padding: 5px 10px;
+        transition: color 0.2s;
+    }
+
+    .btn-fs-toggle:hover {
+        color: #343a40;
+    }
 </style>
 {% endblock %}
 
@@ -518,6 +563,26 @@
         </div>
     </div>
 
+    <!-- Ranking (Top 10) - Logo após o mapa -->
+    <div class="col-lg-12 mb-4">
+        <div class="card shadow-sm border-0 h-100" id="cardTop10Ranking">
+            <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-trophy me-2"></i> Ranking (Top 10)</h5>
+                <button class="btn-fs-toggle" onclick="toggleFullscreen('cardTop10Ranking', null)"
+                    title="Expandir/Minimizar">
+                    <i class="fas fa-expand"></i>
+                </button>
+            </div>
+            <div class="card-body p-3 scrollable-chart-area-y" style="max-height: 420px; overflow-y: auto;">
+                <div id="rankingAvaliados">
+                    <div class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin fa-2x mb-2"></i>
+                        <p>Carregando ranking...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Resumo Executivo Dinâmico -->
     <div class="resumo-executivo" id="resumoExecutivo" style="display: none;">
         <i class="fas fa-robot me-2" style="color: #667eea;"></i>
@@ -525,17 +590,23 @@
     </div>
 
     <!-- Performance Geral (Movido pra baixo do Mapa e Resumo Executivo) -->
-    <div class="row mb-4">
+    <div class="row mb-4" id="rowPerformanceGeral">
         <div class="col-lg-12 mb-4">
-            <div class="card shadow-sm border-0 h-100">
-                <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-start">
+            <div class="card shadow-sm border-0 h-100" id="cardPerformanceGeral">
+                <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
                     <div>
                         <h5 class="mb-0"><i class="fas fa-store me-2 text-primary"></i> Performance Geral (Lista de
                             Avaliados)</h5>
                         <small class="text-primary fw-bold" id="lblFiltroPerformance"></small>
                     </div>
-                    <small class="text-muted mt-1"><i class="fas fa-hand-pointer"></i> Clique em uma barra para acessar
-                        o Dossiê</small>
+                    <div>
+                        <small class="text-muted mt-1 me-3"><i class="fas fa-hand-pointer"></i> Clique em uma barra para
+                            acessar o Dossiê</small>
+                        <button class="btn-fs-toggle" onclick="toggleFullscreen('cardPerformanceGeral', chartAvaliados)"
+                            title="Expandir/Minimizar">
+                            <i class="fas fa-expand"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="card-body p-2">
                     <div class="scrollable-chart-area-x" id="scrollContainerAvaliados">
@@ -662,32 +733,6 @@
         <div id="containerRankingTopicos" class="row w-100 m-0"></div>
     </div>
 
-    <div class="row mb-4">
-        <div class="col-12 mb-3">
-            <h5 class="fw-bold border-bottom pb-2">
-                <i class="fas fa-chart-bar me-2"></i> Evolução Mensal por Tópico (Nota 0-10)
-            </h5>
-        </div>
-
-        <div id="containerEvolucaoTopicos" class="row w-100 m-0"></div>
-    </div>
-
-
-
-    <div class="col-lg-12 mb-4">
-        <div class="card shadow-sm border-0 h-100">
-            <div class="card-header bg-white border-bottom">
-                <h5 class="mb-0"><i class="fas fa-trophy me-2"></i> Ranking (Top 10)</h5>
-            </div>
-            <div class="card-body p-3" style="max-height: 420px; overflow-y: auto;">
-                <div id="rankingAvaliados">
-                    <div class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin fa-2x mb-2"></i>
-                        <p>Carregando ranking...</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 </div>
 
 <div class="row mb-4">
@@ -948,13 +993,13 @@
                 },
                 scales: {
                     ...defaultOptions.scales,
-                    y: { ...defaultOptions.scales.y, max: 100, ticks: { ...defaultOptions.scales.y.ticks, callback: v => v + '%' } },
+                    y: { ...defaultOptions.scales.y, max: 10, ticks: { ...defaultOptions.scales.y.ticks, stepSize: 2 } },
                     x: { ...defaultOptions.scales.x, ticks: { ...defaultOptions.scales.x.ticks, autoSkip: false, maxRotation: 45, minRotation: 45 } }
                 },
                 plugins: {
                     ...defaultOptions.plugins,
                     legend: { display: false },
-                    datalabels: { anchor: 'end', align: 'top', formatter: v => v + '%', color: '#495057', font: { family: 'Inter', weight: '700', size: 12 } }
+                    datalabels: { anchor: 'end', align: 'top', formatter: v => v, color: '#495057', font: { family: 'Inter', weight: '700', size: 12 } }
                 },
                 elements: { bar: { borderRadius: 6, borderSkipped: false } }
             }
@@ -982,7 +1027,7 @@
 
         // Inicializa o Leaflet travado no Brasil para dar visual de Dashboard Vetorial
         leafletMapObj = L.map('mapaGerencial', {
-            zoomControl: false, scrollWheelZoom: false, doubleClickZoom: false, touchZoom: false, dragging: true
+            zoomControl: false, scrollWheelZoom: false, doubleClickZoom: false, touchZoom: false, dragging: true, attributionControl: false
         }).setView([-15.7942, -47.8822], 4); // Centralizado mais em Brasília para melhor visão nacional
 
         // Fetch assíncrono do GeoJSON oficial do Brasil (Estados) da API livre para visual
@@ -1029,7 +1074,7 @@
                     let sCor = ufData.status === 'success' ? '#198754' : ufData.status === 'warning' ? '#ffc107' : '#dc3545';
                     let pop = `<div style="text-align:center; min-width:150px; font-family:Inter">
                         <b style="font-size: 15px;">${estadoNome} (${uf})</b><br>
-                        Média Estadual: <b style="color:${sCor}; font-size:16px;">${ufData.nota}%</b><br>
+                        Média Estadual: <b style="color:${sCor}; font-size:16px;">${ufData.nota}</b><br>
                         <small>${ufData.qtd_ranchos} rancho(s) auditado(s)</small><br>
                         <small class="text-primary mt-1 d-block"><i class="fas fa-hand-pointer"></i> Clique para expandir</small>
                     </div>`;
@@ -1048,7 +1093,7 @@
                            <tr>
                               <td class="ps-4 fw-bold text-secondary">${rancho.nome}</td>
                               <td class="text-center">${rancho.qtd_auditorias}</td>
-                              <td class="text-center"><span class="badge ${badgeClass} fs-6">${rancho.media}%</span></td>
+                              <td class="text-center"><span class="badge ${badgeClass} fs-6">${rancho.media}</span></td>
                               <td class="text-end pe-4"><a href="/panorama/dossie/${rancho.id}" class="btn btn-sm btn-outline-primary rounded-pill">Ver Dossiê <i class="fas fa-arrow-right ms-1"></i></a></td>
                            </tr>`;
                         });
@@ -1189,7 +1234,7 @@
                     </div>
                 </div>
                 <div class="text-end">
-                    <span class="badge bg-${item.status} fs-6" style="border-radius: 8px; padding: 6px 12px;">${item.media}%</span>
+                    <span class="badge bg-${item.status} fs-6" style="border-radius: 8px; padding: 6px 12px;">${item.media}</span>
                 </div>
             </div>`;
             });
@@ -1347,51 +1392,51 @@
 
         // Recriação completa dos cards de tópicos para não encavalar dados ao filtrar
         const containerTopicos = document.getElementById('containerEvolucaoTopicos');
-        containerTopicos.innerHTML = '';
-        chartsEvolucaoTopicosSeparados.forEach(c => c.destroy());
-        chartsEvolucaoTopicosSeparados = [];
+        if (containerTopicos) {
+            containerTopicos.innerHTML = '';
+            chartsEvolucaoTopicosSeparados.forEach(c => c.destroy());
+            chartsEvolucaoTopicosSeparados = [];
 
-        if (data.evolucao_topicos && data.evolucao_topicos.length > 0) {
-            data.evolucao_topicos.forEach(graficoObj => {
-                // Cria a Div do Card na hora
-                const colDiv = document.createElement('div');
-                colDiv.className = "col-lg-6 mb-4";
-                colDiv.innerHTML = `
-                <div class="card shadow-sm border-0 h-100">
-                    <div class="card-header bg-white border-bottom text-center">
-                        <h6 class="mb-0 fw-bold" style="color: ${graficoObj.cor};">${graficoObj.titulo} - Evolução Mensal</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="chart-container" style="height: 250px;">
-                            <canvas id="${graficoObj.id}"></canvas>
+            if (data.evolucao_topicos && data.evolucao_topicos.length > 0) {
+                data.evolucao_topicos.forEach(graficoObj => {
+                    const colDiv = document.createElement('div');
+                    colDiv.className = "col-lg-6 mb-4";
+                    colDiv.innerHTML = `
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-header bg-white border-bottom text-center">
+                            <h6 class="mb-0 fw-bold" style="color: ${graficoObj.cor};">${graficoObj.titulo} - Evolução Mensal</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container" style="height: 250px;">
+                                <canvas id="${graficoObj.id}"></canvas>
+                            </div>
                         </div>
                     </div>
-                </div>
-            `;
-                containerTopicos.appendChild(colDiv);
+                `;
+                    containerTopicos.appendChild(colDiv);
 
-                // Popula o Chart.js na div recém criada
-                const ctxNew = document.getElementById(graficoObj.id).getContext('2d');
-                const newChart = new Chart(ctxNew, {
-                    type: 'bar',
-                    data: graficoObj.dados,
-                    options: {
-                        ...defaultOptions,
-                        scales: { y: { beginAtZero: true, max: 10, ticks: { stepSize: 2 } } },
-                        plugins: {
-                            ...defaultOptions.plugins,
-                            legend: { display: false },
-                            datalabels: {
-                                anchor: 'end', align: 'top', color: '#333', font: { weight: 'bold', size: 12 },
-                                formatter: function (value) { return value !== null ? value : ''; }
+                    const ctxNew = document.getElementById(graficoObj.id).getContext('2d');
+                    const newChart = new Chart(ctxNew, {
+                        type: 'bar',
+                        data: graficoObj.dados,
+                        options: {
+                            ...defaultOptions,
+                            scales: { y: { beginAtZero: true, max: 10, ticks: { stepSize: 2 } } },
+                            plugins: {
+                                ...defaultOptions.plugins,
+                                legend: { display: false },
+                                datalabels: {
+                                    anchor: 'end', align: 'top', color: '#333', font: { weight: 'bold', size: 12 },
+                                    formatter: function (value) { return value !== null ? value : ''; }
+                                }
                             }
                         }
-                    }
+                    });
+                    chartsEvolucaoTopicosSeparados.push(newChart);
                 });
-                chartsEvolucaoTopicosSeparados.push(newChart);
-            });
-        } else {
-            containerTopicos.innerHTML = `<div class="col-12"><div class="alert alert-light text-center border">Nenhum dado de evolução de tópicos disponível para o período.</div></div>`;
+            } else {
+                containerTopicos.innerHTML = `<div class="col-12"><div class="alert alert-light text-center border">Nenhum dado de evolução de tópicos disponível para o período.</div></div>`;
+            }
         }
 
         // ... RECRIAÇÃO DOS GRÁFICOS DE RANKING POR TÓPICO ...
@@ -1413,10 +1458,15 @@
                     const minHeight = Math.max(250, qtdRanchos * 35);
 
                     colDiv.innerHTML = `
-                    <div class="card shadow-sm border-0 h-100">
-                        <div class="card-header bg-white border-bottom flex-column align-items-start">
-                            <h6 class="mb-0 fw-bold text-dark"><i class="fas fa-list me-2 text-primary"></i> ${graficoObj.titulo}</h6>
-                            <small class="text-muted"><i class="fas fa-hand-pointer"></i> Clique em uma unidade para ver o Dossiê</small>
+                    <div class="card shadow-sm border-0 h-100" id="cardRanking_${idx}">
+                        <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                            <div class="d-flex flex-column align-items-start">
+                                <h6 class="mb-0 fw-bold text-dark"><i class="fas fa-list me-2 text-primary"></i> ${graficoObj.titulo}</h6>
+                                <small class="text-muted"><i class="fas fa-hand-pointer"></i> Clique em uma unidade para ver o Dossiê</small>
+                            </div>
+                            <button class="btn-fs-toggle" onclick="toggleFullscreen('cardRanking_${idx}', window.chartsRankingTopicosSeparados[${idx}])" title="Expandir/Minimizar">
+                                <i class="fas fa-expand"></i>
+                            </button>
                         </div>
                         <div class="card-body p-2">
                             <div class="scrollable-chart-area-y" style="height: ${minHeight}px; max-height: 400px; overflow-y: auto; overflow-x: hidden;">
@@ -1450,7 +1500,7 @@
                                 event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
                             },
                             scales: {
-                                x: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' } },
+                                x: { beginAtZero: true, max: 10, ticks: { stepSize: 2 } },
                                 y: { grid: { display: false }, ticks: { font: { family: 'Inter', size: 11, weight: 'bold' } } }
                             },
                             plugins: {
@@ -1458,7 +1508,7 @@
                                 legend: { display: false },
                                 datalabels: {
                                     anchor: 'end', align: 'end', color: '#333', font: { weight: 'bold', size: 11 },
-                                    formatter: v => v + '%'
+                                    formatter: v => v !== null ? v : ''
                                 }
                             }
                         }
@@ -1476,6 +1526,30 @@
         currentMapData = mapaData;
         desenharGeoJSON(mapaData);
     }
+
+    // ==================== TELA CHEIA (FULLSCREEN RANKING) ====================
+    function toggleFullscreen(cardId, chartInstance) {
+        const card = document.getElementById(cardId);
+        const icon = card.querySelector('.btn-fs-toggle i');
+
+        if (card.classList.contains('fullscreen-card')) {
+            card.classList.remove('fullscreen-card');
+            document.body.classList.remove('fs-active');
+            icon.classList.remove('fa-compress');
+            icon.classList.add('fa-expand');
+        } else {
+            card.classList.add('fullscreen-card');
+            document.body.classList.add('fs-active');
+            icon.classList.remove('fa-expand');
+            icon.classList.add('fa-compress');
+        }
+
+        // Timeout para garantir que o DOM atualizou as dimensões
+        setTimeout(() => {
+            if (chartInstance) chartInstance.resize();
+        }, 100);
+    }
+
     function exportarDados() {
         const formato = prompt('Escolha o formato de exportação (csv ou json):', 'csv');
         if (formato && ['csv', 'json'].includes(formato)) {

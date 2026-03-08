@@ -87,7 +87,7 @@
 
     .header-td {
       vertical-align: middle;
-      padding: 0 10mm;
+      padding: 8mm 10mm 2mm 10mm;
     }
 
     .header-logo {
@@ -441,15 +441,13 @@
           <h2 style="margin:0; color:#fff;">QualiGestor</h2>
           {% endif %}
         </td>
-        <td class="header-td" style="text-align: left;">
+        <td class="header-td" style="text-align: center;">
           <h1 class="header-info-h1">{{ aplicacao.questionario.nome }}</h1>
           <p class="header-info-p">Relatório de Auditoria #{{ aplicacao.id }}</p>
         </td>
-        <td class="header-td" style="text-align: right; width: 120px;">
+        <td class="header-td" style="text-align: right; width: 150px;">
           <div class="header-label">Emissão</div>
           <div class="header-value">{{ data_geracao.strftime('%d/%m/%Y') }}</div>
-          <div class="header-label" style="margin-top: 5px;">Hora</div>
-          <div class="header-value" style="font-weight: 400;">{{ data_geracao.strftime('%H:%M') }}</div>
         </td>
       </tr>
     </table>
@@ -477,26 +475,13 @@
     </div>
 
     <div class="info-item">
-      <span class="info-label">Data Início</span>
+      <span class="info-label">Data</span>
       <span class="info-value">
         {{ (aplicacao.visita_inicio or aplicacao.data_inicio).strftime('%d/%m/%Y') }}
       </span>
     </div>
 
-    <div class="info-item">
-      <span class="info-label">Duração</span>
-      <span class="info-value">
-        {% set inicio_real = aplicacao.visita_inicio or aplicacao.data_inicio %}
-        {% set fim_real = aplicacao.visita_fim or aplicacao.data_fim %}
 
-        {% if inicio_real and fim_real %}
-        {# Calcula a diferença em minutos #}
-        {{ ((fim_real - inicio_real).total_seconds() / 60) | round | int }} min
-        {% else %}
-        -
-        {% endif %}
-      </span>
-    </div>
 
     <div class="info-item score">
       <span class="info-label">Nota Final</span>

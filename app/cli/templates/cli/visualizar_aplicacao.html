@@ -123,9 +123,8 @@
 <div class="mobile-action-bar d-lg-none no-print">
     <div>
         <small class="text-muted d-block" style="font-size: 0.65rem; text-transform: uppercase;">Nota Atual</small>
-        <span
-            class="fw-bold fs-5 {% if nota_segura >= 70 %}text-success{% elif nota_segura >= 50 %}text-warning{% else %}text-danger{% endif %}">
-            {{ nota_segura }}%
+        <span class="fw-bold fs-5 {% if (nota_segura / 10) >= 7.0 %}text-success{% else %}text-danger{% endif %}">
+            {{ '%.1f'|format(nota_segura / 10) }}
         </span>
     </div>
 
@@ -239,20 +238,6 @@
                         <div class="text-dark">
                             {{ (aplicacao.visita_inicio or aplicacao.data_inicio).strftime('%d/%m/%Y') }}
                         </div>
-
-                        <small class="text-muted">
-                            {{ (aplicacao.visita_inicio or aplicacao.data_inicio).strftime('%H:%M') }}
-
-                            {% set fim_real = aplicacao.visita_fim or aplicacao.data_fim %}
-
-                            {% if fim_real %}
-                            - {{ fim_real.strftime('%H:%M') }}
-                            {% else %}
-                            - Em andamento
-                            {% endif %}
-
-
-                        </small>
                     </div>
                     <div class="col-md-3">
                         <label class="small text-muted text-uppercase fw-bold">Status</label>
@@ -357,7 +342,7 @@
                         <button class="accordion-button collapsed px-4 py-3 fw-bold bg-white text-info rounded-4"
                             type="button" data-bs-toggle="collapse" data-bs-target="#collapseDocumentacao"
                             aria-expanded="false" aria-controls="collapseDocumentacao">
-                            <i class="fas fa-file-invoice-dollar me-2"></i> Documentação e Certificações Mensais
+                            <i class="fas fa-file-invoice-dollar me-2"></i> Laudos e Relatório Mensal
                         </button>
                     </h2>
                     <div id="collapseDocumentacao" class="accordion-collapse collapse"
@@ -448,6 +433,7 @@
                                 'icon': 'fa-book', 'color': 'dark'}
                                 ] %}
 
+                                {% if current_user.tipo.name in ['SUPER_ADMIN', 'ADMIN', 'GESTOR', 'AUDITOR'] %}
                                 <div class="col-md-3 mb-3">
                                     <label class="small fw-bold text-muted mb-2 d-block"><i
                                             class="fas fa-file-pdf me-1 text-danger"></i> Baixar Relatório</label>
@@ -456,6 +442,7 @@
                                         <i class="fas fa-download me-1"></i> PDF do Sistema
                                     </a>
                                 </div>
+                                {% endif %}
 
                                 {% for r in relatorios %}
                                 <div class="col-md-3 mb-3">
@@ -675,8 +662,8 @@
                 <div class="card-clean p-4 text-center">
                     <label class="text-muted text-uppercase small fw-bold">Nota Final</label>
                     <div
-                        class="nota-display my-2 {% if nota_segura >= 70 %}text-success{% elif nota_segura >= 50 %}text-warning{% else %}text-danger{% endif %}">
-                        {{ nota_segura }}%
+                        class="nota-display my-2 {% if (nota_segura / 10) >= 7.0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ '%.1f'|format(nota_segura / 10) }}
                     </div>
 
                     {% if aplicacao.status.name != 'FINALIZADA' and aplicacao.status.value != 'finalizada' %}

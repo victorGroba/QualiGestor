@@ -22,7 +22,8 @@ from .views import (
     planos_acao,    # Gestão de NCs
     relatorios,     # Dashboard e Gráficos
     uploads,        # Gestão de Arquivos
-    api             # AJAX e Utilitários JSON
+    api,            # AJAX e Utilitários JSON
+    treinamento     # Novo: Gestão de Treinamentos
 )
 
 # Se tiver algum processador de contexto global (para injetar vars em todos templates)

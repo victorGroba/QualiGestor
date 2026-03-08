@@ -34,8 +34,6 @@
                                 <td class="ps-4">
                                     <div class="fw-bold text-dark">{{ app.data_fim.strftime('%d/%m/%Y') if app.data_fim
                                         else app.data_inicio.strftime('%d/%m/%Y') }}</div>
-                                    <small class="text-muted">{{ app.data_fim.strftime('%H:%M') if app.data_fim else ''
-                                        }}</small>
                                 </td>
                                 <td>
                                     <div class="small">{{ app.aplicador.nome if app.aplicador else '---' }}</div>
