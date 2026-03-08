@@ -425,6 +425,16 @@
                                     {% endif %}
                                 </div>
                             </div>
+                            {% else %}
+                            <!-- Categoria: PLANEJAMENTO ANUAL (JANEIRO) -->
+                            <div class="card mb-4 shadow-sm border-0">
+                                <div class="card-header bg-warning text-dark fw-bold"><i
+                                        class="fas fa-clipboard-check me-2"></i> Planejamento Anual</div>
+                                <div class="card-body row pb-0">
+                                    {{ render_doc_box('Plano de Ação Inicial', 'acao_corretiva_arquivo',
+                                    'acao_corretiva', 'fa-hammer') }}
+                                </div>
+                            </div>
                             {% endif %}
 
                             <!-- Categoria: TREINAMENTO LOCAL -->

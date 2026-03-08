@@ -705,6 +705,9 @@ def upload_documento_mensal(id):
         elif tipo_doc == 'plano_capacitacao':
             app.plano_capacitacao_arquivo = novo_nome
             flash("Plano mensal de capacitação anexado.", "success")
+        elif tipo_doc == 'acao_corretiva':
+            app.acao_corretiva_arquivo = novo_nome
+            flash("Plano de Ação anexado.", "success")
         elif tipo_doc == 'manual':
             app.manual_boas_praticas_arquivo = novo_nome
             flash("Manual de Boas Práticas anexado.", "success")
@@ -732,6 +735,7 @@ def visualizar_documento_mensal(id, tipo):
     elif tipo == 'ordem_servico_1': arquivo = app.ordem_servico_1_arquivo
     elif tipo == 'ordem_servico_2': arquivo = app.ordem_servico_2_arquivo
     elif tipo == 'plano_capacitacao': arquivo = app.plano_capacitacao_arquivo
+    elif tipo == 'acao_corretiva': arquivo = app.acao_corretiva_arquivo
     elif tipo == 'manual': arquivo = app.manual_boas_praticas_arquivo
         
     if not arquivo: abort(404)

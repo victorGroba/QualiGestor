@@ -54,10 +54,16 @@
                                 {% if app.data_inicio.month == 1 %}
                                 <div class="d-flex flex-column">
                                     <span
-                                        class="badge {% if app.fluxograma_arquivo %}badge-success text-white{% else %}badge-light text-muted border{% endif %} text-left"
+                                        class="badge {% if app.fluxograma_arquivo %}badge-success text-white{% else %}badge-light text-muted border{% endif %} text-left mb-1"
                                         style="font-size: 0.85em;">
                                         <i class="fas fa-project-diagram mr-1"></i> Fluxograma: {% if
                                         app.fluxograma_arquivo %}Anexado{% else %}Pendente{% endif %}
+                                    </span>
+                                    <span
+                                        class="badge {% if app.acao_corretiva_arquivo %}badge-success text-white{% else %}badge-light text-muted border{% endif %} text-left"
+                                        style="font-size: 0.85em;">
+                                        <i class="fas fa-hammer mr-1"></i> Plano de Ação: {% if
+                                        app.acao_corretiva_arquivo %}Anexado{% else %}Pendente{% endif %}
                                     </span>
                                 </div>
                                 {% else %}
