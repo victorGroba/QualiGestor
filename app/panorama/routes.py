@@ -150,7 +150,7 @@ def laudos_rancho(avaliado_id):
     aplicacoes = AplicacaoQuestionario.query.filter_by(
         avaliado_id=avaliado_id, 
         status=StatusAplicacao.FINALIZADA
-    ).order_by(desc(AplicacaoQuestionario.data_fim)).all()
+    ).order_by(AplicacaoQuestionario.data_inicio.asc()).all()
     
     return render_template('panorama/laudos_rancho.html',
                            avaliado=avaliado,
@@ -189,7 +189,7 @@ def planilhas_rancho(avaliado_id):
     aplicacoes = AplicacaoQuestionario.query.join(PlanilhaVisita).filter(
         AplicacaoQuestionario.avaliado_id == avaliado_id,
         AplicacaoQuestionario.status == StatusAplicacao.FINALIZADA
-    ).distinct().order_by(desc(AplicacaoQuestionario.data_fim)).all()
+    ).distinct().order_by(AplicacaoQuestionario.data_inicio.asc()).all()
 
     return render_template('panorama/visitas_lista.html',
                            titulo="Planilhas por Visita",
@@ -230,7 +230,7 @@ def relatorios_rancho(avaliado_id):
     aplicacoes = AplicacaoQuestionario.query.filter_by(
         avaliado_id=avaliado_id,
         status=StatusAplicacao.FINALIZADA
-    ).order_by(desc(AplicacaoQuestionario.data_fim)).all()
+    ).order_by(AplicacaoQuestionario.data_inicio.asc()).all()
 
     return render_template('panorama/visitas_lista.html',
                            titulo="Relatórios da Unidade",
