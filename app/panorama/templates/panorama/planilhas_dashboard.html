@@ -38,8 +38,9 @@
                             <label class="form-label small fw-bold">Tipo de Documento <span
                                     class="text-danger">*</span></label>
                             <select name="tipo_documento" class="form-select" required>
-                                <option value="rankingesta">Ranking ESTA</option>
-                                <option value="ranchos_obra">Planilha Ranchos em Obra</option>
+                                <option value="ranchos_obra">Ranchos em obra</option>
+                                <option value="resto_ingesta">Tabela resto ingesta</option>
+                                <option value="classificacao_cardapios">Classificação avaliação dos cardápios</option>
                             </select>
                         </div>
 
@@ -84,8 +85,15 @@
                                         <div class="d-flex align-items-center gap-3">
                                             <i class="fas fa-file-excel text-success fa-2x"></i>
                                             <div>
-                                                <div class="fw-bold text-dark">{{ 'Ranking ESTA' if doc.tipo_documento
-                                                    == 'rankingesta' else 'Ranchos em Obra' }}</div>
+                                                <div class="fw-bold text-dark">
+                                                    {% set nomes = {
+                                                    'ranchos_obra': 'Ranchos em obra',
+                                                    'resto_ingesta': 'Tabela resto ingesta',
+                                                    'classificacao_cardapios': 'Classificação avaliação dos cardápios',
+                                                    'rankingesta': 'Ranking ESTA'
+                                                    } %}
+                                                    {{ nomes.get(doc.tipo_documento, doc.tipo_documento) }}
+                                                </div>
                                                 <small class="text-muted text-truncate d-inline-block"
                                                     style="max-width: 200px;">{{ doc.nome_arquivo }}</small>
                                             </div>
