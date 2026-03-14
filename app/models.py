@@ -369,6 +369,9 @@ class AplicacaoQuestionario(db.Model):
     data_fim = db.Column(db.DateTime) # Log de envio/sincronização
     status = db.Column(SqlEnum(StatusAplicacao), default=StatusAplicacao.EM_ANDAMENTO)
     
+    # Campo para SDAB
+    publicado_sdab = db.Column(db.Boolean, default=False, nullable=False)
+    
     # --- NOVOS CAMPOS: Controle real do tempo de visita (Offline/Manual) ---
     # Estes campos guardam o horário REAL que a consultora estava na loja
     visita_inicio = db.Column(db.DateTime, nullable=True) 

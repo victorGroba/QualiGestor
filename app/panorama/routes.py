@@ -44,6 +44,12 @@ def aplicar_filtro_hierarquia(query, model_avaliado=Avaliado):
     # então a query .in_() já vai filtrar naturalmente. 
     return query.filter(model_avaliado.id.in_(ids_permitidos))
 
+def aplicar_filtro_publicacao(query):
+    """Filtra as aplicações para mostrar apenas as publicadas se o usuário for ADMIN (SDAB)"""
+    if current_user.is_authenticated and current_user.tipo.name == 'ADMIN':
+        return query.filter(AplicacaoQuestionario.publicado_sdab == True)
+    return query
+
 panorama_bp = Blueprint('panorama', __name__, template_folder='templates')
 
 from flask import flash
@@ -147,10 +153,11 @@ def laudos_rancho(avaliado_id):
     query_seguranca = aplicar_filtro_hierarquia(query_seguranca)
     avaliado = query_seguranca.first_or_404()
     
-    aplicacoes = AplicacaoQuestionario.query.filter_by(
+    aplicacoes_query = AplicacaoQuestionario.query.filter_by(
         avaliado_id=avaliado_id, 
         status=StatusAplicacao.FINALIZADA
-    ).order_by(AplicacaoQuestionario.data_inicio.asc()).all()
+    )
+    aplicacoes = aplicar_filtro_publicacao(aplicacoes_query).order_by(AplicacaoQuestionario.data_inicio.asc()).all()
     
     return render_template('panorama/laudos_rancho.html',
                            avaliado=avaliado,
@@ -186,10 +193,11 @@ def planilhas_rancho(avaliado_id):
     
     # Busca aplicações que tenham planilhas vinculadas
     from ..models import PlanilhaVisita
-    aplicacoes = AplicacaoQuestionario.query.join(PlanilhaVisita).filter(
+    aplicacoes_query = AplicacaoQuestionario.query.join(PlanilhaVisita).filter(
         AplicacaoQuestionario.avaliado_id == avaliado_id,
         AplicacaoQuestionario.status == StatusAplicacao.FINALIZADA
-    ).distinct().order_by(AplicacaoQuestionario.data_inicio.asc()).all()
+    )
+    aplicacoes = aplicar_filtro_publicacao(aplicacoes_query).distinct().order_by(AplicacaoQuestionario.data_inicio.asc()).all()
 
     return render_template('panorama/visitas_lista.html',
                            titulo="Planilhas por Visita",
@@ -227,10 +235,11 @@ def relatorios_rancho(avaliado_id):
     avaliado = Avaliado.query.get_or_404(avaliado_id)
     if avaliado.cliente_id != current_user.cliente_id: abort(403)
     
-    aplicacoes = AplicacaoQuestionario.query.filter_by(
+    aplicacoes_query = AplicacaoQuestionario.query.filter_by(
         avaliado_id=avaliado_id,
         status=StatusAplicacao.FINALIZADA
-    ).order_by(AplicacaoQuestionario.data_inicio.asc()).all()
+    )
+    aplicacoes = aplicar_filtro_publicacao(aplicacoes_query).order_by(AplicacaoQuestionario.data_inicio.asc()).all()
 
     return render_template('panorama/visitas_lista.html',
                            titulo="Relatórios da Unidade",
@@ -352,12 +361,13 @@ def dossie(avaliado_id):
     # 🚀 NOVO: Ignorar a primeira aplicação de cada rancho
     ids_excluidos = _obter_ids_primeiras_aplicacoes()
     
-    aplicacoes = AplicacaoQuestionario.query.filter_by(
+    aplicacoes_query = AplicacaoQuestionario.query.filter_by(
         avaliado_id=avaliado_id, 
         status=StatusAplicacao.FINALIZADA
     ).filter(
         ~AplicacaoQuestionario.id.in_(ids_excluidos)
-    ).order_by(desc(AplicacaoQuestionario.data_inicio)).all()
+    )
+    aplicacoes = aplicar_filtro_publicacao(aplicacoes_query).order_by(desc(AplicacaoQuestionario.data_inicio)).all()
 
     # Buscar treinamentos do Rancho
     from ..models import Treinamento
@@ -473,6 +483,7 @@ def api_dashboard_data():
             AplicacaoQuestionario.status == StatusAplicacao.FINALIZADA
         )
         query = aplicar_filtro_hierarquia(query)
+        query = aplicar_filtro_publicacao(query)
 
         # 1. Carrega apenas os relacionamentos diretos (O selectinload foi removido daqui)
         query = query.options(
@@ -644,6 +655,7 @@ def api_export_data():
         AplicacaoQuestionario.status == StatusAplicacao.FINALIZADA
     )
     query = aplicar_filtro_hierarquia(query)
+    query = aplicar_filtro_publicacao(query)
     
     # 🚀 NOVO: Ignorar a primeira aplicação de cada rancho
     ids_excluidos = _obter_ids_primeiras_aplicacoes()

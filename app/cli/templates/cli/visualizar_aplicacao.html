@@ -180,6 +180,15 @@
                     </button>
                 </li>
                 {% endif %}
+                
+                {% if current_user.tipo.name in ['SUPER_ADMIN', 'GESTOR', 'AUDITOR'] %}
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                    <button class="dropdown-item text-primary" onclick="togglePublicacao({{ aplicacao.id }})">
+                        <i class="fas fa-exchange-alt me-2"></i> Alterar Visibilidade SDAB
+                    </button>
+                </li>
+                {% endif %}
             </ul>
         </div>
     </div>
@@ -251,6 +260,19 @@
                             {% endif %}
                         </div>
                     </div>
+
+                    {% if current_user.tipo.name in ['SUPER_ADMIN', 'GESTOR', 'AUDITOR'] %}
+                    <div class="col-md-3 mt-3">
+                        <label class="small text-muted text-uppercase fw-bold">Visibilidade SDAB</label>
+                        <div class="mt-1">
+                            {% if aplicacao.publicado_sdab %}
+                            <span class="badge bg-success border" style="font-size: 0.85rem;"><i class="fas fa-eye pe-1"></i> Publicado</span>
+                            {% else %}
+                            <span class="badge bg-secondary border" style="font-size: 0.85rem;"><i class="fas fa-eye-slash pe-1"></i> Oculto</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
 
@@ -619,6 +641,16 @@
                             <i class="fas fa-clock"></i> Corrigir Horário
                         </a>
                         {% endif %}
+                        
+                        {% if current_user.tipo.name in ['SUPER_ADMIN', 'GESTOR', 'AUDITOR'] %}
+                        <button onclick="togglePublicacao({{ aplicacao.id }})" class="btn btn-outline-primary btn-sm mt-1">
+                            {% if aplicacao.publicado_sdab %}
+                                <i class="fas fa-eye-slash me-1"></i> Ocultar da SDAB
+                            {% else %}
+                                <i class="fas fa-eye me-1"></i> Publicar para SDAB
+                            {% endif %}
+                        </button>
+                        {% endif %}
 
                         <button onclick="excluirAplicacao()"
                             class="btn btn-light text-danger border-danger btn-sm mt-1">
@@ -674,6 +706,27 @@
     function compartilharResultado() {
         const url = window.location.href;
         navigator.clipboard.writeText(url).then(() => alert('Link copiado!'));
+    }
+
+    function togglePublicacao(id) {
+        if (confirm('Deseja alterar a visibilidade desta auditoria para a SDAB?')) {
+            fetch(`/cli/aplicacao/${id}/toggle-publicacao`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' }
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.sucesso) {
+                    location.reload();
+                } else {
+                    alert('Erro: ' + (data.erro || 'Falha ao alterar status'));
+                }
+            })
+            .catch(e => {
+                console.error(e);
+                alert('Erro de comunicação.');
+            });
+        }
     }
 </script>
 {% endblock %}

@@ -47,6 +47,7 @@ def listar_aplicacoes():
         status = request.args.get('status')
         data_inicio = request.args.get('data_inicio')
         data_fim = request.args.get('data_fim')
+        mes_ano = request.args.get('mes_ano') # Formato 'YYYY-MM'
         page = request.args.get('page', 1, type=int)
 
         # Query Base (Filtra pelo Cliente do Usuário)
@@ -101,6 +102,15 @@ def listar_aplicacoes():
                 query = query.filter(AplicacaoQuestionario.data_inicio <= dt_fim)
             except: pass
 
+        if mes_ano:
+            try:
+                ano, mes = map(int, mes_ano.split('-'))
+                query = query.filter(
+                    extract('year', AplicacaoQuestionario.data_inicio) == ano,
+                    extract('month', AplicacaoQuestionario.data_inicio) == mes
+                )
+            except: pass
+
         # Paginação e Ordenação (Mais recentes primeiro)
         aplicacoes = query.order_by(AplicacaoQuestionario.data_inicio.desc()).paginate(
             page=page, per_page=20, error_out=False
@@ -122,7 +132,8 @@ def listar_aplicacoes():
                                  'questionario_id': questionario_id, 
                                  'status': status, 
                                  'data_inicio': data_inicio, 
-                                 'data_fim': data_fim
+                                 'data_fim': data_fim,
+                                 'mes_ano': mes_ano
                              })
 
     except Exception as e:
@@ -827,6 +838,66 @@ def excluir_aplicacao(id):
         flash(f"Erro: {str(e)}", "danger")
         
     return redirect(url_for('cli.listar_aplicacoes'))
+
+@cli_bp.route('/aplicacao/<int:id>/toggle-publicacao', methods=['POST'])
+@login_required
+@csrf.exempt
+def toggle_publicacao_sdab(id):
+    """Alterna o status de publicação para a SDAB (Visão Panorama)."""
+    try:
+        app = AplicacaoQuestionario.query.get_or_404(id)
+        if app.avaliado.cliente_id != current_user.cliente_id: 
+            return jsonify({'erro': 'Acesso negado'}), 403
+            
+        if current_user.tipo.name not in ['SUPER_ADMIN', 'GESTOR', 'AUDITOR']:
+            return jsonify({'erro': 'Sem permissão para alterar visibilidade'}), 403
+            
+        app.publicado_sdab = not app.publicado_sdab
+        db.session.commit()
+        
+        status_str = "Publicado" if app.publicado_sdab else "Oculto"
+        log_acao(f"Alterou publicação SDAB da app {id} para {status_str}", None, "Aplicacao", id)
+        
+        return jsonify({'sucesso': True, 'publicado': app.publicado_sdab})
+    except Exception as e:
+        return jsonify({'erro': str(e)}), 500
+
+@cli_bp.route('/aplicacoes/bulk-toggle-publicacao', methods=['POST'])
+@login_required
+@csrf.exempt
+def bulk_toggle_publicacao_sdab():
+    """Altera o status de publicação em lote para a SDAB (Visão Panorama)."""
+    try:
+        if current_user.tipo.name not in ['SUPER_ADMIN', 'GESTOR', 'AUDITOR']:
+            return jsonify({'erro': 'Sem permissão para alterar visibilidade'}), 403
+            
+        data = request.get_json() or {}
+        ids = data.get('ids', [])
+        acao_publicar = data.get('acao', False) # True para publicar, False para ocultar
+        
+        if not ids:
+            return jsonify({'erro': 'Nenhum ID fornecido'}), 400
+            
+        # Filtra para garantir que apenas muda as do cliente atual
+        apps = AplicacaoQuestionario.query.filter(
+            AplicacaoQuestionario.id.in_(ids),
+            AplicacaoQuestionario.avaliado.has(cliente_id=current_user.cliente_id)
+        ).all()
+        
+        count = 0
+        for app in apps:
+            app.publicado_sdab = acao_publicar
+            count += 1
+            
+        db.session.commit()
+        
+        status_str = "Publicado" if acao_publicar else "Oculto"
+        log_acao(f"Alterou publicação SDAB de {count} aplicações em lote para {status_str}", None, "Aplicacao", 0)
+        
+        return jsonify({'sucesso': True, 'count': count})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'erro': str(e)}), 500
 
 # ===================== FERRAMENTAS AUXILIARES E DIAGNÓSTICO =====================
 

@@ -53,6 +53,14 @@
         <div class="card-body bg-light">
             <form method="GET" action="{{ url_for('cli.listar_aplicacoes') }}" class="row g-3">
                 
+                <div class="col-md-4">
+                    <label class="form-label small fw-bold">Buscar Participante ou Aplicador</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
+                        <input type="text" id="buscaTextoFront" class="form-control" placeholder="Digite para filtrar rapidamente..." autocomplete="off">
+                    </div>
+                </div>
+
                 <div class="col-md-3">
                     <label class="form-label small fw-bold">Avaliado / Rancho</label>
                     <select name="avaliado_id" class="form-select form-select-sm">
@@ -87,22 +95,47 @@
                     </select>
                 </div>
 
-                <div class="col-md-2">
-                    <label class="form-label small fw-bold">Data Início</label>
-                    <input type="date" name="data_inicio" class="form-control form-control-sm" value="{{ filtros.data_inicio }}">
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold">Mês/Ano</label>
+                    <input type="month" name="mes_ano" class="form-control form-control-sm" value="{{ filtros.mes_ano if filtros.mes_ano else '' }}">
                 </div>
 
-                <div class="col-md-2 d-flex align-items-end">
-                    <button type="submit" class="btn btn-sm btn-primary w-100 me-1">
-                        <i class="fas fa-search me-1"></i> Filtrar
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold">Data Início</label>
+                    <input type="date" name="data_inicio" class="form-control form-control-sm" value="{{ filtros.data_inicio if filtros.data_inicio else '' }}">
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold">Data Fim</label>
+                    <input type="date" name="data_fim" class="form-control form-control-sm" value="{{ filtros.data_fim if filtros.data_fim else '' }}">
+                </div>
+
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-sm btn-primary w-100 me-2">
+                        <i class="fas fa-filter me-1"></i> Filtrar
                     </button>
-                    <a href="{{ url_for('cli.listar_aplicacoes') }}" class="btn btn-sm btn-outline-secondary" title="Limpar">
-                        <i class="fas fa-times"></i>
+                    <a href="{{ url_for('cli.listar_aplicacoes') }}" class="btn btn-sm btn-outline-secondary w-100" title="Limpar Filtros">
+                        <i class="fas fa-eraser me-1"></i> Limpar
                     </a>
                 </div>
             </form>
         </div>
     </div>
+
+    <!-- BULK ACTIONS BAR (HIDDEN BY DEFAULT) -->
+    {% if current_user.tipo.name in ['SUPER_ADMIN', 'GESTOR', 'AUDITOR'] %}
+    <div class="d-flex justify-content-between align-items-center mb-3 d-none bg-white p-3 rounded shadow-sm border border-primary border-opacity-25" id="bulkActionsContainer">
+        <span class="text-primary fw-bold"><i class="fas fa-check-square me-2"></i><span id="selectedCount">0</span> auditoria(s) selecionada(s)</span>
+        <div>
+            <button class="btn btn-sm btn-success fw-bold shadow-sm me-2" onclick="bulkToggle(true)">
+                <i class="fas fa-eye me-1"></i> Publicar para SDAB
+            </button>
+            <button class="btn btn-sm btn-secondary fw-bold shadow-sm" onclick="bulkToggle(false)">
+                <i class="fas fa-eye-slash me-1"></i> Ocultar da SDAB
+            </button>
+        </div>
+    </div>
+    {% endif %}
 
     <div class="card shadow-sm border-0">
         <div class="card-body p-0">
@@ -110,7 +143,14 @@
                 <table class="table table-hover align-middle mb-0">
                     <thead class="bg-light">
                         <tr>
+                            {% if current_user.tipo.name in ['SUPER_ADMIN', 'GESTOR', 'AUDITOR'] %}
+                            <th class="ps-4 py-3" style="width: 40px;">
+                                <input class="form-check-input border-secondary" type="checkbox" id="selectAllCheckbox">
+                            </th>
+                            <th class="py-3 text-secondary text-uppercase small fw-bold">ID / Data</th>
+                            {% else %}
                             <th class="ps-4 py-3 text-secondary text-uppercase small fw-bold">ID / Data</th>
+                            {% endif %}
                             <th class="py-3 text-secondary text-uppercase small fw-bold">Avaliado (Rancho)</th>
                             <th class="py-3 text-secondary text-uppercase small fw-bold">Questionário</th>
                             <th class="py-3 text-secondary text-uppercase small fw-bold">Aplicador</th>
@@ -120,8 +160,17 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for app in aplicacoes.items %} <tr>
+                        {% for app in aplicacoes.items %} 
+                        {% set aplicador_nome = app.aplicador.nome if app.aplicador else 'Sistema' %}
+                        <tr class="linha-aplicacao" data-busca="{{ (app.avaliado.nome ~ ' ' ~ aplicador_nome)|lower }}">
+                            {% if current_user.tipo.name in ['SUPER_ADMIN', 'GESTOR', 'AUDITOR'] %}
                             <td class="ps-4">
+                                <input class="form-check-input border-secondary row-checkbox" type="checkbox" value="{{ app.id }}">
+                            </td>
+                            <td>
+                            {% else %}
+                            <td class="ps-4">
+                            {% endif %}
                                 <div class="fw-bold text-dark">#{{ app.id }}</div>
                                 <div class="text-muted small">
                                     <i class="far fa-calendar-alt me-1"></i>
@@ -186,6 +235,16 @@
                                         <i class="fas fa-spinner fa-spin me-1"></i>Em Andamento
                                     </span>
                                 {% endif %}
+                                
+                                {% if current_user.tipo.name in ['SUPER_ADMIN', 'GESTOR', 'AUDITOR'] %}
+                                <div class="mt-2 text-center">
+                                    {% if app.publicado_sdab %}
+                                        <span class="badge bg-success" style="font-size: 0.75rem;" title="Publicado para SDAB"><i class="fas fa-eye"></i> SDAB</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary" style="font-size: 0.75rem;" title="Oculto da SDAB"><i class="fas fa-eye-slash"></i> Oculto</span>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
                             </td>
 
                             <td class="text-end pe-4">
@@ -214,6 +273,15 @@
                                             </a>
                                         </li>
                                         
+                                        {% if current_user.tipo.name in ['SUPER_ADMIN', 'GESTOR', 'AUDITOR'] %}
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <button class="dropdown-item text-primary" onclick="togglePublicacao({{ app.id }})">
+                                                <i class="fas fa-exchange-alt me-2"></i>Visibilidade SDAB
+                                            </button>
+                                        </li>
+                                        {% endif %}
+                                        
                                         {% if status_name in ['FINALIZADA', 'finalizada'] %}
                                         <li>
                                             <a class="dropdown-item" href="{{ url_for('cli.gerenciar_nao_conformidades', id=app.id) }}">
@@ -240,7 +308,7 @@
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="7" class="text-center py-5">
+                            <td colspan="8" class="text-center py-5">
                                 <div class="text-muted">
                                     <i class="fas fa-search fa-3x mb-3 text-secondary opacity-50"></i>
                                     <h5>Nenhuma aplicação encontrada</h5>
@@ -331,6 +399,113 @@
                 }
             })
             .catch(err => alert("Erro de conexão"));
+        }
+    }
+
+    // LÓGICA DE AÇÕES EM LOTE
+    document.addEventListener('DOMContentLoaded', function() {
+        const selectAll = document.getElementById('selectAllCheckbox');
+        const rowCheckboxes = document.querySelectorAll('.row-checkbox');
+        const bulkContainer = document.getElementById('bulkActionsContainer');
+        const selectedCountEl = document.getElementById('selectedCount');
+
+        if (!selectAll || !bulkContainer) return;
+
+        function updateBulkActions() {
+            const checkedCount = document.querySelectorAll('.row-checkbox:checked').length;
+            selectedCountEl.textContent = checkedCount;
+            if (checkedCount > 0) {
+                bulkContainer.classList.remove('d-none');
+            } else {
+                bulkContainer.classList.add('d-none');
+            }
+            selectAll.checked = (checkedCount === rowCheckboxes.length && rowCheckboxes.length > 0);
+        }
+
+        selectAll.addEventListener('change', function() {
+            const isChecked = this.checked;
+            rowCheckboxes.forEach(cb => cb.checked = isChecked);
+            updateBulkActions();
+        });
+
+        rowCheckboxes.forEach(cb => {
+            cb.addEventListener('change', updateBulkActions);
+        });
+
+        // FILTRO DINÂMICO DE TEXTO (FRONTEND)
+        const buscaInput = document.getElementById('buscaTextoFront');
+        if (buscaInput) {
+            buscaInput.addEventListener('input', function() {
+                const termo = this.value.toLowerCase().trim();
+                const linhas = document.querySelectorAll('.linha-aplicacao');
+                
+                linhas.forEach(linha => {
+                    const textoBusca = linha.getAttribute('data-busca') || '';
+                    if (textoBusca.includes(termo)) {
+                        linha.style.display = '';
+                    } else {
+                        linha.style.display = 'none';
+                    }
+                });
+                
+                // Desmarca o "Selecionar todos" ao filtrar, por segurança
+                if(selectAll) selectAll.checked = false;
+                updateBulkActions();
+            });
+            
+            // Impede que apertar 'Enter' no campo de busca envie o formulário
+            buscaInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                }
+            });
+        }
+    });
+
+    function bulkToggle(publicar) {
+        const ids = Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => parseInt(cb.value));
+        if (ids.length === 0) return;
+        
+        const acaoStr = publicar ? "PUBLICAR" : "OCULTAR";
+        if (confirm(`Deseja ${acaoStr} as ${ids.length} auditorias selecionadas na visão da SDAB?`)) {
+            fetch(`/cli/aplicacoes/bulk-toggle-publicacao`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
+                body: JSON.stringify({ ids: ids, acao: publicar })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.sucesso) {
+                    location.reload();
+                } else {
+                    alert('Erro: ' + (data.erro || 'Falha ao alterar status'));
+                }
+            })
+            .catch(e => {
+                console.error(e);
+                alert('Erro de comunicação.');
+            });
+        }
+    }
+
+    function togglePublicacao(id) {
+        if (confirm('Deseja alterar a visibilidade desta auditoria para a SDAB?')) {
+            fetch(`/cli/aplicacao/${id}/toggle-publicacao`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.sucesso) {
+                    location.reload();
+                } else {
+                    alert('Erro: ' + (data.erro || 'Falha ao alterar status'));
+                }
+            })
+            .catch(e => {
+                console.error(e);
+                alert('Erro de comunicação.');
+            });
         }
     }
 </script>
