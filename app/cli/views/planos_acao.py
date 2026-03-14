@@ -327,6 +327,11 @@ def gerenciar_acoes_corretivas(id):
                 if acao_existente.descricao_nao_conformidade != texto_atualizado:
                     acao_existente.descricao_nao_conformidade = texto_atualizado
                     migrou_algo = True
+                
+                # CORREÇÃO: Garante que o plano sugerido pela consultora/IA seja salvo
+                if acao_existente.sugestao_correcao != resp.plano_acao:
+                    acao_existente.sugestao_correcao = resp.plano_acao
+                    migrou_algo = True
         else:
             # CENÁRIO B: Não é mais NC (virou Sim ou N.A.) mas tem ação -> EXCLUIR
             if acao_existente:

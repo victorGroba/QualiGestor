@@ -1,0 +1,70 @@
+# 🚀 QualiGestor - Manual de Apresentação SDAB
+
+Este documento foi preparado para orientar a apresentação oficial do **QualiGestor** para o time da SDAB (Subdiretoria de Abastecimento). Ele serve como um guia das funcionalidades, além de um manual rápido para os gestores e militares utilizarem o painel de auditorias.
+
+---
+
+## 1. O que é o QualiGestor?
+O QualiGestor é uma plataforma de Governança, Risco e Conformidade desenvolvida sob medida pela **Matos & Matos** para o monitoramento contínuo dos Ranchos da rede SDAB. Ele moderniza o processo de auditoria, saindo das antigas planilhas estáticas para um painel dinâmico, baseado em dados (Data-Driven), garantindo rastreabilidade, padronização e tomada de decisão ágil.
+
+## 2. Acessando a Plataforma
+1. O acesso à plataforma é feito exclusivamente pela web através do endereço: `https://qualigestor.online`
+2. Os militares/gestores da SDAB usam suas próprias credenciais (E-mail e Senha).
+3. **Perfil de Segurança (Visualizador):** O perfil da SDAB é focado em inteligência de dados. A alimentação do sistema (via aplicativo de campo e anexos de retaguarda) é feita inteiramente pelos auditores e especialistas da Matos & Matos. A SDAB audita a integridade e avalia o crescimento, sem se preocupar em realizar uploads manuais de laudos ou planilhas.
+
+---
+
+## 3. Visão Central: O Dashboard Panorama
+Logo após o acesso, a SDAB se depara com a tela **Panorama (Dashboard)**, o coração do sistema.
+
+### 📍 Painel Geográfico (Mapa de Unidades)
+- O mapa exibe pinos correspondentes a todos os Ranchos / GAPs mapeados no Brasil.
+- As cores interativas dos botões (🟢 Excelente, 🟡 Atenção, 🔴 Crítico) indicam imediatamente, de modo visual, as notas de conformidade geradas nas últimas auditorias.
+
+### 📊 Indicadores Principais (KPIs)
+Os "cards" superiores destacam os números vitais do mês:
+- **Aplicações:** Quantidade total de auditorias/checklists preenchidos no período selecionado.
+- **Média Geral:** A nota consolidada (média) da rede toda.
+- **Tendência:** Comparações indicam se a rede melhorou ou piorou em relação aos meses anteriores.
+- **Críticas / Conformidades:** Contador direto de "Não Conformidades" graves (Peso Crítico) vs. conformidades mapeadas.
+
+### 📈 Análises Inteligentes & Inteligência Estratégica
+- **Ranking (Top 10):** Lista as organizações (Ranchos) com as melhores pontuações do mês, promovendo excelência por meritocracia.
+- **Performance Geral e Demonstrações de Categorias:** Gráficos que estratificam os dados por área (Exemplo: Higiene, Estrutura, Gestão de Resíduos, Administrativo), permitindo que a SDAB identifique *defeitos sistêmicos* — por exemplo, se a falha em "Higiene" for uma constante em mais de 70% da rede.
+
+> [!TIP]
+> **Dica de Apresentação:** Filtre o dashboard ali mesmo na tela usando o ano, o mês ou um questionário específico e mostre todos os gráficos atualizando ao mesmo tempo em menos de 1 segundo!
+
+---
+
+## 4. Mergulhando nos Dados: Dossiê Simplificado (Por Unidade)
+Dentro dos gráficos (ou acessando pelo menu), é possível clicar em qualquer Unidade e abrir o **Dossiê**.
+
+- **Resumo do Avaliado:** Mostra o GAP a qual pertence, o Gerente/Nutricionista responsável e a data da última auditoria.
+- **Evolução Histórica (Linha do Tempo):** Na mesma tela, a SDAB vê o histórico deste Rancho nos últimos 6 meses. Ele estava caindo de rendimento? Cresceu bruscamente após o Plano de Ação? Tudo fica grafado nesta tela.
+- **Não Conformidades Recentes:** Destaca exatamente as perguntas marcadas com "Não".
+- **Fotos e Provas Documentais:** Aquilo que as auditoras Matos & Matos enxergaram no local ("Chão sujo", "Armazenamento incorreto") está fotografado ali no sistema e geo-referenciado, sem espaço para contestações.
+
+---
+
+## 5. Documentação Mensal (O "Armário Virtual")
+Na barra lateral, em **Laudos**, o sistema revoluciona o compliance documental. Nele a SDAB encontra, mês a mês (em ordem cronológica):
+1. **Status Geral:** Mostra (ex: `Laudos: 4/4`, `Relatórios: 3/3`).
+2. **Gerenciar Arquivos:** O botão "Gerenciar Arquivos Deste Mês" abre os originais em `.pdf` atrelados à visita daquele mês correspondente:
+   - **Garantia de Qualidade:** Laudo Ambiental, Laudo de Alimentos, Análises Físico-Química e Microbiológica, Avaliação de Cardápios, Relatórios de Monitoramento Térmico e de Ordem de Serviço, Controle Integrado de Pragas.
+3. **Plano de Ação:** Indica a elaboração das medidas propostas para fechar as "não-conformidades" daquela auditoria mensal exata.
+4. **Planejamento Anual e Fluxograma:** Em "Janeiro / Planejamento", ficam os documentos estruturais para o ano de início do ciclo.
+
+---
+
+## 6. Acesso Centralizado (Treinamentos e Planilhas Globais)
+Por fim, no menu lateral tem-se acesso à aba **Treinamento** e **Planilhas**:
+
+- **Treinamentos Gerais e Locais:** Material gerencial da Matos&Matos e as "Listas de Presença" assinadas e anexadas presencialmente pela consultora em nome do rancho visitado.
+- **Planilhas Consolidadas:** Espaço único onde a SDAB acessa dados integrados por amostragem: *Ranchos em Obra, Tabela Resto-Ingesta, Classificação da Avaliação dos Cardápios*, fechando o escopo administrativo da apresentação.
+
+---
+
+### Dica Prática para a Reunião Pessoal de Amanhã
+*Abra uma aba aba anônima (ou simule o acesso de um Militar Visualizador) e percorra suavemente do **Painel Macro (O Dashboard e Mapa)** até o **Dossiê Micro (Unidade e PDF)**.*
+*Isso mostra que a plataforma atende tanto à patente superiora que quer analisar O RESULTADO RÁPIDO, quanto o fiscal/gestor operacional que necessita ler o Relatório detalhado.*

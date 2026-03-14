@@ -530,8 +530,8 @@
         {% endif %}
         {# --- LÓGICA HÍBRIDA PARA O PDF --- #}
         {% set acao_nova = aplicacao.acoes_corretivas.filter_by(pergunta_id=resposta.pergunta.id).first() %}
-        {% set texto_final = acao_nova.acao_realizada if acao_nova and acao_nova.acao_realizada else
-        (acao_nova.sugestao_correcao if acao_nova else resposta.plano_acao) %}
+        {% set texto_final = acao_nova.acao_realizada if (acao_nova and acao_nova.acao_realizada) else
+        (acao_nova.sugestao_correcao if (acao_nova and acao_nova.sugestao_correcao) else resposta.plano_acao) %}
 
         {% if texto_final %}
         <span class="q-obs"

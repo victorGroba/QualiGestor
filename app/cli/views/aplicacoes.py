@@ -937,6 +937,9 @@ def gerar_acoes_corretivas_automatico(aplicacao_id):
                     texto_atualizado = resposta.observacao or f"Item avaliado como '{resposta.resposta}'"
                     if acao_existente.descricao_nao_conformidade != texto_atualizado:
                         acao_existente.descricao_nao_conformidade = texto_atualizado
+                    
+                    if acao_existente.sugestao_correcao != resposta.plano_acao:
+                        acao_existente.sugestao_correcao = resposta.plano_acao
             else:
                 # SE NÃO É MAIS NC (Virou Sim, N/A, etc): Remove a ação se existir
                 if acao_existente:
