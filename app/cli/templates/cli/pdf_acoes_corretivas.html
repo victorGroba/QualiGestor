@@ -218,12 +218,23 @@
                 </td>
 
                 <td>
-                    {% if item.solucao %}
+                    {% if item.acao_realizada %}
                         <div class="solucao-box">
-                            <strong>Ação Definida:</strong><br>
-                            {{ item.solucao }}
+                            <strong>Ação Executada:</strong><br>
+                            {{ item.acao_realizada }}
                         </div>
+                    {% elif item.sugestao %}
+                        <div class="solucao-box" style="background-color: #FEF9C3; border-left-color: #EAB308; color: #854D0E;">
+                            <strong>Ação Planejada / Sugerida:</strong><br>
+                            {{ item.sugestao }}
+                        </div>
+                    {% else %}
+                        <div style="color: #94A3B8; font-style: italic; background: #F8FAFC; padding: 10px; border: 1px dashed #CBD5E1; border-radius: 4px; text-align: center;">
+                            Aguardando definição de plano de ação...
+                        </div>
+                    {% endif %}
 
+                    {% if item.sugestao or item.acao_realizada %}
                         {% if item.status == 'Realizado' %}
                             <div class="status-resolvido">
                                 ✔ RESOLVIDO
@@ -233,10 +244,6 @@
                                 ⚠ PENDENTE
                             </div>
                         {% endif %}
-                    {% else %}
-                        <div style="color: #94A3B8; font-style: italic; background: #F8FAFC; padding: 10px; border: 1px dashed #CBD5E1; border-radius: 4px; text-align: center;">
-                            Aguardando definição de plano de ação...
-                        </div>
                     {% endif %}
                 </td>
             </tr>
